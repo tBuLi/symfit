@@ -1,106 +1,81 @@
 Project Goals
 =============
 ## Why this Project?
-Existing fitting modules are not pythonic in their API and can be difficult for humans to use.
+Existing fitting modules are not very pythonic in their API and can be difficult for humans to use. This project aims to marry the power of scipy.optimize with SymPy to create an highly readable and easy to use fitting package which works for projects of any scale.
 
-### Immidiate Goals
-- High code readability and a very pythonic feel.
-- Efficient Fitting
-- Multivariant fitting with bounds and constraints using the overkill scipy.optimize.minimize.
-
-### Long Term Goals
-- Monte-Carlo
-- Error Propagation using the uncertainties package
-
-
-Function Examples
-=================
+The example below shows how easy it is to define a model that we could fit to.
 ```python
-from functions.api import Gaussian
+from symfit.core.api import Parameter, Variable
+import sympy
 
-a = Gaussian(mu = 1.0, sig = 1.0)
-print a(3) # a eveluated at 3
-
-# Adition of distributions
-a = Gaussian(mu = 1.0, sig = 1.0) + Gaussian(mu = 3.0, sig = 1.0)
-print a(3)
-
-# Addition or multiplication with a constant:
-a = 5.0 + 1.5 * Gaussian(mu = 1.0, sig = 1.0)
+x0 = Parameter('x0')
+sig = Parameter('sig')
+x = Variable('x')
+gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))
 ```
 
-Fitting Example
-===============
+Lets fit this model to some generated data.
+
 ```python
-from functions.fit.api import Fit
-from functions.api import Gaussian
-import numpy as np
+from symfit.core.api import Fit
 
-# Random x, y in certain range
-x = np.random.random(...)
-y = Gaussian(mu=1.0, sig=1.0)(x)
+x = # Some numpy array of x values
+y = # Some numpy array of y values, gaussian distribution
+fit = Fit(gaussian, x, y)
+fit_result = fit.execute()
+```
+Printing ```fit_result``` will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.
 
-# Hazard a guess:
-model = Gaussian(mu=2.0, sig=0.5)
-fit = Fit(model, x, y)
-fit.execute()
+Adding guesses for ```Parameter```'s is simple. Therefore, let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this:
+
+```python
+from symfit.core.api import Fit, Parameter, Variable
+import sympy
+
+x0 = Parameter('x0', 2.0, min=1.5, max=2.5)
+sig = Parameter('sig')
+x = Variable('x')
+gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))
+
+x = # Some numpy array of x values
+y = # Some numpy array of y values, gaussian distribution
+fit = Fit(gaussian, x, y)
+fit_result = fit.execute()
 ```
 
-Now let's try something a bit more challenging:
-Fitting with bounds we were able to guess by for example plotting the data. In order to do this we need a ```Parameter``` object, the most versatile building block of this package.
-```python
-# Hazard a guess:
-model = Gaussian(mu=Parameter(1.0, min=0.0, max=2.0), sig=0.5)
-fit = Fit(model, x, y)
-fit.execute()
-```
-The ```Parameter``` options do not stop there. If a parameter is completely fixed during the fitting, you could use ```Parameter(1.0, fixed=True)``` which is mutually exclusive with the ```min, max``` keywords.
+The ```Parameter``` options do not stop there. If a parameter is completely fixed during the fitting, we could use ```Parameter('x0', 2.0, fixed=True)``` which is mutually exclusive with the ```min, max``` keywords.
 
-Furthermore, it can be used when a certain parameter appears in multiple places in the model, or they are in some other way related. Take the following example:
+Using this paradigm it is easy to buil multivariable models and fit to them:
+
 ```python
-# For fitting some parameter might not be independent.
-from functions.fitting.api import Parameter
-x0 = Paramater(1.0)
-model = Gaussian(mu = x0, sig = 1.0) + Gaussian(mu = x0, sig = 2.0)
-# The parameter basically produces a pointer in python.
-```
-Or even more extreme:
-```python
-model = Gaussian(mu = x0, sig = 1.0) + Gaussian(mu = 2 * x0, sig = 2.0)
+from symfit.core.api import Parameter, Variable
+import sympy
+
+x0 = Parameter('x0')
+y0 = Parameter('x0')
+sig_x = Parameter('sig_x')
+sig_y = Parameter('sig_y')
+x = Variable('x')
+y = Variable('y')
+gaussian_2d = # Comming soon
 ```
 
 How Does it Work?
 =================
 
 ####```AbstractFunction```'s
-Things like ```Gaussian``` are all subclasses of ```AbstractFunction```, which transforms under mathematical operations as one would expect. Most ```AbstractFunction``` objects have only one ```Variable``` x and are therefore callable objects as we have seen in the examples. (e.g. ```Gaussian(mu=1.0, sig=1.0)(x=3)```)
-
-Performing mathematical operations on ```AbstractFunction``` subclasses results in a new instance of ```AbstractFunction```, containing as its .func method the result of combining the previous two according to the specified operator.
+Comming soon
 
 ####```Argument```'s
-Only two kinds input ```Argument``` are defined for a model: ```Variable``` and ```Parameter```. When doing something like 
-```python
-# Addition or multiplication with a constant:
-a = 5.0 + 1.5 * Gaussian(mu = 1.0, sig = 1.0)
-```
-It appears as though we are adding floats to the Gaussian. But addition and multiplication are overloaded in such a way that in reality, this expression returns a new ```AbstractFunction``` object which is equivalent to doing 
-```python
-Paramater(5.0, fixed=True) + Paramater(1.5, fixed=True) * Gaussian(mu=Paramater(1.0, fixed=True), sig=Paramater(1.0, fixed=True))
-```
-Multi-Variable
-==============
-To do multi-variable fitting, we must explicitly declare our variables.
-```python
-from functions.api import Exp
-x = Variable()
-y = Variable()
-model = 2*x*y + y*Exp(k=1.0, x=x)
-fit = Fit(model, x_data, y_data, z_data)
-fit.execute()
-```
-API
-===
+Only two kinds input ```Argument``` are defined for a model: ```Variable``` and ```Parameter```.
 
-Variable(Argument)
+### Immidiate Goals
+- High code readability and a very pythonic feel.
+- Efficient Fitting
+- Fitting algorithms for any scale using scipy.optimize. From typical least squares fitting to Multivariant fitting with bounds and constraints using the overkill scipy.optimize.minimize.
+
+### Long Term Goals
+- Monte-Carlo
+- Error Propagation using the uncertainties package
 
 type: any python-type, such as float or int. default = float. 
