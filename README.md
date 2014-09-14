@@ -112,10 +112,14 @@ constraints = [
     y - 1 >= 0,
 ]
 
-fit = Minimize(model, xdata, ydata, constraints=constraints)
+fit = Minimize(model, constraints=constraints)
 fit.execute()
 ```
-Done! symfit will determine all derivatives automatically, no need for you to think about it.
+Done! symfit will determine all derivatives automatically, no need for you to think about it. In order to be consistent with the name in SciPy, ```Minimize``` minimizes with respect to the variables, without taking into acount any data points. To minimize the parameter while constraining the variables, use ```MinimizeParameters``` instead.
+
+```python
+fit = MinimizeParameters(model, xdata, ydata, constraints=constraints)
+```
 
 ####Optional Arguments
 
