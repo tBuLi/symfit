@@ -104,7 +104,7 @@ def f(x, {0}):
         """
         return [param.value for param in self.params]
 
-    def execute(self):
+    def execute(self, *args, **kwargs):
         """
         Run fitting and initiate a fit report with the result.
         :return: FitResults object
@@ -120,14 +120,10 @@ def f(x, {0}):
             Dfun=self.get_jacobian,
             col_deriv=1,
             full_output=True,
+            *args,
+            **kwargs
         )
 
-        # result = leastsq(
-        #     self.error,
-        #     self.get_initial_guesses(),
-        #     args=(self.scipy_func, self.xdata, self.ydata),
-        #     # bounds=self.Func.get_bounds(),
-        # )
         self.fit_results = FitResults(self.params, popt, cov_x)
         return self.fit_results
 
