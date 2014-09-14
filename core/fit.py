@@ -10,17 +10,26 @@ class FitResults(HasStrictTraits):
     params = List(Parameter)
     popt = Array
     pcov = Array
+    infodic = Dict
+    mesg = Str
+    ier = Int
 
-    def __init__(self, params, popt, pcov, *args, **kwargs):
-        """
-        :param params:
-        :param popt: Optimal fit parameters.
-        :param pcov: Errors in said parameters.
-        """
-        self.params = params
-        self.popt = popt
-        self.pcov = pcov
-        super(FitResults, self).__init__(*args, **kwargs)
+    # def __init__(self, *args, **kwargs):
+    #     """
+    #     :param params:
+    #     :param popt: Optimal fit parameters.
+    #     :param pcov: Errors in said parameters.
+    #     """
+    #     super(FitResults, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        res = 'Parameter Value        Standard Deviation\n'
+        for key, p in enumerate(self.params):
+            res += '{:10}{:e} {:e}\n'.format(p.name, self.popt[key], np.sqrt(self.pcov[key, key]), width=20)
+
+        res += 'Fitting status message: {}\n'.format(self.mesg)
+        res += 'Number of iterations:   {}\n'.format(self.infodic['nfev'])
+        return res
 
 
 class Fit(HasStrictTraits):
@@ -110,7 +119,6 @@ def f(x, {0}):
         :return: FitResults object
         """
         from scipy.optimize import leastsq
-        # popt, pcov = curve_fit(self.scipy_func, self.xdata, self.ydata, )
 
         popt, cov_x, infodic, mesg, ier = leastsqbound(
             self.error,
@@ -124,7 +132,12 @@ def f(x, {0}):
             **kwargs
         )
 
-        self.fit_results = FitResults(self.params, popt, cov_x)
+        s_sq = (infodic['fvec']**2).sum()/(len(self.ydata)-len(popt))
+        pcov =  cov_x*s_sq
+        self.fit_results = FitResults(
+            params=self.params,
+            popt=popt, pcov=pcov, infodic=infodic, mesg=mesg, ier=ier
+        )
         return self.fit_results
 
     def error(self, p, func, x, y):
