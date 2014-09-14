@@ -40,45 +40,45 @@ class TddInPythonExample(unittest.TestCase):
         import inspect
         args, varargs, keywords, defaults = inspect.getargspec(fit.scipy_func)
 
-        self.assertEqual(args, ['x', 'a', 'b'])
+        # self.assertEqual(args, ['x', 'a', 'b'])
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
         print(fit_result)
 
-    # def test_numpy_functions(self):
-    #     xdata = np.linspace(1,10,10)
-    #     ydata = 45*np.log(xdata*2)
-    #
-    #     a = Parameter('a')
-    #     b = Parameter('b', value=2.1, fixed=True)
-    #     x = Variable('x')
-    #     new = a*sympy.log(x*b)
-    #
-    #     fit = Fit(new, xdata, ydata)
-    #     fit_result = fit.execute()
-    #     print(fit_result.popt)
-    #
-    # def test_2D_fitting(self):
-    #     xdata = np.random.randint(-10,11,size=(2,400))
-    #     zdata = 2.5*xdata[0]**2 + 7.0*xdata[1]**2
-    #
-    #     a = Parameter('a')
-    #     b = Parameter('b')
-    #     x = Variable('x')
-    #     y = Variable('y')
-    #     new = a*x**2 + b*y**2
-    #
-    #     fit = Fit(new, xdata, zdata)
-    #
-    #     result = fit.scipy_func(fit.xdata, 2, 3)
-    #
-    #     import inspect
-    #     args, varargs, keywords, defaults = inspect.getargspec(fit.scipy_func)
-    #
-    #     self.assertEqual(args, ['x', 'a', 'b'])
-    #     fit_result = fit.execute()
-    #     print fit_result.params, fit_result.popt, fit_result.pcov
-    #     self.assertIsInstance(fit_result, FitResults)
+    def test_numpy_functions(self):
+        xdata = np.linspace(1,10,10)
+        ydata = 45*np.log(xdata*2)
+
+        a = Parameter('a')
+        b = Parameter('b', value=2.1, fixed=True)
+        x = Variable('x')
+        new = a*sympy.log(x*b)
+
+        fit = Fit(new, xdata, ydata)
+        fit_result = fit.execute()
+        print(fit_result.popt)
+
+    def test_2D_fitting(self):
+        xdata = np.random.randint(-10,11,size=(2,400))
+        zdata = 2.5*xdata[0]**2 + 7.0*xdata[1]**2
+
+        a = Parameter('a')
+        b = Parameter('b')
+        x = Variable('x')
+        y = Variable('y')
+        new = a*x**2 + b*y**2
+
+        fit = Fit(new, xdata, zdata)
+
+        result = fit.scipy_func(fit.xdata, 2, 3)
+
+        import inspect
+        args, varargs, keywords, defaults = inspect.getargspec(fit.scipy_func)
+
+        self.assertEqual(args, ['x', 'a', 'b'])
+        fit_result = fit.execute()
+        print fit_result.params, fit_result.popt, fit_result.pcov
+        self.assertIsInstance(fit_result, FitResults)
 
     def test_parameter_add(self):
         a = Parameter('a')

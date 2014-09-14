@@ -4,6 +4,7 @@ from sympy.core.symbol import Symbol
 from core.argument import Parameter, Variable
 import sympy
 import numpy as np
+import abc
 from leastsqbound import leastsqbound
 
 class FitResults(HasStrictTraits):
@@ -32,7 +33,7 @@ class FitResults(HasStrictTraits):
         return res
 
 
-class Fit(HasStrictTraits):
+class BaseFit(ABCHasStrictTraits):
     model = Instance(Expr)
     xdata = Array
     ydata = Array
@@ -48,7 +49,7 @@ class Fit(HasStrictTraits):
         :param x: xdata to fit to.  NxM
         :param y: ydata             Nx1
         """
-        super(Fit, self).__init__(*args, **kwargs)
+        super(BaseFit, self).__init__(*args, **kwargs)
         self.model = model
         self.xdata = x
         self.ydata = y
@@ -85,7 +86,10 @@ class Fit(HasStrictTraits):
             for key, var in enumerate(self.vars):
                 func_str = func_str.replace(str(var), 'x[{}]'.format(key))
 
-        param_str = str(self.params[0])
+        try:
+            param_str = str(self.params[0])
+        except IndexError:
+            param_str = ''
         for param in self.params[1:]:
             param_str += ', {}'.format(param)
 
@@ -111,8 +115,62 @@ def f(x, {0}):
         If no initial value is given, 1.0 is used.
         :return: list of initial guesses for self.params.
         """
-        return [param.value for param in self.params]
+        return np.array([param.value for param in self.params])
 
+    def get_jacobian(self, p, func, x, y):
+        """
+        Create the jacobian of the model. This can then be used by
+        :return:
+        """
+        funcs = []
+        for jac in self.jacobian:
+            res = jac(x, *p)
+            # If only params in f, we must multiply with an array to preserve the shape of x
+            try:
+                len(res)
+            except TypeError: # not itterable
+                res *= np.ones(len(x))
+            finally:
+                funcs.append(res)
+        ans = np.array(funcs).T
+        return ans
+
+    def get_bounds(self):
+        """
+        :return: List of tuples of all bounds on parameters.
+        """
+
+        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
+
+    @cached_property
+    def _get_jacobian(self):
+        jac = []
+        for param in self.params:
+            # Differentiate to every param
+            f = sympy.diff(self.model, param)
+            # Make them into pythonic functions
+            jac.append(self.sympy_to_scipy(f))
+        return jac
+
+    @abc.abstractmethod
+    def execute(self, *args, **kwargs):
+        return
+
+    @abc.abstractmethod
+    def error(self, p, func, x, y):
+        """
+        Error function to be minimalised. Depending on the algorithm, this can
+        return a scalar or a vector.
+        :param p: guess params
+        :param func: scipy_func to fit to
+        :param x: xdata
+        :param y: ydata
+        :return: scalar of vector.
+        """
+        return
+
+
+class Fit(BaseFit):
     def execute(self, *args, **kwargs):
         """
         Run fitting and initiate a fit report with the result.
@@ -126,7 +184,6 @@ def f(x, {0}):
             args=(self.scipy_func, self.xdata, self.ydata),
             bounds=self.get_bounds(),
             Dfun=self.get_jacobian,
-            col_deriv=1,
             full_output=True,
             *args,
             **kwargs
@@ -153,37 +210,35 @@ def f(x, {0}):
         # Must unpack p for func
         return func(x, *p) - y
 
-    def get_jacobian(self, p, func, x, y):
+
+class Minimize(BaseFit):
+    def execute(self, *args, **kwargs):
         """
-        Create the jacobian of the model. This can then be used by
-        :return:
+        Run fitting and initiate a fit report with the result.
+        :return: FitResults object
         """
-        funcs = []
-        for jac in self.jacobian:
-            res = jac(x, *p)
-            # If only params in f, we must multiply with an array to preserve the shape of x
-            try:
-                len(res)
-            except TypeError: # not itterable
-                res *= np.ones(len(x))
-            finally:
-                funcs.append(res)
-        ans = np.array(funcs)
+        from scipy.optimize import minimize
+
+        # s_sq = (infodic['fvec']**2).sum()/(len(self.ydata)-len(popt))
+        # pcov =  cov_x*s_sq
+        # self.fit_results = FitResults(
+        #     params=self.params,
+        #     popt=popt, pcov=pcov, infodic=infodic, mesg=mesg, ier=ier
+        # )
+        # return self.fit_results
+        ans = minimize(
+            self.error,
+            # [1.0],
+            self.get_initial_guesses(),
+            args=(self.scipy_func, self.xdata, self.ydata),
+            # method='L-BFGS-B',
+            # bounds=self.get_bounds(),
+            # jac=self.get_jacobian,
+        )
+        print ans
         return ans
 
-    def get_bounds(self):
-        """
-        :return: List of tuples of all bounds on parameters.
-        """
-
-        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
-
-    @cached_property
-    def _get_jacobian(self):
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.model, param)
-            # Make them into pythonic functions
-            jac.append(self.sympy_to_scipy(f))
-        return jac
+    def error(self, p, func, x, y):
+        ans = ((self.scipy_func(self.xdata, *p) - y)**2).sum()
+        print p
+        return ans
