@@ -117,8 +117,7 @@ fit.execute()
 ```
 Done! symfit will determine all derivatives automatically, no need for you to think about it.
 
-Optional Arguments
-==================
+####Optional Arguments
 
 Knowing that symfit is (currently just) a wrapper to SciPy, you could decide to look in their documentation to specify extra options for the fitting. These extra arguments can be provided to ```execute```, as it will pass on any ```*args, **kwargs``` to leastsq or minimize depending on the context.
 
