@@ -1,18 +1,8 @@
-from core.argument import Parameter, Variable
 import unittest
 import sympy
 from sympy import symbols
-from core.fit import Fit, FitResults, Minimize
 import numpy as np
-
-
-
-# class Parameter(Symbol):
-#     """ Parameter objects are used to facilitate bounds on function parameters,
-#     as well as to allow AbstractFunction instances to share parameters between
-#     them.
-#     """
-#     pass
+from symfit.api import Variable, Parameter, Minimize, Fit, FitResults
 
 
 class TddInPythonExample(unittest.TestCase):
@@ -86,9 +76,11 @@ class TddInPythonExample(unittest.TestCase):
         model = 2*x*y + 2*x - x**2 - 2*y**2
         from sympy import Eq
         constraints = [
-            Eq(x**3 - y, 0),
+            x**3 - y == 0,
             y - 1 >= 0,
         ]
+        print(type(x**3 - y))
+        print x**3 - y == 0.0
         self.assertIsInstance(constraints[0], Eq)
 
         fit = Minimize(model, constraints=constraints)

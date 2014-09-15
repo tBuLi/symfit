@@ -67,7 +67,6 @@ Advanced Usage
 ==============
 
 #### Constrained minimization of multivariate scalar functions
-(Not available yet, this is just to show of the symfit syntax for solving the same problem.)
 
 Example taken from http://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html
 
@@ -101,7 +100,7 @@ cons = ({'type': 'eq',
 res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                constraints=cons, method='SLSQP', options={'disp': True})
 ```
-Takes a couple of readthroughs to make sense, doesn't it? Let's do the same problem in SymFit:
+Takes a couple of readthroughs to make sense, doesn't it? Let's do the same problem in symfit:
 
 ```python
 x = Variable('x')
@@ -123,6 +122,8 @@ fit = MinimizeParameters(model, xdata, ydata, constraints=constraints)
 
 Using ```MinimizeParameters``` without ```constraints``` in principle yields the same result as using ```Fit```, which does a least-squares fit. A case could therefore be made for always using ```MinimizeParameters```. However, I cannot comment on whether this is proper usage of the minimalize function.
 
+Note: constraints must be of the type 'expression == scalar.' If this is not the case, please use an Eq object. (from symfit import Eq) For every relation, an object is available:
+Eq, Ne, Gt, Lt, Ge, Le.
 ####Optional Arguments
 
 Knowing that symfit is (currently just) a wrapper to SciPy, you could decide to look in their documentation to specify extra options for the fitting. These extra arguments can be provided to ```execute```, as it will pass on any ```*args, **kwargs``` to leastsq or minimize depending on the context.
