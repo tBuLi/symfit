@@ -2,7 +2,7 @@ from core.argument import Parameter, Variable
 import unittest
 import sympy
 from sympy import symbols
-from core.fit import Fit, FitResults
+from core.fit import Fit, FitResults, Minimize
 import numpy as np
 
 
@@ -79,6 +79,22 @@ class TddInPythonExample(unittest.TestCase):
         fit_result = fit.execute()
         print fit_result.params, fit_result.popt, fit_result.pcov
         self.assertIsInstance(fit_result, FitResults)
+
+    def test_minimize(self):
+        x = Variable('x')
+        y = Variable('y')
+        model = 2*x*y + 2*x - x**2 - 2*y**2
+        from sympy import Eq
+        constraints = [
+            Eq(x**3 - y, 0),
+            y - 1 >= 0,
+        ]
+        self.assertIsInstance(constraints[0], Eq)
+
+        fit = Minimize(model, constraints=constraints)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.x[0], 1.00000009)
+        self.assertAlmostEqual(fit_result.x[1], 1.)
 
     def test_parameter_add(self):
         a = Parameter('a')
