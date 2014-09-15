@@ -11,7 +11,7 @@ import sympy
 x0 = Parameter('x0')
 sig = Parameter('sig')
 x = Variable('x')
-gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*pi*sig)
+gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 ```
 
 Lets fit this model to some generated data.
@@ -35,7 +35,7 @@ import sympy
 x0 = Parameter('x0', 2.0, min=1.5, max=2.5)
 sig = Parameter('sig')
 x = Variable('x')
-gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*pi*sig)
+gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 
 x = # Some numpy array of x values
 y = # Some numpy array of y values, gaussian distribution
@@ -112,10 +112,16 @@ constraints = [
     y - 1 >= 0,
 ]
 
-fit = Minimize(model, xdata, ydata, constraints=constraints)
+fit = Minimize(model, constraints=constraints)
 fit.execute()
 ```
-Done! symfit will determine all derivatives automatically, no need for you to think about it.
+Done! symfit will determine all derivatives automatically, no need for you to think about it. In order to be consistent with the name in SciPy, ```Minimize``` minimizes with respect to the variables, without taking into acount any data points. To minimize the parameters while constraining the variables, use ```MinimizeParameters``` instead.
+
+```python
+fit = MinimizeParameters(model, xdata, ydata, constraints=constraints)
+```
+
+Using ```MinimizeParameters``` without ```constraints``` in principle yields the same result as using ```Fit```, which does a least-squares fit. A case could therefore be made for always using ```MinimizeParameters```. However, I cannot comment on whether this is proper usage of the minimalize function.
 
 ####Optional Arguments
 
