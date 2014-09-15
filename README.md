@@ -37,9 +37,9 @@ sig = Parameter('sig')
 x = Variable('x')
 gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 
-x = # Some numpy array of x values
-y = # Some numpy array of y values, gaussian distribution
-fit = Fit(gaussian, x, y)
+xdata = # Some numpy array of x values
+ydata = # Some numpy array of y values, gaussian distribution
+fit = Fit(gaussian, xdata, ydata)
 fit_result = fit.execute()
 ```
 
