@@ -32,9 +32,9 @@ Adding guesses for ```Parameter```'s is simple. Therefore, let's add another ste
 from symfit.core.api import Fit, Parameter, Variable
 import sympy
 
-x0 = Parameter('x0', 2.0, min=1.5, max=2.5)
-sig = Parameter('sig')
-x = Variable('x')
+x0 = Parameter(2.0, min=1.5, max=2.5)
+sig = Parameter()
+x = Variable()
 gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 
 xdata = # Some numpy array of x values
