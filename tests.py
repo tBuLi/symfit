@@ -71,8 +71,8 @@ class TddInPythonExample(unittest.TestCase):
         self.assertIsInstance(fit_result, FitResults)
 
     def test_minimize(self):
-        x = Variable('x')
-        y = Variable('y')
+        x = Variable()
+        y = Variable()
         model = 2*x*y + 2*x - x**2 - 2*y**2
         from sympy import Eq
         constraints = [
