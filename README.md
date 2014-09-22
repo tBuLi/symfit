@@ -5,7 +5,7 @@ Existing fitting modules are not very pythonic in their API and can be difficult
 
 The example below shows how easy it is to define a model that we could fit to.
 ```python
-from symfit.core.api import Parameter, Variable
+from symfit.api import Parameter, Variable
 import sympy
 
 x0 = Parameter()
@@ -17,7 +17,7 @@ gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 Lets fit this model to some generated data.
 
 ```python
-from symfit.core.api import Fit
+from symfit.api import Fit
 
 xdata = # Some numpy array of x values
 ydata = # Some numpy array of y values, gaussian distribution
@@ -26,10 +26,10 @@ fit_result = fit.execute()
 ```
 Printing ```fit_result``` will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.
 
-Adding guesses for ```Parameter```'s is simple. Therefore, let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this:
+Adding guesses for ```Parameter```'s is simple: ```Parameter(1.0)``` or ```Parameter{value=1.0)```. Therefore, let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this:
 
 ```python
-from symfit.core.api import Fit, Parameter, Variable
+from symfit.api import Fit, Parameter, Variable
 import sympy
 
 x0 = Parameter(2.0, min=1.5, max=2.5)
@@ -48,7 +48,7 @@ The ```Parameter``` options do not stop there. If a parameter is completely fixe
 Using this paradigm it is easy to buil multivariable models and fit to them:
 
 ```python
-from symfit.core.api import Parameter, Variable
+from symfit.api import Parameter, Variable
 from sympy import exp, pi
 
 x0 = Parameter()
