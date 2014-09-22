@@ -138,6 +138,18 @@ Comming soon
 ####```Argument```'s
 Only two kinds input ```Argument``` are defined for a model: ```Variable``` and ```Parameter```.
 
+API Reference
+=============
+Parameter
+- name (optional)
+- value (optional)
+    Initial guess for the parameter. 
+- min (optional)
+- max (optional)
+
+Variable
+- name (optional)
+
 ### Immidiate Goals
 - High code readability and a very pythonic feel.
 - Efficient Fitting
