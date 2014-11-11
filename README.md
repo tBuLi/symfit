@@ -26,7 +26,7 @@ fit_result = fit.execute()
 ```
 Printing ```fit_result``` will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.
 
-Adding guesses for ```Parameter```'s is simple: ```Parameter(1.0)``` or ```Parameter{value=1.0)```. Therefore, let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this:
+Adding guesses for ```Parameter```'s is simple: ```Parameter(1.0)``` or ```Parameter{value=1.0)```. Let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this: ```Parameter(2.0, min=1.5, max=2.5)```. Complete example:
 
 ```python
 from symfit.api import Fit, Parameter, Variable
@@ -60,11 +60,59 @@ y = Variable()
 gaussian_2d = exp(-((x - x0)**2/(2*sig_x**2) + (y - y0)**2/(2*sig_y**2)))/(2*pi*sig_x*sig_y)
 ```
 
-Because of the symbolic nature of this program, the Jacobian of the model can always be determined. Although scipy can approximate the Jacobian numerically, it is not always able to appraximate the covariance matrix from this, which we need to calculate the errors in our parameters.
+Because of the symbolic nature of this program, the Jacobian of the model can always be determined. Although scipy can approximate the Jacobian numerically, it is not always able to approximate the covariance matrix from this. But this is needed if we want to calculate the errors in our parameters.
 
 This project will always be able to do as long, assuming your model is differentiable. This means we can do proper error propagation.
-Advanced Usage
-==============
+
+##Models are Callable
+```python 
+a = Parameter()
+x = Variable()
+f = a * x**2
+print f(x=3, a=2)
+```
+They must always be called through keyword arguments to prevent any ambiguity in which parameter or variable you mean.
+
+####Optional Arguments
+
+Knowing that symfit is (currently just) a wrapper to SciPy, you could decide to look in their documentation to specify extra options for the fitting. These extra arguments can be provided to ```execute```, as it will pass on any ```*args, **kwargs``` to leastsq or minimize depending on the context.
+
+
+How Does it Work?
+=================
+
+####```AbstractFunction```'s
+Comming soon
+
+####```Argument```'s
+Only two kinds input ```Argument``` are defined for a model: ```Variable``` and ```Parameter```.
+
+API Reference
+=============
+Parameter
+- name (optional)
+- value (optional)
+    Initial guess for the parameter. 
+- min (optional)
+- max (optional)
+
+Variable
+- name (optional)
+
+### Immidiate Goals
+- High code readability and a very pythonic feel.
+- Efficient Fitting
+- Fitting algorithms for any scale using scipy.optimize. From typical least squares fitting to Multivariant fitting with bounds and constraints using the overkill scipy.optimize.minimize.
+
+### Long Term Goals
+- Monte-Carlo
+- Error Propagation using the uncertainties package
+
+type: any python-type, such as float or int. default = float. 
+
+~~Advanced Usage~~
+==================
+Temporaraly disabled because of conceptual misgivings. This feature should be re-enabled in the future however, as it is awesome.
 
 #### Constrained minimization of multivariate scalar functions
 
@@ -124,39 +172,5 @@ Using ```MinimizeParameters``` without ```constraints``` in principle yields the
 
 Note: constraints must be of the type 'expression == scalar.' If this is not the case, please use an Eq object. (from symfit import Eq) For every relation, an object is available:
 Eq, Ne, Gt, Lt, Ge, Le.
-####Optional Arguments
-
-Knowing that symfit is (currently just) a wrapper to SciPy, you could decide to look in their documentation to specify extra options for the fitting. These extra arguments can be provided to ```execute```, as it will pass on any ```*args, **kwargs``` to leastsq or minimize depending on the context.
 
 
-How Does it Work?
-=================
-
-####```AbstractFunction```'s
-Comming soon
-
-####```Argument```'s
-Only two kinds input ```Argument``` are defined for a model: ```Variable``` and ```Parameter```.
-
-API Reference
-=============
-Parameter
-- name (optional)
-- value (optional)
-    Initial guess for the parameter. 
-- min (optional)
-- max (optional)
-
-Variable
-- name (optional)
-
-### Immidiate Goals
-- High code readability and a very pythonic feel.
-- Efficient Fitting
-- Fitting algorithms for any scale using scipy.optimize. From typical least squares fitting to Multivariant fitting with bounds and constraints using the overkill scipy.optimize.minimize.
-
-### Long Term Goals
-- Monte-Carlo
-- Error Propagation using the uncertainties package
-
-type: any python-type, such as float or int. default = float. 
