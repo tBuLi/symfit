@@ -77,6 +77,6 @@ def call(self, **kwargs):
     return func(**kwargs)
 
 
-Expr.__eq__ = eq
-Expr.__ne__ = ne
+# Expr.__eq__ = eq
+# Expr.__ne__ = ne
 Expr.__call__ = call

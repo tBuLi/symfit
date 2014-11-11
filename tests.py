@@ -57,13 +57,20 @@ class TddInPythonExample(unittest.TestCase):
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
         print(fit_result)
-        self.assertAlmostEqual(fit_result.get_value(a), 3.0)
-        self.assertAlmostEqual(fit_result.get_value(b), 2.0)
+        self.assertAlmostEqual(fit_result.params.a, 3.0)
+        self.assertAlmostEqual(fit_result.params.b, 2.0)
 
-        self.assertIsInstance(fit_result.get_stdev(a), float)
-        self.assertIsInstance(fit_result.get_stdev(b), float)
+        self.assertIsInstance(fit_result.params.a_stdev, float)
+        self.assertIsInstance(fit_result.params.b_stdev, float)
 
         self.assertIsInstance(fit_result.r_squared, float)
+
+        # Test several false ways to access the data.
+        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_fdska'])
+        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'c'])
+        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_stdev'])
+        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
+        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
 
     def test_numpy_functions(self):
         xdata = np.linspace(1,10,10)
@@ -74,9 +81,7 @@ class TddInPythonExample(unittest.TestCase):
         x = Variable('x')
         new = a*sympy.log(x*b)
 
-        fit = Fit(new, xdata, ydata)
-        fit_result = fit.execute()
-        print(fit_result.popt)
+
 
     def test_2D_fitting(self):
         xdata = np.random.randint(-10, 11, size=(2, 400))
@@ -100,7 +105,7 @@ class TddInPythonExample(unittest.TestCase):
         self.assertIsInstance(fit_result, FitResults)
 
     def test_gaussian_fitting(self):
-        xdata = 2*np.random.rand(10000) - 1
+        xdata = 2*np.random.rand(10000) - 1 # random betwen [-1, 1]
         ydata = scipy.stats.norm.pdf(xdata, loc=0.0, scale=1.0)
 
         x0 = Parameter()
@@ -111,9 +116,10 @@ class TddInPythonExample(unittest.TestCase):
 
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.popt[0], 0.3989423)
-        self.assertAlmostEqual(np.abs(fit_result.popt[1]), 1.0)
-        self.assertAlmostEqual(fit_result.popt[2], 0.0)
+        print fit_result
+        self.assertAlmostEqual(fit_result.params.A, 0.3989423)
+        self.assertAlmostEqual(np.abs(fit_result.params.sig), 1.0)
+        self.assertAlmostEqual(fit_result.params.x0, 0.0)
 
 
     # def test_minimize(self):

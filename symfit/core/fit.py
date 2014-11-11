@@ -10,17 +10,71 @@ from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py
 from leastsqbound import leastsqbound
 
 
+class ParameterList(HasStrictTraits):
+    __params = List(Parameter)
+    __popt = Array
+    __pcov = Array
+
+    def __init__(self, params, popt, pcov, *args, **kwargs):
+        super(ParameterList, self).__init__(*args, **kwargs)
+        self.__params = params
+        self.__popt = popt
+        self.__pcov = pcov
+
+    def __iter__(self):
+        return iter(self.__params)
+
+    def __getattr__(self, name):
+        """
+        A user can access the value of a parameter directly through this object.
+        :param name: Name of a param in __params.
+        Naming convention:
+        let a = Parameter(). Then:
+        .a gives the value of the parameter.
+        .a_stdev gives the standard deviation.
+        """
+        parts = name.split('_')
+        param_name = parts.pop(0)
+        for key, param in enumerate(self.__params):
+            if param.name == param_name:
+                if len(parts) == 1:  # There was something appended to the name of the param
+                    if parts[0] in ['stdev']:
+                        return np.sqrt(self.__pcov[key, key])
+                elif len(parts) > 1:
+                    raise AttributeError('Illegal attribute ' + name)
+                else:  # Only a name was specified, so return the param.
+                    return self.__popt[key]
+        else:  # No match found, so no param with this name exists.
+            raise AttributeError('No Parameter by the name {}.'.format(param_name))
+
+    def get_value(self, param):
+        """
+        :param param: Parameter object.
+        :return: returns the numerical value of param
+        """
+        assert(isinstance(param, Parameter))
+        key = self.__params.index(param)  # Number of param
+        return self.__popt[key]
+
+    def get_stdev(self, param):
+        """
+        :param param: Parameter object.
+        :return: returns the standard deviation of param
+        """
+        assert(isinstance(param, Parameter))
+        key = self.__params.index(param)  # Number of param
+        return np.sqrt(self.__pcov[key, key])
+
+
 class FitResults(HasStrictTraits):
-    params = List(Parameter)
-    popt = Array
-    pcov = Any
+    params = Instance(ParameterList)
     infodic = Dict
     mesg = Str
     ier = Int
     ydata = Array
     r_squared = Property(Float)  # Read-only property.
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, params, popt, pcov,  *args, **kwargs):
         """
         Class to display the results of a fit in a nice and unambiquis way.
         All things related to the fit are available on this class, e.g.
@@ -29,11 +83,12 @@ class FitResults(HasStrictTraits):
         - more in the future?
         """
         super(FitResults, self).__init__(*args, **kwargs)
+        self.params = ParameterList(params, popt, pcov)
 
     def __str__(self):
         res = '\nParameter Value        Standard Deviation\n'
-        for key, p in enumerate(self.params):
-            res += '{:10}{:e} {:e}\n'.format(p.name, self.popt[key], np.sqrt(self.pcov[key, key]), width=20)
+        for p in self.params:
+            res += '{:10}{:e} {:e}\n'.format(p.name, self.params.get_value(p), self.params.get_stdev(p), width=20)
 
         res += 'Fitting status message: {}\n'.format(self.mesg)
         res += 'Number of iterations:   {}\n'.format(self.infodic['nfev'])
@@ -49,21 +104,21 @@ class FitResults(HasStrictTraits):
         ss_tot=((self.ydata-self.ydata.mean())**2).sum()
         return 1-(ss_err/ss_tot)
 
-    def get_value(self, param):
-        """
-        :param param: Parameter object.
-        :return: returns the numerical value of param
-        """
-        key = self.params.index(param)  # Number of param
-        return self.popt[key]
-
-    def get_stdev(self, param):
-        """
-        :param param: Parameter object.
-        :return: returns the standard deviation of param
-        """
-        key = self.params.index(param)  # Number of param
-        return self.pcov[key][key]
+    # def get_value(self, param):
+    #     """
+    #     :param param: Parameter object.
+    #     :return: returns the numerical value of param
+    #     """
+    #     key = self.params.index(param)  # Number of param
+    #     return self.popt[key]
+    #
+    # def get_stdev(self, param):
+    #     """
+    #     :param param: Parameter object.
+    #     :return: returns the standard deviation of param
+    #     """
+    #     key = self.params.index(param)  # Number of param
+    #     return self.pcov[key][key]
 
 
 class BaseFit(ABCHasStrictTraits):
