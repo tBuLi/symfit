@@ -5,58 +5,58 @@ Existing fitting modules are not very pythonic in their API and can be difficult
 
 The example below shows how easy it is to define a model that we could fit to.
 ```python
-from symfit.core.api import Parameter, Variable
+from symfit.api import Parameter, Variable
 import sympy
 
-x0 = Parameter('x0')
-sig = Parameter('sig')
-x = Variable('x')
+x0 = Parameter()
+sig = Parameter()
+x = Variable()
 gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 ```
 
 Lets fit this model to some generated data.
 
 ```python
-from symfit.core.api import Fit
+from symfit.api import Fit
 
-x = # Some numpy array of x values
-y = # Some numpy array of y values, gaussian distribution
-fit = Fit(gaussian, x, y)
+xdata = # Some numpy array of x values
+ydata = # Some numpy array of y values, gaussian distribution
+fit = Fit(gaussian, xdata, ydata)
 fit_result = fit.execute()
 ```
 Printing ```fit_result``` will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.
 
-Adding guesses for ```Parameter```'s is simple. Therefore, let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this:
+Adding guesses for ```Parameter```'s is simple: ```Parameter(1.0)``` or ```Parameter{value=1.0)```. Therefore, let's add another step: suppose we are able to estimate bounds for the parameter as well, for example by looking at a plot. We could then do this:
 
 ```python
-from symfit.core.api import Fit, Parameter, Variable
+from symfit.api import Fit, Parameter, Variable
 import sympy
 
-x0 = Parameter('x0', 2.0, min=1.5, max=2.5)
-sig = Parameter('sig')
-x = Variable('x')
+x0 = Parameter(2.0, min=1.5, max=2.5)
+sig = Parameter()
+x = Variable()
 gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
 
-x = # Some numpy array of x values
-y = # Some numpy array of y values, gaussian distribution
-fit = Fit(gaussian, x, y)
+xdata = # Some numpy array of x values
+ydata = # Some numpy array of y values, gaussian distribution
+fit = Fit(gaussian, xdata, ydata)
 fit_result = fit.execute()
 ```
 
-The ```Parameter``` options do not stop there. If a parameter is completely fixed during the fitting, we could use ```Parameter('x0', 2.0, fixed=True)``` which is mutually exclusive with the ```min, max``` keywords.
+The ```Parameter``` options do not stop there. If a parameter is completely fixed during the fitting, we could use ```Parameter(2.0, fixed=True)``` which is mutually exclusive with the ```min, max``` keywords.
 
 Using this paradigm it is easy to buil multivariable models and fit to them:
 
 ```python
-from symfit.core.api import Parameter, Variable
+from symfit.api import Parameter, Variable
 from sympy import exp, pi
 
-x0 = Parameter('x0')
-y0 = Parameter('x0')
-sig_x = Parameter('sig_x')
-sig_y = Parameter('sig_y')
-x = Variable('x')
-y = Variable('y')
+x0 = Parameter()
+y0 = Parameter()
+sig_x = Parameter()
+sig_y = Parameter()
+x = Variable()
+y = Variable()
 gaussian_2d = exp(-((x - x0)**2/(2*sig_x**2) + (y - y0)**2/(2*sig_y**2)))/(2*pi*sig_x*sig_y)
 ```
 
@@ -103,8 +103,8 @@ res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
 Takes a couple of readthroughs to make sense, doesn't it? Let's do the same problem in symfit:
 
 ```python
-x = Variable('x')
-y = Variable('y')
+x = Variable()
+y = Variable()
 model = 2*x*y + 2*x - x**2 -2*y**2
 constraints = [
 	x**3 - y == 0,
@@ -137,6 +137,18 @@ Comming soon
 
 ####```Argument```'s
 Only two kinds input ```Argument``` are defined for a model: ```Variable``` and ```Parameter```.
+
+API Reference
+=============
+Parameter
+- name (optional)
+- value (optional)
+    Initial guess for the parameter. 
+- min (optional)
+- max (optional)
+
+Variable
+- name (optional)
 
 ### Immidiate Goals
 - High code readability and a very pythonic feel.
