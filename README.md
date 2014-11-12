@@ -1,3 +1,7 @@
+Documentation
+=============
+http://symfit.readthedocs.org
+
 Project Goals
 =============
 ## Why this Project?
