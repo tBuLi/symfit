@@ -1,3 +1,7 @@
+Documentation
+=============
+http://symfit.readthedocs.org
+
 Project Goals
 =============
 ## Why this Project?
@@ -77,7 +81,38 @@ They must always be called through keyword arguments to prevent any ambiguity in
 
 Knowing that symfit is (currently just) a wrapper to SciPy, you could decide to look in their documentation to specify extra options for the fitting. These extra arguments can be provided to ```execute```, as it will pass on any ```*args, **kwargs``` to leastsq or minimize depending on the context.
 
+FitResults
+==========
+The FitResults object which is returned by Fit.execute contains all information about the fit. Let's look at this by looking at an example:
+```python
+from symfit.api import Fit, Parameter, Variable
+import sympy
 
+x0 = Parameter(2.0, min=1.5, max=2.5)
+sig = Parameter()
+x = Variable()
+gaussian = sympy.exp(-(x - x0)**2/(2*sig**2))/(2*sympy.pi*sig)
+
+xdata = # Some numpy array of x values
+ydata = # Some numpy array of y values, gaussian distribution
+fit = Fit(gaussian, xdata, ydata)
+fit_result = fit.execute()
+
+print fit_result.params.x0  # Print the value of x0
+print fit_result.params.x0_stdev  # stdev in x0 as obtained from the fit.
+
+try:
+    print fit_result.params.x
+except AttributeError:  # This will fire
+    print 'No such Parameter'
+    
+print fit_result.r_squared  # Regression coefficient
+```
+The value/stdev of a parameter can also be obtained in the following way:
+```python
+fit_result.params.get_value(x0)
+fit_result.params.get_stdev(x0)
+```
 How Does it Work?
 =================
 
