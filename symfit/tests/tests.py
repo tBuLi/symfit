@@ -82,6 +82,37 @@ class TddInPythonExample(unittest.TestCase):
         new = a*sympy.log(x*b)
 
 
+    def test_grid_fitting(self):
+        xdata = np.arange(-5, 5, 1)
+        ydata = np.arange(-5, 5, 1)
+        xx, yy = np.meshgrid(xdata, ydata, sparse=False)
+        xdata_coor = np.dstack((xx, yy))
+
+        zdata = (2.5*xx**2 + 3.0*yy**2)
+
+        a = Parameter('a')
+        b = Parameter('b')
+        x = Variable('x')
+        y = Variable('y')
+        new = (a*x**2 + b*y**2)
+
+        fit = Fit(new, xdata_coor, zdata)
+
+        # Test the flatten function for consistency.
+        xdata_coor_flat, zdata_flat = fit._flatten(xdata_coor, zdata)
+        # _flatten transposes such arrays because the variables are in the deepest dimension instead of the first.
+        # This is normally not a problem because all we want from the fit is the correct parameters.
+        self.assertFalse(np.array_equal(zdata, zdata_flat.reshape((10,10))))
+        self.assertTrue(np.array_equal(zdata, zdata_flat.reshape((10,10)).T))
+        self.assertFalse(np.array_equal(xdata_coor, xdata_coor_flat.reshape((10,10,2))))
+        new_xdata = xdata_coor_flat.reshape((2,10,10)).T
+        self.assertTrue(np.array_equal(xdata_coor, new_xdata))
+
+
+        results = fit.execute()
+        self.assertAlmostEqual(results.params.a, 2.5)
+        self.assertAlmostEqual(results.params.b, 3.)
+
 
     def test_2D_fitting(self):
         xdata = np.random.randint(-10, 11, size=(2, 400))
