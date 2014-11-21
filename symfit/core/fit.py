@@ -36,6 +36,8 @@ class ParameterList(HasStrictTraits):
         parts = name.split('_')
         param_name = parts.pop(0)
         for key, param in enumerate(self.__params):
+            if param.name == name:
+                return self.__popt[key]
             if param.name == param_name:
                 if len(parts) == 1:  # There was something appended to the name of the param
                     if parts[0] in ['stdev']:
