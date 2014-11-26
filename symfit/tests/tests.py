@@ -151,7 +151,15 @@ class TddInPythonExample(unittest.TestCase):
         self.assertAlmostEqual(fit_result.params.A, 0.3989423)
         self.assertAlmostEqual(np.abs(fit_result.params.sig), 1.0)
         self.assertAlmostEqual(fit_result.params.x0, 0.0)
-
+        # raise Exception([i for i in fit_result.params])
+        sexy = g(x=2.0, **fit_result.params)
+        ugly = g(
+            x=2.0,
+            x0=fit_result.params.x0,
+            A=fit_result.params.A,
+            sig=fit_result.params.sig,
+        )
+        self.assertEqual(sexy, ugly)
 
     # def test_minimize(self):
     #     x = Parameter()

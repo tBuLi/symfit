@@ -60,20 +60,6 @@ def call(self, **kwargs):
     # Convert to a pythonic function
     vars, pars = seperate_symbols(self)
     func = sympy_to_py(self, vars, pars)
-    # # Make a new kwarg dict holding Argument: value pais.
-    # x_vec = []
-    # for var in vars:
-    #     try:
-    #         x_vec.append(kwargs[var.name])
-    #     except KeyError:
-    #         raise TypeError('Got an unexpected keyword argument ' + var.name)
-    # par_vec = []
-    # for par in pars:
-    #     try:
-    #         par_vec.append(kwargs[par.name])
-    #     except KeyError:
-    #         raise TypeError('Got an unexpected keyword argument ' + par.name)
-    # return scipy_func(x_vec, par_vec)
     return func(**kwargs)
 
 

@@ -10,19 +10,35 @@ from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py
 from leastsqbound import leastsqbound
 
 
-class ParameterList(HasStrictTraits):
-    __params = List(Parameter)
-    __popt = Array
-    __pcov = Array
-
+class ParameterDict(object):
+    """
+    Behaves like a dict when **-ed, allowing the sexy syntax where a model is
+    called with values for the Variables and **params. However, under iteration
+    it behaves like a list! In other words, it preserves order in the params.
+    """
     def __init__(self, params, popt, pcov, *args, **kwargs):
-        super(ParameterList, self).__init__(*args, **kwargs)
+        super(ParameterDict, self).__init__(*args, **kwargs)
         self.__params = params
+        self.__params_dict = dict([(p.name, p) for p in params])
         self.__popt = popt
         self.__pcov = pcov
 
+    def __len__(self):
+        return len(self.__params)
+
     def __iter__(self):
         return iter(self.__params)
+
+    def __getitem__( self, key):
+        """
+        Intended use for this is for use of ParameterDict as a kwarg.
+        Therefore return the value of the param, as this is what the user expects.
+        :return: self.__popt[value]
+        """
+        return getattr(self, key)
+
+    def keys(self):
+        return self.__params_dict.keys()
 
     def __getattr__(self, name):
         """
@@ -69,7 +85,7 @@ class ParameterList(HasStrictTraits):
 
 
 class FitResults(HasStrictTraits):
-    params = Instance(ParameterList)
+    params = Instance(ParameterDict)
     infodic = Dict
     mesg = Str
     ier = Int
@@ -85,7 +101,7 @@ class FitResults(HasStrictTraits):
         - more in the future?
         """
         super(FitResults, self).__init__(*args, **kwargs)
-        self.params = ParameterList(params, popt, pcov)
+        self.params = ParameterDict(params, popt, pcov)
 
     def __str__(self):
         res = '\nParameter Value        Standard Deviation\n'
@@ -105,22 +121,6 @@ class FitResults(HasStrictTraits):
         ss_err = (self.infodic['fvec'] ** 2).sum()
         ss_tot = ((self.ydata - self.ydata.mean()) ** 2).sum()
         return 1 - (ss_err / ss_tot)
-
-        # def get_value(self, param):
-        # """
-        #     :param param: Parameter object.
-        #     :return: returns the numerical value of param
-        #     """
-        #     key = self.params.index(param)  # Number of param
-        #     return self.popt[key]
-        #
-        # def get_stdev(self, param):
-        #     """
-        #     :param param: Parameter object.
-        #     :return: returns the standard deviation of param
-        #     """
-        #     key = self.params.index(param)  # Number of param
-        #     return self.pcov[key][key]
 
 
 class BaseFit(ABCHasStrictTraits):
