@@ -1,0 +1,1 @@
+Search.setIndex({envversion:42,terms:{index:0,search:0,modul:0,content:0,tutori:0,page:0},objtypes:{},objnames:{},filenames:["index","intro","tutorial"],titles:["Welcome to symfit&#8217;s documentation!","Introduction","Tutorial"],objects:{},titleterms:{welcom:0,symfit:0,indic:0,tutori:2,tabl:0,document:0,introduct:1}})
