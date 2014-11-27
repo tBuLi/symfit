@@ -3,15 +3,14 @@ Tutorial
 
 Simple Example
 --------------
-The example below shows how easy it is to define a model that we could fit to.
-``
+The example below shows how easy it is to define a model that we could fit to.::
+
 from symfit.api import Parameter, Variable
 
 a = Parameter()
 b = Parameter()
 x = Variable()
 model = a * x + b
-``
 
 Lets fit this model to some generated data.
 
