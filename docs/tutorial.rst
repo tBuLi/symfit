@@ -73,7 +73,7 @@ In order to do this, we simply call the model with these values::
 The model **has** to be called by keyword arguments to prevent any ambiguity. So the following does not work::
   y = model(xdata, fit_result.params.a, fit_result.params.b)
   
-To make life easier, there is a nice shorthand notation to imidiately use a fit result:
+To make life easier, there is a nice shorthand notation to imidiately use a fit result::
   y = model(x=xdata, **fit_result.params)
   
 This unpacks the .params object as a dict. For more info view ParameterDict.
