@@ -50,7 +50,7 @@ Multivariable Problem
 ---------------------
 
 Let M be the number of variables in your model, and N the number of data point in xdata.
-Symfit assumes xdata to be of shape :math:`N x M` or even :math:'N_1 x ... N_i x M' dimensional, as long as either the first or last axis of the array is of the same length as the number of variables in your model.
+Symfit assumes xdata to be of shape :math:`N \times M` or even :math:`N_1 \times \dots N_i \times M` dimensional, as long as either the first or last axis of the array is of the same length as the number of variables in your model.
 Currently it is assumed that the function is not vector valued, meaning that for every datapoint in xdata, only a single y value is returned.
 Vector valued functions are on my ToDo list. 
 
