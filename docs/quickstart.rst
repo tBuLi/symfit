@@ -1,7 +1,7 @@
 Quick Start
 ===========
 
-If you simply wan't the most important parts about symfit, this is the right place.
+If you simply want the most important parts about symfit, you came to the right place.
 
 Single Variable Problem
 -----------------------
@@ -29,7 +29,7 @@ Single Variable Problem
 symfit.api exposes sympy.api
 ----------------------------
 
-``symfit.api`` exposes the sympy api as well, so all mathematical expressions such as ``exp``, ``sin`` and ``pi`` are importable as well. For more, read the `sympy docs
+``symfit.api`` exposes the sympy api as well, so mathematical expressions such as ``exp``, ``sin`` and ``pi`` are importable from ``symfit.api`` as well. For more, read the `sympy docs
 <http://docs.sympy.org>`_.
 
 Initial Guess
@@ -42,7 +42,7 @@ The ``Parameter`` object can therefore be initiated with the following keywords:
 * ``max`` Maximal value for the parameter.
 * ``fixed`` Fix the value of the parameter during the fitting to ``value``.
 
-In the example above, we might change our ``Parameter``'s to the folling after looking at a plot of the data: ::
+In the example above, we might change our ``Parameter``'s to the following after looking at a plot of the data::
 
   a = Parameter(value=4, min=3, max=6)
 
@@ -50,7 +50,7 @@ Multivariable Problem
 ---------------------
 
 Let M be the number of variables in your model, and N the number of data point in xdata.
-Symfit assumes xdata to be of shape N x M or even N1 x ... Ni x M dimensional, as long as either the first or last axis of the array is of the same length as the number of variables in your model.
+Symfit assumes xdata to be of shape :math:`N x M` or even :math:'N_1 x ... N_i x M' dimensional, as long as either the first or last axis of the array is of the same length as the number of variables in your model.
 Currently it is assumed that the function is not vector valued, meaning that for every datapoint in xdata, only a single y value is returned.
 Vector valued functions are on my ToDo list. 
 
@@ -71,6 +71,6 @@ Vector valued functions are on my ToDo list.
   fit_result = fit.execute()
 
   # Plot the fit.
-  y = model(x=xdata[:, 0] y=xdata[:, 1], **fit_result.params)
-  plt.plot(xdata, y)
+  z = model(x=xdata[:, 0] y=xdata[:, 1], **fit_result.params)
+  plt.plot(xdata, z)
   plt.show()
