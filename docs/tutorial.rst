@@ -18,12 +18,16 @@ Lets fit this model to some generated data. ::
   import numpy as np
   
   xdata = np.linspace(0, 100, 100) # From 0 to 100 in 100 steps
-  a_vec = np.random.normal(5.0, scale=2.0, size=(100,))
-  b_vec = np.random.normal(105.0, scale=30.0, size=(100,))
+  a_vec = np.random.normal(15.0, scale=2.0, size=(100,))
+  b_vec = np.random.normal(100.0, scale=2.0, size=(100,))
   ydata = a_vec * xdata + b_vec # Point scattered around the line 5 * x + 105
   
   fit = Fit(model, xdata, ydata)
   fit_result = fit.execute()
+
+.. figure:: _static/linear_model_fit_data.png
+   :width: 300px
+   :alt: Linear Model Fit Data
 
 Printing ``fit_result`` will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.
 
@@ -37,7 +41,7 @@ The ``Parameter`` object can therefore be initiated with the following keywords:
 * ``max`` Maximal value for the parameter.
 * ``fixed`` Fix the value of the parameter during the fitting to ``value``.
 
-In the example above, we might change our ``Parameter``'s to the folling after looking at a plot of the data: ::
+In the example above, we might change our ``Parameter``'s to the following after looking at a plot of the data: ::
 
   a = Parameter(value=4, min=3, max=6)
 
@@ -49,13 +53,15 @@ The fitting process does not modify the ``Parameter`` objects.
 In this example, ``a.value`` will still be ``4.0`` and not the value we obtain after fitting. To get the value of fit paramaters we can do::
 
   >>> print(fit_result.params.a)
-  >>> 5.283944...
+  >>> 14.66946...
   >>> print(fit_result.params.a_stdev)
-  >>> 0.3022389...
+  >>> 0.3367571...
   >>> print(fit_result.params.b)
-  >>> 100.6052...
+  >>> 104.6558...
   >>> print(fit_result.params.b_stdev)
-  >>> 0.3022389...
+  >>> 19.49172...
+  >>> print(fit_result.r_squared)
+  >>> 0.950890866472
 
 For more FitResults, see the API docs. (Under construction.)
 
@@ -69,12 +75,16 @@ In order to do this, we simply call the model with these values::
   y = model(x=xdata, a=fit_result.params.a, b=fit_result.params.b)
   plt.plot(xdata, y)
   plt.show()
+
+.. figure:: _static/linear_model_fit.png
+   :width: 300px
+   :alt: Linear Model Fit
   
 The model *has* to be called by keyword arguments to prevent any ambiguity. So the following does not work::
 
   y = model(xdata, fit_result.params.a, fit_result.params.b)
   
-To make life easier, there is a nice shorthand notation to imidiately use a fit result::
+To make life easier, there is a nice shorthand notation to immediately use a fit result::
 
   y = model(x=xdata, **fit_result.params)
   
