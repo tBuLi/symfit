@@ -180,8 +180,8 @@ class TddInPythonExample(unittest.TestCase):
     #     self.assertAlmostEqual(fit_result.x[1], 1.)
 
     def test_parameter_add(self):
-        a = Parameter('a')
-        b = Parameter('b')
+        a = Parameter(value=1.0, min=0.5, max=1.5)
+        b = Parameter(1.0, min=0.0)
         new = a + b
         self.assertIsInstance(new, sympy.Add)
 
