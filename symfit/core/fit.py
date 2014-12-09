@@ -89,28 +89,71 @@ class FitResults(object):
     - paramameters + stdev
     - R squared (Regression coefficient.
     - fitting status message
+
+    This object is made to behave entirely read-only. This is a bit unnatural
+    to enforce in Python but I feel it is necessary to guarantee the integrity
+    of the results.
     """
+    # __params = None  # Private property.
+    __infodict = None
+    __status_message = None
+    __iterations = None
+    __ydata = None
+
     def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata):
+        """
+        Excuse the ugly names of most of these variables, they are inherited from scipy.
+        :param params:
+        :param popt:
+        :param pcov:
+        :param infodic:
+        :param mesg:
+        :param ier:
+        :param ydata:
+        :return:
+        """
         # Validate the types in rough way
         assert(type(infodic) == dict)
-        self.infodic = infodic
+        self.__infodict = infodic
         assert(type(mesg) == str)
-        self.mesg = mesg
+        self.__status_message = mesg
         assert(type(ier) == int)
-        self.ier = ier
+        self.__iterations = ier
         assert(type(ydata) == np.ndarray)
-        self.ydata = ydata  # Needed to calculate R^2
-        self.params = ParameterDict(params, popt, pcov)
+        self.__ydata = ydata  # Needed to calculate R^2
+        self.__params = ParameterDict(params, popt, pcov)
 
     def __str__(self):
         res = '\nParameter Value        Standard Deviation\n'
         for p in self.params:
             res += '{:10}{:e} {:e}\n'.format(p.name, self.params.get_value(p), self.params.get_stdev(p), width=20)
 
-        res += 'Fitting status message: {}\n'.format(self.mesg)
-        res += 'Number of iterations:   {}\n'.format(self.infodic['nfev'])
+        res += 'Fitting status message: {}\n'.format(self.status_message)
+        res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
         res += 'Regression Coefficient: {}\n'.format(self.r_squared)
         return res
+
+    #
+    # READ-ONLY Properties
+    # What follows are all the read-only properties of this object.
+    # Their definitions are mostly trivial, but necessary to make sure that FitResults can't be changed.
+    #
+
+    @property
+    def infodict(self):
+        return self.__infodict
+
+    @property
+    def status_message(self):
+        return self.__status_message
+
+    @property
+    def iterations(self):
+        return self.__iterations
+
+    @property
+    def params(self):
+        return self.__params
 
     @property
     def r_squared(self):
@@ -118,21 +161,13 @@ class FitResults(object):
         Getter for the r_squared property.
         :return: Regression coefficient.
         """
-        ss_err = (self.infodic['fvec'] ** 2).sum()
-        ss_tot = ((self.ydata - self.ydata.mean()) ** 2).sum()
+        ss_err = (self.infodict['fvec'] ** 2).sum()
+        ss_tot = ((self.__ydata - self.__ydata.mean()) ** 2).sum()
         return 1 - (ss_err / ss_tot)
 
 
 class BaseFit(object):
     __metaclass__  = abc.ABCMeta
-    # model = Instance(Expr)
-    # xdata = Array
-    # ydata = Array
-    # params = List(Parameter)
-    # vars = List(Variable)
-    # scipy_func = Callable
-    # fit_results = Instance(FitResults)
-    # jacobian = Property(depends_on='model')
     __jac = None  # private attribute for the jacobian
     __fit_results = None  # private attribute for the fit_results
 

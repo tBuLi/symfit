@@ -9,9 +9,9 @@ from symfit.core.support import sympy_to_scipy, sympy_to_py
 
 class TddInPythonExample(unittest.TestCase):
     def test_gaussian(self):
-        x0 = Parameter('x0')
-        sig = Parameter('sig')
-        x = Variable('x')
+        x0 = Parameter()
+        sig = Parameter()
+        x = Variable()
         new = sympy.exp(-(x - x0)**2/(2*sig**2))
         self.assertIsInstance(new, sympy.exp)
         g = Gaussian(x, x0, sig)
@@ -32,12 +32,74 @@ class TddInPythonExample(unittest.TestCase):
         result = func(x=ydata, y=ydata, a=3, b=9)
         self.assertTrue(np.array_equal(result, 3*xdata**2 + 9*ydata**2))
 
+    def test_read_only_results(self):
+        """
+        Fit results should be read-only. Let's try to break this!
+        """
+        xdata = np.linspace(1,10,10)
+        ydata = 3*xdata**2
+
+        a = Parameter()
+        b = Parameter()
+        x = Variable('x')
+        new = a*x**b
+
+        fit = Fit(new, xdata, ydata)
+        fit_result = fit.execute()
+
+        # Break it!
+        try:
+            fit_result.params = 'hello'
+        except AttributeError:
+            self.assertTrue(True) # desired result
+        else:
+            self.assertNotEqual(fit_result.params, 'hello')
+
+        try:
+            # Bypass the property getter. This will work, as it set's the instance value of __params.
+            fit_result.__params = 'hello'
+        except AttributeError as foo:
+            self.assertTrue(False) # undesired result
+        else:
+            self.assertNotEqual(fit_result.params, 'hello')
+            # The assginment will have succeeded on the instance because we set it from the outside.
+            # I must admit I don't fully understand why this is allowed and I don't like it.
+            # However, the tests below show that it did not influence the class method itself so
+            # fitting still works fine.
+            self.assertEqual(fit_result.__params, 'hello')
+
+        # Do a second fit and dubble check that we do not overwrtie something crusial.
+        xdata = np.arange(-5, 5, 1)
+        ydata = np.arange(-5, 5, 1)
+        xx, yy = np.meshgrid(xdata, ydata, sparse=False)
+        xdata_coor = np.dstack((xx, yy))
+
+        zdata = (2.5*xx**2 + 3.0*yy**2)
+
+        a = Parameter()
+        b = Parameter()
+        x = Variable()
+        y = Variable()
+        new = (a*x**2 + b*y**2)
+
+        fit_2 = Fit(new, xdata_coor, zdata)
+        fit_result_2 = fit_2.execute()
+        self.assertNotAlmostEqual(fit_result.params.a, fit_result_2.params.a)
+        self.assertAlmostEqual(fit_result.params.a, 3.0)
+        self.assertAlmostEqual(fit_result_2.params.a, 2.5)
+        self.assertNotAlmostEqual(fit_result.params.b, fit_result_2.params.b)
+        self.assertAlmostEqual(fit_result.params.b, 2.0)
+        self.assertAlmostEqual(fit_result_2.params.b, 3.0)
+
+
+
+
     def test_fitting(self):
         xdata = np.linspace(1,10,10)
         ydata = 3*xdata**2
 
-        a = Parameter('a')
-        b = Parameter('b')
+        a = Parameter()
+        b = Parameter()
         x = Variable('x')
         new = a*x**b
 
@@ -76,9 +138,9 @@ class TddInPythonExample(unittest.TestCase):
         xdata = np.linspace(1,10,10)
         ydata = 45*np.log(xdata*2)
 
-        a = Parameter('a')
-        b = Parameter('b', value=2.1, fixed=True)
-        x = Variable('x')
+        a = Parameter()
+        b = Parameter(value=2.1, fixed=True)
+        x = Variable()
         new = a*sympy.log(x*b)
 
 
@@ -90,10 +152,10 @@ class TddInPythonExample(unittest.TestCase):
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
-        a = Parameter('a')
-        b = Parameter('b')
-        x = Variable('x')
-        y = Variable('y')
+        a = Parameter()
+        b = Parameter()
+        x = Variable()
+        y = Variable()
         new = (a*x**2 + b*y**2)
 
         fit = Fit(new, xdata_coor, zdata)
@@ -118,10 +180,10 @@ class TddInPythonExample(unittest.TestCase):
         xdata = np.random.randint(-10, 11, size=(2, 400))
         zdata = 2.5*xdata[0]**2 + 7.0*xdata[1]**2
 
-        a = Parameter('a')
-        b = Parameter('b')
-        x = Variable('x')
-        y = Variable('y')
+        a = Parameter()
+        b = Parameter()
+        x = Variable()
+        y = Variable()
         new = a*x**2 + b*y**2
 
         fit = Fit(new, xdata, zdata)
