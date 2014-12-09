@@ -1,4 +1,4 @@
-# Overwrite == and != behavior to be symbolic if rhs is a number.
+# Overwrite behavior of sympy objects to make more sense for this project.
 import symfit.core.operators
 
 # Expose useful objects.
