@@ -1,7 +1,5 @@
 import abc
 
-from traits.api import *
-from sympy.core.expr import Expr
 import sympy
 import numpy as np
 
@@ -84,23 +82,24 @@ class ParameterDict(object):
         return np.sqrt(self.__pcov[key, key])
 
 
-class FitResults(HasStrictTraits):
-    params = Instance(ParameterDict)
-    infodic = Dict
-    mesg = Str
-    ier = Int
-    ydata = Array
-    r_squared = Property(Float)  # Read-only property.
-
-    def __init__(self, params, popt, pcov, *args, **kwargs):
-        """
-        Class to display the results of a fit in a nice and unambiquis way.
-        All things related to the fit are available on this class, e.g.
-        - paramameters + stdev
-        - R squared (Regression coefficient.
-        - more in the future?
-        """
-        super(FitResults, self).__init__(*args, **kwargs)
+class FitResults(object):
+    """
+    Class to display the results of a fit in a nice and unambiqous way.
+    All things related to the fit are available on this class, e.g.
+    - paramameters + stdev
+    - R squared (Regression coefficient.
+    - fitting status message
+    """
+    def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata):
+        # Validate the types in rough way
+        assert(type(infodic) == dict)
+        self.infodic = infodic
+        assert(type(mesg) == str)
+        self.mesg = mesg
+        assert(type(ier) == int)
+        self.ier = ier
+        assert(type(ydata) == np.ndarray)
+        self.ydata = ydata  # Needed to calculate R^2
         self.params = ParameterDict(params, popt, pcov)
 
     def __str__(self):
@@ -113,9 +112,10 @@ class FitResults(HasStrictTraits):
         res += 'Regression Coefficient: {}\n'.format(self.r_squared)
         return res
 
-    def _get_r_squared(self):
+    @property
+    def r_squared(self):
         """
-        Getter for the r_sqaured property.
+        Getter for the r_squared property.
         :return: Regression coefficient.
         """
         ss_err = (self.infodic['fvec'] ** 2).sum()
@@ -123,15 +123,18 @@ class FitResults(HasStrictTraits):
         return 1 - (ss_err / ss_tot)
 
 
-class BaseFit(ABCHasStrictTraits):
-    model = Instance(Expr)
-    xdata = Array
-    ydata = Array
-    params = List(Parameter)
-    vars = List(Variable)
-    scipy_func = Callable
-    fit_results = Instance(FitResults)
-    jacobian = Property(depends_on='model')
+class BaseFit(object):
+    __metaclass__  = abc.ABCMeta
+    # model = Instance(Expr)
+    # xdata = Array
+    # ydata = Array
+    # params = List(Parameter)
+    # vars = List(Variable)
+    # scipy_func = Callable
+    # fit_results = Instance(FitResults)
+    # jacobian = Property(depends_on='model')
+    __jac = None  # private attribute for the jacobian
+    __fit_results = None  # private attribute for the fit_results
 
     def __init__(self, model, *args, **kwargs):
         """
@@ -146,41 +149,58 @@ class BaseFit(ABCHasStrictTraits):
         # Compile a scipy function
         self.scipy_func = sympy_to_scipy(self.model, self.vars, self.params)
 
-    def get_jacobian(self, p, func, x, y):
+
+    def eval_jacobian(self, p, func, x, y):
         """
-        Create the jacobian of the model. This can then be used by
-        :return:
+        Evaluate the jacobian of the model.
+        :p: vector of parameter values
+        :func: scipy-type function
+        :x: array of x values for the evaluation of the Jacobian.
+        :y: ydata. Not typically used for determination of the Jacobian but provided by the calling scipy by default.
+        :return: vector of values of the derivatives with respect to each parameter.
         """
-        funcs = []
+        residues = []
         for jac in self.jacobian:
-            res = jac(x, p)
+            residue = jac(x, p)
             # If only params in f, we must multiply with an array to preserve the shape of x
             try:
-                len(res)
+                len(residue)
             except TypeError:  # not itterable
-                res *= np.ones(len(x))
+                residue *= np.ones(len(x))
             finally:
                 # res = np.atleast_2d(res)
-                funcs.append(res)
-        ans = np.array(funcs).T
-        return ans
+                residues.append(residue)
+        return np.array(residues).T
 
     def get_bounds(self):
         """
         :return: List of tuples of all bounds on parameters.
         """
-
         return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
 
-    @cached_property
-    def _get_jacobian(self):
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.model, param)
-            # Make them into pythonic functions
-            jac.append(sympy_to_scipy(f, self.vars, self.params))
-        return jac
+    @property
+    def jacobian(self):
+        """
+        Get the scipy functions for the Jacobian. This returns functions only, not values.
+        :return: array of derivative functions in all parameters, not values.
+        """
+        if not self.__jac:
+            self.__jac = []
+            for param in self.params:
+                # Differentiate to every param
+                f = sympy.diff(self.model, param)
+                # Make them into pythonic functions
+                self.__jac.append(sympy_to_scipy(f, self.vars, self.params))
+        return self.__jac
+
+    @property
+    def fit_results(self):
+        """
+        FitResults are a read-only property, because we don't want people messing with their
+        FitResults, do we?
+        :return: FitResult object if available, else None
+        """
+        return self.__fit_results if self.__fit_results else None
 
     @abc.abstractmethod
     def execute(self, *args, **kwargs):
@@ -207,15 +227,18 @@ class BaseFit(ABCHasStrictTraits):
 class Fit(BaseFit):
     def __init__(self, model, x, y, *args, **kwargs):
         """
+        Least squares fitting. In the notation used for x and y below,
+        N_1 - N_i indicate the dimension of the array inserted, and M
+        the number of variables. Either the first or the last dim must
+        be of size M.
+        Vector-valued functions are not currently supported.
+
         :param model: sympy expression.
-        :param x: xdata to fit to.  NxM
-        :param y: ydata             Nx1
+        :param x: xdata to fit to.  N_1 x ... x N_i x M
+        :param y: ydata             N_1 x ... x N_i
         """
         super(Fit, self).__init__(model, *args, **kwargs)
-        # We assume the to be at least 2d always.
-        # This because we use x = [] for the scipy functions.
-        # self.xdata = np.expand_dims(x, axis=0) if len(x.shape) == 1 else x
-        # self.xdata = np.atleast_2d(x)
+        # flatten x and y to all but the final dimension.
         self.xdata, self.ydata = self._flatten(x, y)
         # Check if the number of variables matches the dim of x
 
@@ -268,7 +291,7 @@ class Fit(BaseFit):
             self.get_initial_guesses(),
             args=(self.scipy_func, self.xdata, self.ydata),
             bounds=self.get_bounds(),
-            Dfun=self.get_jacobian,
+            Dfun=self.eval_jacobian,
             full_output=True,
             *args,
             **kwargs
@@ -277,7 +300,7 @@ class Fit(BaseFit):
         s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
         # raise Exception(infodic['fvec'], self.ydata.shape, self.xdata.shape)
         pcov = cov_x * s_sq
-        self.fit_results = FitResults(
+        self.__fit_results = FitResults(
             params=self.params,
             popt=popt,
             pcov=pcov,
@@ -286,7 +309,7 @@ class Fit(BaseFit):
             ier=ier,
             ydata=self.ydata,  # Needed to calculate R^2
         )
-        return self.fit_results
+        return self.__fit_results
 
     def error(self, p, func, x, y):
         """
@@ -295,13 +318,10 @@ class Fit(BaseFit):
         :param x: xdata
         :param y: ydata
         :return: difference between the data and the fit for the given params.
-        This function and get_jacobian should have been staticmethods, but that
-        way get_jacobian does not work.
+        This function and eval_jacobian should have been staticmethods, but that
+        way eval_jacobian does not work.
         """
         ans = func(x, p)
-        # import matplotlib.pyplot as plt
-        # plt.plot(ans)
-        # plt.show()
         return ans - y
 
     def get_initial_guesses(self):
@@ -334,7 +354,7 @@ class Fit(BaseFit):
         #             args=(self.scipy_func, self.xdata, self.ydata),
         #             # method='L-BFGS-B',
         #             # bounds=self.get_bounds(),
-        #             # jac=self.get_jacobian,
+        #             # jac=self.eval_jacobian,
         #         )
         #         print ans
         #         return ans
@@ -374,7 +394,7 @@ class Fit(BaseFit):
         #             method='SLSQP',
         #             # bounds=self.get_bounds()
         #             # constraints = self.get_constraints(),
-        #             jac=self.get_jacobian,
+        #             jac=self.eval_jacobian,
         #             options={'disp': True},
         #         )
         #         return ans
@@ -383,7 +403,7 @@ class Fit(BaseFit):
         #         ans = sign*self.py_func(*p0)
         #         return ans
         #
-        #     def get_jacobian(self, p, sign=1.0):
+        #     def eval_jacobian(self, p, sign=1.0):
         #         """
         #         Create the jacobian of the model. This can then be used by
         #         :return:
@@ -398,7 +418,7 @@ class Fit(BaseFit):
         #         return np.array([sign*jac(p) for jac in self.jacobian])
         #
         #     @cached_property
-        #     def _get_jacobian(self):
+        #     def get_jacobian(self):
         #         return [sympy_to_scipy(sympy.diff(self.model, var), self.vars, self.params) for var in self.vars]
         #
         #     def get_constraints(self):
