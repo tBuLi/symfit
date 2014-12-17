@@ -35,7 +35,8 @@ def sympy_to_scipy(func, vars, params):
     """
     lambda_func = sympy_to_py(func, vars, params)
     def f(x, p):
-        """ Scipy style function.
+        """
+        Scipy style function.
         :param x: list of arrays, NxM
         :param p: tuple of parameter values.
         """

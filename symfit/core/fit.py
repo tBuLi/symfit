@@ -16,7 +16,7 @@ class ParameterDict(object):
     """
     def __init__(self, params, popt, pcov, *args, **kwargs):
         super(ParameterDict, self).__init__(*args, **kwargs)
-        self.__params = params
+        self.__params = params  # list of Parameter instances
         self.__params_dict = dict([(p.name, p) for p in params])
         self.__popt = popt
         self.__pcov = pcov
@@ -84,17 +84,17 @@ class ParameterDict(object):
 
 class FitResults(object):
     """
-    Class to display the results of a fit in a nice and unambiqous way.
+    Class to display the results of a fit in a nice and unambiguous way.
     All things related to the fit are available on this class, e.g.
     - paramameters + stdev
-    - R squared (Regression coefficient.
+    - R squared (Regression coefficient.)
     - fitting status message
 
     This object is made to behave entirely read-only. This is a bit unnatural
     to enforce in Python but I feel it is necessary to guarantee the integrity
     of the results.
     """
-    # __params = None  # Private property.
+    __params = None  # Private property.
     __infodict = None
     __status_message = None
     __iterations = None
@@ -102,7 +102,8 @@ class FitResults(object):
 
     def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata):
         """
-        Excuse the ugly names of most of these variables, they are inherited from scipy.
+        Excuse the ugly names of most of these variables, they are inherited
+        from scipy.
         :param params:
         :param popt:
         :param pcov:
@@ -136,7 +137,8 @@ class FitResults(object):
     #
     # READ-ONLY Properties
     # What follows are all the read-only properties of this object.
-    # Their definitions are mostly trivial, but necessary to make sure that FitResults can't be changed.
+    # Their definitions are mostly trivial, but necessary to make sure that
+    # FitResults can't be changed.
     #
 
     @property
