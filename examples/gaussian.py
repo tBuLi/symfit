@@ -2,11 +2,9 @@ from symfit.api import Parameter, Variable, Fit, exp
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-# sns.color_palette("Blues")
-# sns.set_palette(sns.color_palette("Paired"))
+
 palette = sns.color_palette()
-sns.set_palette(palette)
-# print sns.color_palette("husl", 8)
+
 
 x = Variable()
 A = Parameter()
