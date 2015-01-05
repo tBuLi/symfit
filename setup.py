@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='symfit',
-    version='0.2.1',
+    version='0.2.2',
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
     author_email='m.roelfs@rug.nl',
