@@ -5,7 +5,7 @@ import numpy as np
 
 from symfit.core.argument import Parameter, Variable
 from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py
-from leastsqbound import leastsqbound
+from symfit.core.leastsqbound import leastsqbound
 
 
 class ParameterDict(object):
@@ -20,7 +20,7 @@ class ParameterDict(object):
         self.__params_dict = dict([(p.name, p) for p in params])
         # popt and pstdev are dicts with parameter names: value pairs.
         self.__popt = dict([(p.name, value) for p, value in zip(params, popt)])
-        if pcov:
+        if pcov is not None:
             # Can be None.
             stdevs = np.sqrt(np.diagonal(pcov))
         else:
@@ -341,7 +341,7 @@ class Fit(BaseFit):
 
         s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
         # raise Exception(infodic['fvec'], self.ydata.shape, self.xdata.shape)
-        pcov = cov_x * s_sq if cov_x else None
+        pcov = cov_x * s_sq if cov_x is not None else None
         self.__fit_results = FitResults(
             params=self.params,
             popt=popt,
