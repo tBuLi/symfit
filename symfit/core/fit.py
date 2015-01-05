@@ -18,7 +18,11 @@ class ParameterDict(object):
         super(ParameterDict, self).__init__(*args, **kwargs)
         self.__params = params  # list of Parameter instances
         self.__params_dict = dict([(p.name, p) for p in params])
-        self.__popt = popt
+        # popt and pstdev are dicts with parameter names: value pairs.
+        self.__popt = dict([(p.name, value) for p, value in zip(params, popt)])
+        stdevs = np.sqrt(np.diagonal(pcov))
+        self.__pstdev = dict([(p.name, s) for p, s in zip(params, stdevs)])
+        # Covariance matrix
         self.__pcov = pcov
 
     def __len__(self):
@@ -30,8 +34,9 @@ class ParameterDict(object):
     def __getitem__( self, key):
         """
         Intended use for this is for use of ParameterDict as a kwarg.
-        Therefore return the value of the param, as this is what the user expects.
-        :return: self.__popt[value]
+        Therefore return the value of the param, as this is what the user
+        expects.
+        :return: getattr(self, key), the value of the param with name 'key'
         """
         return getattr(self, key)
 
@@ -47,39 +52,35 @@ class ParameterDict(object):
         .a gives the value of the parameter.
         .a_stdev gives the standard deviation.
         """
-        parts = name.split('_')
-        param_name = parts.pop(0)
-        for key, param in enumerate(self.__params):
-            if param.name == name:
-                return self.__popt[key]
-            if param.name == param_name:
-                if len(parts) == 1:  # There was something appended to the name of the param
-                    if parts[0] in ['stdev']:
-                        return np.sqrt(self.__pcov[key, key])
-                elif len(parts) > 1:
-                    raise AttributeError('Illegal attribute ' + name)
-                else:  # Only a name was specified, so return the param.
-                    return self.__popt[key]
-        else:  # No match found, so no param with this name exists.
-            raise AttributeError('No Parameter by the name {}.'.format(param_name))
+        # If a parameter with this name exists, return it immediately
+        try:
+            return self.__popt[name]
+        except KeyError:
+            param_name = name
+            # Expand this if statement if in the future we allow more suffixes
+            if name.endswith('_stdev'):
+                param_name = name[:-len('_stdev')]  # everything but the suffix
+                try:
+                    return self.__pstdev[param_name]
+                except KeyError:
+                    pass
+        raise AttributeError('No Parameter by the name {}.'.format(param_name))
 
     def get_value(self, param):
         """
         :param param: Parameter object.
         :return: returns the numerical value of param
         """
-        assert (isinstance(param, Parameter))
-        key = self.__params.index(param)  # Number of param
-        return self.__popt[key]
+        assert isinstance(param, Parameter)
+        return self.__popt[param.name]
 
     def get_stdev(self, param):
         """
         :param param: Parameter object.
         :return: returns the standard deviation of param
         """
-        assert (isinstance(param, Parameter))
-        key = self.__params.index(param)  # Number of param
-        return np.sqrt(self.__pcov[key, key])
+        assert isinstance(param, Parameter)
+        return self.__pstdev[param.name]
 
 
 class FitResults(object):
