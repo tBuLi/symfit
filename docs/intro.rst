@@ -3,7 +3,7 @@ Introduction
 
 Existing fitting modules are not very pythonic in their API and can be difficult for humans to use. This project aims to marry the power of ``scipy.optimize`` with the readability of ``SymPy`` to create a highly readable and easy to use fitting package which works for projects of any scale.
 
-``symfit`` makes it extremely easy to provide guesses for your parameter and to bound them to a certain range::
+``symfit`` makes it extremely easy to provide guesses for your parameters and to bound them to a certain range::
 
 	a = Parameter(1.0, min=0.0, max=5.0)
 
