@@ -20,7 +20,11 @@ class ParameterDict(object):
         self.__params_dict = dict([(p.name, p) for p in params])
         # popt and pstdev are dicts with parameter names: value pairs.
         self.__popt = dict([(p.name, value) for p, value in zip(params, popt)])
-        stdevs = np.sqrt(np.diagonal(pcov))
+        if pcov:
+            # Can be None.
+            stdevs = np.sqrt(np.diagonal(pcov))
+        else:
+            stdevs = [None for _ in params]
         self.__pstdev = dict([(p.name, s) for p, s in zip(params, stdevs)])
         # Covariance matrix
         self.__pcov = pcov
@@ -337,7 +341,7 @@ class Fit(BaseFit):
 
         s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
         # raise Exception(infodic['fvec'], self.ydata.shape, self.xdata.shape)
-        pcov = cov_x * s_sq
+        pcov = cov_x * s_sq if cov_x else None
         self.__fit_results = FitResults(
             params=self.params,
             popt=popt,
