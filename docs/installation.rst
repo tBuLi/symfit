@@ -1,5 +1,9 @@
 Installation
 ============
-In a short time, I will try to get this project accepted into pip. For now you can install the latest version using ::
+If you are using pip, you can simply run ::
 
-  pip install https://github.com/tBuLi/symfit
+  pip install symfit
+
+from your terminal. If you are using linux and do not use pip, you can download the source from https://github.com/tBuLi/symfit and install manually.
+
+Are you not on linux and you do not use pip? That's your own mess.
