@@ -24,7 +24,7 @@ Here are a few hints and rules to get you started:
 - Obey `PEP 8`_ and `PEP 257`_.
 - Write `good commit messages`_.
 
-Thank you for considering to contribute to pem!
+Thank you for considering to contribute to ``symfit``!
 If you have any question or concerns, feel free to reach out to me.
 
 
