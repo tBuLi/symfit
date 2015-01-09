@@ -1,7 +1,7 @@
 Credits
 =======
 
-“symfit” is written and maintained by Martin Roelfs.
+```symfit``` is written and maintained by Martin Roelfs.
 
 
 Contributors
