@@ -1,7 +1,7 @@
 How To Contribute
 =================
 
-``symfit`` needs more contributors to help it become even better. In particular I would like help in the packaging depertment, as I am new to distributing code in a cross-platform way.
+``symfit`` needs more contributors to help it become even better. In particular I would like help in the packaging department, as I am new to distributing code in a cross-platform way.
 Even if you don't know much about this yourself, it would be great if you could help provide information about on which OS and Python versions ``symfit`` works and on which it doesn't.
 
 To make participation as pleasant as possible, this project adheres to the `Code of Conduct`_ by the Python Software Foundation.
