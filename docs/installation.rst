@@ -11,7 +11,7 @@ Are you not on linux and you do not use pip? That's your own mess.
 Dependencies
 ------------
 ::
-	pip install sympy
-	pip install numpy
-	pip install scipy
-	
+
+  pip install sympy
+  pip install numpy
+  pip install scipy
