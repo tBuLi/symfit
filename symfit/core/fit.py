@@ -132,7 +132,11 @@ class FitResults(object):
     def __str__(self):
         res = '\nParameter Value        Standard Deviation\n'
         for p in self.params:
-            res += '{:10}{:e} {:e}\n'.format(p.name, self.params.get_value(p), self.params.get_stdev(p), width=20)
+            value = self.params.get_value(p)
+            value_str = '{:e}'.format(value) if value is not None else 'None'
+            stdev = self.params.get_stdev(p)
+            stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
+            res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
         res += 'Fitting status message: {}\n'.format(self.status_message)
         res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
