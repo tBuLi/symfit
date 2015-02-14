@@ -223,6 +223,76 @@ class TddInPythonExample(unittest.TestCase):
         )
         self.assertEqual(sexy, ugly)
 
+    def test_2_gaussian_2d_fitting(self):
+        mean = (0.5,0.5) # x, y mean 0.6, 0.4
+        cov = [[0.1**2,0],[0,0.1**2]]
+        data = np.random.multivariate_normal(mean, cov, 10000)
+        mean = (0.7,0.7) # x, y mean 0.6, 0.4
+        cov = [[0.1**2,0],[0,0.1**2]]
+        data_2 = np.random.multivariate_normal(mean, cov, 10000)
+        data = np.vstack((data, data_2))
+
+        print data.shape
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib import cm
+        from matplotlib.ticker import LinearLocator, FormatStrFormatter
+        import matplotlib.pyplot as plt
+        # plt.hist2d(data[:,1], data[:,0], bins=100)
+        # plt.show()
+        # Insert them as y,x here as np fucks up cartesian conventions.
+        ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
+        xcentres = (xedges[:-1] + xedges[1:]) / 2
+        ycentres = (yedges[:-1] + yedges[1:]) / 2
+
+        # Make a valid grid to match ydata
+        xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
+        xdata = np.dstack((xx, yy)).T
+
+        plt.imshow(ydata, extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
+        plt.show()
+
+        x = Variable()
+        y = Variable()
+
+        x0_1 = Parameter(0.7)
+        sig_x_1 = Parameter()
+        y0_1 = Parameter(0.7)
+        sig_y_1 = Parameter()
+        A_1 = Parameter()
+        g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
+
+        x0_2 = Parameter(0.5)
+        sig_x_2 = Parameter()
+        y0_2 = Parameter(0.5)
+        sig_y_2 = Parameter()
+        A_2 = Parameter()
+        g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
+
+        model = g_1 + g_2
+        fit = Fit(model, xdata, ydata)
+        fit_result = fit.execute()
+        print fit_result
+
+        img = model(x=xx, y=yy, **fit_result.params)
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection='3d', title='Original data')
+        # ax.contourf(xx, yy, img, zdir='z', cmap=cm.coolwarm)
+        # ax = fig.add_subplot(1, 2, 2, projection='3d') plot_surface, plot_wireframe
+        surf = ax.plot_surface(xx, yy, ydata, rstride=10, cstride=10, cmap=cm.coolwarm, alpha=1.0)
+                # linewidth=0, antialiased=False)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+
+        # ax = fig.add_subplot(2, 1, 2, projection='3d', title='fit')
+        ax.plot_surface(xx, yy, img, rstride=5, cstride=5, alpha=0.5)
+        plt.show()
+
+        # Equal up to some precision. Not much obviously.
+        self.assertAlmostEqual(fit_result.params.x0_1, 0.7, 2)
+        self.assertAlmostEqual(fit_result.params.y0_1, 0.7, 2)
+        self.assertAlmostEqual(fit_result.params.x0_2, 0.5, 2)
+        self.assertAlmostEqual(fit_result.params.y0_2, 0.5, 2)
+
     def test_gaussian_2d_fitting(self):
         mean = (0.6,0.4) # x, y mean 0.6, 0.4
         cov = [[0.2**2,0],[0,0.01**2]]
