@@ -223,6 +223,39 @@ class TddInPythonExample(unittest.TestCase):
         )
         self.assertEqual(sexy, ugly)
 
+    def test_gaussian_2d_fitting(self):
+        mean = (0.6,0.4) # x, y mean 0.6, 0.4
+        cov = [[0.2**2,0],[0,0.01**2]]
+        data = np.random.multivariate_normal(mean, cov, 1000000)
+
+        # Insert them as y,x here as np fucks up cartesian conventions.
+        ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
+        xcentres = (xedges[:-1] + xedges[1:]) / 2
+        ycentres = (yedges[:-1] + yedges[1:]) / 2
+
+        # Make a valid grid to match ydata
+        xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
+        xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
+
+        x0 = Parameter(0.6)
+        sig_x = Parameter(0.2)
+        x = Variable()
+        y0 = Parameter(0.4)
+        sig_y = Parameter(0.01)
+        A = Parameter()
+        y = Variable()
+        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
+
+        fit = Fit(g, xdata, ydata)
+        fit_result = fit.execute()
+        print fit_result
+
+        self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:,0]), 3)
+        self.assertAlmostEqual(fit_result.params.y0, np.mean(data[:,1]), 3)
+        self.assertAlmostEqual(np.abs(fit_result.params.sig_x), np.std(data[:,0]), 3)
+        self.assertAlmostEqual(np.abs(fit_result.params.sig_y), np.std(data[:,1]), 3)
+        self.assertGreaterEqual(fit_result.r_squared, 0.99)
+
     # def test_minimize(self):
     #     x = Parameter()
     #     y = Parameter()
