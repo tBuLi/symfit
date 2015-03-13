@@ -3,13 +3,38 @@ Fitting Types
 
 Fit (LeastSquares)
 ------------------
-The default fitting object does Least-squares fitting. 
+The default fitting object does least-squares fitting::
+
+  from symfit.api import Parameter, Variable, Fit
+  import numpy as np
+
+  # Define a model to fit to.
+  a = Parameter()
+  b = Parameter()
+  x = Variable()
+  model = a * x + b
+
+  # Generate some data  
+  xdata = np.linspace(0, 100, 100) # From 0 to 100 in 100 steps
+  a_vec = np.random.normal(15.0, scale=2.0, size=(100,))
+  b_vec = np.random.normal(100.0, scale=2.0, size=(100,))
+  ydata = a_vec * xdata + b_vec # Point scattered around the line 5 * x + 105
+  
+  fit = Fit(model, xdata, ydata)
+  fit_result = fit.execute()
+
+.. figure:: _static/linear_model_fit_data.png
+   :width: 300px
+   :alt: Linear Model Fit Data
+
+``Fit`` currently simply wraps ``LeastSquares``. This might be changed in the future to it determining which fit would work best for the current data and then just trying the best option.
 
 Likelihood
 ----------
 Given a dataset and a model, what values should the model's parameters have to make the observed data most likely? This is the principle of maximum likelihood and the question the Likelihood object can answer for you.
 
-Example:
+Example::
+
   from symfit.api import Parameter, Variable, Likelihood, exp
   import numpy as np
 
@@ -34,13 +59,17 @@ Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapp
 
 Suppose we want to maximize the following function:
 
-![function](http://docs.scipy.org/doc/scipy/reference/_images/math/775ad8006edfe87928e39f1798d8f53849f7216f.png)
+.. figure:: http://docs.scipy.org/doc/scipy/reference/_images/math/775ad8006edfe87928e39f1798d8f53849f7216f.png
+   :width: 300px
+   :alt: Model
 
 Subject to the following constraits:
 
-![constraints](http://docs.scipy.org/doc/scipy/reference/_images/math/984a489a67fd94bcec325c0d60777d61c12c94f4.png)
+.. figure:: http://docs.scipy.org/doc/scipy/reference/_images/math/984a489a67fd94bcec325c0d60777d61c12c94f4.png
+   :width: 300px
+   :alt: Constraints
 
-In SciPy code the following lines are needed:
+In SciPy code the following lines are needed::
 
   def func(x, sign=1.0):
       """ Objective function """
@@ -62,7 +91,7 @@ In SciPy code the following lines are needed:
   res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                  constraints=cons, method='SLSQP', options={'disp': True})
 
-Takes a couple of readthroughs to make sense, doesn't it? Let's do the same problem in ``symfit``:
+Takes a couple of readthroughs to make sense, doesn't it? Let's do the same problem in ``symfit``::
 
   x = Parameter()
   y = Parameter()
