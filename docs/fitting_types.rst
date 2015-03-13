@@ -23,7 +23,7 @@ The default fitting object does least-squares fitting::
   fit = Fit(model, xdata, ydata)
   fit_result = fit.execute()
 
-.. figure:: _static/linear_model_fit_data.png
+.. figure:: _static/linear_model_fit.png
    :width: 300px
    :alt: Linear Model Fit Data
 
@@ -59,15 +59,18 @@ Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapp
 
 Suppose we want to maximize the following function:
 
-.. figure:: http://docs.scipy.org/doc/scipy/reference/_images/math/775ad8006edfe87928e39f1798d8f53849f7216f.png
-   :width: 300px
-   :alt: Model
+.. math::
+
+  f(x,y) = 2xy + 2x - x^2 - 2y^2
 
 Subject to the following constraits:
 
-.. figure:: http://docs.scipy.org/doc/scipy/reference/_images/math/984a489a67fd94bcec325c0d60777d61c12c94f4.png
-   :width: 300px
-   :alt: Constraints
+.. math:: 
+
+  x^3 - y = 0
+.. math::
+
+  y - 1 >= 0 
 
 In SciPy code the following lines are needed::
 
@@ -98,7 +101,7 @@ Takes a couple of readthroughs to make sense, doesn't it? Let's do the same prob
   model = 2*x*y + 2*x - x**2 -2*y**2
   constraints = [
     x**3 - y == 0,
-      y - 1 >= 0,
+    y - 1 >= 0,
   ]
 
   fit = Maximize(model, constraints=constraints)
