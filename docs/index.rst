@@ -15,6 +15,7 @@ Contents:
    installation
    quickstart
    tutorial
+   fitting_types
    dependencies
 
 
