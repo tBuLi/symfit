@@ -1,8 +1,9 @@
+from __future__ import division, print_function
 import unittest
 import sympy
 from sympy import symbols
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults
+from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood
 from symfit.functions import Gaussian, Exp
 import scipy.stats
 from symfit.core.support import sympy_to_scipy, sympy_to_py
@@ -15,7 +16,6 @@ class TddInPythonExample(unittest.TestCase):
         new = sympy.exp(-(x - x0)**2/(2*sig**2))
         self.assertIsInstance(new, sympy.exp)
         g = Gaussian(x, x0, sig)
-        print 'here:', g, type(g)
         self.assertTrue(issubclass(g.__class__, sympy.exp))
 
     def test_callable(self):
@@ -118,7 +118,6 @@ class TddInPythonExample(unittest.TestCase):
         # self.assertEqual(args, ['x', 'a', 'b'])
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
-        print(fit_result)
         self.assertAlmostEqual(fit_result.params.a, 3.0)
         self.assertAlmostEqual(fit_result.params.b, 2.0)
 
@@ -209,7 +208,7 @@ class TddInPythonExample(unittest.TestCase):
 
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
-        print fit_result
+
         self.assertAlmostEqual(fit_result.params.A, 0.3989423)
         self.assertAlmostEqual(np.abs(fit_result.params.sig), 1.0)
         self.assertAlmostEqual(fit_result.params.x0, 0.0)
@@ -224,21 +223,15 @@ class TddInPythonExample(unittest.TestCase):
         self.assertEqual(sexy, ugly)
 
     def test_2_gaussian_2d_fitting(self):
+        np.random.seed(42)
         mean = (0.5,0.5) # x, y mean 0.6, 0.4
         cov = [[0.1**2,0],[0,0.1**2]]
-        data = np.random.multivariate_normal(mean, cov, 10000)
+        data = np.random.multivariate_normal(mean, cov, 100000)
         mean = (0.7,0.7) # x, y mean 0.6, 0.4
         cov = [[0.1**2,0],[0,0.1**2]]
-        data_2 = np.random.multivariate_normal(mean, cov, 10000)
+        data_2 = np.random.multivariate_normal(mean, cov, 100000)
         data = np.vstack((data, data_2))
 
-        print data.shape
-        from mpl_toolkits.mplot3d import Axes3D
-        from matplotlib import cm
-        from matplotlib.ticker import LinearLocator, FormatStrFormatter
-        import matplotlib.pyplot as plt
-        # plt.hist2d(data[:,1], data[:,0], bins=100)
-        # plt.show()
         # Insert them as y,x here as np fucks up cartesian conventions.
         ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
         xcentres = (xedges[:-1] + xedges[1:]) / 2
@@ -248,22 +241,19 @@ class TddInPythonExample(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
         xdata = np.dstack((xx, yy)).T
 
-        plt.imshow(ydata, extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
-        plt.show()
-
         x = Variable()
         y = Variable()
 
-        x0_1 = Parameter(0.7)
+        x0_1 = Parameter(0.7, min=0.6, max=0.8)
         sig_x_1 = Parameter()
-        y0_1 = Parameter(0.7)
+        y0_1 = Parameter(0.7, min=0.6, max=0.8)
         sig_y_1 = Parameter()
         A_1 = Parameter()
         g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
 
-        x0_2 = Parameter(0.5)
+        x0_2 = Parameter(0.5, min=0.4, max=0.6)
         sig_x_2 = Parameter()
-        y0_2 = Parameter(0.5)
+        y0_2 = Parameter(0.5, min=0.4, max=0.6)
         sig_y_2 = Parameter()
         A_2 = Parameter()
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
@@ -271,21 +261,8 @@ class TddInPythonExample(unittest.TestCase):
         model = g_1 + g_2
         fit = Fit(model, xdata, ydata)
         fit_result = fit.execute()
-        print fit_result
 
         img = model(x=xx, y=yy, **fit_result.params)
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1, projection='3d', title='Original data')
-        # ax.contourf(xx, yy, img, zdir='z', cmap=cm.coolwarm)
-        # ax = fig.add_subplot(1, 2, 2, projection='3d') plot_surface, plot_wireframe
-        surf = ax.plot_surface(xx, yy, ydata, rstride=10, cstride=10, cmap=cm.coolwarm, alpha=1.0)
-                # linewidth=0, antialiased=False)
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-
-        # ax = fig.add_subplot(2, 1, 2, projection='3d', title='fit')
-        ax.plot_surface(xx, yy, img, rstride=5, cstride=5, alpha=0.5)
-        plt.show()
 
         # Equal up to some precision. Not much obviously.
         self.assertAlmostEqual(fit_result.params.x0_1, 0.7, 2)
@@ -318,7 +295,6 @@ class TddInPythonExample(unittest.TestCase):
 
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
-        print fit_result
 
         self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:,0]), 3)
         self.assertAlmostEqual(fit_result.params.y0, np.mean(data[:,1]), 3)
@@ -326,23 +302,73 @@ class TddInPythonExample(unittest.TestCase):
         self.assertAlmostEqual(np.abs(fit_result.params.sig_y), np.std(data[:,1]), 3)
         self.assertGreaterEqual(fit_result.r_squared, 0.99)
 
-    # def test_minimize(self):
-    #     x = Parameter()
-    #     y = Parameter()
-    #     model = 2*x*y + 2*x - x**2 - 2*y**2
-    #     from sympy import Eq
-    #     constraints = [
-    #         x**3 - y == 0,
-    #         y - 1 >= 0,
-    #     ]
-    #     print(type(x**3 - y))
-    #     print x**3 - y == 0.0
-    #     self.assertIsInstance(constraints[0], Eq)
-    #
-    #     fit = Maximize(model, constraints=constraints)
-    #     fit_result = fit.execute()
-    #     self.assertAlmostEqual(fit_result.x[0], 1.00000009)
-    #     self.assertAlmostEqual(fit_result.x[1], 1.)
+    def test_minimize(self):
+        x = Parameter(-1.)
+        y = Parameter()
+        model = 2*x*y + 2*x - x**2 - 2*y**2
+        from sympy import Eq, Ge
+        constraints = [
+            Ge(y - 1, 0),  #y - 1 >= 0,
+            Eq(x**3 - y, 0),  # x**3 - y == 0,
+        ]
+
+        # raise Exception(model.atoms(), model.as_ordered_terms())
+        # self.assertIsInstance(constraints[0], Eq)
+
+        # Unbounded
+        fit = Maximize(model)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.params.y, 1.)
+        self.assertAlmostEqual(fit_result.params.x, 2.)
+
+        fit = Maximize(model, constraints=constraints)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.params.x, 1.00000009)
+        self.assertAlmostEqual(fit_result.params.y, 1.)
+
+    def test_scipy_style(self):
+        def func(x, sign=1.0):
+            """ Objective function """
+            return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
+
+        def func_deriv(x, sign=1.0):
+            """ Derivative of objective function """
+            dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
+            dfdx1 = sign*(2*x[0] - 4*x[1])
+            return np.array([ dfdx0, dfdx1 ])
+
+        cons = (
+            {'type': 'eq',
+             'fun' : lambda x: np.array([x[0]**3 - x[1]]),
+             'jac' : lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
+            {'type': 'ineq',
+             'fun' : lambda x: np.array([x[1] - 1]),
+             'jac' : lambda x: np.array([0.0, 1.0])})
+
+        from scipy.optimize import minimize
+        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
+               method='SLSQP', options={'disp': True})
+
+        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
+               constraints=cons, method='SLSQP', options={'disp': True})
+
+    def test_likelihood_fitting(self):
+        """
+        Fit using the likelihood method.
+        """
+        b = Parameter(4, min=3.0)
+        x = Variable()
+        pdf = (1/b) * exp(- x / b)
+
+        # Draw 100 points from an exponential distribution.
+        # np.random.seed(100)
+        xdata = np.random.exponential(5, 100000)
+
+        fit = Likelihood(pdf, xdata)
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.params.b, 5., 2)
+
 
     def test_parameter_add(self):
         a = Parameter(value=1.0, min=0.5, max=1.5)

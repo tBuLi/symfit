@@ -2,6 +2,7 @@ import abc
 
 import sympy
 import numpy as np
+from scipy.optimize import minimize
 
 from symfit.core.argument import Parameter, Variable
 from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py
@@ -207,15 +208,22 @@ class BaseFit(object):
         """
         residues = []
         for jac in self.jacobian:
+            # raise Exception(inspect.getargspec(jac))
             residue = jac(x, p)
+            # raise Exception('')
             # If only params in f, we must multiply with an array to preserve the shape of x
             try:
                 len(residue)
             except TypeError:  # not itterable
-                residue *= np.ones(len(x))
+                if len(x):
+                    residue *= np.ones(len(x))
+                else:
+                    residue = np.array([residue])
             finally:
                 # res = np.atleast_2d(res)
                 residues.append(residue)
+                # raise Exception(residue, x)
+
         return np.array(residues).T
 
     def get_bounds(self):
@@ -254,7 +262,7 @@ class BaseFit(object):
 
     @abc.abstractmethod
     def get_initial_guesses(self):
-        return
+        return np.array([param.value for param in self.params])
 
     @abc.abstractmethod
     def error(self, p, func, x, y):
@@ -269,8 +277,7 @@ class BaseFit(object):
         """
         return
 
-
-class Fit(BaseFit):
+class LeastSquares(BaseFit):
     def __init__(self, model, x, y, *args, **kwargs):
         """
         Least squares fitting. In the notation used for x and y below,
@@ -283,7 +290,7 @@ class Fit(BaseFit):
         :param x: xdata to fit to.  N_1 x ... x N_i x M
         :param y: ydata             N_1 x ... x N_i
         """
-        super(Fit, self).__init__(model, *args, **kwargs)
+        super(LeastSquares, self).__init__(model, *args, **kwargs)
         # flatten x and y to all but the final dimension.
         self.xdata, self.ydata = self._flatten(x, y)
         # Check if the number of variables matches the dim of x
@@ -376,136 +383,173 @@ class Fit(BaseFit):
         If no initial value is given, 1.0 is used.
         :return: list of initial guesses for self.params.
         """
-        return np.array([param.value for param in self.params])
+        return super(LeastSquares, self).get_initial_guesses()
+
+class Fit(LeastSquares):
+    """
+    Wrapper for LeastSquares to give it a more appealing name.
+    """
+    pass
 
 
-        # class MinimizeParameters(BaseFit):
-        # def execute(self, *args, **kwargs):
-        #         """
-        #         Run fitting and initiate a fit report with the result.
-        #         :return: FitResults object
-        #         """
-        #         from scipy.optimize import minimize
-        #
-        #         # s_sq = (infodic['fvec']**2).sum()/(len(self.ydata)-len(popt))
-        #         # pcov =  cov_x*s_sq
-        #         # self.fit_results = FitResults(
-        #         #     params=self.params,
-        #         #     popt=popt, pcov=pcov, infodic=infodic, mesg=mesg, ier=ier
-        #         # )
-        #         # return self.fit_results
-        #         ans = minimize(
-        #             self.error,
-        #             self.get_initial_guesses(),
-        #             args=(self.scipy_func, self.xdata, self.ydata),
-        #             # method='L-BFGS-B',
-        #             # bounds=self.get_bounds(),
-        #             # jac=self.eval_jacobian,
-        #         )
-        #         print ans
-        #         return ans
-        #
-        #     def error(self, p, func, x, y):
-        #         ans = ((self.scipy_func(self.xdata, p) - y)**2).sum()
-        #         print p
-        #         return ans
+class Minimize(BaseFit):
+    def __init__(self, model, xdata=None, ydata=None, constraints=None, *args, **kwargs):
+        """
+        :model: Model to minimize
+        :constraints: constraints the minimization is subject to
+        :xdata:
+        :ydata: data the minimization is subject to.
+        """
+        super(Minimize, self).__init__(model)
+        self.xdata = xdata if xdata is not None else np.array([])
+        self.ydata = ydata if ydata is not None else np.array([])
+        self.constraints = constraints if constraints else []
 
-        # class Minimize(BaseFit):
-        #     """ Minimize with respect to the variables.
-        #     """
-        #     constraints = List
-        #     py_func = Callable
-        #
-        #     def __init__(self, *args, **kwargs):
-        #         super(Minimize, self).__init__(*args, **kwargs)
-        #         self.py_func = sympy_to_py(self.model, self.vars, self.params)
-        #
-        #     def execute(self, *args, **kwargs):
-        #         """
-        #         Run fitting and initiate a fit report with the result.
-        #         :return: FitResults object
-        #         """
-        #         from scipy.optimize import minimize
-        #
-        #         # s_sq = (infodic['fvec']**2).sum()/(len(self.ydata)-len(popt))
-        #         # pcov =  cov_x*s_sq
-        #         # self.fit_results = FitResults(
-        #         #     params=self.params,
-        #         #     popt=popt, pcov=pcov, infodic=infodic, mesg=mesg, ier=ier
-        #         # )
-        #         # return self.fit_results
-        #         ans = minimize(
-        #             self.error,
-        #             np.array([[-1.0], [1.0]]),
-        #             method='SLSQP',
-        #             # bounds=self.get_bounds()
-        #             # constraints = self.get_constraints(),
-        #             jac=self.eval_jacobian,
-        #             options={'disp': True},
-        #         )
-        #         return ans
-        #
-        #     def error(self, p0, sign=1.0):
-        #         ans = sign*self.py_func(*p0)
-        #         return ans
-        #
-        #     def eval_jacobian(self, p, sign=1.0):
-        #         """
-        #         Create the jacobian of the model. This can then be used by
-        #         :return:
-        #         """
-        #         # funcs = []
-        #         # for jac in self.jacobian:
-        #         #     res = sign*jac(p)
-        #         #     # If only params in f, we must multiply with an array to preserve the shape of x
-        #         #     funcs.append(res)
-        #         # ans = np.array(funcs)
-        #         # return ans
-        #         return np.array([sign*jac(p) for jac in self.jacobian])
-        #
-        #     @cached_property
-        #     def get_jacobian(self):
-        #         return [sympy_to_scipy(sympy.diff(self.model, var), self.vars, self.params) for var in self.vars]
-        #
-        #     def get_constraints(self):
-        #         """
-        #         self.constraints already exists, but this function gives them in a
-        #         scipy compatible format.
-        #         :return: dict of scipy compatile statements.
-        #         """
-        #         from sympy import Eq, Gt, Ge, Ne, Lt, Le
-        #         cons = []
-        #         # Minimalize only has two types: equality constraint or inequality.
-        #         types = {
-        #             Eq: 'eq', Gt: 'ineq', Ge: 'ineq', Ne: 'ineq', Lt: 'ineq', Le: 'ineq'
-        #         }
-        #
-        #         def make_jac(constraint, p):
-        #             sym_jac = []
-        #             for var in self.vars:
-        #                 sym_jac.append(sympy.diff(constraint.lhs, var))
-        #             return np.array([sympy_to_scipy(jac, self.vars, self.params)(p) for jac in sym_jac])
-        #
-        #         for constraint in self.constraints:
-        #             print 'constraints:', constraint, constraint.lhs
-        #             cons.append({
-        #                 'type': types[constraint.__class__],
-        #                 'fun' : sympy_to_scipy(constraint.lhs, self.vars, self.params), # Assume the lhs is the equation.
-        #                 # 'jac' : lambda p, c=constraint: np.array([self.sympy_to_scipy(sympy.diff(c.lhs, var))(p) for var in self.vars])
-        #                 'jac' : lambda p, c=constraint: make_jac(c, p)
-        #             })
-        #         return cons
-        #
-        #
-        #     def get_initial_guesses(self):
-        #         """
-        #         Constructs a list of initial guesses from the Parameter objects.
-        #         If no initial value is given, 1.0 is used.
-        #         :return: list of initial guesses for self.params.
-        #         """
-        #         return np.array([-1.0 for var in self.vars])
-        #
-        #
-        # class Maximize(Minimize):
-        #     def error(self, p0, sign=1.0):
-        #         return super(Maximize, self).error(p0, sign=-1.0*sign)
+    def error(self, p, func, x, y):
+        if x != np.array([]) and y != np.array([]):
+            return func(x, p) - y
+        else:
+            return func(x, p)
+
+    def get_initial_guesses(self):
+        return super(Minimize, self).get_initial_guesses()
+
+    def execute(self, method='SLSQP', *args, **kwargs):
+        ans = minimize(
+            self.error,
+            self.get_initial_guesses(),
+            args=(self.scipy_func, self.xdata, self.ydata),
+            method=method,
+            # method='L-BFGS-B',
+            bounds=self.get_bounds(),
+            constraints = self.get_constraints(),
+            jac=self.eval_jacobian,
+            options={'disp': True},
+        )
+
+        # Build infodic
+        infodic = {
+            'fvec': ans.fun,
+            'nfev': ans.nfev,
+        }
+        # s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
+        # pcov = cov_x * s_sq if cov_x is not None else None
+        self.__fit_results = FitResults(
+            params=self.params,
+            popt=ans.x,
+            pcov=None,
+            infodic=infodic,
+            mesg=ans.message,
+            ier=ans.nit,
+            ydata=self.ydata,  # Needed to calculate R^2
+        )
+        return self.__fit_results
+
+    def get_constraints(self):
+        """
+            Turns self.constraints into a scipy compatible format.
+            :return: dict of scipy compatile statements.
+            """
+        from sympy import Eq, Gt, Ge, Ne, Lt, Le
+
+        cons = []
+        types = {
+            Eq: 'eq', Gt: 'ineq', Ge: 'ineq', Ne: 'ineq', Lt: 'ineq', Le: 'ineq'
+        }
+
+        def make_jac(constraint_lhs, p, x):
+            """
+            :param constraint_lhs: equation of a constraint. The lhs is assumed to be an eq, rhs a number.
+            :param p: current value of the parameters to be evaluated.
+            :return: numerical jacobian.
+            """
+            sym_jac = []
+            for param in self.params:
+                sym_jac.append(sympy.diff(constraint_lhs, param))
+            ans = np.array(
+                [sympy_to_scipy(jac, self.vars, self.params)(x, p) for jac in
+                 sym_jac]
+            )
+            return ans
+
+        for key, constraint in enumerate(self.constraints):
+            # jac = make_jac(c, p)
+            cons.append({
+                'type': types[constraint.__class__],
+                # Assume the lhs is the equation.
+                'fun': lambda p, x, c: sympy_to_scipy(c.lhs, self.vars, self.params)(x, p),
+                # Assume the lhs is the equation.
+                'jac' : lambda p, x, c: make_jac(c.lhs, p, x),
+                'args': (self.xdata, constraint)
+            })
+        cons = tuple(cons)
+        return cons
+
+
+
+class Maximize(Minimize):
+    def error(self, p, func, x, y):
+        """ Change the sign in order to maximize. """
+        return - super(Maximize, self).error(p, func, x, y)
+
+    def eval_jacobian(self, p, func, x, y):
+        """ Change the sign in order to maximize. """
+        return - super(Maximize, self).eval_jacobian(p, func, x, y)
+
+
+class Likelihood(Maximize):
+    """
+    Fit using a Likelihood approach.
+    """
+    def __init__(self, model, xdata, *args, **kwargs):
+        """
+        :param model: sympy expression.
+        :param x: xdata to fit to.  Nx1
+        """
+        super(Likelihood, self).__init__(model, xdata=xdata, *args, **kwargs)
+
+    def execute(self, method='SLSQP', *args, **kwargs):
+        # super(Likelihood, self).execute(*args, **kwargs)
+        ans = minimize(
+            self.error,
+            self.get_initial_guesses(),
+            args=(self.scipy_func, self.xdata, self.ydata),
+            method=method,
+            bounds=self.get_bounds(),
+            constraints = self.get_constraints(),
+            # jac=self.eval_jacobian, # If I find a meaning to jac I'll let you know.
+            options={'disp': True},
+        )
+
+        # Build infodic
+        infodic = {
+            'fvec': ans.fun,
+            'nfev': ans.nfev,
+        }
+
+        self.__fit_results = FitResults(
+            params=self.params,
+            popt=ans.x,
+            pcov=None,
+            infodic=infodic,
+            mesg=ans.message,
+            ier=ans.nit,
+            ydata=self.ydata,  # Needed to calculate R^2
+        )
+        return self.__fit_results
+
+    def get_initial_guesses(self):
+        return super(Likelihood, self).get_initial_guesses()
+
+    def error(self, p, func, x, y=None):
+        """
+        Error function to be maximised(!) in the case of likelihood fitting.
+        :param p: guess params
+        :param func: scipy_func to fit to
+        :param x: xdata
+        :param y: Not important for likelihood.
+        :return: scalar of vector.
+        """
+        ans = - np.nansum(np.log(func(x, p)))
+        # ans = - np.product(func(x, p)) # Why doesn't this work?
+        return ans

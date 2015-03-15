@@ -2,7 +2,7 @@
 import symfit.core.operators
 
 # Expose useful objects.
-from symfit.core.fit import Fit, FitResults
+from symfit.core.fit import Fit, FitResults, Maximize, Minimize, Likelihood, LeastSquares
 from symfit.core.argument import Variable, Parameter
 
 # Expose the sympy API

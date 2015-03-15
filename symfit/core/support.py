@@ -41,7 +41,9 @@ def sympy_to_scipy(func, vars, params):
         :param p: tuple of parameter values.
         """
         x = np.atleast_2d(x)
-        y = [x[i] for i in range(len(x))]
+        y = [x[i] for i in range(len(x))] if len(x[0]) else []
+        # import inspect
+        # raise Exception(inspect.getargspec(lambda_func))
         return lambda_func(*(y + list(p)))
 
     return f
