@@ -263,6 +263,7 @@ class TddInPythonExample(unittest.TestCase):
         fit_result = fit.execute()
 
         img = model(x=xx, y=yy, **fit_result.params)
+        img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
 
         # Equal up to some precision. Not much obviously.
         self.assertAlmostEqual(fit_result.params.x0_1, 0.7, 2)
@@ -367,7 +368,7 @@ class TddInPythonExample(unittest.TestCase):
         fit = Likelihood(pdf, xdata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.b, 5., 2)
+        self.assertAlmostEqual(fit_result.params.b, 5., 1)
 
 
     def test_parameter_add(self):

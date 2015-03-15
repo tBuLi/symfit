@@ -58,9 +58,12 @@ def call(self, **kwargs):
     :return:
     """
     # Convert to a pythonic function
-    vars, pars = seperate_symbols(self)
-    func = sympy_to_py(self, vars, pars)
-    return func(**kwargs)
+    vars, params = seperate_symbols(self)
+    func = sympy_to_py(self, vars, params)
+    # Prepare only the relevant kwargs
+    arg_names = [arg.name for arg in params + vars]
+    args = dict([(name, value) for name, value in kwargs.items() if name in arg_names])
+    return func(**args)
 
 
 # Expr.__eq__ = eq
