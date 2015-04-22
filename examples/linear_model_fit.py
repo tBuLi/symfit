@@ -1,9 +1,11 @@
+from __future__ import division, print_function
 from symfit.api import Parameter, Variable, Fit
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 # sns.color_palette("Blues")
 # sns.set_palette(sns.color_palette("Paired"))
+
 palette = sns.color_palette()
 sns.set_palette(palette)
 # print sns.color_palette("husl", 8)
@@ -19,7 +21,7 @@ ydata = a_vec * xdata + b_vec # Point scattered around the line 5 * x + 105
 
 fit = Fit(model, xdata, ydata)
 fit_result = fit.execute()
-print fit_result
+print(fit_result)
 
 y = model(x=xdata, **fit_result.params)
 sns.regplot(xdata, ydata, fit_reg=False)

@@ -278,7 +278,7 @@ class BaseFit(object):
         return
 
 class LeastSquares(BaseFit):
-    def __init__(self, model, x, y, *args, **kwargs):
+    def __init__(self, model, x, y, weights=None, sigma=None, *args, **kwargs):
         """
         Least squares fitting. In the notation used for x and y below,
         N_1 - N_i indicate the dimension of the array inserted, and M
@@ -292,8 +292,33 @@ class LeastSquares(BaseFit):
         """
         super(LeastSquares, self).__init__(model, *args, **kwargs)
         # flatten x and y to all but the final dimension.
+        # Also checks if the number of variables matches the dim of x
         self.xdata, self.ydata = self._flatten(x, y)
-        # Check if the number of variables matches the dim of x
+
+        # set self.sigma with the relevant data.
+        if sigma is not None and weights is not None:
+            raise Exception('Please provide only weights or sigma, not both.')
+        elif weights is not None:
+            # We use sigma to calculate the error function.
+            self.sigma = 1 / np.sqrt(weights)
+        elif sigma is not None:
+            self.sigma = sigma
+        else:
+            self.sigma = 1
+
+        # Check that the dimensions of sigma and y are the same.
+        try:
+            self.sigma.shape
+        except AttributeError:
+            pass
+        else:
+            if y.shape != self.sigma.shape:
+                raise Exception('y and sigma must have the same shape.')
+            else:
+                # self.sigma is an array if this else is reached, so we flatten it.
+                self.sigma = self.sigma.reshape(-1)  # flatten
+
+
 
 
     def _flatten(self, x, y):
@@ -314,15 +339,13 @@ class LeastSquares(BaseFit):
             else:  # this data is already flattened.
                 return x, y
         else:
-            # raise Exception(x.shape, y.shape)
             # If the last x dim is as deep as the no of vars, the remaining dimensions should match those of y.
             # Furthermore, the shapes are properly alligned.
             if x.shape[-1] == len(self.vars) and x.shape[:-1] == y.shape:
                 x1 = x.T.reshape(len(self.vars), -1)  # flatten all but the dim containing the vars.
                 y1 = y.T.reshape(-1)  # flatten
-                # raise Exception(x.shape, x1.shape, y.shape, y1.shape)
                 return x1, y1
-            # This is also accaptable, but we will have to transpose the arrays before flattening
+            # This is also acceptable, but we will have to transpose the arrays before flattening
             # for the result to make sense.
             elif x.shape[0] == len(self.vars) and x.shape[1:] == y.shape:
                 # raise Exception(x.shape, y.shape)
@@ -375,7 +398,9 @@ class LeastSquares(BaseFit):
         way eval_jacobian does not work.
         """
         ans = func(x, p)
-        return ans - y
+        # self.sigma here should be replaced by sigma as an arg!
+        # More sleep is needed before I can think about this...
+        return (ans - y)/self.sigma
 
     def get_initial_guesses(self):
         """

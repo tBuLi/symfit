@@ -1,3 +1,4 @@
+#!/usr/local/bin/python3
 from __future__ import division, print_function
 import unittest
 import sympy
@@ -7,6 +8,8 @@ from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize,
 from symfit.functions import Gaussian, Exp
 import scipy.stats
 from symfit.core.support import sympy_to_scipy, sympy_to_py
+# import matplotlib.pyplot as plt
+# import seaborn
 
 class TddInPythonExample(unittest.TestCase):
     def test_gaussian(self):
@@ -39,8 +42,8 @@ class TddInPythonExample(unittest.TestCase):
         xdata = np.linspace(1,10,10)
         ydata = 3*xdata**2
 
-        a = Parameter()
-        b = Parameter()
+        a = Parameter(3.0, min=2.75)
+        b = Parameter(2.0, max=2.75)
         x = Variable('x')
         new = a*x**b
 
@@ -76,8 +79,8 @@ class TddInPythonExample(unittest.TestCase):
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
-        a = Parameter()
-        b = Parameter()
+        a = Parameter(2.5, max=2.75)
+        b = Parameter(3.0, min=2.75)
         x = Variable()
         y = Variable()
         new = (a*x**2 + b*y**2)
@@ -98,8 +101,8 @@ class TddInPythonExample(unittest.TestCase):
         xdata = np.linspace(1,10,10)
         ydata = 3*xdata**2
 
-        a = Parameter()
-        b = Parameter()
+        a = Parameter(3.0)
+        b = Parameter(2.0)
         x = Variable('x')
         new = a*x**b
 
@@ -151,8 +154,8 @@ class TddInPythonExample(unittest.TestCase):
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
-        a = Parameter()
-        b = Parameter()
+        a = Parameter(2.5, max=2.75)
+        b = Parameter(3.0, min=2.75)
         x = Variable()
         y = Variable()
         new = (a*x**2 + b*y**2)
@@ -223,13 +226,13 @@ class TddInPythonExample(unittest.TestCase):
         self.assertEqual(sexy, ugly)
 
     def test_2_gaussian_2d_fitting(self):
-        np.random.seed(42)
-        mean = (0.5,0.5) # x, y mean 0.6, 0.4
-        cov = [[0.1**2,0],[0,0.1**2]]
-        data = np.random.multivariate_normal(mean, cov, 100000)
+        np.random.seed(4242)
+        mean = (0.3, 0.3) # x, y mean 0.6, 0.4
+        cov = [[0.01**2,0],[0,0.01**2]]
+        data = np.random.multivariate_normal(mean, cov, 1000000)
         mean = (0.7,0.7) # x, y mean 0.6, 0.4
-        cov = [[0.1**2,0],[0,0.1**2]]
-        data_2 = np.random.multivariate_normal(mean, cov, 100000)
+        cov = [[0.01**2,0],[0,0.01**2]]
+        data_2 = np.random.multivariate_normal(mean, cov, 1000000)
         data = np.vstack((data, data_2))
 
         # Insert them as y,x here as np fucks up cartesian conventions.
@@ -245,16 +248,16 @@ class TddInPythonExample(unittest.TestCase):
         y = Variable()
 
         x0_1 = Parameter(0.7, min=0.6, max=0.8)
-        sig_x_1 = Parameter()
+        sig_x_1 = Parameter(0.1, min=0.0, max=0.2)
         y0_1 = Parameter(0.7, min=0.6, max=0.8)
-        sig_y_1 = Parameter()
+        sig_y_1 = Parameter(0.1, min=0.0, max=0.2)
         A_1 = Parameter()
         g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
 
-        x0_2 = Parameter(0.5, min=0.4, max=0.6)
-        sig_x_2 = Parameter()
-        y0_2 = Parameter(0.5, min=0.4, max=0.6)
-        sig_y_2 = Parameter()
+        x0_2 = Parameter(0.3, min=0.2, max=0.4)
+        sig_x_2 = Parameter(0.1, min=0.0, max=0.2)
+        y0_2 = Parameter(0.3, min=0.2, max=0.4)
+        sig_y_2 = Parameter(0.1, min=0.0, max=0.2)
         A_2 = Parameter()
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
 
@@ -268,16 +271,16 @@ class TddInPythonExample(unittest.TestCase):
         # Equal up to some precision. Not much obviously.
         self.assertAlmostEqual(fit_result.params.x0_1, 0.7, 2)
         self.assertAlmostEqual(fit_result.params.y0_1, 0.7, 2)
-        self.assertAlmostEqual(fit_result.params.x0_2, 0.5, 2)
-        self.assertAlmostEqual(fit_result.params.y0_2, 0.5, 2)
+        self.assertAlmostEqual(fit_result.params.x0_2, 0.3, 2)
+        self.assertAlmostEqual(fit_result.params.y0_2, 0.3, 2)
 
     def test_gaussian_2d_fitting(self):
         mean = (0.6,0.4) # x, y mean 0.6, 0.4
-        cov = [[0.2**2,0],[0,0.01**2]]
+        cov = [[0.2**2,0],[0,0.1**2]]
         data = np.random.multivariate_normal(mean, cov, 1000000)
 
         # Insert them as y,x here as np fucks up cartesian conventions.
-        ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
+        ydata, xedges, yedges = np.histogram2d(data[:,0], data[:,1], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
         xcentres = (xedges[:-1] + xedges[1:]) / 2
         ycentres = (yedges[:-1] + yedges[1:]) / 2
 
@@ -286,10 +289,10 @@ class TddInPythonExample(unittest.TestCase):
         xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
 
         x0 = Parameter(0.6)
-        sig_x = Parameter(0.2)
+        sig_x = Parameter(0.2, min=0.0)
         x = Variable()
         y0 = Parameter(0.4)
-        sig_y = Parameter(0.01)
+        sig_y = Parameter(0.1, min=0.0)
         A = Parameter()
         y = Variable()
         g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
@@ -297,6 +300,7 @@ class TddInPythonExample(unittest.TestCase):
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
 
+        # Again, the order seems to be swapped for py3k
         self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:,0]), 3)
         self.assertAlmostEqual(fit_result.params.y0, np.mean(data[:,1]), 3)
         self.assertAlmostEqual(np.abs(fit_result.params.sig_x), np.std(data[:,0]), 3)
@@ -377,6 +381,14 @@ class TddInPythonExample(unittest.TestCase):
         new = a + b
         self.assertIsInstance(new, sympy.Add)
 
+    def test_argument_name(self):
+        a = Parameter()
+        b = Parameter(name='b')
+        c = Parameter(name='d')
+        self.assertEqual(a.name, 'a')
+        self.assertEqual(b.name, 'b')
+        self.assertEqual(c.name, 'd')
+
     def test_symbol_add(self):
         x, y = symbols('x y')
         new = x + y
@@ -396,6 +408,41 @@ class TddInPythonExample(unittest.TestCase):
         y = Symbol('y')
         new = x + y
         self.assertIsInstance(new, sympy.Add)
+
+    def test_simple_sigma(self):
+        from symfit.api import Variable, Parameter, Fit
+
+        t_data = np.array([1.4, 2.1, 2.6, 3.0, 3.3])
+        y_data = np.array([10, 20, 30, 40, 50])
+
+        sigma = 0.2
+        n = np.array([5, 3, 8, 15, 30])
+        sigma_t = sigma / np.sqrt(n)
+
+        # We now define our model
+        y = Variable()
+        g = Parameter()
+        t_model = (2 * y / g)**0.5
+
+        fit = Fit(t_model, y_data, t_data)#, sigma=sigma_t)
+        fit_result = fit.execute()
+
+        h_smooth = np.linspace(0,60,100)
+        t_smooth = t_model(y=h_smooth, **fit_result.params)
+
+        # plt.plot(h_smooth, t_smooth)
+        # plt.errorbar(y_data, t_data, yerr=sigma_t, fmt='o')
+        # plt.xlabel('height (/m)')
+        # plt.ylabel('time in free fall (/s)')
+        # plt.xlim(0,60)
+        # plt.show()
+        self.assertAlmostEqual(fit_result.params.g, 9.0879601268490919)
+        self.assertAlmostEqual(fit_result.params.g_stdev, 0.15247139498208956)
+
+        fit = Fit(t_model, y_data, t_data, sigma=sigma_t)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.params.g, 9.0951297073387991)
+        self.assertAlmostEqual(fit_result.params.g_stdev, 2.0562987023203601)
 
 if __name__ == '__main__':
     unittest.main()

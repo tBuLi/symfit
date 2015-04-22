@@ -19,6 +19,11 @@ class Argument(Symbol):
                 return super(Argument, cls).__new__(cls, generated_name, **assumptions)
         return super(Argument,cls).__new__(cls, name, **assumptions)
 
+    def __init__(self, name=None, *args, **kwargs):
+        if name is not None:
+            self.name = name
+        super(Argument, self).__init__(*args, **kwargs)
+
 
 class Parameter(Argument):
     """ Parameter objects are used to facilitate bounds on function parameters,

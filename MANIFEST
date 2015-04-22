@@ -5,6 +5,7 @@ symfit\api.py
 symfit\functions.py
 symfit\core\__init__.py
 symfit\core\argument.py
+symfit\core\fit (Exemplaar met conflict van WinBook 2015-03-15).py
 symfit\core\fit.py
 symfit\core\leastsqbound.py
 symfit\core\operators.py

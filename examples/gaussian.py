@@ -1,3 +1,4 @@
+from __future__ import print_function
 from symfit.api import Parameter, Variable, Fit, exp
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,8 +21,8 @@ xdata = (bin_edges[1:] + bin_edges[:-1])/2
 
 fit = Fit(model, xdata, ydata)
 fit_result = fit.execute()
-print fit_result
-print model
+print(fit_result)
+print(model)
 
 y = model(x=xdata, **fit_result.params)
 sns.regplot(xdata, ydata, fit_reg=False)
