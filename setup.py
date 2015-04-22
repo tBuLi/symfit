@@ -2,11 +2,11 @@ from distutils.core import setup
 
 setup(
     name='symfit',
-    version='0.2.4',
+    version='0.2.5',
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
     author_email='m.roelfs@rug.nl',
-    packages=['symfit', 'symfit.core'],
+    packages=['symfit', 'symfit.core', 'symfit.tests'],
     # long_description=long_description,
     url='https://github.com/tBuLi/symfit', #'symfit.readthedocs.org',
     license='MIT',
@@ -27,6 +27,8 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
     ],
 
     # What does your project relate to?
