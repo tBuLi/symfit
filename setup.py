@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='symfit',
-    version='0.2.5',
+    version='0.2.6',
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
     author_email='m.roelfs@rug.nl',
@@ -25,7 +25,6 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
@@ -34,5 +33,5 @@ setup(
     # What does your project relate to?
     keywords='fit fitting symbolic',
 
-    # install_requires = ['sympy', 'numpy', 'scipy'],
+    install_requires = ['sympy', 'numpy', 'scipy'],
 )
