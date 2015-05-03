@@ -21,6 +21,7 @@ from sympy import Eq, Ne
 from sympy.core.expr import Expr
 import warnings
 from symfit.core.support import sympy_to_py, seperate_symbols
+from symfit.core.argument import Parameter
 
 # Overwrite the behavior opun equality checking. But we want to be able to fall
 # back on default behavior.
@@ -69,3 +70,4 @@ def call(self, **kwargs):
 # Expr.__eq__ = eq
 # Expr.__ne__ = ne
 Expr.__call__ = call
+Parameter.__call__ = call
