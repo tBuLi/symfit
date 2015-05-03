@@ -4,6 +4,11 @@ from symfit.core.argument import Parameter, Variable
 from sympy.utilities.lambdify import lambdify
 
 def seperate_symbols(func):
+    """
+    Seperate the symbols in func. Return them in alphabetical order.
+    :param func:
+    :return:
+    """
     params = []
     vars = []
     for symbol in func.free_symbols:
@@ -13,6 +18,8 @@ def seperate_symbols(func):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
+    params.sort(key=lambda symbol: symbol.name)
+    vars.sort(key=lambda symbol: symbol.name)
     return vars, params
 
 def sympy_to_py(func, vars, params):
@@ -41,18 +48,14 @@ def sympy_to_scipy(func, vars, params):
         :param x: list of arrays, NxM
         :param p: tuple of parameter values.
         """
-        x_shape = x.shape
+        # x_shape = x.shape
         x = np.atleast_2d(x)
         y = [x[i] for i in range(len(x))] if len(x[0]) else []
-        # import inspect
-        # raise Exception(inspect.getargspec(lambda_func))
         try:
             return lambda_func(*(y + list(p)))
         except TypeError:
             # Possibly this is a constant function in which case it only has Parameters.
-            # print(p)
             ans = lambda_func(*list(p))# * np.ones(x_shape)
-            # print(type(ans), ans.shape)
             return ans
 
     return f
