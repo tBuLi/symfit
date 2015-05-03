@@ -1,15 +1,16 @@
-#!/usr/local/bin/python3
 from __future__ import division, print_function
 import unittest
+import inspect
 import sympy
 from sympy import symbols
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood
+from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log
 from symfit.functions import Gaussian, Exp
 import scipy.stats
+from scipy.optimize import curve_fit
 from symfit.core.support import sympy_to_scipy, sympy_to_py
-# import matplotlib.pyplot as plt
-# import seaborn
+import matplotlib.pyplot as plt
+import seaborn
 
 class TddInPythonExample(unittest.TestCase):
     def test_gaussian(self):
@@ -94,9 +95,6 @@ class TddInPythonExample(unittest.TestCase):
         self.assertAlmostEqual(fit_result.params.b, 2.0)
         self.assertAlmostEqual(fit_result_2.params.b, 3.0)
 
-
-
-
     def test_fitting(self):
         xdata = np.linspace(1,10,10)
         ydata = 3*xdata**2
@@ -115,8 +113,7 @@ class TddInPythonExample(unittest.TestCase):
         result = fit.scipy_func(fit.xdata, [3, 2])
         self.assertTrue(np.array_equal(result, ydata))
 
-        import inspect
-        args, varargs, keywords, defaults = inspect.getargspec(fit.scipy_func)
+        args, varargs, keywords, defaults = inspect.getargspec(func)
 
         # self.assertEqual(args, ['x', 'a', 'b'])
         fit_result = fit.execute()
@@ -427,22 +424,128 @@ class TddInPythonExample(unittest.TestCase):
         fit = Fit(t_model, y_data, t_data)#, sigma=sigma_t)
         fit_result = fit.execute()
 
-        h_smooth = np.linspace(0,60,100)
-        t_smooth = t_model(y=h_smooth, **fit_result.params)
+        # h_smooth = np.linspace(0,60,100)
+        # t_smooth = t_model(y=h_smooth, **fit_result.params)
 
-        # plt.plot(h_smooth, t_smooth)
-        # plt.errorbar(y_data, t_data, yerr=sigma_t, fmt='o')
-        # plt.xlabel('height (/m)')
-        # plt.ylabel('time in free fall (/s)')
-        # plt.xlim(0,60)
-        # plt.show()
-        self.assertAlmostEqual(fit_result.params.g, 9.0879601268490919)
-        self.assertAlmostEqual(fit_result.params.g_stdev, 0.15247139498208956)
+        # Lets with the results from curve_fit, no weights
+        popt_noweights, pcov_noweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data)
 
-        fit = Fit(t_model, y_data, t_data, sigma=sigma_t)
+        self.assertAlmostEqual(fit_result.params.g, popt_noweights[0])
+        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_noweights[0, 0]))
+
+        # Same sigma everywere
+        fit = Fit(t_model, y_data, t_data, sigma=0.0031)
         fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.params.g, 9.0951297073387991)
-        self.assertAlmostEqual(fit_result.params.g_stdev, 2.0562987023203601)
+        popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=len(t_data)*[0.1])
+
+        self.assertAlmostEqual(fit_result.params.g, popt_sameweights[0], 4)
+        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_sameweights[0, 0]), 4)
+        # Same weight everywere should be the same as no weight.
+        self.assertAlmostEqual(fit_result.params.g, popt_noweights[0], 4)
+        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_noweights[0, 0]), 4)
+
+        # Different sigma for every point
+        fit = Fit(t_model, y_data, t_data, sigma=0.1*sigma_t)
+        fit_result = fit.execute()
+        popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t, absolute_sigma=True)
+        print(popt, np.sqrt(pcov[0, 0]))
+        print(fit_result.params.g, fit_result.params.g_stdev)
+        self.assertAlmostEqual(fit_result.params.g, popt[0])
+        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov[0, 0]))
+
+        # self.assertAlmostEqual(fit_result.params.g, 9.095, 3)
+        # self.assertAlmostEqual(fit_result.params.g_stdev, 0.102, 3) # according to Mathematica
+
+    def test_error_advanced(self):
+        """
+        Models an example from the mathematica docs and try's to replicate it:
+        http://reference.wolfram.com/language/howto/FitModelsWithMeasurementErrors.html
+        """
+        data = [
+            [0.9, 6.1, 9.5], [3.9, 6., 9.7], [0.3, 2.8, 6.6],
+            [1., 2.2, 5.9], [1.8, 2.4, 7.2], [9., 1.7, 7.],
+            [7.9, 8., 10.4], [4.9, 3.9, 9.], [2.3, 2.6, 7.4],
+            [4.7, 8.4, 10.]
+        ]
+        x, y, z = zip(*data)
+        xy = np.vstack((x, y))
+        z = np.array(z)
+        errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
+
+        # raise Exception(xy, z)
+        a = Parameter()
+        b = Parameter(0.9)
+        c = Parameter(5)
+        x = Variable()
+        y = Variable()
+        model = a * log(b * x + c * y)
+
+        fit = Fit(model, xy, z, sigma=errors)
+        fit_result = fit.execute()
+        print(fit_result)
+
+        popt, pcov, infodict, errmsg, ier = curve_fit(lambda x_vec, a, b, c: a * np.log(b * x_vec[0] + c * x_vec[1]), xy, z, sigma=100*errors, full_output=True)
+
+        # Same as curve_fit?
+        self.assertAlmostEqual(fit_result.params.a, popt[0], 4)
+        self.assertAlmostEqual(fit_result.params.b, popt[1], 4)
+        self.assertAlmostEqual(fit_result.params.c, popt[2], 4)
+        self.assertAlmostEqual(fit_result.params.a_stdev, np.sqrt(pcov[0,0]), 4)
+        self.assertAlmostEqual(fit_result.params.b_stdev, np.sqrt(pcov[1,1]), 4)
+        self.assertAlmostEqual(fit_result.params.c_stdev, np.sqrt(pcov[2,2]), 4)
+
+        # Same as Mathematica?
+        self.assertAlmostEqual(fit_result.params.a, 2.68807, 4)
+        self.assertAlmostEqual(fit_result.params.b, 0.941344, 4)
+        self.assertAlmostEqual(fit_result.params.c, 5.01541, 4)
+        self.assertAlmostEqual(fit_result.params.a_stdev, 0.189622, 4)
+        self.assertAlmostEqual(fit_result.params.b_stdev, 0.480592, 4)
+        self.assertAlmostEqual(fit_result.params.c_stdev, 1.1628, 4)
+
+    def test_error_analytical(self):
+        """
+        Test using a case where the analytical answer is known.
+        Modeled after:
+        http://nbviewer.ipython.org/urls/gist.github.com/taldcroft/5014170/raw/31e29e235407e4913dc0ec403af7ed524372b612/curve_fit.ipynb
+        """
+        N = 100
+        sigma = 100
+        xn = np.arange(N, dtype=np.float)
+        yn = np.zeros_like(xn)
+        yn = yn + np.random.normal(size=len(yn), scale=1)
+
+        a = Parameter(0.0)
+        model = a
+
+        fit = Fit(model, xn, yn, sigma=sigma)
+        fit_result = fit.execute()
+        print(fit_result)
+
+        fit_no_sigma = Fit(model, xn, yn)
+        fit_result_no_sigma = fit_no_sigma.execute()
+        print(fit_result_no_sigma)
+
+        popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
+
+        print(popt[0], np.sqrt(np.diag(pcov))[0])
+        # symfit and curve_fit should be in agreement
+        self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
+        self.assertAlmostEqual(fit_result.params.a_stdev, np.sqrt(np.diag(pcov))[0], 2)
+        # With or without sigma should also be in agreement?
+        self.assertAlmostEqual(fit_result.params.a, fit_result_no_sigma.params.a, 5)
+        self.assertAlmostEqual(fit_result.params.a_stdev, fit_result_no_sigma.params.a_stdev, 5)
+
+        # Analytical answer for mean of N(0,1):
+        mu = 0.0
+        sigma_mu = 1.0/N**0.5
+
+        print('{} ~ {}, {} ~ {}'.format(mu, fit_result.params.a, sigma_mu, fit_result.params.a_stdev))
+
+        plt.scatter(xn, yn)
+        plt.plot(xn, model(**fit_result.params) * np.ones_like(xn))
+        plt.plot(xn, popt[0] * np.ones_like(xn))
+        plt.show()
+
 
 if __name__ == '__main__':
     unittest.main()

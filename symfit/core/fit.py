@@ -127,7 +127,7 @@ class FitResults(object):
         assert(type(ier) == int)
         self.__iterations = ier
         assert(type(ydata) == np.ndarray)
-        self.__ydata = ydata  # Needed to calculate R^2
+        self.__ydata = ydata
         self.__params = ParameterDict(params, popt, pcov)
 
     def __str__(self):
@@ -173,8 +173,8 @@ class FitResults(object):
         Getter for the r_squared property.
         :return: Regression coefficient.
         """
-        ss_err = (self.infodict['fvec'] ** 2).sum()
-        ss_tot = ((self.__ydata - self.__ydata.mean()) ** 2).sum()
+        ss_err = np.sum(self.infodict['fvec'] ** 2)
+        ss_tot = np.sum((self.__ydata - self.__ydata.mean()) ** 2)
         return 1 - (ss_err / ss_tot)
 
 
@@ -182,6 +182,7 @@ class BaseFit(object):
     __metaclass__  = abc.ABCMeta
     __jac = None  # private attribute for the jacobian
     __fit_results = None  # private attribute for the fit_results
+    sigma = 1
 
     def __init__(self, model, *args, **kwargs):
         """
@@ -208,9 +209,8 @@ class BaseFit(object):
         """
         residues = []
         for jac in self.jacobian:
-            # raise Exception(inspect.getargspec(jac))
-            residue = jac(x, p)
-            # raise Exception('')
+            # Emperically, the /sigma works. Theoretical backing needed!
+            residue = jac(x, p)/self.sigma
             # If only params in f, we must multiply with an array to preserve the shape of x
             try:
                 len(residue)
@@ -302,7 +302,20 @@ class LeastSquares(BaseFit):
             # We use sigma to calculate the error function.
             self.sigma = 1 / np.sqrt(weights)
         elif sigma is not None:
-            self.sigma = sigma
+            try:
+                # sigma can be just a constant
+                len(sigma)
+            except TypeError:
+                # Make it a list with the same shape as ydata
+                sigma = np.ones_like(self.ydata) * sigma
+            else:
+                if y.shape != sigma.shape:
+                    raise Exception('y and sigma must have the same shape.')
+                else:
+                    # self.sigma is an array if this else is reached, so we flatten it.
+                    sigma = sigma.reshape(-1)  # flatten
+            finally:
+                self.sigma = np.array(sigma)
         else:
             self.sigma = 1
 
@@ -311,12 +324,7 @@ class LeastSquares(BaseFit):
             self.sigma.shape
         except AttributeError:
             pass
-        else:
-            if y.shape != self.sigma.shape:
-                raise Exception('y and sigma must have the same shape.')
-            else:
-                # self.sigma is an array if this else is reached, so we flatten it.
-                self.sigma = self.sigma.reshape(-1)  # flatten
+
 
 
 
@@ -373,9 +381,16 @@ class LeastSquares(BaseFit):
             **kwargs
         )
 
-        s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
-        # raise Exception(infodic['fvec'], self.ydata.shape, self.xdata.shape)
+        # s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
+        # residual_sum_of_squares = ((self.scipy_func(self.xdata, popt) - self.ydata) ** 2).sum()
+        ss_res = np.sum((self.ydata - self.scipy_func(self.xdata, popt)) ** 2)
+        degrees_of_freedom = len(self.ydata) - len(popt)
+        s_sq = ss_res / degrees_of_freedom
         pcov = cov_x * s_sq if cov_x is not None else None
+
+        # Update the residuals
+        infodic['fvec'] = self.ydata - self.scipy_func(self.xdata, popt)
+
         self.__fit_results = FitResults(
             params=self.params,
             popt=popt,
@@ -383,7 +398,7 @@ class LeastSquares(BaseFit):
             infodic=infodic,
             mesg=mesg,
             ier=ier,
-            ydata=self.ydata,  # Needed to calculate R^2
+            ydata=self.ydata
         )
         return self.__fit_results
 
@@ -551,6 +566,8 @@ class Likelihood(Maximize):
             'fvec': ans.fun,
             'nfev': ans.nfev,
         }
+
+
 
         self.__fit_results = FitResults(
             params=self.params,
