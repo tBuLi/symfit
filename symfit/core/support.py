@@ -40,7 +40,6 @@ def sympy_to_scipy(func, vars, params):
     :param vars: variables
     :param params: parameters
     """
-    # raise Exception(func, vars, params)
     lambda_func = sympy_to_py(func, vars, params)
     def f(x, p):
         """
@@ -48,14 +47,13 @@ def sympy_to_scipy(func, vars, params):
         :param x: list of arrays, NxM
         :param p: tuple of parameter values.
         """
-        # x_shape = x.shape
         x = np.atleast_2d(x)
         y = [x[i] for i in range(len(x))] if len(x[0]) else []
         try:
-            return lambda_func(*(y + list(p)))
+            ans = lambda_func(*(y + list(p)))
         except TypeError:
             # Possibly this is a constant function in which case it only has Parameters.
             ans = lambda_func(*list(p))# * np.ones(x_shape)
-            return ans
+        return ans
 
     return f

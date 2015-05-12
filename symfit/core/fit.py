@@ -105,8 +105,9 @@ class FitResults(object):
     __status_message = None
     __iterations = None
     __ydata = None
+    __sigma = None
 
-    def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata):
+    def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata, sigma=None):
         """
         Excuse the ugly names of most of these variables, they are inherited
         from scipy.
@@ -129,6 +130,7 @@ class FitResults(object):
         assert(type(ydata) == np.ndarray)
         self.__ydata = ydata
         self.__params = ParameterDict(params, popt, pcov)
+        self.__sigma = sigma
 
     def __str__(self):
         res = '\nParameter Value        Standard Deviation\n'
@@ -174,7 +176,11 @@ class FitResults(object):
         :return: Regression coefficient.
         """
         ss_err = np.sum(self.infodict['fvec'] ** 2)
-        ss_tot = np.sum((self.__ydata - self.__ydata.mean()) ** 2)
+        if self.__sigma is not None:
+            ss_tot = np.sum(((self.__ydata - self.__ydata.mean())/self.__sigma) ** 2)
+        else:
+            ss_tot = np.sum((self.__ydata - self.__ydata.mean()) ** 2)
+        # ss_tot = np.sum((self.__ydata - self.__ydata.mean()) ** 2)
         return 1 - (ss_err / ss_tot)
 
 
@@ -209,20 +215,17 @@ class BaseFit(object):
         """
         residues = []
         for jac in self.jacobian:
-            # Emperically, the /sigma works. Theoretical backing needed!
             residue = jac(x, p)/self.sigma
             # If only params in f, we must multiply with an array to preserve the shape of x
             try:
                 len(residue)
-            except TypeError:  # not itterable
+            except TypeError:  # not iterable
                 if len(x):
-                    residue *= np.ones(len(x))
+                    residue *= np.ones_like(x)
                 else:
                     residue = np.array([residue])
             finally:
-                # res = np.atleast_2d(res)
                 residues.append(residue)
-                # raise Exception(residue, x)
 
         return np.array(residues).T
 
@@ -278,7 +281,7 @@ class BaseFit(object):
         return
 
 class LeastSquares(BaseFit):
-    def __init__(self, model, x, y, weights=None, sigma=None, *args, **kwargs):
+    def __init__(self, model, x, y, sigma=None, absolute_sigma=None, *args, **kwargs):
         """
         Least squares fitting. In the notation used for x and y below,
         N_1 - N_i indicate the dimension of the array inserted, and M
@@ -289,19 +292,29 @@ class LeastSquares(BaseFit):
         :param model: sympy expression.
         :param x: xdata to fit to.  N_1 x ... x N_i x M
         :param y: ydata             N_1 x ... x N_i
+        :param sigma: standard errors in data points. Their absolute size is
+        considered important, as is the case if the sigma are obtained from
+        measurement errors.
+        :param absolute_sigma bool: True by default. If the sigma is only used
+        for relative weights in your problem, you could consider setting it to
+        False, but if your sigma are measurement errors, keep it at True.
+        Note that curve_fit has this set to False by default, which is wrong in
+        experimental science.
         """
         super(LeastSquares, self).__init__(model, *args, **kwargs)
         # flatten x and y to all but the final dimension.
         # Also checks if the number of variables matches the dim of x
         self.xdata, self.ydata = self._flatten(x, y)
 
+        # If user gives a preference, use that. Otherwise, use True if sigma is
+        # given, false if no sigma is given.
+        if absolute_sigma is not None:
+            self.absolute_sigma = absolute_sigma
+        else:
+            self.absolute_sigma = sigma is not None
+
         # set self.sigma with the relevant data.
-        if sigma is not None and weights is not None:
-            raise Exception('Please provide only weights or sigma, not both.')
-        elif weights is not None:
-            # We use sigma to calculate the error function.
-            self.sigma = 1 / np.sqrt(weights)
-        elif sigma is not None:
+        if sigma is not None:
             try:
                 # sigma can be just a constant
                 len(sigma)
@@ -318,16 +331,6 @@ class LeastSquares(BaseFit):
                 self.sigma = np.array(sigma)
         else:
             self.sigma = 1
-
-        # Check that the dimensions of sigma and y are the same.
-        try:
-            self.sigma.shape
-        except AttributeError:
-            pass
-
-
-
-
 
     def _flatten(self, x, y):
         """
@@ -381,15 +384,15 @@ class LeastSquares(BaseFit):
             **kwargs
         )
 
-        # s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
-        # residual_sum_of_squares = ((self.scipy_func(self.xdata, popt) - self.ydata) ** 2).sum()
-        ss_res = np.sum((self.ydata - self.scipy_func(self.xdata, popt)) ** 2)
-        degrees_of_freedom = len(self.ydata) - len(popt)
-        s_sq = ss_res / degrees_of_freedom
-        pcov = cov_x * s_sq if cov_x is not None else None
+        if self.absolute_sigma:
+            s_sq = 1
+        else:
+            # Rescale the covariance matrix with the residual variance
+            ss_res = np.sum(infodic['fvec']**2)
+            degrees_of_freedom = len(self.ydata) - len(popt)
+            s_sq = ss_res / degrees_of_freedom
 
-        # Update the residuals
-        infodic['fvec'] = self.ydata - self.scipy_func(self.xdata, popt)
+        pcov = cov_x * s_sq if cov_x is not None else None
 
         self.__fit_results = FitResults(
             params=self.params,
@@ -398,7 +401,8 @@ class LeastSquares(BaseFit):
             infodic=infodic,
             mesg=mesg,
             ier=ier,
-            ydata=self.ydata
+            ydata=self.ydata,
+            sigma=self.sigma,
         )
         return self.__fit_results
 
@@ -412,10 +416,9 @@ class LeastSquares(BaseFit):
         This function and eval_jacobian should have been staticmethods, but that
         way eval_jacobian does not work.
         """
-        ans = func(x, p)
-        # self.sigma here should be replaced by sigma as an arg!
+        # self.sigma should be replaced by sigma as an arg!
         # More sleep is needed before I can think about this...
-        return (ans - y)/self.sigma
+        return (func(x, p) - y)/self.sigma
 
     def get_initial_guesses(self):
         """
