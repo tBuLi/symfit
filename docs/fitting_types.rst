@@ -29,6 +29,19 @@ The default fitting object does least-squares fitting::
 
 ``Fit`` currently simply wraps ``LeastSquares``. This might be changed in the future to it determining which fit would work best for the current data and then just trying the best option.
 
+The ``Fit`` object also supports weights via the ``sigma`` keyword. Symfit assumes these
+sigma to be from measurement errors by default, and not just as a relative weight.
+This means the standard deviations on parameters are calculated assuming the absolute size 
+of sigma is significant. This is the case for measurement errors and therefore for most use cases.
+If you only want to use the sigma for relative weights, calculated as ``1/sigma**2``, then you can
+use ``absolute_sigma=False`` as a keyword argument. 
+
+Please note that this is the opposite of the convension used by scipy's ``curve_fit``.
+Looking through their mailing list this seems to have been implemented the 'wrong' way
+for historical reasons, and was never changed so as not to loose backwards compatibility.
+Since this is a new project, we don't have that problem.
+
+
 Likelihood
 ----------
 Given a dataset and a model, what values should the model's parameters have to make the observed data most likely? This is the principle of maximum likelihood and the question the Likelihood object can answer for you.
