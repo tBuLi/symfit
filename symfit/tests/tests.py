@@ -4,7 +4,7 @@ import inspect
 import sympy
 from sympy import symbols
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log
+from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters
 from symfit.functions import Gaussian, Exp
 import scipy.stats
 from scipy.optimize import curve_fit
@@ -14,19 +14,17 @@ import seaborn
 
 class TddInPythonExample(unittest.TestCase):
     def test_gaussian(self):
-        x0 = Parameter()
-        sig = Parameter()
+        x0, sig = parameters('x0, sig')
         x = Variable()
+
         new = sympy.exp(-(x - x0)**2/(2*sig**2))
         self.assertIsInstance(new, sympy.exp)
         g = Gaussian(x, x0, sig)
         self.assertTrue(issubclass(g.__class__, sympy.exp))
 
     def test_callable(self):
-        a = Parameter()
-        b = Parameter()
-        x = Variable()
-        y = Variable()
+        a, b = parameters('a, b')
+        x, y = variables('x, y')
         func = a*x**2 + b*y**2
         result = func(x=2, y=3, a=3, b=9)
         self.assertEqual(result, 3*2**2 + 9*3**2)
