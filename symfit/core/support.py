@@ -1,3 +1,8 @@
+"""
+This module contains a support functions and conveniance methods used 
+throughout symfit. Some are used prodominantly internaly, others are 
+designed for users.
+"""
 import re
 import numpy as np
 from symfit.core.argument import Parameter, Variable
@@ -5,9 +10,13 @@ from sympy.utilities.lambdify import lambdify
 
 def seperate_symbols(func):
     """
-    Seperate the symbols in func. Return them in alphabetical order.
-    :param func:
-    :return:
+    Seperate the symbols in symbolic function func. Return them in alphabetical
+    order.
+    :param func: scipy symbolic function.
+    :return: (vars, params), a tuple of all variables and parameters, each 
+    sorted in alphabetical order.
+    :raises TypeError: only symfit Variable and Parameter are allowed, not sympy
+    Symbols.
     """
     params = []
     vars = []
@@ -57,3 +66,19 @@ def sympy_to_scipy(func, vars, params):
         return ans
 
     return f
+
+def variables(names):
+    """
+    Convenience function for the creation of multiple variables.
+    :param names: string of variable names. Should be comma seperated.
+    Example: x, y = variables('x, y')
+    """
+    return [Variable(name=name.strip()) for name in names.split(',')]
+
+def parameters(names):
+    """
+    Convenience function for the creation of multiple parameters.
+    :param names: string of parameter names. Should be comma seperated.
+    Example: a, b = parameters('a, b')
+    """
+    return [Parameter(name=name.strip()) for name in names.split(',')]
