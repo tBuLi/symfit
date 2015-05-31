@@ -1,11 +1,13 @@
 import abc
+from collections import namedtuple
+import itertools
 
 import sympy
 import numpy as np
 from scipy.optimize import minimize
 
 from symfit.core.argument import Parameter, Variable
-from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py
+from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py, cache
 from symfit.core.leastsqbound import leastsqbound
 
 
@@ -598,3 +600,171 @@ class Likelihood(Maximize):
         ans = - np.nansum(np.log(func(x, p)))
         # ans = - np.product(func(x, p)) # Why doesn't this work?
         return ans
+
+class LagrangeMultipliers:
+    """
+    Class to analytically solve a function subject to constraints using Karush Kuhn Tucker.
+    http://en.wikipedia.org/wiki/Karush-Kuhn-Tucker_conditions
+    """
+
+    def __init__(self, model, constraints):
+        self.model = model
+        # Seperate the constraints into equality and inequality constraint of the type <=.
+        self.equalities, self.lesser_thans = self.seperate_constraints(constraints)
+        self.vars, self.params = seperate_symbols(self.model)
+
+    @property
+    @cache
+    def lagrangian(self):
+        L = self.model
+
+        # Add equility constraints to the Lagrangian
+        for constraint, l_i in zip(self.equalities, self.l_params):
+            L += l_i * constraint
+
+        # Add inequility constraints to the Lagrangian
+        for constraint, u_i in zip(self.lesser_thans, self.u_params):
+            L += u_i * constraint
+
+        return L
+
+    @property
+    @cache
+    def l_params(self):
+        """
+        :return: Lagrange multipliers for every constraint.
+        """
+        return [Parameter(name='l_{}'.format(index)) for index in range(len(self.equalities))]
+
+    @property
+    @cache
+    def u_params(self):
+        """
+        :return: Lagrange multipliers for every inequality constraint.
+        """
+        return [Parameter(name='u_{}'.format(index)) for index in range(len(self.lesser_thans))]
+
+    @property
+    @cache
+    def all_params(self):
+        """
+        :return: All parameters. The convention is first the model parameters,
+        then lagrange multipliers for equality constraints, then inequility.
+        """
+        return self.params + self.l_params + self.u_params
+
+    @property
+    @cache
+    def extrema(self):
+        """
+        :return: list namedtuples of all extrema of self.model, where value = f(x1, ..., xn).
+        """
+        # Prepare the Extremum namedtuple for this number of variables.
+        field_names = [p.name for p in self.params] + ['value']
+        Extremum = namedtuple('Extremum', field_names)
+
+        # Calculate the function value at each solution.
+        values = [self.model.subs(sol) for sol in self.solutions]
+
+        # Build the output list of namedtuples
+        extrema_list = []
+        for value, solution in zip(values, self.solutions):
+            # Prepare an Extrumum tuple for every extremum.
+            ans = {'value': value}
+            for param in self.params:
+                ans[param.name] = solution[param]
+            extrema_list.append(Extremum(**ans))
+        return extrema_list
+
+    @property
+    @cache
+    def solutions(self):
+        """
+        Do analytical optimization. This finds ALL solutions for the system.
+        Nomenclature: capital L is the Lagrangian, l the Lagrange multiplier.
+        :return: a list of dicts containing the values for all parameters,
+        including the Lagrange multipliers l_i and u_i.
+        """
+        # primal feasibility; pretend they are all equality constraints.
+        grad_L = [sympy.diff(self.lagrangian, p) for p in self.all_params]
+        solutions = sympy.solve(grad_L, self.all_params, dict=True)
+
+        if self.u_params:
+            # The smaller than constraints also have trivial solutions when u_i == 0.
+            # These are not automatically found by sympy in the previous process.
+            # Therefore we must now evaluate the gradient for these points manually.
+            u_zero = dict((u_i, 0) for u_i in self.u_params)
+            # We need to consider all combinations of u_i == 0 possible, of all lengths possible.
+            for number_of_zeros in range(1, len(u_zero) + 1):
+                for zeros in itertools.combinations(u_zero.items(), number_of_zeros):  # zeros is a tuple of (Symbol, 0) tuples.
+                    # get a unique set of symbols.
+                    symbols = set(self.all_params) - set(symbol for symbol, _ in zeros)
+                    # differentiate w.r.t. these symbols only.
+                    relevant_grad_L = [sympy.diff(self.lagrangian, p) for p in symbols]
+
+                    solution = sympy.solve([grad.subs(zeros) for grad in relevant_grad_L], symbols, dict=True)
+                    for item in solution:
+                        item.update(zeros)  # include the zeros themselves.
+
+                    solutions += solution
+
+        return self.sanitise(solutions)
+
+    def sanitise(self, solutions):
+        """
+        Returns only solutions which are valid. This is an unfortunate consequence of the KKT method;
+        KKT parameters are not guaranteed to respect each other. However, it is easy to check this.
+        There are two things to check:
+        - all KKT parameters should be greater equal zero.
+        - all constraints should be met by the solutions.
+        :param solutions: a list of dicts, where each dict contains the coordinates of a saddle point of the lagrangian.
+        :return: bool
+        """
+        # All the inequality multipliers u_i must be greater or equal 0
+        final_solutions = []
+        for saddle_point in solutions:
+            for u_i in self.u_params:
+                if saddle_point[u_i] < 0:
+                    break
+            else:
+                final_solutions.append(saddle_point)
+
+        # we have to dubble check all if all our conditions are met because
+        # This is not garanteed with inequility constraints.
+        solutions = []
+        for solution in final_solutions:
+            for constraint in self.lesser_thans:
+                test = constraint.subs(solution)
+                if test > 0:
+                    break
+            else:
+                solutions.append(solution)
+
+        return solutions
+
+
+
+    @staticmethod
+    def seperate_constraints(constraints):
+        """
+        We follow the definitions given here:
+        http://en.wikipedia.org/wiki/Karush-Kuhn-Tucker_conditions
+
+        IMPORTANT: <= and < are considered the same! The same goes for > and >=.
+        Strict inequalities of the type != are not currently supported.
+
+        :param constraints list: list of constraints.
+        :return: g_i are <= 0 constraints, h_j are equals 0 constraints.
+        """
+        equalities = []
+        lesser_thans = []
+        for constraint in constraints:
+            if isinstance(constraint, sympy.Eq):
+                equalities.append(constraint.lhs - constraint.rhs)
+            elif isinstance(constraint, (sympy.Le, sympy.Lt)):
+                lesser_thans.append(constraint.lhs - constraint.rhs)
+            elif isinstance(constraint, (sympy.Ge, sympy.Gt)):
+                lesser_thans.append(-1 * (constraint.lhs - constraint.rhs))
+            else:
+                raise TypeError('Constraints of type {} are not supported by this solver.'.format(type(constraint)))
+        return equalities, lesser_thans

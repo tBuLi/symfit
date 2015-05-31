@@ -2,15 +2,15 @@ from __future__ import division, print_function
 import unittest
 import inspect
 import sympy
+from sympy import init_printing, init_session
 from sympy import symbols
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters
+from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters, LagrangeMultipliers
 from symfit.functions import Gaussian, Exp
 import scipy.stats
 from scipy.optimize import curve_fit
 from symfit.core.support import sympy_to_scipy, sympy_to_py
 import matplotlib.pyplot as plt
-import seaborn
 
 class TddInPythonExample(unittest.TestCase):
     def test_gaussian(self):
@@ -606,11 +606,85 @@ class TddInPythonExample(unittest.TestCase):
         self.assertAlmostEqual(var_a_exact**0.5, fit_result.params.a_stdev, 6)
         self.assertAlmostEqual(var_b_exact**0.5, fit_result.params.b_stdev, 6)
 
+    def test_lagrange_equility(self):
+        """
+        Lagrange Multipliers.
+        Example 1 from
+        http://en.wikipedia.org/wiki/Lagrange_multiplier#Examples
+        """
+        x, y = parameters('x, y')
 
+        f = x + y
+        constraints = [
+            sympy.Eq(x**2 + y**2, 1)
+        ]
 
+        fit = LagrangeMultipliers(f, constraints)
+        self.assertTrue(
+            [
+                (sympy.sqrt(2)/2, sympy.sqrt(2)/2, sympy.sqrt(2)),
+                (-sympy.sqrt(2)/2, -sympy.sqrt(2)/2, -sympy.sqrt(2))
+            ] == fit.extrema
+        )
 
+    def test_lagrange_inequility(self):
+        """
+        Examples taken from
+        http://mat.gsia.cmu.edu/classes/QUANT/NOTES/chap4/node6.html
+        """
+        x = Parameter()
 
+        f = x**3 - 3 * x
+        constraints = [
+            sympy.Le(x, 2)
+            # x <= 2,
+        ]
 
+        # maximize
+        fit = LagrangeMultipliers(-f, constraints)
+        self.assertTrue([(2, -2), (-1, -2), (1, 2)] == fit.extrema)
+
+        # minimize
+        fit = LagrangeMultipliers(f, constraints)
+        self.assertTrue([(-1, 2), (1, -2)] == fit.extrema)
+
+        # Example 2
+        x = Parameter()
+        y = Parameter()
+
+        f = (x - 2)**2 + 2*(y - 1)**2
+        constraints = [
+            sympy.Le(x + 4*y, 3),
+            sympy.Ge(x, y),
+        ]
+        fit = LagrangeMultipliers(f, constraints)
+        print(fit.solutions)
+        print(fit.extrema)
+        self.assertTrue([(5/3, 1/3, 1)] == fit.extrema)
+
+    def test_lagrange_least_squares(self):
+        """
+        http://www.asp.ucar.edu/colloquium/1992/notes/part1/node36.html
+        """
+        a, b, c= parameters('a, b, c')
+        a_i, b_i, c_i, s_a, s_b, s_c = variables('a_i, b_i, c_i, s_a, s_b, s_c')
+        i, N = symbols('i, N', integer=True)
+
+        f = sympy.summation(((a_i - a)/s_a)**2 + ((b_i - b)/s_b)**2 + ((c_i - c)/s_c)**2, (i, 0, N- 1))
+        constraints = [
+            sympy.Eq(a + b + c, 180)
+        ]
+
+        fit = LagrangeMultipliers(f, constraints)
+
+        # self.assertTrue([(2, 2), (-1, 2)] == fit.maxima)
+        # self.assertTrue([(1, -2)] == fit.minima)
+        print(fit.lagrangian)
+        print('sol', fit.solutions)
+        # print('l_0', fit.solutions[0][fit.l_params[0]])
+        # print('a', fit.solutions[0][a])
+        extrema = fit.extrema
+        print(extrema[0].a)
 
 
 if __name__ == '__main__':

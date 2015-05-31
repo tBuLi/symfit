@@ -3,7 +3,8 @@ This module contains a support functions and conveniance methods used
 throughout symfit. Some are used prodominantly internaly, others are 
 designed for users.
 """
-import re
+from functools import wraps
+
 import numpy as np
 from symfit.core.argument import Parameter, Variable
 from sympy.utilities.lambdify import lambdify
@@ -20,10 +21,12 @@ def seperate_symbols(func):
     """
     params = []
     vars = []
+    from sympy.tensor import IndexedBase
+    from sympy import Symbol
     for symbol in func.free_symbols:
         if isinstance(symbol, Parameter):
             params.append(symbol)
-        elif isinstance(symbol, Variable):
+        elif isinstance(symbol, (Variable, IndexedBase, Symbol)):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
@@ -82,3 +85,21 @@ def parameters(names):
     Example: a, b = parameters('a, b')
     """
     return [Parameter(name=name.strip()) for name in names.split(',')]
+
+def cache(func):
+    """
+    Decorator function that gets a method as its input and either buffers the input,
+    or returns the buffered output. Used in conjunction with properties to take away
+    the standard buffering logic.
+    :param func:
+    :return:
+    """
+    @wraps(func)
+    def new_func(self):
+        try:
+            return getattr(self, '_{}'.format(func.__name__))
+        except AttributeError:
+            setattr(self, '_{}'.format(func.__name__), func(self))
+            return getattr(self, '_{}'.format(func.__name__))
+
+    return new_func
