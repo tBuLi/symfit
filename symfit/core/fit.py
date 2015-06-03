@@ -768,3 +768,43 @@ class LagrangeMultipliers:
             else:
                 raise TypeError('Constraints of type {} are not supported by this solver.'.format(type(constraint)))
         return equalities, lesser_thans
+
+class ConstrainedFit(BaseFit):
+    """
+    Finds the analytical best fit parameters, combining data with LagrangeMultipliers
+    for the best result, if available.
+    """
+    def __init__(self, model, x, constraints=None, *args, **kwargs):
+        self.analytic_fit = LagrangeMultipliers(model, constraints)
+        self.xdata = x
+        super(ConstrainedFit, self).__init__(model, *args, **kwargs)
+
+    def execute(self):
+        import inspect
+        for extremum in self.analytic_fit.extrema:
+            popt, pcov  = [], []
+            for param in self.params:
+                # Retrieve the expression for this param.
+                expr = getattr(extremum, param.name)
+                py_expr = sympy_to_py(expr, self.vars, [])
+                print(expr)
+                print(self.xdata)
+                print(inspect.getargspec(py_expr))
+                values = py_expr(*self.xdata)
+                popt.append(np.average(values))
+                pcov.append(np.var(values, ddof=len(self.vars)))
+            print(popt, pcov)
+            fit_results = FitResults(
+                params=self.params,
+                popt=popt,
+                pcov=pcov,
+                # infodic=infodic,
+                # mesg=ans.message,
+                # ier=ans.nit,
+                # ydata=self.ydata,  # Needed to calculate R^2
+            )
+            print(fit_results)
+        print(self.analytic_fit.extrema)
+
+    def error(self, p, func, x, y):
+        pass
