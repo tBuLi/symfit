@@ -7,7 +7,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from symfit.core.argument import Parameter, Variable
-from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py, cache
+from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py, cache, r_squared
 from symfit.core.leastsqbound import leastsqbound
 
 
@@ -688,6 +688,7 @@ class LagrangeMultipliers:
         # primal feasibility; pretend they are all equality constraints.
         grad_L = [sympy.diff(self.lagrangian, p) for p in self.all_params]
         solutions = sympy.solve(grad_L, self.all_params, dict=True)
+        print(grad_L, solutions, self.all_params)
 
         if self.u_params:
             # The smaller than constraints also have trivial solutions when u_i == 0.
@@ -774,12 +775,17 @@ class ConstrainedFit(BaseFit):
     Finds the analytical best fit parameters, combining data with LagrangeMultipliers
     for the best result, if available.
     """
-    def __init__(self, model, x, constraints=None, *args, **kwargs):
-        self.analytic_fit = LagrangeMultipliers(model, constraints)
+    def __init__(self, model, x, y, constraints=None, *args, **kwargs):
+        constraints = constraints if constraints is not None else []
+        value = Variable()
+        chi2 = (model - value)**2
+        self.analytic_fit = LagrangeMultipliers(chi2, constraints)
         self.xdata = x
-        super(ConstrainedFit, self).__init__(model, *args, **kwargs)
+        self.ydata = y
+        super(ConstrainedFit, self).__init__(chi2)
 
     def execute(self):
+        print('here:', self.analytic_fit.solutions)
         import inspect
         for extremum in self.analytic_fit.extrema:
             popt, pcov  = [], []
@@ -787,21 +793,21 @@ class ConstrainedFit(BaseFit):
                 # Retrieve the expression for this param.
                 expr = getattr(extremum, param.name)
                 py_expr = sympy_to_py(expr, self.vars, [])
-                print(expr)
-                print(self.xdata)
-                print(inspect.getargspec(py_expr))
                 values = py_expr(*self.xdata)
                 popt.append(np.average(values))
                 pcov.append(np.var(values, ddof=len(self.vars)))
             print(popt, pcov)
+
+            residuals = self.scipy_func(self.xdata, popt)
+
             fit_results = FitResults(
                 params=self.params,
                 popt=popt,
                 pcov=pcov,
-                # infodic=infodic,
-                # mesg=ans.message,
-                # ier=ans.nit,
-                # ydata=self.ydata,  # Needed to calculate R^2
+                infodic={},
+                mesg='',
+                ier=0,
+                r_squared=r_squared(residuals, self.ydata),
             )
             print(fit_results)
         print(self.analytic_fit.extrema)

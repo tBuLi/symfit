@@ -662,41 +662,62 @@ class TddInPythonExample(unittest.TestCase):
     #     print(fit.extrema)
     #     self.assertTrue([(5/3, 1/3, 1)] == fit.extrema)
 
-    def test_lagrange_least_squares(self):
-        """
-        http://www.asp.ucar.edu/colloquium/1992/notes/part1/node36.html
-        """
-        a, b, c= parameters('a, b, c')
-        a_i, b_i, c_i = variables('a_i, b_i, c_i')
-        # a_i, b_i, c_i, s_a, s_b, s_c = variables('a_i, b_i, c_i, s_a, s_b, s_c')
-        i, N = symbols('i, N', integer=True)
+    # def test_lagrange_least_squares(self):
+    #     """
+    #     http://www.asp.ucar.edu/colloquium/1992/notes/part1/node36.html
+    #     """
+    #     a, b, c= parameters('a, b, c')
+    #     a_i, b_i, c_i = variables('a_i, b_i, c_i')
+    #     # a_i, b_i, c_i, s_a, s_b, s_c = variables('a_i, b_i, c_i, s_a, s_b, s_c')
+    #     i, N = symbols('i, N', integer=True)
+    #
+    #     # f = sympy.summation(((a_i - a)/s_a)**2 + ((b_i - b)/s_b)**2 + ((c_i - c)/s_c)**2, (i, 0, N- 1))
+    #     # f = sympy.summation(((a_i - a))**2 + ((b_i - b))**2 + ((c_i - c))**2, (i, 0, N- 1))
+    #     f = ((a_i - a))**2 + ((b_i - b))**2 + ((c_i - c))**2
+    #     constraints = [
+    #         sympy.Eq(a + b + c, 180)
+    #     ]
+    #
+    #     fit = LagrangeMultipliers(f, constraints)
+    #
+    #     xdata = np.array([
+    #         [10., 10., 10., 10., 10., 10., 10.],
+    #         [100., 100., 100., 100., 100., 100., 100.],
+    #         [70., 70., 70., 70., 70., 70., 70.],
+    #     ])
+    #     # self.assertTrue([(2, 2), (-1, 2)] == fit.maxima)
+    #     # self.assertTrue([(1, -2)] == fit.minima)
+    #     # print(fit.lagrangian)
+    #     # print('sol', fit.solutions)
+    #     # print('l_0', fit.solutions[0][fit.l_params[0]])
+    #     # print('a', fit.solutions[0][a])
+    #     # extrema = fit.extrema
+    #     # print(extrema[0].a)
+    #
+    #     fit = ConstrainedFit(f, constraints=constraints, x=xdata)
+    #     fit.execute()
 
-        # f = sympy.summation(((a_i - a)/s_a)**2 + ((b_i - b)/s_b)**2 + ((c_i - c)/s_c)**2, (i, 0, N- 1))
-        # f = sympy.summation(((a_i - a))**2 + ((b_i - b))**2 + ((c_i - c))**2, (i, 0, N- 1))
-        f = ((a_i - a))**2 + ((b_i - b))**2 + ((c_i - c))**2
+    def test_simple_sigma(self):
+        t_data = np.array([1.4, 2.1, 2.6, 3.0, 3.3])
+        y_data = np.array([10, 20, 30, 40, 50])
+
+        sigma = 0.2
+        n = np.array([5, 3, 8, 15, 30])
+        # sigma_t = sigma / np.sqrt(n)
+
+        # We now define our model
+        t = Variable()
+        g = Parameter()
+        y_model = 0.5 * g * t**2
+
         constraints = [
-            sympy.Eq(a + b + c, 180)
+            sympy.Le(g, 20)
         ]
 
-        fit = LagrangeMultipliers(f, constraints)
-
-        xdata = np.array([
-            [10., 10., 10., 10., 10., 10., 10.],
-            [100., 100., 100., 100., 100., 100., 100.],
-            [70., 70., 70., 70., 70., 70., 70.],
-        ])
-        # self.assertTrue([(2, 2), (-1, 2)] == fit.maxima)
-        # self.assertTrue([(1, -2)] == fit.minima)
-        # print(fit.lagrangian)
-        # print('sol', fit.solutions)
-        # print('l_0', fit.solutions[0][fit.l_params[0]])
-        # print('a', fit.solutions[0][a])
-        # extrema = fit.extrema
-        # print(extrema[0].a)
-
-        fit = ConstrainedFit(f, constraints=constraints, x=xdata)
-        fit.execute()
-
+        fit = ConstrainedFit(y_model, x=t_data, y=y_data)# constraints=constraints)#, sigma=sigma_t)
+        fit_result = fit.execute()
+        print(fit_result)
+        print([sympy.diff(fit.analytic_fit.lagrangian, p) for p in fit.analytic_fit.all_params])
 
 if __name__ == '__main__':
     unittest.main()

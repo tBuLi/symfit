@@ -1,5 +1,5 @@
 """
-This module contains a support functions and conveniance methods used 
+This module contains support functions and conveniance methods used
 throughout symfit. Some are used prodominantly internaly, others are 
 designed for users.
 """
@@ -103,3 +103,18 @@ def cache(func):
             return getattr(self, '_{}'.format(func.__name__))
 
     return new_func
+
+def r_squared(residuals, ydata, sigma=None):
+    """
+    Calculate the squared regression coefficient from the given residuals and data.
+    :param residuals: array of residuals, f(x, p) - y.
+    :param ydata: y in the above equation.
+    :param sigma: sigma in the y_i
+    """
+    ss_err = np.sum(residuals ** 2)
+    if sigma is not None:
+        ss_tot = np.sum(((ydata - ydata.mean())/sigma) ** 2)
+    else:
+        ss_tot = np.sum((ydata - ydata.mean()) ** 2)
+
+    return 1 - (ss_err / ss_tot)
