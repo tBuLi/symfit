@@ -10,14 +10,33 @@ import functools
 
 
 class InteractiveFit2D(Fit):
+    """A class that provides a visual_guess method which provides
+    an graphical, interactive way of guessing initial fitting parameters."""
     def _update_plot(self, val):
+        """Callbak to redraw the plot to reflect the new parameter values."""
+        # Since all sliders call this same callback without saying who they are
+        # I need to update the values for all parameters. This can be
+        # circumvented by creating a seperate callback function for each
+        # parameter.
         for p in self.params:
+            # p.value = self.sliders[p].val?
             self.params[self.params.index(p)].value = self.sliders[p].val
+        # Also see the comment below about using keyword arguments (line 57)
         self.my_plot.set_ydata(self.vec_func(self.xpoints, *list(p.value for p in self.params)))
 
     def visual_guess(self, n_points=50):
+        """Create a matplotlib window with sliders for all parameters
+        in this model, so that you may graphically guess initial fitting
+        parameters. n_points is the number of points drawn for the plot.
+        Data points are plotted as blue points, the proposed model as
+        a red line.
+        Slider extremes are taken from the parameters where possible. If
+        these are not provided, the minimum is 0; and the maximum is value*2.
+        If no initial value is provided, it defaults to 1."""
+
         x_min = np.min(self.xdata)
         x_max = np.max(self.xdata)
+        # It would be nice if I could get these from model someway...
         y_min = 0
         y_max = 1
 
@@ -33,7 +52,10 @@ class InteractiveFit2D(Fit):
         plt.ylim(y_min, y_max)  # Y-Domain for self.model
         plt.xlim(x_min, x_max)  # X-domain for self.model
 
+        # self.vec_func should probably be replaced for self.model.
         self.vec_func = lambdify(self.vars+self.params, self.model, "numpy")
+        # It might be better to use keyword arguments (p.name: p.value), but
+        # I don't know (any more) if that's supported by self.model.
         vals = self.vec_func(self.xpoints, *list(p.value for p in self.params))
         self.my_plot, = ax.plot(self.xpoints, vals, color='red')
         ax.scatter(self.xdata, self.ydata, c='blue')
@@ -46,7 +68,8 @@ class InteractiveFit2D(Fit):
                 axbg = 'lightgoldenrodyellow'
             else:
                 axbg = 'red'
-            ax = plt.axes([0.162, i, 0.68, 0.03], axisbg=axbg)  # start-x, start-y, width, height
+            # start-x, start-y, width, height
+            ax = plt.axes([0.162, i, 0.68, 0.03], axisbg=axbg)
 
             if not hasattr(p, "value") or p.value is None:
                 val = 1
@@ -70,7 +93,19 @@ class InteractiveFit2D(Fit):
 
 
 class ProjectionPlot:
+    """Helper class for InteractiveFit3D. It holds information for a plot of
+    one projection in 3 dimensions.
+    Data is plotted as a scatterplot in blue, the model as a red surface."""
     def __init__(self, axes, xydata, z_interpolator, xymesh, z_function, title):
+        """axes: The axes upon which to plot
+        xydata: The original data
+        z_interpolator: The function to call to project xydata on 3 dimensions
+        given values for the other free variables
+        xymesh: an ordered grid of points for which to calculate z_function
+        at given parameters.
+        z_function: called with xymesh, values for the other free variables
+        and parameters to create a surface plot.
+        title: The title for this plot"""
         self.ax = axes
 
         self.xydata = xydata
@@ -82,19 +117,25 @@ class ProjectionPlot:
         self.title = title
 
     def scatter(self, variables, **kwargs):
+        """Given other free variables, draw a scatterplot with the
+        original data. The original data is projected on the relevant axes."""
         z_points = self.z_interpolator(**variables)
         self.ax.scatter(*self.xydata, zs=z_points, **kwargs)
 
     def plot(self, variables_parameters, **kwargs):
+        """Given the other free variables and parameters, plot the model as a 
+        surface"""
         z_values = self.z_function(**variables_parameters)
         self.ax.plot_surface(self.xymesh[0], self.xymesh[1], z_values, **kwargs)
 
     def clear(self):
+        """Clears the current plot"""
         self.ax.cla()
         self.ax.set_title(self.title)
         self.ax.grid(False)
 
     def update_plot(self, variables, parameters):
+        """Give values for the variables and parameters, update the plot"""
         self.clear()
         self.scatter(variables, color='blue', antialiased=False)
         d = variables.copy()
