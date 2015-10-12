@@ -144,9 +144,13 @@ class ProjectionPlot:
 
 
 class InteractiveFit3D(Fit):
+    """A class which plots N-dimensional models by projecting them
+    on all combinations of 3 dimensions in order to allow users to 
+    make a graphical guess of initial fitting values."""
     # TODO: multiprocess redrawing
 
     def _update_plot(self, variable):
+        """Update the subplots that changed, given a new value for variable."""
         if variable in self.vars:
             var_idx = self.vars.index(variable)
         else:
@@ -163,6 +167,8 @@ class InteractiveFit3D(Fit):
         self.fig.canvas.draw()
 
     def _slider_changed(self, val, variable):
+        """Update the stored parameter and variable values,
+        and update plots."""
         if variable in self.params:
             param = variable
             param.value = val
@@ -171,6 +177,7 @@ class InteractiveFit3D(Fit):
         self._update_plot(variable)
 
     def _draw_sliders(self):
+        """Constructs and draws sliders for all parameters and variables."""
         i = 0.05
         x_mins = np.min(self.xdata, axis=1)
         x_maxs = np.max(self.xdata, axis=1)
@@ -203,12 +210,28 @@ class InteractiveFit3D(Fit):
                 i += 0.05
 
     def _construct_slider(self, axes, var, min_val, max_val, init_val):
+        """Constructs a slider and registers a variable specific call-back
+        modelled on _slider_changed, such that it gets called with the
+        variable that changed."""
         slid = plt.Slider(axes, var.name, min_val, max_val, valinit=init_val)
         f = functools.partial(self._slider_changed, variable=var)
         slid.on_changed(f)
         return slid
 
     def visual_guess(self, n_points=50, interpolation='linear'):
+        """Create a matplotlib window with sliders for all parameters
+        in this model, so that you may graphically guess initial fitting
+        parameters. n_points is the number of points drawn for the plot
+        per dimension. A tuple of integers with the same length as the number
+        of dimensions is also allowed.
+        interpolation is the interpolation order used interpolate/project
+        the original data on the relevant dimensions. Allowed values are
+        'linear' (default) and 'nearest'.
+        Data points are plotted as blue points, the proposed model as
+        a red surface.
+        Slider extremes are taken from the parameters where possible. If
+        these are not provided, the minimum is 0; and the maximum is value*2.
+        If no initial value is provided, it defaults to 1."""
         x_mins = np.min(self.xdata, axis=1)
         x_maxs = np.max(self.xdata, axis=1)
         self.nvars = len(self.vars)
@@ -229,7 +252,7 @@ class InteractiveFit3D(Fit):
             if len(x_mins) != len(x_maxs) or len(n_points) != len(x_mins) or\
                len(x_mins) != len(self.vars) or len(self.xdata) != len(x_mins):
                 raise IndexError("Size mismatch in variables somewhere")
-        except TypeError:
+        except TypeError:  # Can't do len somewhere.
             raise IndexError("Size mismatch in variables somewhere")
 
         if self.nvars == 1:
@@ -250,7 +273,9 @@ class InteractiveFit3D(Fit):
         self.projections = list(combinations(range(self.nvars), 2))
 
         f = interpolator(self.xdata.T, self.ydata)
-        def master_interpolator(**kwargs):  # Converts keyword arguments to positional arguments, and applies it to the interpolator
+        def master_interpolator(**kwargs):
+            """Converts keyword arguments to positional arguments,
+            and applies it to the interpolator"""
             args = [0]*len(kwargs)
             for i, v in enumerate(self.vars):
                 args[i] = kwargs[v.name]
@@ -267,7 +292,8 @@ class InteractiveFit3D(Fit):
 
             xydata = np.array([self.xdata[x1], self.xdata[x2]])
             mesh = np.meshgrid(xpoints[x1], xpoints[x2])
-
+            
+            # Pre-apply all the data that will not change for this projection
             z_function = functools.partial(self.model,
                                            **{self.vars[x1].name: mesh[0],
                                               self.vars[x2].name: mesh[1]})
