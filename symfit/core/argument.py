@@ -1,4 +1,6 @@
 from sympy.core.symbol import Symbol
+import os
+import sys
 import inspect
 
 class Argument(Symbol):
@@ -6,6 +8,30 @@ class Argument(Symbol):
         # Super dirty way? to determine the variable name from the calling line.
         if not name or type(name) != str:
             frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+
+            # Check if the script is running in an exe
+            # If this is the case, symfit cannot find the vaiable name from the calling line and it will search
+            # in the exe directory to find the source. Make sure to copy the required source files for this to work.
+            if getattr(sys, 'frozen', False):
+                basedir = sys._MEIPASS #  Find the exe base dir
+                fname = os.path.basename(filename)
+                # Find the source file in the pyinstaller directory
+                source_file = None
+                for root, dirs, files in os.walk(basedir):
+                    if fname in files:
+                        source_file = os.path.join(root, fname)
+                        break
+
+                if source_file is None:
+                    raise IOError("Source code file not found")
+
+                # Get the correct line from the source code
+                l = 0
+                with open(source_file, 'r') as fid:
+                    for line in fid:
+                        l+=1
+                        if l == line_number:
+                            lines = line
             caller = lines[0].strip()
             if '==' in caller:
                 pass
