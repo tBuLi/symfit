@@ -1,0 +1,271 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial &mdash; symfit 0.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="symfit 0.3.0 documentation" href="index.html" />
+    <link rel="next" title="Fitting Types" href="fitting_types.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="fitting_types.html" title="Fitting Types"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">symfit 0.3.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="simple-example">
+<h2>Simple Example<a class="headerlink" href="#simple-example" title="Permalink to this headline">¶</a></h2>
+<p>The example below shows how easy it is to define a model that we could fit to.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">symfit.api</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">Variable</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">()</span>
+<span class="n">b</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">()</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">()</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>Lets fit this model to some generated data.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">symfit.api</span> <span class="kn">import</span> <span class="n">Fit</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="n">xdata</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span> <span class="c"># From 0 to 100 in 100 steps</span>
+<span class="n">a_vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">15.0</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,))</span>
+<span class="n">b_vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">100.0</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,))</span>
+<span class="n">ydata</span> <span class="o">=</span> <span class="n">a_vec</span> <span class="o">*</span> <span class="n">xdata</span> <span class="o">+</span> <span class="n">b_vec</span> <span class="c"># Point scattered around the line 5 * x + 105</span>
+
+<span class="n">fit</span> <span class="o">=</span> <span class="n">Fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">)</span>
+<span class="n">fit_result</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="figure">
+<a class="reference internal image-reference" href="_images/linear_model_fit_data.png"><img alt="Linear Model Fit Data" src="_images/linear_model_fit_data.png" style="width: 300px;" /></a>
+</div>
+<p>Printing <code class="docutils literal"><span class="pre">fit_result</span></code> will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.</p>
+</div>
+<div class="section" id="initial-guess">
+<h2>Initial Guess<a class="headerlink" href="#initial-guess" title="Permalink to this headline">¶</a></h2>
+<p>For fitting to work as desired you should always give a good initial guess for a parameter.
+The <code class="docutils literal"><span class="pre">Parameter</span></code> object can therefore be initiated with the following keywords:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">value</span></code> the initial guess value.</li>
+<li><code class="docutils literal"><span class="pre">min</span></code> Minimal value for the parameter.</li>
+<li><code class="docutils literal"><span class="pre">max</span></code> Maximal value for the parameter.</li>
+<li><code class="docutils literal"><span class="pre">fixed</span></code> Fix the value of the parameter during the fitting to <code class="docutils literal"><span class="pre">value</span></code>.</li>
+</ul>
+<p>In the example above, we might change our <code class="docutils literal"><span class="pre">Parameter</span></code>&#8216;s to the following after looking at a plot of the data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">k</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+
+<span class="n">l</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">(</span><span class="s">&#39;b, c&#39;</span><span class="p">)</span>
+<span class="n">l</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">60</span>
+<span class="n">l</span><span class="o">.</span><span class="n">fixed</span> <span class="o">=</span> <span class="bp">True</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="accessing-the-results">
+<h2>Accessing the Results<a class="headerlink" href="#accessing-the-results" title="Permalink to this headline">¶</a></h2>
+<p>A call to <code class="docutils literal"><span class="pre">Fit.execute()</span></code> returns a <code class="docutils literal"><span class="pre">FitResults</span></code> instance.
+This object holds all information about the fit.
+The fitting process does not modify the <code class="docutils literal"><span class="pre">Parameter</span></code> objects.
+In the above example, <code class="docutils literal"><span class="pre">k.value</span></code> will still be <code class="docutils literal"><span class="pre">4.0</span></code> and not the value we obtain after fitting. To get the value of fit parameters we can do:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">a</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="mf">14.66946</span><span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">a_stdev</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="mf">0.3367571</span><span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="mf">104.6558</span><span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b_stdev</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="mf">19.49172</span><span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">fit_result</span><span class="o">.</span><span class="n">r_squared</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="mf">0.950890866472</span>
+</pre></div>
+</div>
+<p>For more FitResults, see the API docs.</p>
+</div>
+<div class="section" id="evaluating-the-model">
+<h2>Evaluating the Model<a class="headerlink" href="#evaluating-the-model" title="Permalink to this headline">¶</a></h2>
+<p>With these parameters, we could now evaluate the model with these parameters so we can make a plot of it.
+In order to do this, we simply call the model with these values:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+
+<span class="n">y</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">xdata</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xdata</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="figure">
+<a class="reference internal image-reference" href="_images/linear_model_fit.png"><img alt="Linear Model Fit" src="_images/linear_model_fit.png" style="width: 300px;" /></a>
+</div>
+<p>The model <em>has</em> to be called by keyword arguments to prevent any ambiguity. So the following does not work:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">y</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">xdata</span><span class="p">,</span> <span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To make life easier, there is a nice shorthand notation to immediately use a fit result:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">y</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">xdata</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This unpacks the .params object as a dict. For more info view ParameterDict.</p>
+</div>
+<div class="section" id="named-models">
+<h2>Named Models<a class="headerlink" href="#named-models" title="Permalink to this headline">¶</a></h2>
+<p>More complicated models are also relatively easy to deal with by using named models.
+Let&#8217;s try our luck with a bivariate normal distribution:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">symfit</span> <span class="kn">import</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">sqrt</span>
+
+<span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">variables</span><span class="p">(</span><span class="s">&#39;x, y, p&#39;</span><span class="p">)</span>
+<span class="n">mu_x</span><span class="p">,</span> <span class="n">mu_y</span><span class="p">,</span> <span class="n">sig_x</span><span class="p">,</span> <span class="n">sig_y</span><span class="p">,</span> <span class="n">rho</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">(</span><span class="s">&#39;mu_x, mu_y, sig_x, sig_y, rho&#39;</span><span class="p">)</span>
+
+<span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mu_x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="n">sig_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">mu_y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="n">sig_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">rho</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mu_x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">mu_y</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">sig_x</span> <span class="o">*</span> <span class="n">sig_y</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">:</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span> <span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">rho</span><span class="o">**</span><span class="mi">2</span><span class="p">)))</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">sig_x</span> <span class="o">*</span> <span class="n">sig_y</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">rho</span><span class="o">**</span><span class="mi">2</span><span class="p">))}</span>
+
+<span class="n">fit</span> <span class="o">=</span> <span class="n">Fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">xdata</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">ydata</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pdata</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By using the magic of named models, the flow of information is still very clear, even with such a complicated function.</p>
+<p>This syntax also supports vector valued functions:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">model</span> <span class="o">=</span> <span class="p">{</span><span class="n">y_1</span><span class="p">:</span> <span class="n">a</span> <span class="o">*</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">y_2</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">b</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>One thing to note about such models is that now <code class="docutils literal"><span class="pre">model(x=xdata)</span></code> obviously no longer works as <code class="docutils literal"><span class="pre">type(model)</span> <span class="pre">==</span> <span class="pre">dict</span></code>.
+There is a prevered way to resolve this. If any kind of fitting object has been initiated, it will have a <code class="docutils literal"><span class="pre">.model</span></code> atribute
+containing an instance of <code class="docutils literal"><span class="pre">Model</span></code>. This can again be called:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">model</span> <span class="o">=</span> <span class="p">{</span><span class="n">y_1</span><span class="p">:</span> <span class="n">a</span> <span class="o">*</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">y_2</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">b</span><span class="p">}</span>
+<span class="n">fit</span> <span class="o">=</span> <span class="n">Fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">xdata</span><span class="p">)</span>
+<span class="n">fit_result</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+<span class="n">y_1</span><span class="p">,</span> <span class="n">y_2</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">xdata</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This returns a tuple with the components evaluated so through the magic of tuple unpacking``y_1`` and <code class="docutils literal"><span class="pre">y_2</span></code> contain the
+evaluated fit. Nice!</p>
+<p>If for some reason no <code class="docutils literal"><span class="pre">Fit</span></code> is initiated you can make a Model object yourself:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">symfit</span> <span class="kn">import</span> <span class="n">Model</span>
+
+<span class="n">model_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">y_1</span><span class="p">:</span> <span class="n">a</span> <span class="o">*</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">y_2</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">b</span><span class="p">}</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span>
+
+<span class="n">y_1</span><span class="p">,</span> <span class="n">y_2</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">xdata</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mf">2.4</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="symfit-exposes-sympy-api">
+<h2>symfit exposes sympy.api<a class="headerlink" href="#symfit-exposes-sympy-api" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">symfit</span></code> exposes the sympy api as well, so mathematical expressions such as <code class="docutils literal"><span class="pre">exp</span></code>, <code class="docutils literal"><span class="pre">sin</span></code> and <code class="docutils literal"><span class="pre">pi</span></code> are importable
+from <code class="docutils literal"><span class="pre">symfit</span></code> as well. For more, read the <a class="reference external" href="http://docs.sympy.org">sympy docs</a>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Tutorial</a><ul>
+<li><a class="reference internal" href="#simple-example">Simple Example</a></li>
+<li><a class="reference internal" href="#initial-guess">Initial Guess</a></li>
+<li><a class="reference internal" href="#accessing-the-results">Accessing the Results</a></li>
+<li><a class="reference internal" href="#evaluating-the-model">Evaluating the Model</a></li>
+<li><a class="reference internal" href="#named-models">Named Models</a></li>
+<li><a class="reference internal" href="#symfit-exposes-sympy-api">symfit exposes sympy.api</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="installation.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="fitting_types.html"
+                        title="next chapter">Fitting Types</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/tutorial.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="fitting_types.html" title="Fitting Types"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">symfit 0.3.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2014, tBuLi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
+    </div>
+  </body>
+</html>
