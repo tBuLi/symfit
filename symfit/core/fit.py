@@ -756,13 +756,11 @@ class Minimize(BaseFit):
         :param p: array of floats for the parameters.
         :param data: data to be provided to ``Variable``'s.
         """
-        return self.model.numerical_chi_squared(*(list(self.data.values()) + list(p)))
         # if self.dependent_data:
         #     ans = self.model.numerical_chi_squared(*(list(self.data.values()) + list(p)))
-        #     print(ans)
         # else:
-        #     ans, = self.model(*(list(data) + list(p)))
-        # return ans
+        ans, = self.model(*(list(data) + list(p)))
+        return ans
 
     def eval_jacobian(self, p, data):
         """
