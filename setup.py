@@ -2,10 +2,10 @@ from distutils.core import setup
 
 setup(
     name='symfit',
-    version='0.2.6',
+    version='0.3.0',
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
-    author_email='m.roelfs@rug.nl',
+    author_email='m.roelfs@student.rug.nl',
     packages=['symfit', 'symfit.core', 'symfit.tests'],
     # long_description=long_description,
     url='https://github.com/tBuLi/symfit', #'symfit.readthedocs.org',
@@ -24,8 +24,8 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
+        # 'Programming Language :: Python :: 2',
+        # 'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
     ],
