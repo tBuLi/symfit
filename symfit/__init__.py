@@ -1,1 +1,1 @@
-__author__ = 'tBuLi'
+from symfit.api import *

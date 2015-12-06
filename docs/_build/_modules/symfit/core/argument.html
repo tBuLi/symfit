@@ -51,7 +51,19 @@
 <span class="kn">from</span> <span class="nn">sympy.core.symbol</span> <span class="kn">import</span> <span class="n">Symbol</span>
 <span class="kn">import</span> <span class="nn">inspect</span>
 
-<span class="k">class</span> <span class="nc">Argument</span><span class="p">(</span><span class="n">Symbol</span><span class="p">):</span>
+<div class="viewcode-block" id="Argument"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.argument.Argument">[docs]</a><span class="k">class</span> <span class="nc">Argument</span><span class="p">(</span><span class="n">Symbol</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for ``symfit`` symbols. This helps make ``symfit`` symbols distinguishable from ``sympy`` symbols.</span>
+
+<span class="sd">    The ``Argument`` class also makes DRY possible in defining ``Argument``&#39;s: it uses ``inspect`` to read the lhs of the</span>
+<span class="sd">    assignment and uses that as the name for the ``Argument`` is none is explicitly set.</span>
+
+<span class="sd">    For example::</span>
+
+<span class="sd">        x = Variable()</span>
+<span class="sd">        print(x.name)</span>
+<span class="sd">        &gt;&gt; &#39;x&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">assumptions</span><span class="p">):</span>
         <span class="n">assumptions</span><span class="p">[</span><span class="s">&#39;real&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="c"># Super dirty way? to determine the variable name from the calling line.</span>
@@ -70,28 +82,36 @@
                 <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Argument</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">generated_name</span><span class="p">,</span> <span class="o">**</span><span class="n">assumptions</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Argument</span><span class="p">,</span><span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">assumptions</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">sympy_args</span><span class="p">,</span> <span class="o">**</span><span class="n">sympy_kwargs</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Argument</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Argument</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">sympy_args</span><span class="p">,</span> <span class="o">**</span><span class="n">sympy_kwargs</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Parameter"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.argument.Parameter">[docs]</a><span class="k">class</span> <span class="nc">Parameter</span><span class="p">(</span><span class="n">Argument</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Parameter objects are used to facilitate bounds on function parameters,</span>
-<span class="sd">    as well as to allow AbstractFunction instances to share parameters between</span>
-<span class="sd">    them.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Parameter</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot; Parameter objects are used to facilitate bounds on function parameters. &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Parameter.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.argument.Parameter.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">sympy_args</span><span class="p">,</span> <span class="o">**</span><span class="n">sympy_kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param value: Initial guess value.</span>
+<span class="sd">        :param min: Lower bound on the parameter value.</span>
+<span class="sd">        :param max: Upper bound on the parameter value.</span>
+<span class="sd">        :param fixed: Fix the parameter to ``value`` during fitting.</span>
+<span class="sd">        :type fixed: bool</span>
+<span class="sd">        :param name: Name of the Parameter.</span>
+<span class="sd">        :param sympy_args: Args to pass to ``sympy``.</span>
+<span class="sd">        :param sympy_kwargs: Kwargs to pass to ``sympy``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Parameter</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">sympy_args</span><span class="p">,</span> <span class="o">**</span><span class="n">sympy_kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fixed</span> <span class="o">=</span> <span class="n">fixed</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixed</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">min</span> <span class="o">=</span> <span class="nb">min</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="nb">max</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="nb">max</span></div></div>
 
 
-<span class="k">class</span> <span class="nc">Variable</span><span class="p">(</span><span class="n">Argument</span><span class="p">):</span>
-    <span class="k">pass</span>
+<div class="viewcode-block" id="Variable"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.argument.Variable">[docs]</a><span class="k">class</span> <span class="nc">Variable</span><span class="p">(</span><span class="n">Argument</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Variable type.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
 </pre></div>
 
           </div>

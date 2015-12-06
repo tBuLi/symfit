@@ -61,13 +61,14 @@
 <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
 
 <span class="kn">from</span> <span class="nn">symfit.core.argument</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">Variable</span>
-<span class="kn">from</span> <span class="nn">symfit.core.support</span> <span class="kn">import</span> <span class="n">seperate_symbols</span><span class="p">,</span> <span class="n">sympy_to_scipy</span><span class="p">,</span> <span class="n">sympy_to_py</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">kwonly</span>
+<span class="kn">from</span> <span class="nn">symfit.core.support</span> <span class="kn">import</span> <span class="n">seperate_symbols</span><span class="p">,</span> <span class="n">sympy_to_scipy</span><span class="p">,</span> <span class="n">sympy_to_py</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">jacobian</span>
 <span class="kn">from</span> <span class="nn">symfit.core.leastsqbound</span> <span class="kn">import</span> <span class="n">leastsqbound</span>
 
 
 <div class="viewcode-block" id="ParameterDict"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict">[docs]</a><span class="k">class</span> <span class="nc">ParameterDict</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Behaves like a dict when **-ed, allowing the sexy syntax where a model is</span>
+<span class="sd">    Container for all the parameters and their (co)variances.</span>
+<span class="sd">    Behaves mostly like an OrderedDict: can be **-ed, allowing the sexy syntax where a model is</span>
 <span class="sd">    called with values for the Variables and **params. However, under iteration</span>
 <span class="sd">    it behaves like a list! In other words, it preserves order in the params.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -86,32 +87,46 @@
         <span class="c"># Covariance matrix</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__pcov</span> <span class="o">=</span> <span class="n">pcov</span>
 
-    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__params</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__params</span><span class="p">)</span>
-
-<div class="viewcode-block" id="ParameterDict.__getitem__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.__getitem__">[docs]</a>    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+<div class="viewcode-block" id="ParameterDict.__len__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.__len__">[docs]</a>    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Intended use for this is for use of ParameterDict as a kwarg.</span>
-<span class="sd">        Therefore return the value of the param, as this is what the user</span>
-<span class="sd">        expects.</span>
-<span class="sd">        :return: getattr(self, key), the value of the param with name &#39;key&#39;</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+<span class="sd">        Length gives the number of ``Parameter`` instances.</span>
 
-    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__params_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+<span class="sd">        :return: len(self.__params)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ParameterDict.__iter__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.__iter__">[docs]</a>    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iteration over the ``Parameter`` instances.</span>
+<span class="sd">        :return: iterator</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ParameterDict.__getitem__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.__getitem__">[docs]</a>    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method allows this object to be addressed as a dict. This allows for the ** unpacking.</span>
+<span class="sd">        Therefore return the value of the best fit parameter, as this is what the user expects.</span>
+
+<span class="sd">        :param param_name: Name of the ``Parameter`` whose value your interested in.</span>
+<span class="sd">        :return: the value of the best fit parameter with name &#39;key&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ParameterDict.keys"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.keys">[docs]</a>    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :return: All ``Parameter`` names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__params_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="ParameterDict.__getattr__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.__getattr__">[docs]</a>    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        A user can access the value of a parameter directly through this object.</span>
-<span class="sd">        :param name: Name of a param in __params.</span>
-<span class="sd">        Naming convention:</span>
-<span class="sd">        let a = Parameter(). Then:</span>
-<span class="sd">        .a gives the value of the parameter.</span>
-<span class="sd">        .a_stdev gives the standard deviation.</span>
+
+<span class="sd">        :param name: Name of a ``Parameter``.</span>
+<span class="sd">            Naming convention:</span>
+<span class="sd">            let a = Parameter(). Then:</span>
+<span class="sd">            .a gives the value of the parameter.</span>
+<span class="sd">            .a_stdev gives the standard deviation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># If a parameter with this name exists, return it immediately</span>
         <span class="k">try</span><span class="p">:</span>
@@ -129,7 +144,7 @@
 
 <div class="viewcode-block" id="ParameterDict.get_value"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.get_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param param: Parameter object.</span>
+<span class="sd">        :param param: ``Parameter`` instance.</span>
 <span class="sd">        :return: returns the numerical value of param</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span>
@@ -137,7 +152,7 @@
 
 <div class="viewcode-block" id="ParameterDict.get_stdev"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.ParameterDict.get_stdev">[docs]</a>    <span class="k">def</span> <span class="nf">get_stdev</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param param: Parameter object.</span>
+<span class="sd">        :param param: ``Parameter`` instance.</span>
 <span class="sd">        :return: returns the standard deviation of param</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span>
@@ -148,7 +163,7 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class to display the results of a fit in a nice and unambiguous way.</span>
 <span class="sd">    All things related to the fit are available on this class, e.g.</span>
-<span class="sd">    - paramameters + stdev</span>
+<span class="sd">    - parameters + stdev</span>
 <span class="sd">    - R squared (Regression coefficient.)</span>
 <span class="sd">    - fitting status message</span>
 
@@ -165,16 +180,15 @@
 
 <div class="viewcode-block" id="FitResults.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.FitResults.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">popt</span><span class="p">,</span> <span class="n">pcov</span><span class="p">,</span> <span class="n">infodic</span><span class="p">,</span> <span class="n">mesg</span><span class="p">,</span> <span class="n">ier</span><span class="p">,</span> <span class="n">ydata</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Excuse the ugly names of most of these variables, they are inherited</span>
+<span class="sd">        Excuse the ugly names of most of these variables, they are inherited. Should be changed.</span>
 <span class="sd">        from scipy.</span>
-<span class="sd">        :param params:</span>
-<span class="sd">        :param popt:</span>
-<span class="sd">        :param pcov:</span>
-<span class="sd">        :param infodic:</span>
-<span class="sd">        :param mesg:</span>
-<span class="sd">        :param ier:</span>
+<span class="sd">        :param params: list of ``Parameter``&#39;s.</span>
+<span class="sd">        :param popt: best fit parameters, same ordering as in params.</span>
+<span class="sd">        :param pcov: covariance matrix.</span>
+<span class="sd">        :param infodic: dict with fitting info.</span>
+<span class="sd">        :param mesg: Status message.</span>
+<span class="sd">        :param ier: Number of iterations.</span>
 <span class="sd">        :param ydata:</span>
-<span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Validate the types in rough way</span>
         <span class="k">assert</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">infodic</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">)</span>
@@ -188,7 +202,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">__params</span> <span class="o">=</span> <span class="n">ParameterDict</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">popt</span><span class="p">,</span> <span class="n">pcov</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__sigma</span> <span class="o">=</span> <span class="n">sigma</span></div>
 
-    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="FitResults.__str__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.FitResults.__str__">[docs]</a>    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pretty print the results as a table.</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">res</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Parameter Value        Standard Deviation</span><span class="se">\n</span><span class="s">&#39;</span>
         <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
@@ -200,12 +218,13 @@
         <span class="n">res</span> <span class="o">+=</span> <span class="s">&#39;Fitting status message: {}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">status_message</span><span class="p">)</span>
         <span class="n">res</span> <span class="o">+=</span> <span class="s">&#39;Number of iterations:   {}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infodict</span><span class="p">[</span><span class="s">&#39;nfev&#39;</span><span class="p">])</span>
         <span class="n">res</span> <span class="o">+=</span> <span class="s">&#39;Regression Coefficient: {}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r_squared</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="n">res</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">r_squared</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Getter for the r_squared property.</span>
+<span class="sd">        r_squared Property.</span>
+
 <span class="sd">        :return: Regression coefficient.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_squared</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -226,50 +245,85 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">infodict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__infodict</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">status_message</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__status_message</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">iterations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__iterations</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__params</span></div>
 
 <div class="viewcode-block" id="Model"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Model">[docs]</a><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Model represents a symbolic function and all it&#39;s derived properties such as sum of squares, jacobian etc.</span>
-<span class="sd">    Models can be initiated from several objects:</span>
-<span class="sd">    a = Model.from_dict({y: x**2})</span>
-<span class="sd">    b = Model(y=x**2)</span>
+<span class="sd">    Models can be initiated from several objects::</span>
+
+<span class="sd">        a = Model.from_dict({y: x**2})</span>
+<span class="sd">        b = Model(y=x**2)</span>
 
 <span class="sd">    Models are callable. The usual rules apply to the ordering of the arguments:</span>
-<span class="sd">    - first independent variables, then dependent variables, then parameters.</span>
-<span class="sd">    - within each of these groups they are ordered alphabetically.</span>
+
+<span class="sd">    * first independent variables, then dependent variables, then parameters.</span>
+<span class="sd">    * within each of these groups they are ordered alphabetically.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">model_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">sympy</span><span class="o">.</span><span class="n">Dummy</span><span class="p">(</span><span class="s">&#39;y_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span> <span class="n">expr</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">expr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">)}</span>
+<div class="viewcode-block" id="Model.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Model.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">ordered_expressions</span><span class="p">,</span> <span class="o">**</span><span class="n">named_expressions</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initiate a Model from keyword arguments::</span>
+
+<span class="sd">            b = Model(y=x**2)</span>
+
+<span class="sd">        :param ordered_expressions: sympy Expr</span>
+<span class="sd">        :param named_expressions: sympy Expr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">model_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">sympy</span><span class="o">.</span><span class="n">Dummy</span><span class="p">(</span><span class="s">&#39;y_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span> <span class="n">expr</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">expr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ordered_expressions</span><span class="p">)}</span>
         <span class="n">model_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-            <span class="p">{</span><span class="n">Variable</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dep_var_name</span><span class="p">):</span> <span class="n">expr</span> <span class="k">for</span> <span class="n">dep_var_name</span><span class="p">,</span> <span class="n">expr</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="p">{</span><span class="n">Variable</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dep_var_name</span><span class="p">):</span> <span class="n">expr</span> <span class="k">for</span> <span class="n">dep_var_name</span><span class="p">,</span> <span class="n">expr</span> <span class="ow">in</span> <span class="n">named_expressions</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_init_from_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_from_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span></div>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model_dict</span><span class="p">):</span>
+<div class="viewcode-block" id="Model.from_dict"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Model.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initiate a Model from a dict::</span>
+
+<span class="sd">            a = Model.from_dict({y: x**2})</span>
+
+<span class="sd">        Prefered syntax.</span>
+
+<span class="sd">        :param model_dict: dict of ``Expr``, where dependent variables are the keys.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_init_from_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
     <span class="k">def</span> <span class="nf">_init_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_dict</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initiate self from a model_dict to make sure attributes such as vars, params are available.</span>
+
+<span class="sd">        Creates lists of alphabetically sorted independent vars, dependent vars, sigma vars, and parameters.</span>
+<span class="sd">        Finally it creates a signature for this model so it can be called nicely. This signature only contains</span>
+<span class="sd">        independent vars and params, as one would expect.</span>
+
 <span class="sd">        :param model_dict: dict of (dependent_var, expression) pairs.</span>
-<span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model_dict</span> <span class="o">=</span> <span class="n">model_dict</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">model_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">symbol</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -298,15 +352,25 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Evaluate the model for a certain value of the independent vars and parameters.</span>
 <span class="sd">        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.</span>
+
+<span class="sd">        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.</span>
+<span class="sd">        Alphabetical order within each group.</span>
+
 <span class="sd">        :param args:</span>
 <span class="sd">        :param kwargs:</span>
-<span class="sd">        :return: A namedtuple of all the dependant vars evaluated at the desired point.</span>
+<span class="sd">        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,</span>
+<span class="sd">            even for scalar valued functions. This is done for consistency.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">bound_arguments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__signature__</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">Ans</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">&#39;Ans&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">Ans</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">expression</span><span class="p">(</span><span class="o">**</span><span class="n">bound_arguments</span><span class="o">.</span><span class="n">arguments</span><span class="p">)</span> <span class="k">for</span> <span class="n">expression</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">numerical_components</span><span class="p">])</span></div>
 
-    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Model.__str__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Model.__str__">[docs]</a>    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pretty print this model.</span>
+
+<span class="sd">        :return: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">template</span> <span class="o">=</span> <span class="s">&quot;{}({}; {}) = {}&quot;</span>
         <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">:</span>
@@ -317,11 +381,14 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">model_dict</span><span class="p">[</span><span class="n">var</span><span class="p">]</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">chi_squared</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :return: Symbolic :math:`\\chi^2`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># return sum((y - f)**2/self.sigmas[y]**2 for y, f in self.model_dict.items())</span>
         <span class="k">return</span> <span class="nb">sum</span><span class="p">(((</span><span class="n">f</span> <span class="o">-</span> <span class="n">y</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="n">y</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">y</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_dict</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
 
@@ -329,7 +396,7 @@
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">chi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :return: Square root of the sum of squares. Required for MINPACK optimization only.</span>
+<span class="sd">        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">sympy</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chi_squared</span><span class="p">)</span><span class="c">#.replace(sympy.Abs, sympy.Id)</span>
 
@@ -337,11 +404,9 @@
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">chi_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Return a symbolic jacobian of the chi function.</span>
-<span class="sd">        Vector of derivatives w.r.t. each parameter.</span>
+<span class="sd">        Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.</span>
+<span class="sd">        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector! This is because that&#39;s what leastsq needs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">sympy.simplify.simplify</span> <span class="kn">import</span> <span class="n">powdenest</span>
-
         <span class="n">jac</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
             <span class="c"># Differentiate to every param</span>
@@ -373,7 +438,7 @@
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">numerical_chi_squared</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :return: lambda function of the chi squared expression, to be used in numerical optimisation.</span>
+<span class="sd">        :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">sympy_to_py</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chi_squared</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
 
@@ -382,7 +447,6 @@
     <span class="k">def</span> <span class="nf">numerical_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.</span>
-<span class="sd">        Example: f := f(x, y; a, b)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">sympy_to_py</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_dict</span><span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">independent_vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">]</span>
 
@@ -390,7 +454,7 @@
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">numerical_chi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :return: lambda function of the chi expression, to be used in MINPACK optimisation.</span>
+<span class="sd">        :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">sympy_to_py</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
 
@@ -398,7 +462,7 @@
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">numerical_chi_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :return: lambda functions of the jacobian of the chi function, which can be used in numerical optimization.</span>
+<span class="sd">        :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">sympy_to_py</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span> <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chi_jacobian</span><span class="p">]</span>
 
@@ -422,7 +486,9 @@
     <span class="nd">@property</span>
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Returns both dependent, independent and sigma variables. &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :return: Returns a list of dependent, independent and sigma variables, in that order.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">independent_vars</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">]</span>
 
     <span class="nd">@property</span>
@@ -436,14 +502,19 @@
 <div class="viewcode-block" id="Constraint"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Constraint">[docs]</a><span class="k">class</span> <span class="nc">Constraint</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Constraints are a special type of model in that they have a type: &gt;=, == etc.</span>
-<span class="sd">    They are made to have lhs - rhs == 0.</span>
+<span class="sd">    They are made to have lhs - rhs == 0 of the original expression.</span>
 
-<span class="sd">    The numerical components are calculated with respect to all variables and params of the model,</span>
-<span class="sd">    rather than the constraint itself.</span>
+<span class="sd">    For example, Eq(y + x, 4) -&gt; Eq(y + x - 4, 0)</span>
+
+<span class="sd">    Since a constraint belongs to a certain model, it has to be initiated with knowledge of it&#39;s parent model.</span>
+<span class="sd">    This is important because all ``numerical_`` methods are done w.r.t. the parameters and variables of the parent</span>
+<span class="sd">    model, not the constraint! This is because the constraint might not have all the parameter or variables that the</span>
+<span class="sd">    model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,</span>
+<span class="sd">    not just those present in the constraint.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">constraint_type</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">Eq</span>
 
-<div class="viewcode-block" id="Constraint.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Constraint.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraint</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+<div class="viewcode-block" id="Constraint.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Constraint.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraint</span><span class="p">:</span> <span class="n">Relational</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param constraint: constraint that model should be subjected to.</span>
 <span class="sd">        :param model: A constraint is always tied to a model.</span>
@@ -465,8 +536,8 @@
     <span class="k">def</span> <span class="nf">jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :return: Jacobian &#39;Matrix&#39; filled with the symbolic expressions for all the partial derivatives.</span>
-<span class="sd">        Partial derivatives are of the components of the function with respect to the Parameter&#39;s,</span>
-<span class="sd">        not the independent Variable&#39;s.</span>
+<span class="sd">            Partial derivatives are of the components of the function with respect to the Parameter&#39;s,</span>
+<span class="sd">            not the independent Variable&#39;s.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[[</span><span class="n">sympy</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_dict</span><span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="n">param</span><span class="p">)</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">]</span>
 
@@ -475,7 +546,6 @@
     <span class="k">def</span> <span class="nf">numerical_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.</span>
-<span class="sd">        Example: f := f(x, y, a, b)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">sympy_to_py</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_dict</span><span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">]</span>
 
@@ -489,24 +559,27 @@
 
 
 <div class="viewcode-block" id="BaseFit"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.BaseFit">[docs]</a><span class="k">class</span> <span class="nc">BaseFit</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
-<div class="viewcode-block" id="BaseFit.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.BaseFit.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">absolute_sigma</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Abstract Base Class for all fitting objects. Most importantly, it takes care of linking the provided data to variables.</span>
+<span class="sd">    The allowed variables are extracted from the model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="BaseFit.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.BaseFit.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">ordered_data</span><span class="p">,</span> <span class="n">absolute_sigma</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">named_data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param model: sympy expression or ``Model`` object.</span>
+<span class="sd">        :param model: (dict of) sympy expression or ``Model`` object.</span>
 <span class="sd">        :param absolute_sigma bool: True by default. If the sigma is only used</span>
-<span class="sd">        for relative weights in your problem, you could consider setting it to</span>
-<span class="sd">        False, but if your sigma are measurement errors, keep it at True.</span>
-<span class="sd">        Note that curve_fit has this set to False by default, which is wrong in</span>
-<span class="sd">        experimental science.</span>
-<span class="sd">        :param args: data for dependent, independent and sigma variables. Assigned in</span>
-<span class="sd">        the following order: independent vars are assigned first, then dependent</span>
-<span class="sd">        vars, then sigma&#39;s in dependent vars. Within each group they are assigned in</span>
-<span class="sd">        alphabetical order.</span>
-<span class="sd">        :param kwargs: assign dependent, independent and sigma variables data by name.</span>
+<span class="sd">            for relative weights in your problem, you could consider setting it to</span>
+<span class="sd">            False, but if your sigma are measurement errors, keep it at True.</span>
+<span class="sd">            Note that curve_fit has this set to False by default, which is wrong in</span>
+<span class="sd">            experimental science.</span>
+<span class="sd">        :param ordered_data: data for dependent, independent and sigma variables. Assigned in</span>
+<span class="sd">            the following order: independent vars are assigned first, then dependent</span>
+<span class="sd">            vars, then sigma&#39;s in dependent vars. Within each group they are assigned in</span>
+<span class="sd">            alphabetical order.</span>
+<span class="sd">        :param named_data: assign dependent, independent and sigma variables data by name.</span>
 
 <span class="sd">        Standard deviation can be provided to any variable. They have to be prefixed</span>
 <span class="sd">        with sigma_. For example, let x be a Variable. Then sigma_x will give the</span>
-<span class="sd">        stdev in x. Their absolute size is considered important, as is the case if</span>
-<span class="sd">        the sigma are obtained from measurement errors.</span>
+<span class="sd">        stdev in x.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
@@ -515,7 +588,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 
-        <span class="c"># Handle args and kwargs according to the allowed names.</span>
+        <span class="c"># Handle ordered_data and named_data according to the allowed names.</span>
         <span class="n">var_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">vars</span><span class="p">]</span>
         <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span>  <span class="c"># Note that these are inspect.Parameter&#39;s, not symfit parameters!</span>
             <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">POSITIONAL_OR_KEYWORD</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span> <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;sigma_&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">None</span><span class="p">)</span>
@@ -523,7 +596,7 @@
         <span class="p">]</span>
 
         <span class="n">signature</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Signature</span><span class="p">(</span><span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">)</span>
-        <span class="n">bound_arguments</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">bound_arguments</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="n">ordered_data</span><span class="p">,</span> <span class="o">**</span><span class="n">named_data</span><span class="p">)</span>
         <span class="c"># Include default values in bound_argument object</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bound_arguments</span><span class="o">.</span><span class="n">arguments</span><span class="p">:</span>
@@ -554,32 +627,59 @@
     <span class="nd">@property</span>
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">dependent_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property</span>
+
+<span class="sd">        :return: Data belonging to each dependent variable.</span>
+<span class="sd">        :rtype: dict with variable names as key, data as value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">var</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">dependent_vars</span><span class="p">}</span>
 
     <span class="nd">@property</span>
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">independent_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property</span>
+
+<span class="sd">        :return: Data belonging to each independent variable.</span>
+<span class="sd">        :rtype: dict with variable names as key, data as value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">var</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">independent_vars</span><span class="p">}</span>
 
     <span class="nd">@property</span>
     <span class="nd">@cache</span>
     <span class="k">def</span> <span class="nf">sigma_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read-only Property</span>
+
+<span class="sd">        :return: Data belonging to each sigma variable.</span>
+<span class="sd">        :rtype: dict with variable names as key, data as value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">var</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">sigmas</span><span class="p">}</span>
 
 
     <span class="nd">@abc.abstractmethod</span>
-    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">return</span>
+<div class="viewcode-block" id="BaseFit.execute"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.BaseFit.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FitResults</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Every fit object has to define an execute method.</span>
+<span class="sd">        Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.</span>
 
-    <span class="c"># @abc.abstractmethod</span>
+<span class="sd">        :args kwargs:</span>
+<span class="sd">        :return: Instance of FitResults</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span></div>
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">initial_guesses</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :return: Initial guesses for every parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">param</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">])</span></div>
 
 <span class="k">class</span> <span class="nc">AnalyticalFit</span><span class="p">(</span><span class="n">BaseFit</span><span class="p">):</span>
    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">       Analitically solve the Least Squares optimalisation.</span>
+<span class="sd">       Analitically solve the Least Squares optimisation.</span>
 <span class="sd">       &quot;&quot;&quot;</span>
        <span class="n">k</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">symbols</span><span class="p">(</span><span class="s">&#39;k&#39;</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">sympy</span><span class="o">.</span><span class="n">Idx</span><span class="p">)</span>
        <span class="n">chi_squared_jac</span> <span class="o">=</span> <span class="n">jacobian</span><span class="p">(</span><span class="n">sympy</span><span class="o">.</span><span class="n">Sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">chi_squared</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">())[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]))),</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
@@ -594,7 +694,12 @@
 <span class="sd">    Solves least squares numerically using leastsqbounds. Gives results consistent with MINPACK except</span>
 <span class="sd">    when borders are provided.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">options</span><span class="p">,</span> <span class="o">**</span><span class="n">kwoptions</span><span class="p">):</span>
+<div class="viewcode-block" id="NumericalLeastSquares.execute"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.NumericalLeastSquares.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">options</span><span class="p">,</span> <span class="o">**</span><span class="n">kwoptions</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FitResults</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param options: Any postional arguments to be passed to leastsqbound</span>
+<span class="sd">        :param kwoptions: Any named arguments to be passed to leastsqbound</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">try</span><span class="p">:</span>
             <span class="n">popt</span><span class="p">,</span> <span class="n">cov_x</span><span class="p">,</span> <span class="n">infodic</span><span class="p">,</span> <span class="n">mesg</span><span class="p">,</span> <span class="n">ier</span> <span class="o">=</span> <span class="n">leastsqbound</span><span class="p">(</span>
                 <span class="k">lambda</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">numerical_chi</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="c"># This lambda unpacking is needed because scipy is an inconsistent mess.</span>
@@ -643,7 +748,7 @@
             <span class="c"># sigma=self.sigma,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__fit_results</span><span class="o">.</span><span class="n">r_squared</span> <span class="o">=</span> <span class="n">r_squared</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__fit_results</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__fit_results</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__fit_results</span></div></div>
 
 
 <span class="k">class</span> <span class="nc">AnalyticalLeastSquares</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -653,20 +758,26 @@
 
 <div class="viewcode-block" id="Fit"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Fit">[docs]</a><span class="k">class</span> <span class="nc">Fit</span><span class="p">(</span><span class="n">NumericalLeastSquares</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Wrapper for LeastSquares to give it a more appealing name.</span>
+<span class="sd">    Wrapper for NumericalLeastSquares to give it a more appealing name. In the future I hope to make this object more</span>
+<span class="sd">    intelligent so it can search out the best fitting object based on certain qualifiers and return that instead.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">pass</span></div>
 
 
-<span class="k">class</span> <span class="nc">Minimize</span><span class="p">(</span><span class="n">BaseFit</span><span class="p">):</span>
-    <span class="c"># @kwonly(constraints=None)</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Minimize"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Minimize">[docs]</a><span class="k">class</span> <span class="nc">Minimize</span><span class="p">(</span><span class="n">BaseFit</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Minimize a model subject to constraints. A wrapper for ``scipy.optimize.minimize``.</span>
+<span class="sd">    ``Minimize`` currently doesn&#39;t work when data is provided to Variables, and doesn&#39;t support vector functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Minimize.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Minimize.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">constraints</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :constraints: constraints the minimization is subject to</span>
 <span class="sd">        Because in a lot of use cases for Minimize no data is supplied to variables,</span>
 <span class="sd">        all the empty variables are replaced by an empty np array.</span>
+
+<span class="sd">        :constraints: constraints the minimization is subject to.</span>
+<span class="sd">        :type constraints: list</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">constraints</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;constraints&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="s">&#39;constraints&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="bp">None</span>
+        <span class="c"># constraints = kwargs.pop(&#39;constraints&#39;) if &#39;constraints&#39; in kwargs else None</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Minimize</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="c"># Replace None by an empty array</span>
@@ -684,15 +795,18 @@
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">):</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">constraint</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Constraint</span><span class="p">(</span><span class="n">constraint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Constraint</span><span class="p">(</span><span class="n">constraint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">))</span></div>
 
 
-    <span class="k">def</span> <span class="nf">error_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<div class="viewcode-block" id="Minimize.error_func"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Minimize.error_func">[docs]</a>    <span class="k">def</span> <span class="nf">error_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        The function to be optimized. Scalar valued models are assumed. Minimize currently doesn&#39;t work for</span>
-<span class="sd">        vector valued functions.</span>
+<span class="sd">        The function to be optimized. Scalar valued models are assumed. For Minimize the thing to evaluate is simply</span>
+<span class="sd">        self.model(*(list(data) + list(p)))</span>
+
+<span class="sd">        :param p: array of floats for the parameters.</span>
+<span class="sd">        :param data: data to be provided to ``Variable``&#39;s.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">numerical_chi_squared</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">numerical_chi_squared</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="p">)))</span></div>
         <span class="c"># if self.dependent_data:</span>
         <span class="c">#     ans = self.model.numerical_chi_squared(*(list(self.data.values()) + list(p)))</span>
         <span class="c">#     print(ans)</span>
@@ -700,7 +814,14 @@
         <span class="c">#     ans, = self.model(*(list(data) + list(p)))</span>
         <span class="c"># return ans</span>
 
-    <span class="k">def</span> <span class="nf">eval_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<div class="viewcode-block" id="Minimize.eval_jacobian"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Minimize.eval_jacobian">[docs]</a>    <span class="k">def</span> <span class="nf">eval_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Takes partial derivatives of model w.r.t. each ``Parameter``.</span>
+
+<span class="sd">        :param p: array of floats for the parameters.</span>
+<span class="sd">        :param data: data to be provided to ``Variable``&#39;s.</span>
+<span class="sd">        :return: array of length number of ``Parameter``&#39;s in the model, with all partial derivatives evaluated at p, data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">ans</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">numerical_jacobian</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">partial_derivative</span> <span class="ow">in</span> <span class="n">row</span><span class="p">:</span>
@@ -709,9 +830,9 @@
         <span class="c">#     for partial_derivative in row:</span>
         <span class="c">#         ans.append(partial_derivative(**{param.name: value for param, value in zip(self.model.params, p)}))</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ans</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ans</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&#39;SLSQP&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&#39;SLSQP&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FitResults</span><span class="p">:</span>
         <span class="n">ans</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">error_func</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">initial_guesses</span><span class="p">,</span>
@@ -719,7 +840,7 @@
             <span class="n">args</span><span class="o">=</span><span class="p">([</span><span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">__signature__</span><span class="o">.</span><span class="n">parameters</span><span class="p">],),</span>
             <span class="n">bounds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span>
             <span class="n">constraints</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scipy_constraints</span><span class="p">,</span>
-            <span class="c"># jac=self.eval_jacobian,</span>
+            <span class="n">jac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eval_jacobian</span><span class="p">,</span>
             <span class="c"># options={&#39;disp&#39;: True},</span>
         <span class="p">)</span>
 
@@ -748,8 +869,9 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">scipy_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Turns self.constraints into a scipy compatible format.</span>
-<span class="sd">        :return: dict of scipy compatile statements.</span>
+<span class="sd">        Read-only Property of all constraints in a scipy compatible format.</span>
+
+<span class="sd">        :return: dict of scipy compatible statements.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cons</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">types</span> <span class="o">=</span> <span class="p">{</span> <span class="c"># scipy only distinguishes two types of constraint.</span>
@@ -767,7 +889,7 @@
                 <span class="s">&#39;args&#39;</span><span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">constraint</span><span class="p">)</span>
             <span class="p">})</span>
         <span class="n">cons</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">cons</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">cons</span>
+        <span class="k">return</span> <span class="n">cons</span></div>
 
 <span class="c"># class Minimize(BaseFit):</span>
 <span class="c">#     def __init__(self, model, xdata=None, ydata=None, constraints=None, *args, **kwargs):</span>
@@ -874,7 +996,10 @@
 <span class="c">#         return - super(Maximize, self).eval_jacobian(p, func, x, y)</span>
 
 <div class="viewcode-block" id="Maximize"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Maximize">[docs]</a><span class="k">class</span> <span class="nc">Maximize</span><span class="p">(</span><span class="n">Minimize</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Change the signs in order to maximize. &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Maximize a model subject to constraints.</span>
+<span class="sd">    Simply flips the sign on error_func and eval_jacobian in order to maximize.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">error_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="k">return</span> <span class="o">-</span> <span class="nb">super</span><span class="p">(</span><span class="n">Maximize</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">error_func</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
@@ -883,14 +1008,14 @@
 
 <div class="viewcode-block" id="Likelihood"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Likelihood">[docs]</a><span class="k">class</span> <span class="nc">Likelihood</span><span class="p">(</span><span class="n">Maximize</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Fit using a Likelihood approach.</span>
+<span class="sd">    Fit using a Maximum-Likelihood approach.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-<div class="viewcode-block" id="Likelihood.__init__"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Likelihood.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param model: sympy expression.</span>
-<span class="sd">        :param x: xdata to fit to.  Nx1</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Likelihood</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+    <span class="c"># def __init__(self, model, *args, **kwargs):</span>
+    <span class="c">#     &quot;&quot;&quot;</span>
+    <span class="c">#     :param model: sympy expression.</span>
+    <span class="c">#     :param x: xdata to fit to.  Nx1</span>
+    <span class="c">#     &quot;&quot;&quot;</span>
+    <span class="c">#     super(Likelihood, self).__init__(model, *args, **kwargs)</span>
 
     <span class="c"># def execute(self, method=&#39;SLSQP&#39;, *args, **kwargs):</span>
     <span class="c">#     # super(Likelihood, self).execute(*args, **kwargs)</span>
@@ -927,6 +1052,7 @@
 <div class="viewcode-block" id="Likelihood.error_func"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Likelihood.error_func">[docs]</a>    <span class="k">def</span> <span class="nf">error_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Error function to be maximised(!) in the case of likelihood fitting.</span>
+
 <span class="sd">        :param p: guess params</span>
 <span class="sd">        :param data: xdata</span>
 <span class="sd">        :return: scalar value of log-likelihood</span>
@@ -936,9 +1062,11 @@
 
 <div class="viewcode-block" id="Likelihood.eval_jacobian"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.fit.Likelihood.eval_jacobian">[docs]</a>    <span class="k">def</span> <span class="nf">eval_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Jacobian for likelihood is defined as grad( log( L(p | x))).</span>
+<span class="sd">        Jacobian for likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.</span>
+
 <span class="sd">        :param p: guess params</span>
-<span class="sd">        :param data: xdata</span>
+<span class="sd">        :param data: data for the variables.</span>
+<span class="sd">        :return: array of length number of ``Parameter``&#39;s in the model, with all partial derivatives evaluated at p, data.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">ans</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">numerical_jacobian</span><span class="p">:</span>

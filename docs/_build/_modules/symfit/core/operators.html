@@ -49,22 +49,7 @@
             
   <h1>Source code for symfit.core.operators</h1><div class="highlight"><pre>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Point 1:</span>
-<span class="sd">For whatever reason, sympy overloaded &lt;, &lt;=, &gt; and &gt;= to be symbolic by default</span>
-<span class="sd">but == and != are used for structural equality by default.</span>
-<span class="sd">I find this inconsistent, and it does not allow this package to use the</span>
-<span class="sd">beautiful syntax I want for constraints, e.g.</span>
-
-<span class="sd">constraints = [</span>
-<span class="sd">    x**3 - y == 0,</span>
-<span class="sd">    y - 1 &gt;= 0,</span>
-<span class="sd">]</span>
-
-<span class="sd">Importing this file overwrites the default behavior to be symbolic.</span>
-
-<span class="sd">Point 2:</span>
-<span class="sd">Make the sympy Epressions callable, which makes the whole project feel more</span>
-<span class="sd">consistent.</span>
+<span class="sd">This module makes sympy Epressions callable, which makes the whole project feel more consistent.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">Eq</span><span class="p">,</span> <span class="n">Ne</span>
@@ -73,47 +58,46 @@
 <span class="kn">from</span> <span class="nn">symfit.core.support</span> <span class="kn">import</span> <span class="n">sympy_to_py</span><span class="p">,</span> <span class="n">seperate_symbols</span>
 <span class="kn">from</span> <span class="nn">symfit.core.argument</span> <span class="kn">import</span> <span class="n">Parameter</span>
 
-<span class="c"># Overwrite the behavior opun equality checking. But we want to be able to fall</span>
-<span class="c"># back on default behavior.</span>
-<span class="n">orig_eq</span> <span class="o">=</span> <span class="n">Expr</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__eq__</span>
-<span class="n">orig_ne</span> <span class="o">=</span> <span class="n">Expr</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__ne__</span>
+<span class="c"># # Overwrite the behavior opun equality checking. But we want to be able to fall</span>
+<span class="c"># # back on default behavior.</span>
+<span class="c"># orig_eq = Expr.__class__.__eq__</span>
+<span class="c"># orig_ne = Expr.__class__.__ne__</span>
+<span class="c">#</span>
+<span class="c"># def eq(self, other):</span>
+<span class="c">#     &quot;&quot;&quot;</span>
+<span class="c">#     Hack to get an Eq object back. Seems to work when used this way,</span>
+<span class="c">#     but backwards compatibility with sympy is not guaranteed.</span>
+<span class="c">#     &quot;&quot;&quot;</span>
+<span class="c">#     if isinstance(other, float) or isinstance(other, int):</span>
+<span class="c">#         if abs(other) == 1:</span>
+<span class="c">#             # SymPy&#39;s printing check for this and might therefore produce an</span>
+<span class="c">#             # error for fractions. Therefore we raise a warning in this case and</span>
+<span class="c">#             # ask the user to use the Eq object manually.</span>
+<span class="c">#             warnings.warn(str(self) + &quot; == -1 and == 1 are not available for constraints. If you used +/-1 as a constraint, please use the symfit.Eq object manually.&quot;, UserWarning)</span>
+<span class="c">#             return orig_eq(self.__class__, other)</span>
+<span class="c">#         else:</span>
+<span class="c">#             return Eq(self, other)</span>
+<span class="c">#     else:</span>
+<span class="c">#         return orig_eq(self.__class__, other)</span>
+<span class="c">#</span>
+<span class="c"># def ne(self, other):</span>
+<span class="c">#     if isinstance(other, float) or isinstance(other, int):</span>
+<span class="c">#         return Ne(self, other)</span>
+<span class="c">#     else:</span>
+<span class="c">#         return orig_ne(self.__class__, other)</span>
 
-<div class="viewcode-block" id="eq"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.operators.eq">[docs]</a><span class="k">def</span> <span class="nf">eq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Hack to get an Eq object back. Seems to work when used this way,</span>
-<span class="sd">    but backwards compatibility with sympy is not guaranteed.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="c"># SymPy&#39;s printing check for this and might therefore produce an</span>
-            <span class="c"># error for fractions. Therefore we raise a warning in this case and</span>
-            <span class="c"># ask the user to use the Eq object manually.</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; == -1 and == 1 are not available for constraints. If you used +/-1 as a constraint, please use the symfit.Eq object manually.&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">orig_eq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">Eq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">orig_eq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span></div>
-
-<span class="k">def</span> <span class="nf">ne</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">Ne</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">orig_ne</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
-
-<div class="viewcode-block" id="call"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.operators.call">[docs]</a><span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="call"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.argument.call">[docs]</a><span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">values</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    :param self: Any subclass of sympy.Expr</span>
-<span class="sd">    :param args:</span>
-<span class="sd">    :param kwargs:</span>
-<span class="sd">    :return:</span>
+<span class="sd">    :param values: Values for the Parameters and Variables of the Expr.</span>
+<span class="sd">    :return: The function evaluated at ``values``. Depending on the Expr and ``values``, this could be a single number or an array.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># Convert to a pythonic function</span>
     <span class="nb">vars</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">seperate_symbols</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="n">func</span> <span class="o">=</span> <span class="n">sympy_to_py</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">vars</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-    <span class="c"># Prepare only the relevant kwargs</span>
+    <span class="c"># Prepare only the relevant values</span>
     <span class="n">arg_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">arg</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">params</span> <span class="o">+</span> <span class="nb">vars</span><span class="p">]</span>
-    <span class="n">args</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">arg_names</span><span class="p">])</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">arg_names</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">**</span><span class="n">args</span><span class="p">)</span></div>
 
 
