@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from symfit.api import Fit, lambdify
+from symfit.api import Fit
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from itertools import combinations
@@ -18,11 +18,12 @@ class InteractiveFit2D(Fit):
         # I need to update the values for all parameters. This can be
         # circumvented by creating a seperate callback function for each
         # parameter.
-        for p in self.params:
-            # p.value = self.sliders[p].val?
-            self.params[self.params.index(p)].value = self.sliders[p].val
+        for p in self.model.params:
+            p.value = self.sliders[p].val
         # Also see the comment below about using keyword arguments (line 57)
-        self.my_plot.set_ydata(self.vec_func(self.xpoints, *list(p.value for p in self.params)))
+        vals = self.model(self.xpoints, **{p.name: p.value for p in self.model.params})
+        vals = getattr(vals, self.model.dependent_vars[0].name)
+        self.my_plot.set_ydata(vals)
 
     def visual_guess(self, n_points=50):
         """Create a matplotlib window with sliders for all parameters
@@ -34,17 +35,16 @@ class InteractiveFit2D(Fit):
         these are not provided, the minimum is 0; and the maximum is value*2.
         If no initial value is provided, it defaults to 1."""
 
-        x_min = np.min(self.xdata)
-        x_max = np.max(self.xdata)
+        x_min = np.min(self.independent_data[self.model.independent_vars[0].name])
+        x_max = np.max(self.independent_data[self.model.independent_vars[0].name])
         # It would be nice if I could get these from model someway...
         y_min = 0
         y_max = 1
-
-        if len(self.vars) != 1:
+        if len(self.model.independent_vars) != 1 or len(self.model.dependent_vars) != 1:
             raise IndexError("Only supports 2D problems!")
 
         ax = plt.subplot(111)
-        plt.subplots_adjust(bottom=0.1 + 0.05*len(self.params))
+        plt.subplots_adjust(bottom=0.1 + 0.05*len(self.model.params))
         plt.title("Fit")
 
         self.xpoints = np.linspace(x_min, x_max, n_points)
@@ -52,18 +52,21 @@ class InteractiveFit2D(Fit):
         plt.ylim(y_min, y_max)  # Y-Domain for self.model
         plt.xlim(x_min, x_max)  # X-domain for self.model
 
-        # self.vec_func should probably be replaced for self.model.
-        self.vec_func = lambdify(self.vars+self.params, self.model, "numpy")
         # It might be better to use keyword arguments (p.name: p.value), but
         # I don't know (any more) if that's supported by self.model.
-        vals = self.vec_func(self.xpoints, *list(p.value for p in self.params))
+        vals = self.model(self.xpoints, **{p.name: p.value for p in self.model.params})
+        vals = getattr(vals, self.model.dependent_vars[0].name)
+
         self.my_plot, = ax.plot(self.xpoints, vals, color='red')
-        ax.scatter(self.xdata, self.ydata, c='blue')
+        ax.scatter(self.independent_data[self.model.independent_vars[0].name],
+                   self.dependent_data[self.model.dependent_vars[0].name],
+                   c='blue')
         plt.axis([x_min, x_max, y_min, y_max])
 
         i = 0.05
         self.sliders = {}
-        for p in self.params:
+        print(self.model.params)
+        for p in self.model.params:
             if not p.fixed:
                 axbg = 'lightgoldenrodyellow'
             else:
@@ -71,15 +74,12 @@ class InteractiveFit2D(Fit):
             # start-x, start-y, width, height
             ax = plt.axes([0.162, i, 0.68, 0.03], axisbg=axbg)
 
-            if not hasattr(p, "value") or p.value is None:
-                val = 1
-            else:
-                val = p.value
-            if not hasattr(p, "min") or p.min is None:
+            val = p.value
+            if p.min is None:
                 minimum = 0
             else:
                 minimum = p.min
-            if not hasattr(p, "max") or p.max is None:
+            if p.max is None:
                 maximum = 2 * val
             else:
                 maximum = p.max
@@ -151,28 +151,28 @@ class InteractiveFit3D(Fit):
 
     def _update_plot(self, variable):
         """Update the subplots that changed, given a new value for variable."""
-        if variable in self.vars:
-            var_idx = self.vars.index(variable)
+        if variable in self.model.independent_vars:
+            var_idx = self.model.independent_vars.index(variable)
         else:
             var_idx = None  # Updates all plots
 
-        values_params = {p.name: p.value for p in self.params}
+        values_params = {p.name: p.value for p in self.model.params}
 
         for xs in self.plots:
             if var_idx not in xs:
-                values_vars = {v.name: self.variable_values[v] for v in self.vars}
+                values_vars = {v.name: self.variable_values[v] for v in self.model.independent_vars}
                 for x in xs:
-                    del values_vars[self.vars[x].name]  # Some variables are pre-applied to the function in plot. So remove them
+                    del values_vars[self.model.independent_vars[x].name]  # Some variables are pre-applied to the function in plot. So remove them
                 self.plots[xs].update_plot(values_vars, values_params)
         self.fig.canvas.draw()
 
     def _slider_changed(self, val, variable):
         """Update the stored parameter and variable values,
         and update plots."""
-        if variable in self.params:
+        if variable in self.model.params:
             param = variable
             param.value = val
-        elif variable in self.vars:
+        elif variable in self.model.independent_vars:
             self.variable_values[variable] = val
         self._update_plot(variable)
 
@@ -181,7 +181,7 @@ class InteractiveFit3D(Fit):
         i = 0.05
         x_mins = np.min(self.xdata, axis=1)
         x_maxs = np.max(self.xdata, axis=1)
-        for p in self.params:
+        for p in self.model.params:
             if not p.fixed:
                 axbg = 'lightgoldenrodyellow'
             else:
@@ -202,8 +202,8 @@ class InteractiveFit3D(Fit):
             slider = self._construct_slider(ax, p, minimum, maximum, val)
             self.sliders[p] = slider
             i += 0.05
-        if len(self.vars) > 2:
-            for v, xmin, xmax in zip(self.vars, x_mins, x_maxs):
+        if len(self.model.independent_vars) > 2:
+            for v, xmin, xmax in zip(self.model.independent_vars, x_mins, x_maxs):
                 ax = plt.axes([0.162, i, 0.68, 0.03], axisbg='green')  # start-x, start-y, width, height
                 slider = self._construct_slider(ax, v, xmin, xmax, (xmax+xmin)/2)
                 self.sliders[v] = slider
@@ -234,9 +234,9 @@ class InteractiveFit3D(Fit):
         If no initial value is provided, it defaults to 1."""
         x_mins = np.min(self.xdata, axis=1)
         x_maxs = np.max(self.xdata, axis=1)
-        self.nvars = len(self.vars)
+        self.nvars = len(self.model.independent_vars)
         self.sliders = {}
-        self.variable_values = dict(zip(self.vars, [0]*self.nvars))
+        self.variable_values = dict(zip(self.model.independent_vars, [0]*self.nvars))
 
         if interpolation.lower() == 'linear':
             interpolator = LinearNDInterpolator
@@ -250,7 +250,7 @@ class InteractiveFit3D(Fit):
 
         try:
             if len(x_mins) != len(x_maxs) or len(n_points) != len(x_mins) or\
-               len(x_mins) != len(self.vars) or len(self.xdata) != len(x_mins):
+               len(x_mins) != len(self.model.independent_vars) or len(self.xdata) != len(x_mins):
                 raise IndexError("Size mismatch in variables somewhere")
         except TypeError:  # Can't do len somewhere.
             raise IndexError("Size mismatch in variables somewhere")
@@ -262,7 +262,7 @@ class InteractiveFit3D(Fit):
         self.fig.set_frameon(False)
 
         # Make room for the sliders:
-        bot = 0.1 + 0.05*len(self.params)
+        bot = 0.1 + 0.05*len(self.model.params)
         if self.nvars > 2:
             bot += 0.05*self.nvars
         self.fig.subplots_adjust(bottom=bot)
@@ -277,7 +277,7 @@ class InteractiveFit3D(Fit):
             """Converts keyword arguments to positional arguments,
             and applies it to the interpolator"""
             args = [0]*len(kwargs)
-            for i, v in enumerate(self.vars):
+            for i, v in enumerate(self.model.independent_vars):
                 args[i] = kwargs[v.name]
             return f(*args)
 
@@ -295,65 +295,85 @@ class InteractiveFit3D(Fit):
             
             # Pre-apply all the data that will not change for this projection
             z_function = functools.partial(self.model,
-                                           **{self.vars[x1].name: mesh[0],
-                                              self.vars[x2].name: mesh[1]})
+                                           **{self.model.independent_vars[x1].name: mesh[0],
+                                              self.model.independent_vars[x2].name: mesh[1]})
             y_interpolator = functools.partial(master_interpolator,
-                                               **{self.vars[x].name: self.xdata[x] for x in (x1, x2)})
+                                               **{self.model.independent_vars[x].name: self.xdata[x] for x in (x1, x2)})
 
-            title = "{}{}".format(*[self.vars[x].name for x in (x1, x2)])
+            title = "{}{}".format(*[self.model.independent_vars[x].name for x in (x1, x2)])
 
             p = ProjectionPlot(ax, xydata, y_interpolator, mesh, z_function, title)
             self.plots[(x1, x2)] = p
             plotnr += 1
 
         self._draw_sliders()
-        self._update_plot(self.params[0])  # Update all plots.
+        self._update_plot(self.model.params[0])  # Update all plots.
         plt.show()
 
 
 if __name__ == "__main__":
-    def f(xy, a, b):
-        x, y, a = xy
-        return np.cos(a*x) * b*np.sin(y)
-
-    from symfit.api import Parameter, Variable, sin, cos
-
-    def f_sym(x, y, a, b):
-        return cos(a*x) * b*sin(y)
-
-    xdata = np.linspace(-np.pi, np.pi, 7)
-    ydata = np.linspace(-np.pi, np.pi, 7)
-    adata = np.linspace(0, 2.5, 7)
-
-    xx, yy, aa = np.meshgrid(xdata, ydata, adata)
-
-    xydata = np.array((xx.flatten(), yy.flatten(), aa.flatten()))
-    #xydata = np.array((xx.flatten(), yy.flatten()))
-    zs = np.array([f(xy, 1.5,  2) for xy in xydata.T])
-    zdata = zs.reshape(xx.shape)
-#    print(xydata.T.shape, zdata.flatten().shape)
-#    interp = NearestNDInterpolator(xydata.T, zdata.flatten())
-#    print(interp(0.5, 1, 0.2))
-#    interp2 = LinearNDInterpolator(xydata.T, zdata.flatten())
-#    print(interp2(0.5, 1, 0.2))
+    from symfit import Parameter, Variable, exp
 
     x = Variable()
     y = Variable()
-    a = Variable()
-    b = Parameter()
+    k = Parameter(900)
+    x0 = Parameter(1.5)
 
-    model = cos(a*x) * b*sin(y)
-    model = f_sym(x, y, a, b)
-    fit = InteractiveFit3D(model, xydata.T, zdata.flatten())
+    def distr(x, k, x0):
+        kbT = 4.11  # J @ 298K
+        return exp(-k*(x-x0)**2/kbT)
 
-    fit.visual_guess(15, 'nearest')
+    model = {y: distr(x, k, x0)}
+    x_data = np.linspace(0, 2.5, 50)
+    y_data = model[y](x=x_data, k=1000, x0=1)
+    fit = InteractiveFit2D(model, x=x_data, y=y_data)
+    fit.visual_guess(250)
     print("Guessed values: ")
-    for p in fit.params:
+    for p in fit.model.params:
         print("{}: {}".format(p.name, p.value))
     fit_result = fit.execute(maxfev=1000)
-
     print(fit_result)
 
-    X, Y, A = np.meshgrid(np.linspace(-np.pi, np.pi, 30), np.linspace(-np.pi, np.pi, 30), np.linspace(0, 2.5, 30))
+#    def f_sym(x, y, a, b):
+#        return cos(a*x) * b*sin(y)
 
-    Z = model(x=X, y=Y, a=A, **fit_result.params)
+#    xdata = np.linspace(-np.pi, np.pi, 7)
+#    ydata = np.linspace(-np.pi, np.pi, 7)
+#    adata = np.linspace(0, 2.5, 7)
+#
+#    xx, yy = np.meshgrid(xdata, ydata)
+#    xx = xx.flatten()
+#    yy = yy.flatten()
+#    
+#    #xydata = np.array((xx.flatten(), yy.flatten(), aa.flatten()))
+#    #xydata = np.array((xx.flatten(), yy.flatten()))
+#    #zs = np.array([f(xy, 1.5,  2) for xy in xydata.T])
+#    #zdata = zs.reshape(xx.shape)
+##    print(xydata.T.shape, zdata.flatten().shape)
+##    interp = NearestNDInterpolator(xydata.T, zdata.flatten())
+##    print(interp(0.5, 1, 0.2))
+##    interp2 = LinearNDInterpolator(xydata.T, zdata.flatten())
+##    print(interp2(0.5, 1, 0.2))
+#
+#    x = Variable()
+#    #y = Variable()
+#    y = Parameter()
+#    z = Variable()
+#    a = Parameter()
+#    b = Parameter()
+#
+#    model = {z: f_sym(x, y, a, b)}
+#    zdata = model[z](x=xx, y=3, a=1.5, b=2)
+#    fit = InteractiveFit2D(model, x=xx, z=zdata)#xydata.T, zdata.flatten())
+#
+#    fit.visual_guess(100)#, 'nearest')
+#    print("Guessed values: ")
+#    for p in fit.model.params:
+#        print("{}: {}".format(p.name, p.value))
+#    fit_result = fit.execute(maxfev=1000)
+#
+#    print(fit_result)
+#
+#    #X, Y, A = np.meshgrid(np.linspace(-np.pi, np.pi, 30), np.linspace(-np.pi, np.pi, 30), np.linspace(0, 2.5, 30))
+#
+#    #Z = model(x=X, y=Y, **fit_result.params)
