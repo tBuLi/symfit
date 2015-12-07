@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from symfit.api import Fit
+from symfit.api import Fit  # Should be ...api import fit. Or something. Relative imports.
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from itertools import combinations
 from scipy.interpolate import NearestNDInterpolator, LinearNDInterpolator
 import functools
+
+from pkg_resources import parse_version
+
+SUPPORTED_VERSION = '0.3.0'
+SYMFIT_VERSION = symfit.version  # something something.
+
+if parse_version(SUPPORTED_VERSION) != parse_version(SYMFIT_VERSION):
+    raise EnvironmentError("Your symfit version is not supported. YMMV.")
 
 
 class InteractiveFit2D(Fit):
