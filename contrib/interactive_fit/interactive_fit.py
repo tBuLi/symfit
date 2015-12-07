@@ -12,18 +12,18 @@ import functools
 class InteractiveFit2D(Fit):
     """A class that provides a visual_guess method which provides
     an graphical, interactive way of guessing initial fitting parameters."""
-    def _update_plot(self, val):
+    def _update_plot(self, _):
         """Callbak to redraw the plot to reflect the new parameter values."""
         # Since all sliders call this same callback without saying who they are
         # I need to update the values for all parameters. This can be
         # circumvented by creating a seperate callback function for each
         # parameter.
         for p in self.model.params:
-            p.value = self.sliders[p].val
+            p.value = self._sliders[p].val
         # Also see the comment below about using keyword arguments (line 57)
         vals = self.model(self.xpoints, **{p.name: p.value for p in self.model.params})
         vals = getattr(vals, self.model.dependent_vars[0].name)
-        self.my_plot.set_ydata(vals)
+        self._my_plot.set_ydata(vals)
 
     def visual_guess(self, n_points=50):
         """Create a matplotlib window with sliders for all parameters
@@ -33,7 +33,17 @@ class InteractiveFit2D(Fit):
         a red line.
         Slider extremes are taken from the parameters where possible. If
         these are not provided, the minimum is 0; and the maximum is value*2.
-        If no initial value is provided, it defaults to 1."""
+        If no initial value is provided, it defaults to 1.
+        
+        Parameters
+        ----------
+        n_points : int
+            The number of points used for drawing the fitted function.
+        
+        Returns
+        -------
+        None
+        """
 
         x_min = np.min(self.independent_data[self.model.independent_vars[0].name])
         x_max = np.max(self.independent_data[self.model.independent_vars[0].name])
@@ -57,15 +67,14 @@ class InteractiveFit2D(Fit):
         vals = self.model(self.xpoints, **{p.name: p.value for p in self.model.params})
         vals = getattr(vals, self.model.dependent_vars[0].name)
 
-        self.my_plot, = ax.plot(self.xpoints, vals, color='red')
+        self._my_plot, = ax.plot(self.xpoints, vals, color='red')
         ax.scatter(self.independent_data[self.model.independent_vars[0].name],
                    self.dependent_data[self.model.dependent_vars[0].name],
                    c='blue')
         plt.axis([x_min, x_max, y_min, y_max])
 
         i = 0.05
-        self.sliders = {}
-        print(self.model.params)
+        self._sliders = {}
         for p in self.model.params:
             if not p.fixed:
                 axbg = 'lightgoldenrodyellow'
@@ -85,7 +94,7 @@ class InteractiveFit2D(Fit):
                 maximum = p.max
 
             slid = plt.Slider(ax, p.name, minimum, maximum, valinit=val)
-            self.sliders[p] = slid
+            self._sliders[p] = slid
             slid.on_changed(self._update_plot)
             i += 0.05
 
@@ -145,7 +154,7 @@ class ProjectionPlot:
 
 class InteractiveFit3D(Fit):
     """A class which plots N-dimensional models by projecting them
-    on all combinations of 3 dimensions in order to allow users to 
+    on all combinations of 3 dimensions in order to allow users to
     make a graphical guess of initial fitting values."""
     # TODO: multiprocess redrawing
 
@@ -200,13 +209,13 @@ class InteractiveFit3D(Fit):
                 maximum = p.max
             ax = plt.axes([0.162, i, 0.68, 0.03], axisbg=axbg)  # start-x, start-y, width, height
             slider = self._construct_slider(ax, p, minimum, maximum, val)
-            self.sliders[p] = slider
+            self._sliders[p] = slider
             i += 0.05
         if len(self.model.independent_vars) > 2:
             for v, xmin, xmax in zip(self.model.independent_vars, x_mins, x_maxs):
                 ax = plt.axes([0.162, i, 0.68, 0.03], axisbg='green')  # start-x, start-y, width, height
                 slider = self._construct_slider(ax, v, xmin, xmax, (xmax+xmin)/2)
-                self.sliders[v] = slider
+                self._sliders[v] = slider
                 i += 0.05
 
     def _construct_slider(self, axes, var, min_val, max_val, init_val):
@@ -232,10 +241,20 @@ class InteractiveFit3D(Fit):
         Slider extremes are taken from the parameters where possible. If
         these are not provided, the minimum is 0; and the maximum is value*2.
         If no initial value is provided, it defaults to 1."""
-        x_mins = np.min(self.xdata, axis=1)
-        x_maxs = np.max(self.xdata, axis=1)
+        print(self.dependent_data)
+        print(self.independent_data)
+        print(self.model.dependent_vars)
+        print(self.model.independent_vars)
+        x_mins = {}
+        x_maxs = {}
+        for name, data in self.independent_data.items():
+            x_mins[name] = np.min(data)
+            x_maxs[name] = np.max(data)
+        #x_mins = np.min(self.xdata, axis=1)
+        #x_maxs = np.max(self.xdata, axis=1)
         self.nvars = len(self.model.independent_vars)
-        self.sliders = {}
+        
+        self._sliders = {}
         self.variable_values = dict(zip(self.model.independent_vars, [0]*self.nvars))
 
         if interpolation.lower() == 'linear':
@@ -267,10 +286,11 @@ class InteractiveFit3D(Fit):
             bot += 0.05*self.nvars
         self.fig.subplots_adjust(bottom=bot)
 
-        xpoints = []
-        for x_min, x_max, n_point in zip(x_mins, x_maxs, n_points):
-            xpoints.append(np.linspace(x_min, x_max, n_point))
-        self.projections = list(combinations(range(self.nvars), 2))
+        xpoints = {}
+        for x_name, n_point in zip(x_mins.keys(), n_points):
+            xpoints[x_name].append(np.linspace(x_mins[x_name], x_maxs[x_name], n_point))
+        #self.projections = list(combinations(range(self.nvars), 2))
+        self.projections = list(combinations(self.model.dependent_vars, 2))
 
         f = interpolator(self.xdata.T, self.ydata)
         def master_interpolator(**kwargs):
@@ -320,7 +340,7 @@ if __name__ == "__main__":
     x0 = Parameter(1.5)
 
     def distr(x, k, x0):
-        kbT = 4.11  # J @ 298K
+        kbT = 4.11
         return exp(-k*(x-x0)**2/kbT)
 
     model = {y: distr(x, k, x0)}
@@ -333,47 +353,3 @@ if __name__ == "__main__":
         print("{}: {}".format(p.name, p.value))
     fit_result = fit.execute(maxfev=1000)
     print(fit_result)
-
-#    def f_sym(x, y, a, b):
-#        return cos(a*x) * b*sin(y)
-
-#    xdata = np.linspace(-np.pi, np.pi, 7)
-#    ydata = np.linspace(-np.pi, np.pi, 7)
-#    adata = np.linspace(0, 2.5, 7)
-#
-#    xx, yy = np.meshgrid(xdata, ydata)
-#    xx = xx.flatten()
-#    yy = yy.flatten()
-#    
-#    #xydata = np.array((xx.flatten(), yy.flatten(), aa.flatten()))
-#    #xydata = np.array((xx.flatten(), yy.flatten()))
-#    #zs = np.array([f(xy, 1.5,  2) for xy in xydata.T])
-#    #zdata = zs.reshape(xx.shape)
-##    print(xydata.T.shape, zdata.flatten().shape)
-##    interp = NearestNDInterpolator(xydata.T, zdata.flatten())
-##    print(interp(0.5, 1, 0.2))
-##    interp2 = LinearNDInterpolator(xydata.T, zdata.flatten())
-##    print(interp2(0.5, 1, 0.2))
-#
-#    x = Variable()
-#    #y = Variable()
-#    y = Parameter()
-#    z = Variable()
-#    a = Parameter()
-#    b = Parameter()
-#
-#    model = {z: f_sym(x, y, a, b)}
-#    zdata = model[z](x=xx, y=3, a=1.5, b=2)
-#    fit = InteractiveFit2D(model, x=xx, z=zdata)#xydata.T, zdata.flatten())
-#
-#    fit.visual_guess(100)#, 'nearest')
-#    print("Guessed values: ")
-#    for p in fit.model.params:
-#        print("{}: {}".format(p.name, p.value))
-#    fit_result = fit.execute(maxfev=1000)
-#
-#    print(fit_result)
-#
-#    #X, Y, A = np.meshgrid(np.linspace(-np.pi, np.pi, 30), np.linspace(-np.pi, np.pi, 30), np.linspace(0, 2.5, 30))
-#
-#    #Z = model(x=X, y=Y, **fit_result.params)
