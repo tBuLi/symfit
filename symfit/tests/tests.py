@@ -30,6 +30,8 @@ class TddInPythonExample(unittest.TestCase):
         func = a*x**2 + b*y**2
         result = func(x=2, y=3, a=3, b=9)
         self.assertEqual(result, 3*2**2 + 9*3**2)
+        result = func(2, 3, a=3, b=9)
+        self.assertEqual(result, 3*2**2 + 9*3**2)
 
         xdata = np.arange(1,10)
         ydata = np.arange(1,10)

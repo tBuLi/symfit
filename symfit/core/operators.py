@@ -1,9 +1,15 @@
 """
-This module makes sympy Epressions callable, which makes the whole project feel more consistent.
+Monkey Patching module.
+
+
+This module makes ``sympy`` Expressions callable, which makes the whole project feel more consistent.
 """
+import inspect
 
 from sympy import Eq, Ne
+# from sympy.core import expr
 from sympy.core.expr import Expr
+import sympy
 import warnings
 from symfit.core.support import sympy_to_py, seperate_symbols
 from symfit.core.argument import Parameter
@@ -36,22 +42,54 @@ from symfit.core.argument import Parameter
 #     else:
 #         return orig_ne(self.__class__, other)
 
-def call(self, **values):
+def call(self, *values, **named_values):
     """
+    Call an expression to evaluate it at the given point.
+
+    Future improvements: I would like if func and signature could be buffered after the
+    first call so they don't have to be recalculated for every call. However, nothing
+    can be stored on self as sympy uses __slots__ for efficiency. This means there is no
+    instance dict to put stuff in! And I'm pretty sure it's ill advised to hack into the
+    __slots__ of Expr.
+
+    However, for the moment I don't really notice a performance penalty in running tests.
+
+    p.s. In the current setup signature is not even needed since no introspection is possible
+    on the Expr before calling it anyway, which makes calculating the signature absolutely useless.
+    However, I hope that someday some monkey patching expert in shining armour comes by and finds
+    a way to store it in __signature__ upon __init__ of any ``symfit`` expr such that calling
+    inspect.signature on a symbolic expression will tell you which arguments to provide.
+
     :param self: Any subclass of sympy.Expr
     :param values: Values for the Parameters and Variables of the Expr.
-    :return: The function evaluated at ``values``. Depending on the Expr and ``values``, this could be a single number or an array.
+    :param named_values: Values for the vars and params by name. ``named_values`` is
+        allowed to contain too many values, as this sometimes happens when using
+        **fit_result.params on a submodel. The irrelevant params are simply ignored.
+    :return: The function evaluated at ``values``. Depending on the Expr and ``values``,
+        this could be a single number or an array.
     """
+    independent_vars, params = seperate_symbols(self)
     # Convert to a pythonic function
-    vars, params = seperate_symbols(self)
-    func = sympy_to_py(self, vars, params)
-    # Prepare only the relevant values
-    arg_names = [arg.name for arg in params + vars]
-    args = dict([(name, value) for name, value in values.items() if name in arg_names])
-    return func(**args)
+    func = sympy_to_py(self, independent_vars, params)
+
+    # Handle args and kwargs according to the allowed names.
+    parameters = [  # Note that these are inspect.Parameter's, not symfit parameters!
+        inspect.Parameter(arg.name, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            for arg in independent_vars + params
+    ]
+
+    arg_names = [arg.name for arg in independent_vars + params]
+    relevant_named_values = {
+        name: value for name, value in named_values.items() if name in arg_names
+    }
+
+    signature = inspect.Signature(parameters=parameters)
+    bound_arguments = signature.bind(*values, **relevant_named_values)
+
+    return func(**bound_arguments.arguments)
 
 
-# Expr.__eq__ = eq
-# Expr.__ne__ = ne
+# # Expr.__eq__ = eq
+# # Expr.__ne__ = ne
 Expr.__call__ = call
 Parameter.__call__ = call
