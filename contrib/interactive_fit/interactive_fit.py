@@ -4,17 +4,33 @@ import numpy as np
 from symfit.api import Fit  # Should be ...api import fit. Or something. Relative imports.
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-from itertools import combinations
+import itertools
 from scipy.interpolate import NearestNDInterpolator, LinearNDInterpolator
 import functools
 
-from pkg_resources import parse_version
+#from pkg_resources import parse_version
 
-SUPPORTED_VERSION = '0.3.0'
-SYMFIT_VERSION = symfit.version  # something something.
+#SUPPORTED_VERSION = '0.3.0'
+#SYMFIT_VERSION = symfit.version  # something something.
+#
+#if parse_version(SUPPORTED_VERSION) != parse_version(SYMFIT_VERSION):
+#    raise EnvironmentError("Your symfit version is not supported. YMMV.")
 
-if parse_version(SUPPORTED_VERSION) != parse_version(SYMFIT_VERSION):
-    raise EnvironmentError("Your symfit version is not supported. YMMV.")
+
+def marginalize(model, guess, remaining_variables, dxs):
+#    print(model.independent_vars)
+#    print(guess)
+#    print([index for index, var in enumerate(model.independent_vars) if var not in remaining_variables])
+    reduced_indices = tuple(index for index, var in enumerate(model.independent_vars)
+                            if var not in remaining_variables)
+    total = np.sum(guess.T, axis=reduced_indices)
+#    norm = np.prod([guess.shape[idx] for idx in reduced_indices])
+#    norm = 1
+#    print(max(total))
+    #raise Exception(norm)
+    total *= np.prod([dxs[idx] for idx in reduced_indices])
+    return total.T
+
 
 
 class InteractiveFit2D(Fit):
@@ -52,19 +68,68 @@ class InteractiveFit2D(Fit):
         -------
         None
         """
-
-        x_min = np.min(self.independent_data[self.model.independent_vars[0].name])
-        x_max = np.max(self.independent_data[self.model.independent_vars[0].name])
+        
+        projections = list(itertools.product(self.model.independent_vars, self.model.dependent_vars))
+        x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
+        x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
+        self.x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points) for v in self.independent_data}
         # It would be nice if I could get these from model someway...
-        y_min = 0
-        y_max = 1
-        if len(self.model.independent_vars) != 1 or len(self.model.dependent_vars) != 1:
-            raise IndexError("Only supports 2D problems!")
+        # Take from dependent data.
+        y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
+        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
 
-        ax = plt.subplot(111)
-        plt.subplots_adjust(bottom=0.1 + 0.05*len(self.model.params))
-        plt.title("Fit")
+        self.fig = plt.figure()
 
+        # Make room for the sliders:
+        bot = 0.1 + 0.05*len(self.model.params)
+        self.fig.subplots_adjust(bottom=bot)
+
+        ncols = np.ceil(len(projections)**0.5)
+        nrows = ncols
+
+        self.plots = {}
+        for plotnr, proj in enumerate(projections, 1):
+            x, y = proj
+            ax = self.fig.add_subplot(ncols, nrows, plotnr, label='{}{}'.format(x.name, y.name))
+            self.plots[proj] = ax
+            ax.set_ylim(y_mins[y.name], y_maxs[y.name])
+            ax.set_xlim(x_mins[x.name], x_maxs[x.name])
+        
+        i = 0.05
+        self._sliders = {}
+        print(self.model.params)
+        for p in self.model.params:
+            if not p.fixed:
+                axbg = 'lightgoldenrodyellow'
+            else:
+                axbg = 'red'
+            # start-x, start-y, width, height
+            print((0.162, i, 0.68, 0.03))
+            print(self.fig.axes)
+            ax = self.fig.add_axes((0.162, i, 0.68, 0.03), axisbg=axbg, frameon=False)
+            print(self.fig.axes)
+            print(ax)
+            print('made 1')
+            val = p.value
+            if p.min is None:
+                minimum = 0
+            else:
+                minimum = p.min
+            if p.max is None:
+                maximum = 2 * val
+            else:
+                maximum = p.max
+
+            slid = plt.Slider(ax, p.name, minimum, maximum, valinit=val)
+            self._sliders[p] = slid
+            slid.on_changed(self._update_plot)
+            i += 0.05
+
+        plt.show()
+            
+
+
+        return 
         self.xpoints = np.linspace(x_min, x_max, n_points)
 
         plt.ylim(y_min, y_max)  # Y-Domain for self.model
@@ -340,24 +405,106 @@ class InteractiveFit3D(Fit):
 
 
 if __name__ == "__main__":
-    from symfit import Parameter, Variable, exp
+    from symfit import Parameter, Variable, exp, pi, variables, sqrt, parameters
+    import scipy.stats
+    
+#    x = Variable()
+#    y = Variable()
+#    k = Parameter(900)
+#    x0 = Parameter(1.5)
+#
+#    def distr(x, k, x0):
+#        kbT = 2.479  # kJ/mol
+#        return exp(-k*(x-x0)**2/kbT)
 
-    x = Variable()
-    y = Variable()
-    k = Parameter(900)
-    x0 = Parameter(1.5)
+    mean = [1, 2]
+    cov = [[0.1, 0], [0, 5.0]]
+    
+    np.random.seed(0)
+    xydata = np.random.multivariate_normal(mean, cov, 100)
+    kernel = scipy.stats.gaussian_kde(xydata.T, bw_method='silverman')
+#    print(xydata)
+    print(kernel.covariance)
+    print(kernel.factor)
+    print(kernel.covariance/kernel.factor)
+    print(np.linalg.det(kernel.covariance/kernel.factor))
+    mins = np.min(xydata, axis=0)
+    maxs = np.max(xydata, axis=0)
+    x_data = np.linspace(mins[0], maxs[0], 100)
+    y_data = np.linspace(mins[1], maxs[1], 100)
+    xx, yy = np.meshgrid(x_data, y_data)
+#    xx = xx.flatten()
+#    yy = yy.flatten()
+    xy_grid = np.column_stack((xx.ravel(), yy.ravel()))
+#    print(xy_grid)
+    grid_prob = kernel.pdf(xy_grid.T)
+    grid_prob = grid_prob.reshape(xx.shape)
+    fig = plt.figure()
+    
+    dx = np.diff(x_data)[0]
+    dy = np.diff(y_data)[0]
+    print(dx)
 
-    def distr(x, k, x0):
-        kbT = 4.11
-        return exp(-k*(x-x0)**2/kbT)
-
-    model = {y: distr(x, k, x0)}
-    x_data = np.linspace(0, 2.5, 50)
-    y_data = model[y](x=x_data, k=1000, x0=1)
-    fit = InteractiveFit2D(model, x=x_data, y=y_data)
-    fit.visual_guess(250)
-    print("Guessed values: ")
-    for p in fit.model.params:
-        print("{}: {}".format(p.name, p.value))
-    fit_result = fit.execute(maxfev=1000)
-    print(fit_result)
+#    ax = fig.add_subplot(111, projection='3d')
+#    ax.scatter(xx, yy, grid_prob,  s=10)
+##    ax.scatter(xydata[:, 0], xydata[:, 1], color='r')
+#    ax.set_xlabel('X Label')
+#    ax.set_ylabel('Y Label')
+#    ax.set_zlabel('Z Label')
+#    xx = xx.flatten()
+#    yy = yy.flatten()
+    
+    x, y, p = variables('x, y, p')
+    mu_x, mu_y, sig_x, sig_y, rho, amp = parameters('mu_x, mu_y, sig_x, sig_y, rho, amp')
+    rho.value = 0.1
+    z = (x - mu_x)**2/sig_x**2 + (y - mu_y)**2/sig_y**2 - 2 * rho * (x - mu_x) * (y - mu_y)/(sig_x * sig_y)
+    model = {p: amp * exp(- z / (2 * (1 - rho**2))) / (2 * pi * sig_x * sig_y * sqrt(1 - rho**2))}
+    z_hat = model[p](x=xydata[:, 0], y=xydata[:, 1], mu_x=mean[0], mu_y=mean[1], rho=0, sig_x=cov[0][0], sig_y=cov[1][1], amp=1)
+    guess = model[p](x=xx, y=yy, mu_x=mean[0], mu_y=mean[1], rho=0, sig_x=cov[0][0], sig_y=cov[1][1], amp=1)
+    p_hat = kernel.pdf(xydata.T) * z_hat
+    
+#    fig = plt.figure()
+#    ax = fig.add_subplot(111, projection='3d')
+#    ax.scatter(xx, yy, z_data)
+#    ax.set_xlabel('X Label')
+#    ax.set_ylabel('Y Label')
+#    ax.set_zlabel('Z Label')
+    print(p_hat)
+    print(grid_prob)
+    fit = InteractiveFit2D(model, x=xx, y=yy, p=guess)
+#    print(guess.shape)
+#    print(np.max(guess))
+#    print(guess.dtype)
+    marginal_guess = marginalize(fit.model, guess, (x,), [dx, dy])
+    marginal_prob = marginalize(fit.model, p_hat, tuple(), [dx, dy])
+    print(marginal_prob)
+    marginal_prob = marginalize(fit.model, p_hat, [x], [dx, dy])
+    plt.plot(x_data, marginal_guess)
+    plt.plot(x_data, marginal_prob)
+#    plt.ylim(0, 2)
+    plt.show()
+    
+#    fig = plt.figure()
+#    ax = fig.add_subplot(111, projection='3d')
+#    ax.scatter(xx, yy, marginal)
+#    ax.set_xlabel('X Label')
+#    ax.set_ylabel('Y Label')
+#    ax.set_zlabel('Z Label')
+#    
+#    fit = InteractiveFit2D(model, x=xx, y=yy, p=z_data)
+#    fit.visual_guess(200)
+#    print("Guessed values: ")
+#    for p in fit.model.params:
+#        print("{}: {}".format(p.name, p.value))
+#    fit_result = fit.execute(maxfev=1000)
+#    print(fit_result)
+#    model = {y: distr(x, k, x0)}
+#    x_data = np.linspace(0, 2.5, 50)
+#    y_data = model[y](x=x_data, k=1000, x0=1)
+#    fit = InteractiveFit2D(model, x=x_data, y=y_data)
+#    fit.visual_guess(250)
+#    print("Guessed values: ")
+#    for p in fit.model.params:
+#        print("{}: {}".format(p.name, p.value))
+#    fit_result = fit.execute(maxfev=1000)
+#    print(fit_result)
