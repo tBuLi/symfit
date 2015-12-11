@@ -1,9 +1,14 @@
-# from distutils.core import setup
 from setuptools import setup
+import sys
+
+if sys.version_info >= (3,0):
+    install_requires = ['sympy', 'numpy', 'scipy'],
+else:
+    install_requires = ['sympy', 'numpy', 'scipy', 'funcsigs'],
 
 setup(
     name='symfit',
-    version='0.3.0',
+    version='0.3.1',
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
     author_email='m.roelfs@student.rug.nl',
@@ -25,8 +30,8 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        # 'Programming Language :: Python :: 2',
-        # 'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
     ],
@@ -34,5 +39,5 @@ setup(
     # What does your project relate to?
     keywords='fit fitting symbolic',
 
-    install_requires = ['sympy', 'numpy', 'scipy'],
+    install_requires=install_requires,
 )
