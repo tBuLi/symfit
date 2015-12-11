@@ -5,12 +5,13 @@ designed for users.
 """
 from functools import wraps
 from collections import OrderedDict
+import inspect
 
 import numpy as np
-from symfit.core.argument import Parameter, Variable
-
 from sympy.utilities.lambdify import lambdify
 import sympy
+
+from symfit.core.argument import Parameter, Variable
 
 def seperate_symbols(func):
     """
@@ -129,3 +130,45 @@ def jacobian(expr, symbols):
         f = sympy.diff(expr, symbol)
         jac.append(f)
     return jac
+
+class RequiredKeyword(object):
+    """ Flag variable to indicate that this is a required keyword. """
+
+class RequiredKeywordError(Exception):
+    """ Error raised in case a keyword-only argument is not treated as such. """
+
+class keywordonly(object):
+    """
+    Decorator class which wraps a python 2 function into one with keyword-only arguments.
+    Is it as beautiful as the official syntax? obviously, no. But it's the best looking alternative.
+    """
+    def __init__(self, **kwonly_arguments):
+        self.kwonly_arguments = kwonly_arguments
+        self.required_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is RequiredKeyword}
+        self.optional_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is not RequiredKeyword}
+
+    def __call__(self, func):
+        argspec = inspect.getargspec(func)
+        try:  # All the kwonly_arguments should be presents as normal args to the func.
+            assert set(argspec.args) == set(self.kwonly_arguments)
+        except AssertionError:
+            raise RequiredKeywordError('All keyword-only arguments should be present as positional arguments in the function definition.')
+
+        @wraps(func)
+        def wrapped_func(*args, **kwargs):
+            """
+            :param args: args used to call the function
+            :param kwargs: kwargs used to call the function
+            :return: Wrapped function which behaves like it has keyword-only arguments.
+            :raises: ``RequiredKeywordError`` if not all required keywords where specified.
+            """
+            for kw in self.required_keywords:
+                if kw not in kwargs:
+                    raise RequiredKeywordError('Keyword `{}` is a required keyword. Please provide a value.'.format(kw))
+            else:  # All required keywords were provided. We can now safely call the function!
+                for kw, value in self.optional_keywords.items():
+                    if kw not in kwargs:
+                        kwargs[kw] = value
+                return func(*args, **kwargs)
+
+        return wrapped_func
