@@ -464,7 +464,7 @@ class Constraint(Model):
     """
     constraint_type = sympy.Eq
 
-    def __init__(self, constraint: Relational, model: Model):
+    def __init__(self, constraint, model):
         """
         :param constraint: constraint that model should be subjected to.
         :param model: A constraint is always tied to a model.
@@ -609,7 +609,7 @@ class BaseFit(metaclass=abc.ABCMeta):
 
 
     @abc.abstractmethod
-    def execute(self, *args, **kwargs) -> FitResults:
+    def execute(self, *args, **kwargs):
         """
         Every fit object has to define an execute method.
         Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.
@@ -644,7 +644,7 @@ class NumericalLeastSquares(BaseFit):
     Solves least squares numerically using leastsqbounds. Gives results consistent with MINPACK except
     when borders are provided.
     """
-    def execute(self, *options, **kwoptions) -> FitResults:
+    def execute(self, *options, **kwoptions):
         """
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
@@ -780,7 +780,7 @@ class Minimize(BaseFit):
         else:
             return np.array(ans)
 
-    def execute(self, method='SLSQP', *args, **kwargs) -> FitResults:
+    def execute(self, method='SLSQP', *args, **kwargs):
         ans = minimize(
             self.error_func,
             self.initial_guesses,
@@ -831,7 +831,8 @@ class Minimize(BaseFit):
             cons.append({
                 'type': types[constraint.constraint_type],
                 # Assume the lhs is the equation.
-                'fun': lambda p, x, c: c.numerical_components[0](*(list(x.values()) + list(p))),
+                'fun': lambda p, x, c: c(*(list(x.values()) + list(p)))[0],
+                # 'fun': lambda p, x, c: c.numerical_components[0](*(list(x.values()) + list(p))),
                 # Assume the lhs is the equation.
                 'jac' : lambda p, x, c: [component(*(list(x.values()) + list(p))) for component in c.numerical_jacobian[0]],
                 'args': (self.data, constraint)
@@ -1241,9 +1242,13 @@ class Likelihood(Maximize):
 #     def error(self, p, func, x, y):
 #         pass
 
-def r_squared(model: Model, fit_result: FitResults, data: OrderedDict) -> float:
+def r_squared(model, fit_result, data):
     """
     Calculates the coefficient of determination, R^2, for the fit.
+
+    :param model: Model instance
+    :param fit_result: FitResults instance
+    :param data: data with which the fit was performed.
     """
     # First filter out the dependent vars
     y_is = [data[var.name] for var in model.dependent_vars if var.name in data]
