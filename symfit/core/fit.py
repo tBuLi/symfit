@@ -2,8 +2,8 @@ import abc
 from collections import namedtuple, defaultdict, Mapping, OrderedDict
 import itertools
 import functools
-import inspect
 import copy
+import sys
 
 import sympy
 from sympy.core.relational import Relational
@@ -11,9 +11,13 @@ import numpy as np
 from scipy.optimize import minimize
 
 from symfit.core.argument import Parameter, Variable
-from symfit.core.support import seperate_symbols, sympy_to_scipy, sympy_to_py, cache, jacobian
+from symfit.core.support import seperate_symbols, keywordonly, sympy_to_py, cache, jacobian
 from symfit.core.leastsqbound import leastsqbound
 
+if sys.version_info >= (3,0):
+    import inspect as inspect_sig
+else:
+    import funcsigs as inspect_sig
 
 class ParameterDict(object):
     """
@@ -291,12 +295,15 @@ class Model(object):
         # Make Variable object corresponding to each var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
+        self.__signature__ = self._make_signature()
+
+    def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
-        parameters = [  # Note that these are inspect.Parameter's, not symfit parameters!
-            inspect.Parameter(arg.name, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
+            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
                 for arg in self.independent_vars + self.params
         ]
-        self.__signature__ = inspect.Signature(parameters=parameters)
+        return inspect_sig.Signature(parameters=parameters)
 
     def __call__(self, *args, **kwargs):
         """
@@ -311,6 +318,8 @@ class Model(object):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
+        print(self.__signature__)
+        print(args,kwargs)
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self.dependent_vars])
         return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
@@ -507,13 +516,22 @@ class Constraint(Model):
         """
         return [[sympy_to_py(partial, self.model.vars, self.model.params) for partial in row] for row in self.jacobian]
 
+    def _make_signature(self):
+        # Handle args and kwargs according to the allowed names.
+        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
+            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+                for arg in self.model.vars + self.model.params
+        ]
+        return inspect_sig.Signature(parameters=parameters)
 
-class BaseFit(metaclass=abc.ABCMeta):
+
+class BaseFit(object):
     """
     Abstract Base Class for all fitting objects. Most importantly, it takes care of linking the provided data to variables.
     The allowed variables are extracted from the model.
     """
-    def __init__(self, model, *ordered_data, absolute_sigma=None, **named_data):
+    @keywordonly(absolute_sigma=None)
+    def __init__(self, model, *ordered_data, **named_data):
         """
         :param model: (dict of) sympy expression or ``Model`` object.
         :param absolute_sigma bool: True by default. If the sigma is only used
@@ -531,6 +549,7 @@ class BaseFit(metaclass=abc.ABCMeta):
         with sigma_. For example, let x be a Variable. Then sigma_x will give the
         stdev in x.
         """
+        absolute_sigma = named_data.pop('absolute_sigma')
         if isinstance(model, Mapping):
             self.model = Model.from_dict(model)
         elif isinstance(model, Model):
@@ -540,12 +559,12 @@ class BaseFit(metaclass=abc.ABCMeta):
 
         # Handle ordered_data and named_data according to the allowed names.
         var_names = [var.name for var in self.model.vars]
-        parameters = [  # Note that these are inspect.Parameter's, not symfit parameters!
-            inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
+        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
+            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
                 for name in var_names
         ]
 
-        signature = inspect.Signature(parameters=parameters)
+        signature = inspect_sig.Signature(parameters=parameters)
         bound_arguments = signature.bind(*ordered_data, **named_data)
         # Include default values in bound_argument object
         for param in signature.parameters.values():
@@ -607,8 +626,6 @@ class BaseFit(metaclass=abc.ABCMeta):
         """
         return {var.name: self.data[var.name] for var in self.model.sigmas}
 
-
-    @abc.abstractmethod
     def execute(self, *args, **kwargs):
         """
         Every fit object has to define an execute method.
@@ -617,7 +634,17 @@ class BaseFit(metaclass=abc.ABCMeta):
         :args kwargs:
         :return: Instance of FitResults
         """
-        return
+        raise NotImplementedError('Every subclass of BaseFit must have an execute method.')
+
+    # def error_func(self, *args, **kwargs):
+    #     """
+    #     Every fit object has to define an execute method.
+    #     Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.
+    #
+    #     :args kwargs:
+    #     :return: Instance of FitResults
+    #     """
+    #     raise NotImplementedError('Every subclass of BaseFit must have an error_func method.')
 
     @property
     def initial_guesses(self):
@@ -719,7 +746,8 @@ class Minimize(BaseFit):
     Minimize a model subject to constraints. A wrapper for ``scipy.optimize.minimize``.
     ``Minimize`` currently doesn't work when data is provided to Variables, and doesn't support vector functions.
     """
-    def __init__(self, model, *args, constraints=None, **kwargs):
+    @keywordonly(constraints=None)
+    def __init__(self, model, *args, **kwargs):
         """
         Because in a lot of use cases for Minimize no data is supplied to variables,
         all the empty variables are replaced by an empty np array.
@@ -728,6 +756,7 @@ class Minimize(BaseFit):
         :type constraints: list
         """
         # constraints = kwargs.pop('constraints') if 'constraints' in kwargs else None
+        constraints = kwargs.pop('constraints')
         super(Minimize, self).__init__(model, *args, **kwargs)
         for var, data in self.data.items():
             if data is None: # Replace None by an empty array
