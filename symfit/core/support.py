@@ -6,12 +6,18 @@ designed for users.
 from functools import wraps
 from collections import OrderedDict
 import inspect
+import sys
 
 import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
 
 from symfit.core.argument import Parameter, Variable
+
+if sys.version_info >= (3,0):
+    import inspect as inspect_sig
+else:
+    import funcsigs as inspect_sig
 
 def seperate_symbols(func):
     """
@@ -140,7 +146,22 @@ class RequiredKeywordError(Exception):
 class keywordonly(object):
     """
     Decorator class which wraps a python 2 function into one with keyword-only arguments.
-    Is it as beautiful as the official syntax? obviously, no. But it's the best looking alternative.
+
+    Example::
+
+        @keywordonly(floor=True)
+        def f(x, **kwargs):
+            floor = kwargs.pop('floor')
+            return np.floor(x**2) if floor else x**2
+
+    This decorator is not much better than::
+
+        floor = kwargs.pop('floor') if 'floor' in kwargs else True
+
+    However, I prefer it's usage because: it's clear from reading the function deceleration
+    there is an option to provide this argument. Plus your guaranteed that the pop works.
+
+    Please note that this decorator needs a ** argument in order to work.
     """
     def __init__(self, **kwonly_arguments):
         self.kwonly_arguments = kwonly_arguments
@@ -149,10 +170,11 @@ class keywordonly(object):
 
     def __call__(self, func):
         argspec = inspect.getargspec(func)
-        try:  # All the kwonly_arguments should be presents as normal args to the func.
-            assert set(argspec.args) == set(self.kwonly_arguments)
-        except AssertionError:
-            raise RequiredKeywordError('All keyword-only arguments should be present as positional arguments in the function definition.')
+        if not argspec.keywords:
+            raise RequiredKeywordError(
+                'The keywordonly decorator requires the function to '
+                'accept a **kwargs argument.'
+            )
 
         @wraps(func)
         def wrapped_func(*args, **kwargs):
@@ -164,11 +186,14 @@ class keywordonly(object):
             """
             for kw in self.required_keywords:
                 if kw not in kwargs:
-                    raise RequiredKeywordError('Keyword `{}` is a required keyword. Please provide a value.'.format(kw))
-            else:  # All required keywords were provided. We can now safely call the function!
-                for kw, value in self.optional_keywords.items():
+                    raise RequiredKeywordError(
+                        'Keyword `{}` is a required keyword. '
+                        'Please provide a value.'.format(kw)
+                    )
+            else:  # All required keywords were provided. Assign defaults.
+                for kw, default in self.optional_keywords.items():
                     if kw not in kwargs:
-                        kwargs[kw] = value
-                return func(*args, **kwargs)
-
+                        kwargs[kw] = default
+                else: # All defaults assigned where needed. Call func!
+                    return func(*args, **kwargs)
         return wrapped_func
