@@ -2,9 +2,9 @@ from setuptools import setup
 import sys
 
 if sys.version_info >= (3,0):
-    install_requires = ['sympy', 'numpy', 'scipy'],
+    install_requires = ['sympy', 'numpy', 'scipy']
 else:
-    install_requires = ['sympy', 'numpy', 'scipy', 'funcsigs'],
+    install_requires = ['sympy', 'numpy', 'scipy', 'funcsigs']
 
 setup(
     name='symfit',
