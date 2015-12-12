@@ -636,15 +636,18 @@ class BaseFit(object):
         """
         raise NotImplementedError('Every subclass of BaseFit must have an execute method.')
 
-    # def error_func(self, *args, **kwargs):
-    #     """
-    #     Every fit object has to define an execute method.
-    #     Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.
-    #
-    #     :args kwargs:
-    #     :return: Instance of FitResults
-    #     """
-    #     raise NotImplementedError('Every subclass of BaseFit must have an error_func method.')
+    def error_func(self, *args, **kwargs):
+        """
+        Every fit object has to define an error_func method, giving the function to be minimized.
+        """
+        raise NotImplementedError('Every subclass of BaseFit must have an error_func method.')
+
+    def eval_jacobian(self, *args, **kwargs):
+        """
+        Every fit object has to define an eval_jacobian method, giving the jacobian of the
+        function to be minimized.
+        """
+        raise NotImplementedError('Every subclass of BaseFit must have an eval_jacobian method.')
 
     @property
     def initial_guesses(self):
@@ -679,13 +682,13 @@ class NumericalLeastSquares(BaseFit):
 
         try:
             popt, cov_x, infodic, mesg, ier = leastsqbound(
-                lambda p, data: self.model.numerical_chi(*(list(data) + list(p))).flatten(), # This lambda unpacking is needed because scipy is an inconsistent mess.
-                Dfun=lambda p, data: np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T,
+                self.error_func,
+                # lambda p, data: self.model.numerical_chi(*(list(data) + list(p))).flatten(), # This lambda unpacking is needed because scipy is an inconsistent mess.
+                Dfun=self.eval_jacobian,
+                # Dfun=lambda p, data: np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T,
                 args=(self.data.values(),),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
-                # lambda p: self.partial_chi(*p).flatten(), # This lambda unpacking is needed because scipy is an inconsistent mess.
-                # Dfun=lambda p: np.array([component(*p).flatten() for component in self.partial_chi_jacobian]).T,
                 full_output=True,
                 *options,
                 **kwoptions
@@ -693,7 +696,8 @@ class NumericalLeastSquares(BaseFit):
         except ValueError:
             # The exact Jacobian can contain nan's, causing the fit to fail. In such cases, try again without providing an exact jacobian.
             popt, cov_x, infodic, mesg, ier = leastsqbound(
-                lambda p, data: self.model.numerical_chi(*(list(data) + list(p))).flatten(),
+                self.error_func,
+                # lambda p, data: self.model.numerical_chi(*(list(data) + list(p))).flatten(),
                 args=(self.data.values(),),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
@@ -726,6 +730,13 @@ class NumericalLeastSquares(BaseFit):
         )
         self.__fit_results.r_squared = r_squared(self.model, self.__fit_results, self.data)
         return self.__fit_results
+
+
+    def error_func(self, p, data):
+        return self.model.numerical_chi(*(list(data) + list(p))).flatten()
+
+    def eval_jacobian(self, p, data):
+        return np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T
 
 
 class AnalyticalLeastSquares(object):
