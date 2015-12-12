@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import unittest
 import inspect
+import sys
 import sympy
 import types
 from sympy import init_printing, init_session
@@ -12,6 +13,11 @@ import scipy.stats
 from scipy.optimize import curve_fit
 from symfit.core.support import sympy_to_scipy, sympy_to_py
 import matplotlib.pyplot as plt
+
+if sys.version_info >= (3,0):
+    import inspect as inspect_sig
+else:
+    import funcsigs as inspect_sig
 
 class TddInPythonExample(unittest.TestCase):
     def test_gaussian(self):
@@ -248,7 +254,7 @@ class TddInPythonExample(unittest.TestCase):
         z, = model(3, 3, 2, 2)
 
         self.assertEqual(z, 36)
-        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(model).parameters):
+        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
             self.assertEqual(arg_name, name)
 
         # From Model __init__ directly
@@ -258,7 +264,7 @@ class TddInPythonExample(unittest.TestCase):
         self.assertEqual(z_1, 18)
         self.assertEqual(z_2, 72)
         self.assertEqual(z_3, 36)
-        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(model).parameters):
+        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
             self.assertEqual(arg_name, name)
 
         # From dict
@@ -269,7 +275,7 @@ class TddInPythonExample(unittest.TestCase):
         self.assertEqual(z_1, 18)
         self.assertEqual(z_2, 72)
         self.assertEqual(z_3, 36)
-        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(model).parameters):
+        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
             self.assertEqual(arg_name, name)
 
     def test_2D_fitting(self):
@@ -287,8 +293,8 @@ class TddInPythonExample(unittest.TestCase):
         # result = fit.scipy_func(fit.xdata, [2, 3])
         result = fit.model(xdata[0], xdata[1], 2, 3)
 
-        args, varargs, keywords, defaults = inspect.getargspec(fit.model)
-        self.assertEqual(args, ['x', 'y', 'a', 'b'])
+        for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(fit.model).parameters):
+            self.assertEqual(arg_name, name)
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
