@@ -84,8 +84,10 @@ class InteractiveFit2D(Fit):
         bot = 0.1 + 0.05*len(self.model.params)
         self.fig.subplots_adjust(bottom=bot)
 
-        ncols = np.ceil(len(projections)**0.5)
-        nrows = ncols
+        # If these are not ints, matplotlib will crash and burn with an utterly
+        # vague error.
+        ncols = int(np.ceil(len(projections)**0.5))
+        nrows = int(np.ceil(len(projections)/ncols))
 
         self.plots = {}
         for plotnr, proj in enumerate(projections, 1):
@@ -97,19 +99,13 @@ class InteractiveFit2D(Fit):
         
         i = 0.05
         self._sliders = {}
-        print(self.model.params)
         for p in self.model.params:
             if not p.fixed:
                 axbg = 'lightgoldenrodyellow'
             else:
                 axbg = 'red'
             # start-x, start-y, width, height
-            print((0.162, i, 0.68, 0.03))
-            print(self.fig.axes)
-            ax = self.fig.add_axes((0.162, i, 0.68, 0.03), axisbg=axbg, frameon=False)
-            print(self.fig.axes)
-            print(ax)
-            print('made 1')
+            ax = self.fig.add_axes((0.162, i, 0.68, 0.03), axis_bgcolor=axbg, label=p.name)
             val = p.value
             if p.min is None:
                 minimum = 0
@@ -124,11 +120,7 @@ class InteractiveFit2D(Fit):
             self._sliders[p] = slid
             slid.on_changed(self._update_plot)
             i += 0.05
-
         plt.show()
-            
-
-
         return 
         self.xpoints = np.linspace(x_min, x_max, n_points)
 
@@ -424,10 +416,10 @@ if __name__ == "__main__":
     xydata = np.random.multivariate_normal(mean, cov, 100)
     kernel = scipy.stats.gaussian_kde(xydata.T, bw_method='silverman')
 #    print(xydata)
-    print(kernel.covariance)
-    print(kernel.factor)
-    print(kernel.covariance/kernel.factor)
-    print(np.linalg.det(kernel.covariance/kernel.factor))
+#    print(kernel.covariance)
+#    print(kernel.factor)
+#    print(kernel.covariance/kernel.factor)
+#    print(np.linalg.det(kernel.covariance/kernel.factor))
     mins = np.min(xydata, axis=0)
     maxs = np.max(xydata, axis=0)
     x_data = np.linspace(mins[0], maxs[0], 100)
@@ -439,11 +431,11 @@ if __name__ == "__main__":
 #    print(xy_grid)
     grid_prob = kernel.pdf(xy_grid.T)
     grid_prob = grid_prob.reshape(xx.shape)
-    fig = plt.figure()
+#    fig = plt.figure()
     
     dx = np.diff(x_data)[0]
     dy = np.diff(y_data)[0]
-    print(dx)
+#    print(dx)
 
 #    ax = fig.add_subplot(111, projection='3d')
 #    ax.scatter(xx, yy, grid_prob,  s=10)
@@ -469,20 +461,20 @@ if __name__ == "__main__":
 #    ax.set_xlabel('X Label')
 #    ax.set_ylabel('Y Label')
 #    ax.set_zlabel('Z Label')
-    print(p_hat)
-    print(grid_prob)
+#    print(p_hat)
+#    print(grid_prob)
     fit = InteractiveFit2D(model, x=xx, y=yy, p=guess)
-#    print(guess.shape)
-#    print(np.max(guess))
-#    print(guess.dtype)
-    marginal_guess = marginalize(fit.model, guess, (x,), [dx, dy])
-    marginal_prob = marginalize(fit.model, p_hat, tuple(), [dx, dy])
-    print(marginal_prob)
-    marginal_prob = marginalize(fit.model, p_hat, [x], [dx, dy])
-    plt.plot(x_data, marginal_guess)
-    plt.plot(x_data, marginal_prob)
-#    plt.ylim(0, 2)
-    plt.show()
+##    print(guess.shape)
+##    print(np.max(guess))
+##    print(guess.dtype)
+#    marginal_guess = marginalize(fit.model, guess, (x,), [dx, dy])
+#    marginal_prob = marginalize(fit.model, p_hat, tuple(), [dx, dy])
+#    print(marginal_prob)
+#    marginal_prob = marginalize(fit.model, p_hat, [x], [dx, dy])
+#    plt.plot(x_data, marginal_guess)
+#    plt.plot(x_data, marginal_prob)
+##    plt.ylim(0, 2)
+#    plt.show()
     
 #    fig = plt.figure()
 #    ax = fig.add_subplot(111, projection='3d')
@@ -492,12 +484,12 @@ if __name__ == "__main__":
 #    ax.set_zlabel('Z Label')
 #    
 #    fit = InteractiveFit2D(model, x=xx, y=yy, p=z_data)
-#    fit.visual_guess(200)
-#    print("Guessed values: ")
-#    for p in fit.model.params:
-#        print("{}: {}".format(p.name, p.value))
-#    fit_result = fit.execute(maxfev=1000)
-#    print(fit_result)
+    fit.visual_guess(200)
+    print("Guessed values: ")
+    for p in fit.model.params:
+        print("{}: {}".format(p.name, p.value))
+    fit_result = fit.execute(maxfev=1000)
+    print(fit_result)
 #    model = {y: distr(x, k, x0)}
 #    x_data = np.linspace(0, 2.5, 50)
 #    y_data = model[y](x=x_data, k=1000, x0=1)
