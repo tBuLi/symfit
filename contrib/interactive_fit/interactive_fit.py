@@ -44,10 +44,11 @@ class InteractiveFit2D(Fit):
         # parameter.
         for p in self.model.params:
             p.value = self._sliders[p].val
-        # Also see the comment below about using keyword arguments (line 57)
-        vals = self.model(self.xpoints, **{p.name: p.value for p in self.model.params})
-        vals = getattr(vals, self.model.dependent_vars[0].name)
-        self._my_plot.set_ydata(vals)
+        for indep_var, dep_var in self._projections:
+            plot = self._plots[(indep_var, dep_var)]
+            # TODO: reduce dimensionality of self._x_points and vals for this projection
+            vals = self.model[dep_var](**{p.name: p.value for p in self.model.params})
+            plot.set_ydata(vals)
 
     def visual_guess(self, n_points=50):
         """Create a matplotlib window with sliders for all parameters
@@ -69,12 +70,12 @@ class InteractiveFit2D(Fit):
         None
         """
         
-        projections = list(itertools.product(self.model.independent_vars, self.model.dependent_vars))
+        self._projections = list(itertools.product(self.model.independent_vars, self.model.dependent_vars))
+
         x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
-        self.x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points) for v in self.independent_data}
-        # It would be nice if I could get these from model someway...
-        # Take from dependent data.
+        self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points) for v in self.independent_data}
+
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
         y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
 
@@ -86,16 +87,17 @@ class InteractiveFit2D(Fit):
 
         # If these are not ints, matplotlib will crash and burn with an utterly
         # vague error.
-        ncols = int(np.ceil(len(projections)**0.5))
-        nrows = int(np.ceil(len(projections)/ncols))
+        nrows = int(np.ceil(len(self._projections)**0.5))
+        ncols = int(np.ceil(len(self._projections)/nrows))
 
-        self.plots = {}
-        for plotnr, proj in enumerate(projections, 1):
+        self._plots = {}
+        for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
             ax = self.fig.add_subplot(ncols, nrows, plotnr, label='{}{}'.format(x.name, y.name))
-            self.plots[proj] = ax
+            self._plots[proj] = ax
             ax.set_ylim(y_mins[y.name], y_maxs[y.name])
             ax.set_xlim(x_mins[x.name], x_maxs[x.name])
+            # TODO scatter here; reduce dimensionality.
         
         i = 0.05
         self._sliders = {}
@@ -122,48 +124,6 @@ class InteractiveFit2D(Fit):
             i += 0.05
         plt.show()
         return 
-        self.xpoints = np.linspace(x_min, x_max, n_points)
-
-        plt.ylim(y_min, y_max)  # Y-Domain for self.model
-        plt.xlim(x_min, x_max)  # X-domain for self.model
-
-        # It might be better to use keyword arguments (p.name: p.value), but
-        # I don't know (any more) if that's supported by self.model.
-        vals = self.model(self.xpoints, **{p.name: p.value for p in self.model.params})
-        vals = getattr(vals, self.model.dependent_vars[0].name)
-
-        self._my_plot, = ax.plot(self.xpoints, vals, color='red')
-        ax.scatter(self.independent_data[self.model.independent_vars[0].name],
-                   self.dependent_data[self.model.dependent_vars[0].name],
-                   c='blue')
-        plt.axis([x_min, x_max, y_min, y_max])
-
-        i = 0.05
-        self._sliders = {}
-        for p in self.model.params:
-            if not p.fixed:
-                axbg = 'lightgoldenrodyellow'
-            else:
-                axbg = 'red'
-            # start-x, start-y, width, height
-            ax = plt.axes([0.162, i, 0.68, 0.03], axisbg=axbg)
-
-            val = p.value
-            if p.min is None:
-                minimum = 0
-            else:
-                minimum = p.min
-            if p.max is None:
-                maximum = 2 * val
-            else:
-                maximum = p.max
-
-            slid = plt.Slider(ax, p.name, minimum, maximum, valinit=val)
-            self._sliders[p] = slid
-            slid.on_changed(self._update_plot)
-            i += 0.05
-
-        plt.show()
 
 
 class ProjectionPlot:
