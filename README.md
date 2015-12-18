@@ -2,6 +2,8 @@ Documentation
 =============
 http://symfit.readthedocs.org
 
+> WARNING: This readme is currently outdated. Use the docs for reference, not this readme.
+
 Project Goals
 =============
 ## Why this Project?
