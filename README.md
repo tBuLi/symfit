@@ -15,8 +15,8 @@ from symfit import parameters, Maximize, Equality, GreaterThan
 x, y = parameters('x, y')
 model = 2 * x * y + 2 * x - x**2 - 2 * y**2
 constraints = [
-    Equality(x**3 - y, 0),
-    GreaterThan(y - 1, 0),
+    Equality(x**3, y),
+    GreaterThan(y, 1),
 ]
 
 fit = Maximize(model, constraints=constraints)
@@ -46,6 +46,6 @@ plt.plot(xdata, y)
 plt.show()
 ```
 
-<img src="http://symfit.readthedocs.org/en/latest/_images/linear_model_fit.png" alt="Linear Fit" width="200px">
+<img src="http://symfit.readthedocs.org/en/latest/_images/linear_model_fit.png" alt="Linear Fit" width="600px">
 
 For more, check the docs at http://symfit.readthedocs.org.
