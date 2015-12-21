@@ -1,25 +1,24 @@
 from __future__ import division, print_function
 import unittest
-import inspect
 import sys
 import sympy
 import types
-from sympy import init_printing, init_session
+
 from sympy import symbols
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters, Model, NumericalLeastSquares
-from symfit.distributions import Gaussian, Exp
 import scipy.stats
 from scipy.optimize import curve_fit
-from symfit.core.support import sympy_to_scipy, sympy_to_py
-import matplotlib.pyplot as plt
+
+from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters, Model, NumericalLeastSquares
+from symfit.distributions import Gaussian, Exp
+from symfit.tests.tests_fit_result import TestFitResults
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
 
-class TddInPythonExample(unittest.TestCase):
+class Tests(unittest.TestCase):
     def test_gaussian(self):
         x0, sig = parameters('x0, sig')
         x = Variable()

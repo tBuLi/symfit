@@ -1,9 +1,7 @@
-import abc
-from collections import namedtuple, defaultdict, Mapping, OrderedDict
-import itertools
-import functools
+from collections import namedtuple, Mapping
 import copy
 import sys
+import warnings
 
 import sympy
 from sympy.core.relational import Relational
@@ -98,19 +96,45 @@ class ParameterDict(object):
 
     def get_value(self, param):
         """
+        Deprecated.
+        :param param: ``Parameter`` instance.
+        :return: returns the numerical value of param
+        :raises: DeprecationWarning
+        """
+        warnings.warn(DeprecationWarning('`.get_value` has been deprecated. Use `.value` instead.'))
+        return self.value(param)
+
+    def get_stdev(self, param):
+        """
+        Deprecated.
+        :param param: ``Parameter`` instance.
+        :return: returns the standard deviation of param
+        :raises: DeprecationWarning
+        """
+        warnings.warn(DeprecationWarning('`.get_stdev` has been deprecated. Use `.stdev` instead.'))
+        return self.stdev(param)
+
+    def value(self, param):
+        """
         :param param: ``Parameter`` instance.
         :return: returns the numerical value of param
         """
-        assert isinstance(param, Parameter)
         return self.__popt[param.name]
 
-    def get_stdev(self, param):
+    def stdev(self, param):
         """
         :param param: ``Parameter`` instance.
         :return: returns the standard deviation of param
         """
-        assert isinstance(param, Parameter)
         return self.__pstdev[param.name]
+
+    @property
+    def covariance_matrix(self):
+        """
+        Read-Only Property. Returns the covariance matrix.
+        """
+        return self.__pcov
+
 
 
 class FitResults(object):
@@ -163,9 +187,9 @@ class FitResults(object):
         """
         res = '\nParameter Value        Standard Deviation\n'
         for p in self.params:
-            value = self.params.get_value(p)
+            value = self.params.value(p)
             value_str = '{:e}'.format(value) if value is not None else 'None'
-            stdev = self.params.get_stdev(p)
+            stdev = self.params.stdev(p)
             stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
             res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
@@ -224,6 +248,42 @@ class FitResults(object):
         Read-only Property.
         """
         return self.__params
+
+    def stdev(self, param):
+        """
+        Return the standard deviation in a given parameter as found by the fit.
+        :param param: ``Parameter`` Instance.
+        :return: Standard deviation of ``param``.
+        """
+        return self.params.stdev(param)
+
+    def value(self, param):
+        """
+        Return the value in a given parameter as found by the fit.
+        :param param: ``Parameter`` Instance.
+        :return: Value of ``param``.
+        """
+        return self.params.value(param)
+
+    def variance(self, param):
+        """
+        Return the variance in a given parameter as found by the fit.
+        :param param: ``Parameter`` Instance.
+        :return: Variance of ``param``.
+        """
+        param_number = list(self.params).index(param)
+        return self.params.covariance_matrix[param_number, param_number]
+
+    def covariance(self, param_1, param_2):
+        """
+        Return the covariance between param_1 and param_2.
+        :param param_1: ``Parameter`` Instance.
+        :param param_2: ``Parameter`` Instance.
+        :return: Covariance of the two params.
+        """
+        param_1_number = list(self.params).index(param_1)
+        param_2_number = list(self.params).index(param_2)
+        return self.params.covariance_matrix[param_1_number, param_2_number]
 
 class Model(object):
     """
@@ -318,8 +378,6 @@ class Model(object):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        print(self.__signature__)
-        print(args,kwargs)
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self.dependent_vars])
         return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
@@ -663,8 +721,8 @@ class AnalyticalFit(BaseFit):
        """
        k = sympy.symbols('k', cls=sympy.Idx)
        chi_squared_jac = jacobian(sympy.Sum(self.model.chi_squared, (k, 1, len(list(self.data.items())[0][1]))), self.model.params)
-       print(self.model.chi_squared)
-       print(chi_squared_jac, self.model.params)
+       # print(self.model.chi_squared)
+       # print(chi_squared_jac, self.model.params)
 
        sol = sympy.solve(chi_squared_jac, self.model.params[1], quick=True)#, dict=True)
        return sol
