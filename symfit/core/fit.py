@@ -163,8 +163,8 @@ class FitResults(object):
 
     def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
         """
-        Excuse the ugly names of most of these variables, they are inherited. Should be changed.
-        from scipy.
+        Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
+
         :param params: list of ``Parameter``'s.
         :param popt: best fit parameters, same ordering as in params.
         :param pcov: covariance matrix.
@@ -188,7 +188,6 @@ class FitResults(object):
     def __str__(self):
         """
         Pretty print the results as a table.
-        :return:
         """
         res = '\nParameter Value        Standard Deviation\n'
         for p in self.params:
@@ -257,6 +256,7 @@ class FitResults(object):
     def stdev(self, param):
         """
         Return the standard deviation in a given parameter as found by the fit.
+
         :param param: ``Parameter`` Instance.
         :return: Standard deviation of ``param``.
         """
@@ -265,6 +265,7 @@ class FitResults(object):
     def value(self, param):
         """
         Return the value in a given parameter as found by the fit.
+
         :param param: ``Parameter`` Instance.
         :return: Value of ``param``.
         """
@@ -273,6 +274,7 @@ class FitResults(object):
     def variance(self, param):
         """
         Return the variance in a given parameter as found by the fit.
+
         :param param: ``Parameter`` Instance.
         :return: Variance of ``param``.
         """
@@ -282,6 +284,7 @@ class FitResults(object):
     def covariance(self, param_1, param_2):
         """
         Return the covariance between param_1 and param_2.
+
         :param param_1: ``Parameter`` Instance.
         :param param_2: ``Parameter`` Instance.
         :return: Covariance of the two params.
@@ -391,6 +394,7 @@ class Model(object):
         and the same expressions for those dependent variables. The same is defined here
         as passing sympy == for the vars themselves, and as expr1 - expr2 == 0 for the
         expressions. For more info check the `sympy docs<https://github.com/sympy/sympy/wiki/Faq>`_.
+
         :param other: Instance of ``Model``.
         :return: bool
         """
@@ -426,6 +430,7 @@ class Model(object):
     def __str__(self):
         """
         Printable representation of this model.
+
         :return: str
         """
         template = "{}({}; {}) = {}"
@@ -590,6 +595,11 @@ class TaylorModel(Model):
     Is used by NonLinearLeastSquares. Currently only a first order expansion is implemented.
     """
     def __init__(self, model):
+        """
+        Make a first order Taylor expansion of ``model``.
+
+        :param model: Instance of ``Model``
+        """
         params_0 = OrderedDict(
             [(p, Parameter(name='{}_0'.format(p.name))) for p in model.params]
         )
@@ -661,7 +671,6 @@ class Constraint(Model):
         """
         :param constraint: constraint that model should be subjected to.
         :param model: A constraint is always tied to a model.
-        :return:
         """
         # raise Exception(model)
         if isinstance(constraint, Relational):
@@ -922,6 +931,7 @@ class LinearLeastSquares(BaseFit):
     The ``Model`` provided has to be linear.
 
     Currently, since this object still has to mature, it suffers from the following limitations:
+
     * It does not check if the model can be linearized by a simple substitution.
       For example, exp(a * x) -> b * exp(x). You will have to do this manually.
     * Does not use bounds or guesses on the ``Parameter``'s. Then again, it doesn't have too,
@@ -964,6 +974,7 @@ class LinearLeastSquares(BaseFit):
     def best_fit_params(self):
         """
         Fits to the data and returns the best fit parameters.
+
         :return: dict containing parameters and their best-fit values.
         """
         terms_per_component = []
@@ -1024,14 +1035,15 @@ class LinearLeastSquares(BaseFit):
     def execute(self):
         """
         Execute an analytical (Linear) Least Squares Fit. This object works by symbolically
-        solving when :math:`\nabla \chi^2 = 0`.
+        solving when :math:`\\nabla \\chi^2 = 0`.
 
-        To perform this task the expression of :math:`\nabla \chi^2` is determined, ignoring that
-        :math:`\chi^2` involves summing over all terms. Then the sum is performed by substituting
+        To perform this task the expression of :math:`\\nabla \\chi^2` is determined, ignoring that
+        :math:`\\chi^2` involves summing over all terms. Then the sum is performed by substituting
         the variables by their respective data and summing all terms, while leaving the parameters
         symbolic.
 
         The resulting system of equations is then easily solved with ``sympy.solve``.
+
         :return: ``FitResult``
         """
         # Obtain the best fit params first.
@@ -1076,6 +1088,7 @@ class NonLinearLeastSquares(BaseFit):
     def execute(self, relative_error=0.0001, max_iter=5):
         """
         Perform a non-linear least squares fit.
+
         :param relative_error: Relative error between the sum of squares
             of subsequent itterations. Once smaller than the value specified,
             the fit is considered complete.
@@ -1126,7 +1139,7 @@ class NonLinearLeastSquares(BaseFit):
 
 class Fit(NumericalLeastSquares):
     """
-    Wrapper for NumericalLeastSquares to give it a more appealing name.
+    Wrapper for ``NumericalLeastSquares`` to give it a more appealing name.
     In the future I hope to make this object more intelligent so it can
     search out the best fitting object based on certain qualifiers and
     return that instead.
@@ -1138,7 +1151,7 @@ class Fit(NumericalLeastSquares):
     """
     def execute(self, *options, **kwoptions):
         """
-        Execute ``Fit``, giving any options and kwoptions to
+        Execute ``Fit``, giving any ``options`` and ``kwoptions`` to
         ``NumericalLeastSquares``.
         """
         return super(Fit, self).execute(*options, **kwoptions)
