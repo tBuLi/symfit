@@ -12,6 +12,7 @@ from scipy.optimize import curve_fit
 from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters, Model, NumericalLeastSquares
 from symfit.distributions import Gaussian, Exp
 from symfit.tests.tests_fit_result import TestFitResults
+from symfit.tests.tests_analytical_fit import TestAnalyticalFit
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -592,7 +593,7 @@ class Tests(unittest.TestCase):
         popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031, absolute_sigma=False)
         self.assertAlmostEqual(fit_result.params.g, popt_sameweights[0], 4)
         self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_sameweights[0, 0]), 4)
-        # Same weight everywere should be the same as no weight.
+        # Same weight everywere should be the same as no weight when absolute_sigma=False
         self.assertAlmostEqual(fit_result.params.g, popt_noweights[0], 4)
         self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_noweights[0, 0]), 4)
 
@@ -729,7 +730,6 @@ class Tests(unittest.TestCase):
     #     """
     #     Test symfit against a straight line, for which the parameters and their
     #     uncertainties are known analytically. Assuming equal weights.
-    #     :return:
     #     """
     #     data = [[0, 1], [1, 0], [3, 2], [5, 4]]
     #     x, y = (np.array(i, dtype='float64') for i in zip(*data))
@@ -773,119 +773,6 @@ class Tests(unittest.TestCase):
     #     self.assertAlmostEqual(b_exact, fit_result.params.b, 4)
     #     self.assertAlmostEqual(var_a_exact**0.5, fit_result.params.a_stdev, 6)
     #     self.assertAlmostEqual(var_b_exact**0.5, fit_result.params.b_stdev, 6)
-
-    # def test_lagrange_equility(self):
-    #     """
-    #     Lagrange Multipliers.
-    #     Example 1 from
-    #     http://en.wikipedia.org/wiki/Lagrange_multiplier#Examples
-    #     """
-    #     x, y = parameters('x, y')
-    #
-    #     f = x + y
-    #     constraints = [
-    #         sympy.Eq(x**2 + y**2, 1)
-    #     ]
-    #
-    #     fit = LagrangeMultipliers(f, constraints)
-    #     self.assertTrue(
-    #         [
-    #             (sympy.sqrt(2)/2, sympy.sqrt(2)/2, sympy.sqrt(2)),
-    #             (-sympy.sqrt(2)/2, -sympy.sqrt(2)/2, -sympy.sqrt(2))
-    #         ] == fit.extrema
-    #     )
-
-    # def test_lagrange_inequility(self):
-    #     """
-    #     Examples taken from
-    #     http://mat.gsia.cmu.edu/classes/QUANT/NOTES/chap4/node6.html
-    #     """
-    #     x = Parameter()
-    #
-    #     f = x**3 - 3 * x
-    #     constraints = [
-    #         sympy.Le(x, 2)
-    #         # x <= 2,
-    #     ]
-    #
-    #     # maximize
-    #     fit = LagrangeMultipliers(-f, constraints)
-    #     self.assertTrue([(2, -2), (-1, -2), (1, 2)] == fit.extrema)
-    #
-    #     # minimize
-    #     fit = LagrangeMultipliers(f, constraints)
-    #     self.assertTrue([(-1, 2), (1, -2)] == fit.extrema)
-    #
-    #     # Example 2
-    #     x = Parameter()
-    #     y = Parameter()
-    #
-    #     f = (x - 2)**2 + 2*(y - 1)**2
-    #     constraints = [
-    #         sympy.Le(x + 4*y, 3),
-    #         sympy.Ge(x, y),
-    #     ]
-    #     fit = LagrangeMultipliers(f, constraints)
-    #     print(fit.solutions)
-    #     print(fit.extrema)
-    #     self.assertTrue([(5/3, 1/3, 1)] == fit.extrema)
-
-    # def test_lagrange_least_squares(self):
-    #     """
-    #     http://www.asp.ucar.edu/colloquium/1992/notes/part1/node36.html
-    #     """
-    #     a, b, c= parameters('a, b, c')
-    #     a_i, b_i, c_i = variables('a_i, b_i, c_i')
-    #     # a_i, b_i, c_i, s_a, s_b, s_c = variables('a_i, b_i, c_i, s_a, s_b, s_c')
-    #     i, N = symbols('i, N', integer=True)
-    #
-    #     # f = sympy.summation(((a_i - a)/s_a)**2 + ((b_i - b)/s_b)**2 + ((c_i - c)/s_c)**2, (i, 0, N- 1))
-    #     # f = sympy.summation(((a_i - a))**2 + ((b_i - b))**2 + ((c_i - c))**2, (i, 0, N- 1))
-    #     f = ((a_i - a))**2 + ((b_i - b))**2 + ((c_i - c))**2
-    #     constraints = [
-    #         sympy.Eq(a + b + c, 180)
-    #     ]
-    #
-    #     fit = LagrangeMultipliers(f, constraints)
-    #
-    #     xdata = np.array([
-    #         [10., 10., 10., 10., 10., 10., 10.],
-    #         [100., 100., 100., 100., 100., 100., 100.],
-    #         [70., 70., 70., 70., 70., 70., 70.],
-    #     ])
-    #     # self.assertTrue([(2, 2), (-1, 2)] == fit.maxima)
-    #     # self.assertTrue([(1, -2)] == fit.minima)
-    #     # print(fit.lagrangian)
-    #     # print('sol', fit.solutions)
-    #     # print('l_0', fit.solutions[0][fit.l_params[0]])
-    #     # print('a', fit.solutions[0][a])
-    #     # extrema = fit.extrema
-    #     # print(extrema[0].a)
-    #
-    #     fit = ConstrainedFit(f, constraints=constraints, x=xdata)
-    #     fit.execute()
-
-    # def test_simple_sigma(self):
-    #     t_data = np.array([1.4, 2.1, 2.6, 3.0, 3.3])
-    #     y_data = np.array([10, 20, 30, 40, 50])
-    #
-    #     sigma = 0.2
-    #     n = np.array([5, 3, 8, 15, 30])
-    #     # sigma_t = sigma / np.sqrt(n)
-    #
-    #     # We now define our model
-    #     t = Variable()
-    #     g = Parameter()
-    #     y_model = 0.5 * g * t**2
-    #
-    #     constraints = [
-    #         sympy.Le(g, 20)
-    #     ]
-    #
-    #     fit = ConstrainedFit(y_model, x=t_data, y=y_data)# constraints=constraints)#, sigma=sigma_t)
-    #     fit_result = fit.execute()
-    #     print(fit_result)
-    #     print([sympy.diff(fit.analytic_fit.lagrangian, p) for p in fit.analytic_fit.all_params])
 
     def test_model_from_dict(self):
         x, y_1, y_2 = variables('x, y_1, y_2')

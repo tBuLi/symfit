@@ -1,4 +1,5 @@
 from sympy.core.symbol import Symbol
+from sympy.tensor import IndexedBase
 import inspect
 
 class Argument(Symbol):
