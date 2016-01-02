@@ -3,14 +3,6 @@ Module Documentation
 
 This page contains documentation to everything ``symfit`` has to offer.
 
-BaseFit
--------
-
-.. autoclass:: symfit.core.fit.BaseFit
-   :members:
-   :special-members:
-   :show-inheritance:
-
 Fit
 ---
 
