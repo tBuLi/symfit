@@ -9,6 +9,7 @@ Fit
 .. automodule:: symfit.core.fit
    :members:
    :special-members:
+   :exclude-members: __weakref__
    :show-inheritance:
 
 Argument
@@ -17,6 +18,7 @@ Argument
 .. automodule:: symfit.core.argument
    :members:
    :special-members:
+   :exclude-members: __weakref__
    :show-inheritance:
 
 Operators
@@ -25,6 +27,7 @@ Operators
 .. automodule:: symfit.core.operators
    :members:
    :special-members:
+   :exclude-members: __weakref__
    :show-inheritance:
 
 Support
@@ -33,6 +36,7 @@ Support
 .. automodule:: symfit.core.support
    :members:
    :special-members:
+   :exclude-members: __weakref__
    :show-inheritance:
 
 Distributions
@@ -41,4 +45,5 @@ Distributions
 .. automodule:: symfit.distributions
    :members:
    :special-members:
+   :exclude-members: __weakref__
    :show-inheritance:
