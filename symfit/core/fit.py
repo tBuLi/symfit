@@ -360,7 +360,7 @@ class Model(Mapping):
         #     raise err
         #     sort_func = lambda symbol: symbol.base.label.name
         # else:
-        sort_func = lambda symbol: symbol.name
+        sort_func = lambda symbol: str(symbol)
         self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
         self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
 
@@ -372,7 +372,7 @@ class Model(Mapping):
             _params.update(params)
             self.independent_vars.update(vars)
         # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(_params, key=lambda symbol: symbol.name)
+        self.params = sorted(_params, key=sort_func)
         self.independent_vars = sorted(self.independent_vars, key=sort_func)
 
         # Make Variable object corresponding to each var.
@@ -423,11 +423,11 @@ class Model(Mapping):
         if len(self) is not len(other):
             return False
         else:
-            for var_1, var_2 in zip(self.model_dict, other.model_dict):
+            for var_1, var_2 in zip(self, other):
                 if var_1 != var_2:
                     return False
                 else:
-                    if not self.model_dict[var_1].expand() - other.model_dict[var_2].expand() == 0:
+                    if not self[var_1].expand() - other[var_2].expand() == 0:
                         return False
             else:
                 return True
@@ -446,7 +446,7 @@ class Model(Mapping):
             even for scalar valued functions. This is done for consistency.
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self.dependent_vars])
+        Ans = namedtuple('Ans', [var.name for var in self])
         return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
 
     def __str__(self):
@@ -457,23 +457,15 @@ class Model(Mapping):
         """
         template = "{}({}; {}) = {}"
         parts = []
-        for var in self.dependent_vars:
+        for var, expr in self.items():
             parts.append(template.format(
                     var,
                     ", ".join(arg.name for arg in self.independent_vars),
                     ", ".join(arg.name for arg in self.params),
-                    self.model_dict[var]
+                    expr
                 )
             )
         return "\n".join(parts)
-
-    @property
-    # @cache
-    def components(self):
-        """
-        :return: An iterator over the symbolic components of this model
-        """
-        return [self.model_dict[var] for var in self.dependent_vars]
 
     @property
     # @cache
@@ -481,8 +473,7 @@ class Model(Mapping):
         """
         :return: Symbolic :math:`\\chi^2`
         """
-        # return sum((y - f)**2/self.sigmas[y]**2 for y, f in self.model_dict.items())
-        return sum(((f - y)/self.sigmas[y])**2 for y, f in self.model_dict.items())
+        return sum(((f - y)/self.sigmas[y])**2 for y, f in self.items())
 
     @property
     # @cache
@@ -490,7 +481,7 @@ class Model(Mapping):
         """
         :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
         """
-        return sympy.sqrt(self.chi_squared)#.replace(sympy.Abs, sympy.Id)
+        return sympy.sqrt(self.chi_squared)
 
     @property
     # @cache
@@ -528,7 +519,7 @@ class Model(Mapping):
         Partial derivatives are of the components of the function with respect to the Parameter's,
         not the independent Variable's.
         """
-        return [[sympy.diff(self.model_dict[var], param) for param in self.params] for var in self.dependent_vars]
+        return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
     @property
     # @cache
@@ -536,7 +527,7 @@ class Model(Mapping):
         """
         :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
         """
-        return sum((y - f)**2 for y, f in self.model_dict.items())
+        return sum((y - f)**2 for y, f in self.items())
 
     @property
     # @cache
@@ -552,7 +543,7 @@ class Model(Mapping):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(self.model_dict[var], self.independent_vars, self.params) for var in self.dependent_vars]
+        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
     @property
     # @cache
@@ -585,15 +576,6 @@ class Model(Mapping):
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
         return [[sympy_to_py(partial, self.independent_vars, self.params) for partial in row] for row in self.jacobian]
-        # return [[sympy_to_py(partial, self.vars, self.params) for partial in row] for row in self.jacobian]
-
-    # @property
-    # @cache
-    # def numerical_chi_jacobian(self):
-    #     """
-    #     :return: lambda function of the jacobian, which can be used in numerical optimization.
-    #     """
-    #     return [sympy_to_py(component, self.vars, self.params) for component in self.jacobian(self.chi, self.params)]
 
     @property
     @cache
@@ -626,7 +608,7 @@ class TaylorModel(Model):
             [(p, Parameter(name='{}_0'.format(p.name))) for p in model.params]
         )
         model_dict = {}
-        for var, component, jacobian_vec in zip(model.dependent_vars, model.components, model.jacobian):
+        for (var, component), jacobian_vec in zip(model.items(), model.jacobian):
             linear = component.subs(params_0.items())
             for (p, p0), jac in zip(params_0.items(), jacobian_vec): # params_0 is assumed OrderedDict!
                 linear += jac.subs(params_0.items()) * (p - p0)
@@ -638,10 +620,10 @@ class TaylorModel(Model):
     @property
     def params(self):
         """
-        params for a TaylorModel is defined differently, since the normal Model.params has
-        both the :math:`p_0` ``Parameter``'s around which to expand, and the parameters to
-        be fitted. But when calling on the param property, you expect to get only the free
-        parameters, not the :math:`p_0` around which to expand.
+        params returns only the `free` parameters. Strictly speaking, the expression for a
+        ``TaylorModel`` contains both the parameters :math:`\vec{p}` and :math:`\vec{p_0}`
+        around which to expand, but params should only give :math:`\vec{p}`. To get a
+        mapping to the :math:`\vec{p_0}`, use ``.params_0``.
         """
         return [p for p in self._params if p not in self.params_0.values()]
 
@@ -651,13 +633,23 @@ class TaylorModel(Model):
 
     @property
     def p0(self):
+        """
+        Property of the :math:`p_0` around which to expand. Should be set by the names of
+        the parameters themselves.
+
+        Example::
+
+            a = Parameter()
+            x, y = variables('x, y')
+            model = TaylorModel.from_dict({y: sin(a * x)})
+
+            model.p0 = {a: 0.0}
+
+        """
         return self._p0
 
     @p0.setter
     def p0(self, expand_at):
-        """
-        :param expand_at: dict of ``Parameter``: float pairs around which to expand.
-        """
         self._p0 = {self.params_0[p]: float(value) for p, value in expand_at.items()}
         for var in self.model_dict_orig:
             self.model_dict[var] = self.model_dict_orig[var].subs(self.p0.items())
@@ -713,7 +705,7 @@ class Constraint(Model):
             Partial derivatives are of the components of the function with respect to the Parameter's,
             not the independent Variable's.
         """
-        return [[sympy.diff(self.model_dict[var], param) for param in self.model.params] for var in self.dependent_vars]
+        return [[sympy.diff(expr, param) for param in self.model.params] for expr in self.values()]
 
     @property
     # @cache
@@ -721,7 +713,7 @@ class Constraint(Model):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(self.model_dict[var], self.model.vars, self.model.params) for var in self.dependent_vars]
+        return [sympy_to_py(expr, self.model.vars, self.model.params) for expr in self.values()]
 
     @property
     # @cache
@@ -824,7 +816,7 @@ class BaseFit(object):
         :return: Data belonging to each dependent variable.
         :rtype: dict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model.dependent_vars}
+        return {var.name: self.data[var.name] for var in self.model}
 
     @property
     @cache
@@ -918,7 +910,7 @@ class NumericalLeastSquares(BaseFit):
         else:
             # Rescale the covariance matrix with the residual variance
             ss_res = np.sum(infodic['fvec']**2)
-            degrees_of_freedom = len(self.data[self.model.dependent_vars[0].name]) - len(popt)
+            degrees_of_freedom = len(self.data[self.model[0].name]) - len(popt)
 
             s_sq = ss_res / degrees_of_freedom
 
@@ -988,7 +980,7 @@ class LinearLeastSquares(BaseFit):
         :return: True or False
         """
         terms = {}
-        for var, expr in model.model_dict.items():
+        for var, expr in model.items():
             terms.update(sympy.collect(sympy.expand(expr), model.params, evaluate=False))
         difference = set(terms.keys()) ^ set(model.params) # Symmetric difference
         return not difference or difference == {1}  # Either no difference or it still contains O(1) terms
@@ -1713,14 +1705,15 @@ def r_squared(model, fit_result, data):
     """
     Calculates the coefficient of determination, R^2, for the fit.
 
+    (Is not defined properly for vector valued functions.)
+
     :param model: Model instance
     :param fit_result: FitResults instance
     :param data: data with which the fit was performed.
     """
     # First filter out the dependent vars
-    y_is = [data[var.name] for var in model.dependent_vars if var.name in data]
+    y_is = [data[var.name] for var in model if var.name in data]
     x_is = [value for key, value in data.items() if key in model.__signature__.parameters]
-    # y_is = [value for key, value in data.items() if key in model.dependent_vars]
     y_bars = [np.mean(x) for x in y_is]
     f_is = model(*x_is, **fit_result.params)
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is)])
