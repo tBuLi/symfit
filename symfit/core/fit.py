@@ -1720,18 +1720,3 @@ def r_squared(model, fit_result, data):
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars)])
 
     return 1 - SS_res/SS_tot
-
-# def r_squared(residuals, ydata, sigma=None):
-#     """
-#     Calculate the squared regression coefficient from the given residuals and data.
-#     :param residuals: array of residuals, f(x, p) - y.
-#     :param ydata: y in the above equation.
-#     :param sigma: sigma in the y_i
-#     """
-#     ss_err = np.sum(residuals ** 2)
-#     if sigma is not None:
-#         ss_tot = np.sum(((ydata - ydata.mean())/sigma) ** 2)
-#     else:
-#         ss_tot = np.sum((ydata - ydata.mean()) ** 2)
-#
-#     return 1 - (ss_err / ss_tot)
