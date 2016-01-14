@@ -19,6 +19,9 @@ else:
 
 
 class ModelError(Exception):
+    """
+    Raised when a problem occurs with a model.
+    """
     pass
 
 
@@ -293,7 +296,7 @@ class FitResults(object):
         param_2_number = list(self.params).index(param_2)
         return self.params.covariance_matrix[param_1_number, param_2_number]
 
-class Model(object):
+class Model(Mapping):
     """
     Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
     Models can be initiated from several objects::
@@ -305,6 +308,9 @@ class Model(object):
 
     * first independent variables, then dependent variables, then parameters.
     * within each of these groups they are ordered alphabetically.
+
+    Models are also iterable, behaving as their internal model_dict. In the example above,
+    a[y] returns x**2, len(a) == 1, y in a == True, etc.
     """
     def __init__(self, *ordered_expressions, **named_expressions):
         """
@@ -387,6 +393,22 @@ class Model(object):
         :return: the number of dependent variables for this model.
         """
         return len(self.model_dict)
+
+    def __getitem__(self, dependent_var):
+        """
+        Returns the expression belonging to a given dependent variable.
+
+        :param dependent_var: Instance of ``Variable``
+        :type dependent_var: ``Variable``
+        :return: The expression belonging to ``dependent_var``
+        """
+        return self.model_dict[dependent_var]
+
+    def __iter__(self):
+        """
+        :return: iterable over self.model_dict
+        """
+        return iter(self.model_dict)
 
     def __eq__(self, other):
         """
@@ -1085,7 +1107,7 @@ class NonLinearLeastSquares(BaseFit):
             param: value for param, value in zip(self.model_appr.params, self.initial_guesses)
         }
 
-    def execute(self, relative_error=0.0001, max_iter=5):
+    def execute(self, relative_error=0.0001, max_iter=50):
         """
         Perform a non-linear least squares fit.
 

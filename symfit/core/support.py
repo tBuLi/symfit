@@ -143,6 +143,7 @@ def key2str(target):
     These can not be used immediately as **kwargs, even though this would make
     a lot of sense from the context.
     This function wraps such dict to make them usable as **kwargs immidiately.
+
     :param target: dict to be made save
     :return: dict of str(symbol): value pairs.
     """
