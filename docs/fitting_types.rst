@@ -34,7 +34,7 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
 
     fit = Fit(model, x=xdata, y=ydata, sigma_y=sigma)
 
-Symfit assumes these sigma to be from measurement errors by default, and not just as a relative weight.
+``symfit`` assumes these sigma to be from measurement errors by default, and not just as a relative weight.
 This means the standard deviations on parameters are calculated assuming the absolute size 
 of sigma is significant. This is the case for measurement errors and therefore for most use cases ``symfit`` was
 designed for. If you only want to use the sigma for relative weights, then you can use ``absolute_sigma=False`` as a
@@ -46,6 +46,27 @@ for historical reasons, and was understandably never changed so as not to loose 
 Since this is a new project, we don't have that problem.
 
 ``Fit`` currently simply wraps ``NumericalLeastSquares``, but might become more intelligent in the future.
+
+(Non)LinearLeastSquares
+-----------------------
+The ``LinearLeastSquares`` implements the analytical solution to Least Squares fitting.
+When your model is linear in it's parameters, consider using this rather than the default
+``NumericalLeastSquares`` since this gives the exact solution in one step, no iteration and
+no guesses needed.
+
+``NonLinearLeastSquares`` is the generalization to non-linear models. It works by approximating
+the model by a linear one around the value of your guesses and repeating that process iteratively.
+This process is therefore very sensitive to getting good initial guesses.
+
+Note's on these objects:
+
+- Use ``NonLinearLeastSquares`` instead of ``LinearLeastSquares`` unless you have a reason not to.
+  ``NonLinearLeastSquares`` will behave exactly the same as ``LinearLeastSquares`` when the model is linear.
+- Bounds are currently ignored by both. This is because for linear models there can only be one solution.
+  For non-linear models it simply hasn't been considered yet.
+- When performance matters, use ``NumericalLeastSquares`` instead of ``NonLinearLeastSquares``.
+  These analytical objects are implemented in pure python and are therefore massively outgunned by
+  ``NumericalLeastSquares`` which is ultimately a wrapper to MINPACK.
 
 Likelihood
 ----------
@@ -169,10 +190,10 @@ where ``data_per_var`` is a dict containing variable names: value pairs.
 Now all that is left is to call ``leastsqbound`` and have it find the best fit parameters::
 
     best_fit_parameters, covariance_matrix = leastsqbound(
-      error,
-      self.guesses,
-      self.eval_jacobian,
-      self.bounds,
+        error,
+        self.guesses,
+        self.eval_jacobian,
+        self.bounds,
     )
 
 That's it! Finally there are some steps to generate a FitResult object, but these are not important for our current discussion.
@@ -187,3 +208,4 @@ Within each group alphabetical ordering applies.
 It is therefore always possible to assign data to variables in an unambiguis way using this ordering. In the above example::
 
     fit = Fit(model, x_data, y_data, sigma_data)
+
