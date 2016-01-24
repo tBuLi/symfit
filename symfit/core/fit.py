@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import namedtuple, Mapping, OrderedDict, deque
 import copy
 import sys
 import warnings
@@ -7,9 +7,11 @@ import sympy
 from sympy.core.relational import Relational
 import numpy as np
 from scipy.optimize import minimize
+from scipy.integrate import ode, odeint
+from scipy.interpolate import interp1d
 
 from symfit.core.argument import Parameter, Variable
-from symfit.core.support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str
+from symfit.core.support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str, deprecated
 from symfit.core.leastsqbound import leastsqbound
 
 if sys.version_info >= (3,0):
@@ -102,6 +104,7 @@ class ParameterDict(object):
                     pass
         raise AttributeError('No Parameter by the name {}.'.format(param_name))
 
+    @deprecated(replacement='value')
     def get_value(self, param):
         """
         Deprecated.
@@ -109,9 +112,9 @@ class ParameterDict(object):
         :return: returns the numerical value of param
         :raises: DeprecationWarning
         """
-        warnings.warn(DeprecationWarning('`.get_value` has been deprecated. Use `.value` instead.'))
         return self.value(param)
 
+    @deprecated(replacement='stdev')
     def get_stdev(self, param):
         """
         Deprecated.
@@ -119,7 +122,6 @@ class ParameterDict(object):
         :return: returns the standard deviation of param
         :raises: DeprecationWarning
         """
-        warnings.warn(DeprecationWarning('`.get_stdev` has been deprecated. Use `.stdev` instead.'))
         return self.stdev(param)
 
     def value(self, param):
@@ -446,8 +448,9 @@ class Model(Mapping):
             even for scalar valued functions. This is done for consistency.
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
-        return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
+        Ans = namedtuple('Ans', [var.name for var in self.dependent_vars])
+        # return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
+        return Ans(*self.numerical_components(**bound_arguments.arguments))
 
     def __str__(self):
         """
@@ -881,11 +884,14 @@ class NumericalLeastSquares(BaseFit):
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
         """
-
+        try:
+            Dfun = self.eval_jacobian
+        except AttributeError:
+            Dfun = None
         try:
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
-                Dfun=self.eval_jacobian,
+                Dfun=Dfun,
                 args=(self.data.values(),),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
@@ -910,7 +916,7 @@ class NumericalLeastSquares(BaseFit):
         else:
             # Rescale the covariance matrix with the residual variance
             ss_res = np.sum(infodic['fvec']**2)
-            degrees_of_freedom = len(self.data[self.model[0].name]) - len(popt)
+            degrees_of_freedom = len(self.data[self.model.dependent_vars[0].name]) - len(popt)
 
             s_sq = ss_res / degrees_of_freedom
 
@@ -1487,6 +1493,9 @@ class Likelihood(Maximize):
         else:
             return np.array(ans)
 
+
+
+
 # class LagrangeMultipliers:
 #     """
 #     Class to analytically solve a function subject to constraints using Karush Kuhn Tucker.
@@ -1720,3 +1729,119 @@ def r_squared(model, fit_result, data):
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars)])
 
     return 1 - SS_res/SS_tot
+
+class ODEModel(Model):
+    def __init__(self, model_dict, initial, dt, domain=None, *args, **kwargs):
+        # self.model_dict = model_dict
+        self.initial = initial
+        self.dt = dt
+        self.domain = domain
+
+        sort_func = lambda symbol: str(symbol)
+        # Mapping from dependent vars to their derivatives
+        self.dependent_derivatives = {d: list(d.free_symbols - set(d.variables))[0] for d in model_dict}
+        self.dependent_vars = sorted(
+            self.dependent_derivatives.values(),
+            key=sort_func
+        )
+        self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
+        if not len(self.independent_vars):
+            raise ModelError('ODEModel can only have one independent variable.')
+
+        self.model_dict = OrderedDict(
+            sorted(
+                model_dict.items(),
+                key=lambda i: sort_func(self.dependent_derivatives[i[0]])
+            )
+        )
+        # Extract all the params and vars as a sorted, unique list.
+        expressions = model_dict.values()
+        _params = set([])
+        for expression in expressions:
+            vars, params = seperate_symbols(expression)
+            _params.update(params)
+            # self.independent_vars.update(vars)
+        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
+        self.params = sorted(_params, key=sort_func)
+
+
+        # Make Variable object corresponding to each var.
+        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+
+        self.__signature__ = self._make_signature()
+
+    @property
+    def domain(self):
+        return self._domain
+
+    @domain.setter
+    def domain(self, domain):
+        # Initial must be inside the domain of definition
+        if domain is not None:
+            if not (domain[0] <= self.initial[self.independent_vars[0]] <= domain[1]):
+                raise ModelError('The initial value for the independent variable must be inside the domain of definition.')
+            else:
+                self._domain = domain
+    @property
+    @cache
+    def ncomponents(self):
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
+
+    def numerical_components(self, *args, **kwargs):
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        t_like = bound_arguments.arguments[self.independent_vars[0].name]
+        # Integrate over the rhs
+        from scipy.integrate import ode
+
+        # if self.params:
+        #     # f = lambda t, y, p1, p2, p3, p4, p5: print(t, y, p1)
+        #     f = lambda t, y, p1, p2, p3, p4: [c(*([t] + list(y) + [p1, p2, p3, p4])) for c in self.ncomponents]
+        # else:
+        #     # f = lambda t, y: print(t, y)
+        #     f = lambda t, y: [c(*([t] + list(y))) for c in self.ncomponents]
+        # f = lambda y, t0, **kw: [c(t=t0, **kw) for c in self.ncomponents]
+        # f = lambda ys, t, *a: print(t, ys, a)
+        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self.ncomponents]
+
+        # r = ode(f).set_integrator('dopri5', method='adams', atol=1e-6)
+
+        # r = ode(f).set_integrator('vode', method='adams',
+        #                           order=10, atol=1e-6,
+        #                           with_jacobian=False)
+
+        initial_dependent = [self.initial[var] for var in self.dependent_vars]
+        initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
+        # r.set_initial_value(initial_dependent, initial_independent)
+        # r.set_f_params(*[bound_arguments.arguments[param.name] for param in self.params])
+
+        ans = odeint(f, initial_dependent, t_like, args=tuple(bound_arguments.arguments[param.name] for param in self.params))
+        return ans.T
+        # self.domain = [
+        #     np.min(t_like),
+        #     np.max(t_like)
+        # ]
+        #
+        # y = deque([])
+        # t = deque([])
+        # while r.successful() and r.t <= self.domain[1]:
+        #     r.integrate(r.t + self.dt)
+        #     t.append(r.t)
+        #     y.append(r.y)
+        #
+        # # Back in time
+        # r.set_initial_value(initial_dependent, initial_independent)
+        # while r.successful() and r.t >= self.domain[0]:
+        #     r.integrate(r.t - self.dt)
+        #     t.appendleft(r.t)
+        #     y.appendleft(r.y)
+        #
+        # t, y = np.array(t), np.array(y)
+        # interpolated_y = interp1d(np.array(t), np.array(y), axis=0)#, bounds_error=False)
+        # return interpolated_y(t_like).T
+
+
+
+class ODEFit(NumericalLeastSquares):
+    def __init__(self, model, initial, dt, *args, **kwargs):
+        model = ODEModel(model, initial=initial, dt=dt)
+        super(NumericalLeastSquares, self).__init__(model=model, *args, **kwargs)
