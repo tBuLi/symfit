@@ -449,8 +449,8 @@ class Model(Mapping):
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self.dependent_vars])
-        # return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
-        return Ans(*self.numerical_components(**bound_arguments.arguments))
+        return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
+        # return Ans(*self.numerical_components(**bound_arguments.arguments))
 
     def __str__(self):
         """
@@ -761,10 +761,11 @@ class BaseFit(object):
         stdev in x.
         """
         absolute_sigma = named_data.pop('absolute_sigma')
-        if isinstance(model, Mapping):
-            self.model = Model.from_dict(model)
-        elif isinstance(model, Model):
+        if isinstance(model, Model):
             self.model = model
+        elif isinstance(model, Mapping):
+            print(model)
+            self.model = Model.from_dict(model)
         else:
             self.model = Model(model)
 
@@ -884,15 +885,15 @@ class NumericalLeastSquares(BaseFit):
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
         """
-        try:
+        if hasattr(self.model, 'eval_jacobian'):
             Dfun = self.eval_jacobian
-        except AttributeError:
+        else:
             Dfun = None
         try:
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
                 Dfun=Dfun,
-                args=(self.data.values(),),
+                args=(self.independent_data.values(),),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
                 full_output=True,
@@ -903,7 +904,7 @@ class NumericalLeastSquares(BaseFit):
             # The exact Jacobian can contain nan's, causing the fit to fail. In such cases, try again without providing an exact jacobian.
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
-                args=(self.data.values(),),
+                args=(self.independent_data.values(),),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
                 full_output=True,
@@ -937,7 +938,13 @@ class NumericalLeastSquares(BaseFit):
 
 
     def error_func(self, p, data):
-        return self.model.numerical_chi(*(list(data) + list(p))).flatten()
+        # return self.model.numerical_chi(*(list(data) + list(p))).flatten()
+        # zip together the dependent vars and evaluated component
+        result = []
+        for y, ans in zip(self.model, self.model(*(list(data) + list(p)))):
+            if self.dependent_data[y.name] is not None:
+                result.append((self.dependent_data[y.name] - ans)/self.sigma_data[self.model.sigmas[y].name])
+        return sum(result)
 
     def eval_jacobian(self, p, data):
         return np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T
@@ -1723,19 +1730,18 @@ def r_squared(model, fit_result, data):
     # First filter out the dependent vars
     y_is = [data[var.name] for var in model if var.name in data]
     x_is = [value for key, value in data.items() if key in model.__signature__.parameters]
-    y_bars = [np.mean(x) for x in y_is]
+    y_bars = [np.mean(y_i) for y_i in y_is if y_i is not None]
     f_is = model(*x_is, **fit_result.params)
-    SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is)])
-    SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars)])
+    SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
+    SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
 
     return 1 - SS_res/SS_tot
 
 class ODEModel(Model):
-    def __init__(self, model_dict, initial, dt, domain=None, *args, **kwargs):
-        # self.model_dict = model_dict
+    def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
         self.initial = initial
-        self.dt = dt
-        self.domain = domain
+        self.lsoda_args = lsoda_args
+        self.lsoda_kwargs = lsoda_kwargs
 
         sort_func = lambda symbol: str(symbol)
         # Mapping from dependent vars to their derivatives
@@ -1770,78 +1776,50 @@ class ODEModel(Model):
 
         self.__signature__ = self._make_signature()
 
-    @property
-    def domain(self):
-        return self._domain
+    def __getitem__(self, dependent_var):
+        """
+        Gives the function defined for the derivative of ``dependent_var``.
+        e.g. :math:`y' = f(y, t)`, model[y] -> f(y, t)
 
-    @domain.setter
-    def domain(self, domain):
-        # Initial must be inside the domain of definition
-        if domain is not None:
-            if not (domain[0] <= self.initial[self.independent_vars[0]] <= domain[1]):
-                raise ModelError('The initial value for the independent variable must be inside the domain of definition.')
-            else:
-                self._domain = domain
+        :param dependent_var:
+        :return:
+        """
+        for d, f in self.model_dict.items():
+            if dependent_var == self.dependent_derivatives[d]:
+                return f
+
+    def __iter__(self):
+        """
+        :return: iterable over self.model_dict
+        """
+        return iter(self.dependent_vars)
+
     @property
     @cache
-    def ncomponents(self):
+    def _ncomponents(self):
         return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
 
     def numerical_components(self, *args, **kwargs):
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
-        # Integrate over the rhs
-        from scipy.integrate import ode
 
-        # if self.params:
-        #     # f = lambda t, y, p1, p2, p3, p4, p5: print(t, y, p1)
-        #     f = lambda t, y, p1, p2, p3, p4: [c(*([t] + list(y) + [p1, p2, p3, p4])) for c in self.ncomponents]
-        # else:
-        #     # f = lambda t, y: print(t, y)
-        #     f = lambda t, y: [c(*([t] + list(y))) for c in self.ncomponents]
-        # f = lambda y, t0, **kw: [c(t=t0, **kw) for c in self.ncomponents]
-        # f = lambda ys, t, *a: print(t, ys, a)
-        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self.ncomponents]
-
-        # r = ode(f).set_integrator('dopri5', method='adams', atol=1e-6)
-
-        # r = ode(f).set_integrator('vode', method='adams',
-        #                           order=10, atol=1e-6,
-        #                           with_jacobian=False)
+        # System of functions to be integrated
+        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
-        # r.set_initial_value(initial_dependent, initial_independent)
-        # r.set_f_params(*[bound_arguments.arguments[param.name] for param in self.params])
 
-        ans = odeint(f, initial_dependent, t_like, args=tuple(bound_arguments.arguments[param.name] for param in self.params))
-        return ans.T
-        # self.domain = [
-        #     np.min(t_like),
-        #     np.max(t_like)
-        # ]
-        #
-        # y = deque([])
-        # t = deque([])
-        # while r.successful() and r.t <= self.domain[1]:
-        #     r.integrate(r.t + self.dt)
-        #     t.append(r.t)
-        #     y.append(r.y)
-        #
-        # # Back in time
-        # r.set_initial_value(initial_dependent, initial_independent)
-        # while r.successful() and r.t >= self.domain[0]:
-        #     r.integrate(r.t - self.dt)
-        #     t.appendleft(r.t)
-        #     y.appendleft(r.y)
-        #
-        # t, y = np.array(t), np.array(y)
-        # interpolated_y = interp1d(np.array(t), np.array(y), axis=0)#, bounds_error=False)
-        # return interpolated_y(t_like).T
+        # Check if the time-like data includes the initial value, because integration should start there.
+        # For fitting to make sence, it should probably not be in there though.
+        if t_like[0] == initial_independent:
+            start = 0
+            warnings.warn("The initial point should probably not be included with your data points as this point will always be fitted perfectly.")
+        elif t_like[0] < initial_independent:
+            raise ModelError('ODEModel\'s can not be evaluated for values smaller than the initial value')
+        else:
+            assert len(t_like.shape) == 1
+            t_like = np.hstack((np.array([initial_independent]), t_like))
+            start = 1
 
-
-
-class ODEFit(NumericalLeastSquares):
-    def __init__(self, model, initial, dt, *args, **kwargs):
-        model = ODEModel(model, initial=initial, dt=dt)
-        super(NumericalLeastSquares, self).__init__(model=model, *args, **kwargs)
+        ans = odeint(f, initial_dependent, t_like, args=tuple(bound_arguments.arguments[param.name] for param in self.params), *self.lsoda_args, **self.lsoda_kwargs)
+        return ans[start:].T
