@@ -11,9 +11,10 @@ from scipy.optimize import curve_fit
 
 from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters, Model, NumericalLeastSquares
 from symfit.distributions import Gaussian, Exp
-# from symfit.tests.tests_fit_result import TestFitResults
-# from symfit.tests.tests_analytical_fit import TestAnalyticalFit
-# from symfit.tests.tests_model import TestModel
+from symfit.tests.tests_fit_result import TestFitResults
+from symfit.tests.tests_analytical_fit import TestAnalyticalFit
+from symfit.tests.tests_model import TestModel
+from symfit.tests.tests_ode import TestODE
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -112,7 +113,7 @@ class Tests(unittest.TestCase):
         ydata = 3*xdata**2
 
         a = Parameter(1.0)
-        b = Parameter(1.0)
+        b = Parameter(2.5)
         x, y = variables('x, y')
 
 
@@ -196,11 +197,6 @@ class Tests(unittest.TestCase):
         new = a*x**b
 
         fit = NumericalLeastSquares(new, xdata, ydata)
-
-        self.assertTrue(issubclass(fit.model.chi_squared.__class__, sympy.Expr))
-        self.assertTrue(issubclass(fit.model.chi.__class__, sympy.Expr))
-        self.assertTrue(type(fit.model.numerical_chi_squared) is types.LambdaType)
-        self.assertTrue(type(fit.model.numerical_chi) is types.LambdaType)
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
@@ -293,7 +289,7 @@ class Tests(unittest.TestCase):
         a, b = parameters('a, b')
         x, y = variables('x, y')
         new = a*x**2 + b*y**2
-        model = Model(z=new)
+        model = Model(new)
         z, = model(3, 3, 2, 2)
 
         self.assertEqual(z, 36)
@@ -301,7 +297,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(arg_name, name)
 
         # From Model __init__ directly
-        model = Model(z_1=a*x**2, z_2=4*b*y**2, z_3=a*x**2 + b*y**2)
+        model = Model([a*x**2, 4*b*y**2, a*x**2 + b*y**2])
         z_1, z_2, z_3 = model(3, 3, 2, 2)
 
         self.assertEqual(z_1, 18)
@@ -312,7 +308,7 @@ class Tests(unittest.TestCase):
 
         # From dict
         z_1, z_2, z_3 = variables('z_1, z_2, z_3')
-        model = Model.from_dict({z_1: a*x**2, z_2: 4*b*y**2, z_3: a*x**2 + b*y**2})
+        model = Model({z_1: a*x**2, z_2: 4*b*y**2, z_3: a*x**2 + b*y**2})
         z_1, z_2, z_3 = model(3, 3, 2, 2)
 
         self.assertEqual(z_1, 18)
@@ -462,7 +458,7 @@ class Tests(unittest.TestCase):
         a_i, b_i, c_i = variables('a_i, b_i, c_i')
         # a_i, b_i, c_i, s_a, s_b, s_c = variables('a_i, b_i, c_i, s_a, s_b, s_c')
 
-        model = Model.from_dict({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
+        model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
         self.assertEqual([[2, 3, 0], [0, 5, 0], [0, 0, 7]], model.jacobian)
 
     def test_minimize(self):
@@ -668,7 +664,7 @@ class Tests(unittest.TestCase):
         errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
 
         # raise Exception(xy, z)
-        a = Parameter()
+        a = Parameter(3.0)
         b = Parameter(0.9)
         c = Parameter(5)
         x = Variable()
@@ -821,7 +817,7 @@ class Tests(unittest.TestCase):
         x, y_1, y_2 = variables('x, y_1, y_2')
         a, b = parameters('a, b')
 
-        model = Model.from_dict({
+        model = Model({
             y_1: 2 * a * x,
             y_2: b * x**2
         })

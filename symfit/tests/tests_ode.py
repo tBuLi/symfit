@@ -36,7 +36,8 @@ class TestODE(unittest.TestCase):
 
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, y: 1.0})
-        fit_result = Fit(ode_model, t=tdata, y=ydata).execute()
+        fit = Fit(ode_model, t=tdata, y=ydata)
+        fit_result = fit.execute()
         y_sol, = ode_model(tdata, **fit_result.params)
 
         self.assertAlmostEqual(3.22, fit_result.value(p))
