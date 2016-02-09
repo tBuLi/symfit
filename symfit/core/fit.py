@@ -449,8 +449,8 @@ class Model(Mapping):
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self.dependent_vars])
-        return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
-        # return Ans(*self.numerical_components(**bound_arguments.arguments))
+        # return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
+        return Ans(*self.eval_components(**bound_arguments.arguments))
 
     def __str__(self):
         """
@@ -900,7 +900,7 @@ class NumericalLeastSquares(BaseFit):
                 *options,
                 **kwoptions
             )
-        except ValueError:
+        except ValueError as err:
             # The exact Jacobian can contain nan's, causing the fit to fail. In such cases, try again without providing an exact jacobian.
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
@@ -955,24 +955,21 @@ class NumericalLeastSquares(BaseFit):
         for y, ans in zip(self.model, self.model(*jac_args)):
             if dependent_data[y.name] is not None:
                 result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
-
-        if flatten:
-            return np.sqrt(sum(result)).flatten()
-        else:
-            return np.sqrt(sum(result))
+                if flatten:
+                    result[-1] = result[-1].flatten()
+        return np.sqrt(sum(result))
 
     def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
         chi = self.error_func(p, independent_data, dependent_data, sigma_data, flatten=False)
         jac_args = list(independent_data.values()) + list(p)
         result = len(self.model.params) * [0.0]
         for ans, y, row in zip(self.model(*jac_args), self.model, self.model.numerical_jacobian):
-            print(ans.shape)
             if dependent_data[y.name] is not None:
                 for index, component in enumerate(row):
                     result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
         result = [item.flatten() for item in result]
-        print(chi.shape, result[0].shape, len(result))
-        return -np.array(result).T
+        # print('jac stuff', chi.shape, result[0].shape, len(result))
+        return - np.array(result).T
 
 
 class LinearLeastSquares(BaseFit):
@@ -1824,7 +1821,7 @@ class ODEModel(Model):
     def _ncomponents(self):
         return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
 
-    def numerical_components(self, *args, **kwargs):
+    def eval_components(self, *args, **kwargs):
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
 
