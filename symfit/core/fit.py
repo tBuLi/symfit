@@ -410,13 +410,13 @@ class CallableModel(BaseModel):
     * first independent variables, then dependent variables, then parameters.
     * within each of these groups they are ordered alphabetically.
     """
-    # @abstractmethod
-    # def eval_components(self, *args, **kwargs):
-    #     """
-    #     Evaluate the components of the model with the given data.
-    #     Used for numerical evaluation.
-    #     """
-    #     pass
+    @abstractmethod
+    def eval_components(self, *args, **kwargs):
+        """
+        Evaluate the components of the model with the given data.
+        Used for numerical evaluation.
+        """
+        pass
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
@@ -445,8 +445,8 @@ class CallableModel(BaseModel):
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self])
-        return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
-        # return Ans(*self.eval_components(**bound_arguments.arguments))
+        # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
+        return Ans(*self.eval_components(**bound_arguments.arguments))
 
 
 class Model(CallableModel):
@@ -465,55 +465,6 @@ class Model(CallableModel):
     Models are also iterable, behaving as their internal model_dict. In the example above,
     a[y] returns x**2, len(a) == 1, y in a == True, etc.
     """
-    # def __init__(self, *ordered_expressions, **named_expressions):
-    #     """
-    #     Initiate a Model from keyword arguments::
-    #
-    #         b = Model(y=x**2)
-    #
-    #     :param ordered_expressions: sympy Expr
-    #     :param named_expressions: sympy Expr
-    #     """
-    #     model_dict = {sympy.Dummy('y_{}'.format(index + 1)): expr for index, expr in enumerate(ordered_expressions)}
-    #     model_dict.update(
-    #         {Variable(name=dep_var_name): expr for dep_var_name, expr in named_expressions.items()}
-    #     )
-    #     if model_dict:
-    #         self._init_from_dict(model_dict)
-
-    # @classmethod
-    # def from_dict(cls, model_dict):
-    #     """
-    #     Initiate a Model from a dict::
-    #
-    #         a = Model({y: x**2})
-    #
-    #     Preferred way of initiating ``Model``.
-    #
-    #     :param model_dict: dict of ``Expr``, where dependent variables are the keys.
-    #     """
-    #     self = cls()
-    #     self._init_from_dict(model_dict)
-    #
-    #     return self
-
-    # def __call__(self, *args, **kwargs):
-    #     """
-    #     Evaluate the model for a certain value of the independent vars and parameters.
-    #     Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
-    #
-    #     Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
-    #     Alphabetical order within each group.
-    #
-    #     :param args:
-    #     :param kwargs:
-    #     :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
-    #         even for scalar valued functions. This is done for consistency.
-    #     """
-    #     bound_arguments = self.__signature__.bind(*args, **kwargs)
-    #     Ans = namedtuple('Ans', [var.name for var in self])
-    #     return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
-
     def __str__(self):
         """
         Printable representation of this model.
@@ -534,50 +485,6 @@ class Model(CallableModel):
 
     @property
     # @cache
-    def chi_squared(self):
-        """
-        :return: Symbolic :math:`\\chi^2`
-        """
-        return sum(((f - y)/self.sigmas[y])**2 for y, f in self.items())
-
-    @property
-    # @cache
-    def chi(self):
-        """
-        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
-        """
-        return sympy.sqrt(self.chi_squared)
-
-    @property
-    # @cache
-    def chi_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector! This is because that's what leastsq needs.
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi, param)
-            jac.append(f)
-        return jac
-
-    @property
-    # @cache
-    def chi_squared_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\chi^2` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi_squared, param)
-            jac.append(f)
-        return jac
-
-    @property
-    # @cache
     def jacobian(self):
         """
         :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
@@ -586,21 +493,13 @@ class Model(CallableModel):
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
-    @property
-    # @cache
-    def ss_res(self):
-        """
-        :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
-        """
-        return sum((y - f)**2 for y, f in self.items())
-
-    @property
-    # @cache
-    def numerical_chi_squared(self):
-        """
-        :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
-        """
-        return sympy_to_py(self.chi_squared, self.vars, self.params)
+    # @property
+    # # @cache
+    # def ss_res(self):
+    #     """
+    #     :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
+    #     """
+    #     return sum((y - f)**2 for y, f in self.items())
 
     @property
     # @cache
@@ -612,81 +511,27 @@ class Model(CallableModel):
 
     @property
     # @cache
-    def numerical_chi(self):
-        """
-        :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.
-        """
-        return sympy_to_py(self.chi, self.vars, self.params)
-
-    @property
-    # @cache
-    def numerical_chi_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
-
-    @property
-    # @cache
-    def numerical_chi_squared_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi_squared`` method.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
-
-    @property
-    # @cache
     def numerical_jacobian(self):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
         return [[sympy_to_py(partial, self.independent_vars, self.params) for partial in row] for row in self.jacobian]
 
-    # def eval_chi_squared(self, *args, **kwargs):
-    #     """
-    #     :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
-    #     """
-    #     return sympy_to_py(self.chi_squared, self.vars, self.params)(*args, **kwargs)
-    #     # return self.chi_squared(*args, **kwargs)
-    #
-    # def eval_components(self, *args, **kwargs):
-    #     """
-    #     :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
-    #     """
-    #     # return [expr(*args, **kwargs) for expr in self.values()]
-    #     return [sympy_to_py(expr, self.independent_vars, self.params)(*args, **kwargs) for expr in self.values()]
-    #
-    # def eval_chi(self, *args, **kwargs):
-    #     """
-    #     :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.
-    #     """
-    #     # return self.chi(*args, **kwargs)
-    #     return sympy_to_py(self.chi, self.vars, self.params)(*args, **kwargs)
-    #
-    # def eval_chi_jacobian(self, *args, **kwargs):
-    #     """
-    #     :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.
-    #     """
-    #     return [sympy_to_py(component, self.vars, self.params)(*args, **kwargs) for component in self.chi_jacobian]
-    #     # return [component(*args, **kwargs) for component in self.chi_jacobian]
-    #
-    # def eval_chi_squared_jacobian(self, *args, **kwargs):
-    #     """
-    #     :return: lambda functions of the jacobian of the ``.chi_squared`` method.
-    #     """
-    #     return [sympy_to_py(component, self.vars, self.params)(*args, **kwargs) for component in self.chi_squared_jacobian]
-    #     # return [component(*args, **kwargs) for component in self.chi_squared_jacobian]
-    #
-    # def eval_jacobian(self, *args, **kwargs):
-    #     """
-    #     :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
-    #     """
-    #     return [
-    #         [sympy_to_py(partial, self.independent_vars, self.params)(*args, **kwargs)
-    #              for partial in row
-    #         ] for row in self.jacobian
-    #     ]
-    #     # return [[partial(*args, **kwargs) for partial in row] for row in self.jacobian]
+    def eval_components(self, *args, **kwargs):
+        """
+        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
+        """
+        return [expr(*args, **kwargs) for expr in self.numerical_components]
+        # return [sympy_to_py(expr, self.independent_vars, self.params)(*args, **kwargs) for expr in self.values()]
+
+    def eval_jacobian(self, *args, **kwargs):
+        """
+        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
+        """
+        return [
+            [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
+        ]
+        # return [[partial(*args, **kwargs) for partial in row] for row in self.jacobian]
 
     @property
     def bounds(self):
@@ -1031,14 +876,9 @@ class NumericalLeastSquares(BaseFit):
 
 
     def error_func(self, p, data):
-        # return self.model.eval_chi(*(list(data) + list(p)))
         return self.model.numerical_chi(*(list(data) + list(p))).flatten()
-        # print('error:', self.model.eval_chi(*(list(data) + list(p))).shape)
-        # return self.model.eval_chi(*(list(data) + list(p)))
 
     def eval_jacobian(self, p, data):
-        # print('jac:', p, len(data), np.array(self.model.eval_chi_jacobian(*(list(data) + list(p)))).T.shape)
-        # return np.array(self.model.eval_chi_jacobian(*(list(data) + list(p)))).T
         return np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T
 
 

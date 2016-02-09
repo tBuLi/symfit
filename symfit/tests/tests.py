@@ -13,7 +13,7 @@ from symfit.api import Variable, Parameter, Fit, FitResults, Maximize, Minimize,
 from symfit.distributions import Gaussian, Exp
 # from symfit.tests.tests_fit_result import TestFitResults
 # from symfit.tests.tests_analytical_fit import TestAnalyticalFit
-# from symfit.tests.tests_model import TestModel
+from symfit.tests.tests_model import TestModel
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
