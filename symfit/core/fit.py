@@ -885,7 +885,7 @@ class NumericalLeastSquares(BaseFit):
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
         """
-        if hasattr(self.model, 'eval_jacobian'):
+        if hasattr(self.model, 'numerical_jacobian'):
             Dfun = self.eval_jacobian
         else:
             Dfun = None
@@ -893,7 +893,7 @@ class NumericalLeastSquares(BaseFit):
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
                 Dfun=Dfun,
-                args=(self.independent_data.values(),),
+                args=(self.independent_data, self.dependent_data, self.sigma_data,),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
                 full_output=True,
@@ -904,7 +904,7 @@ class NumericalLeastSquares(BaseFit):
             # The exact Jacobian can contain nan's, causing the fit to fail. In such cases, try again without providing an exact jacobian.
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
-                args=(self.independent_data.values(),),
+                args=(self.independent_data, self.dependent_data, self.sigma_data,),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
                 full_output=True,
@@ -937,17 +937,42 @@ class NumericalLeastSquares(BaseFit):
         return self._fit_results
 
 
-    def error_func(self, p, data):
-        # return self.model.numerical_chi(*(list(data) + list(p))).flatten()
-        # zip together the dependent vars and evaluated component
-        result = []
-        for y, ans in zip(self.model, self.model(*(list(data) + list(p)))):
-            if self.dependent_data[y.name] is not None:
-                result.append((self.dependent_data[y.name] - ans)/self.sigma_data[self.model.sigmas[y].name])
-        return sum(result)
+    def error_func(self, p, independent_data, dependent_data, sigma_data, flatten=True):
+        """
+        Returns the value of the square root of :math:`\\chi^2`, without summing over the components.
 
-    def eval_jacobian(self, p, data):
-        return np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T
+        This function now supports setting variables to None. Needs mathematical rigor!
+
+        :param p: array of parameter values.
+        :param independent_data: Data to provide to the independent variables.
+        :param dependent_data:
+        :param sigma_data:
+        :return: :math:`\\sqrt(\\chi^2)`
+        """
+        result = []
+        jac_args = list(independent_data.values()) + list(p)
+        # zip together the dependent vars and evaluated component
+        for y, ans in zip(self.model, self.model(*jac_args)):
+            if dependent_data[y.name] is not None:
+                result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
+
+        if flatten:
+            return np.sqrt(sum(result)).flatten()
+        else:
+            return np.sqrt(sum(result))
+
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
+        chi = self.error_func(p, independent_data, dependent_data, sigma_data, flatten=False)
+        jac_args = list(independent_data.values()) + list(p)
+        result = len(self.model.params) * [0.0]
+        for ans, y, row in zip(self.model(*jac_args), self.model, self.model.numerical_jacobian):
+            print(ans.shape)
+            if dependent_data[y.name] is not None:
+                for index, component in enumerate(row):
+                    result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
+        result = [item.flatten() for item in result]
+        print(chi.shape, result[0].shape, len(result))
+        return -np.array(result).T
 
 
 class LinearLeastSquares(BaseFit):
