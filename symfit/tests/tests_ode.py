@@ -115,14 +115,15 @@ class TestODE(unittest.TestCase):
 
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute()
+        print(fit_result)
 
-        # A, B = ode_model(t=tvec, **fit_result.params)
-        # plt.plot()
-        # plt.plot(tvec, A, label='[A]')
-        # plt.plot(tvec, B, label='[B]')
-        # plt.scatter(tdata, adata)
-        # plt.legend()
-        # plt.show()
+        A, B = ode_model(t=tvec, **fit_result.params)
+        plt.plot()
+        plt.plot(tvec, A, label='[A]')
+        plt.plot(tvec, B, label='[B]')
+        plt.scatter(tdata, adata)
+        plt.legend()
+        plt.show()
 
 
 if __name__ == '__main__':

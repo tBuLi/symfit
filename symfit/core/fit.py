@@ -974,14 +974,20 @@ class NumericalLeastSquares(BaseFit):
         :param sigma_data:
         :return: :math:`\\sqrt(\\chi^2)`
         """
+        # import matplotlib.pyplot as plt
+
         result = []
         jac_args = list(independent_data.values()) + list(p)
+
         # zip together the dependent vars and evaluated component
         for y, ans in zip(self.model, self.model(*jac_args)):
+            # if 'd' in y.name:
+            #     plt.plot(jac_args[0], ans, label=str(p))
             if dependent_data[y.name] is not None:
                 result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
                 if flatten:
                     result[-1] = result[-1].flatten()
+        # print(np.sqrt(sum(result)).shape)
         return np.sqrt(sum(result))
 
     def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
@@ -1786,7 +1792,7 @@ def r_squared(model, fit_result, data):
     return 1 - SS_res/SS_tot
 
 class ODEModel(CallableModel):
-    def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
+    def __init__(self, model_dict, initial, exposed=None, *lsoda_args, **lsoda_kwargs):
         self.initial = initial
         self.lsoda_args = lsoda_args
         self.lsoda_kwargs = lsoda_kwargs
@@ -1822,6 +1828,8 @@ class ODEModel(CallableModel):
         # Make Variable object corresponding to each var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
+        self.exposed = exposed if exposed else self.dependent_vars
+
         self.__signature__ = self._make_signature()
 
     def __getitem__(self, dependent_var):
@@ -1847,12 +1855,18 @@ class ODEModel(CallableModel):
     def _ncomponents(self):
         return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
 
+    @property
+    @cache
+    def _njacobian(self):
+        return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
+
     def eval_components(self, *args, **kwargs):
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
 
         # System of functions to be integrated
         f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
+        # Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
@@ -1869,5 +1883,29 @@ class ODEModel(CallableModel):
             t_like = np.hstack((np.array([initial_independent]), t_like))
             start = 1
 
-        ans = odeint(f, initial_dependent, t_like, args=tuple(bound_arguments.arguments[param.name] for param in self.params), *self.lsoda_args, **self.lsoda_kwargs)
-        return ans[start:].T
+        ans = odeint(f, initial_dependent, t_like, args=tuple(bound_arguments.arguments[param.name] for param in self.params), *self.lsoda_args, **self.lsoda_kwargs) #  Dfun=Dfun
+        # We expose only the vars that the user wants to see
+        ans = np.array([column for var, column in zip(self, ans[start:].T) if var in self.exposed])
+        print(ans.shape)
+        # return ans
+        return ans
+
+    def __call__(self, *args, **kwargs):
+        """
+        Evaluate the model for a certain value of the independent vars and parameters.
+        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
+
+        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
+        Alphabetical order within each group.
+
+        :param args:
+        :param kwargs:
+        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
+            even for scalar valued functions. This is done for consistency.
+        """
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        Ans = namedtuple('Ans', [var.name for var in self if var in self.exposed])
+        # Ans = namedtuple('Ans', [var.name for var in self])
+        ans = Ans(*self.eval_components(**bound_arguments.arguments))
+        print(ans[0].shape)
+        return ans
