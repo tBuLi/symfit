@@ -910,7 +910,7 @@ class NumericalLeastSquares(BaseFit):
         else:
             # Rescale the covariance matrix with the residual variance
             ss_res = np.sum(infodic['fvec']**2)
-            degrees_of_freedom = len(self.data[self.model[0].name]) - len(popt)
+            degrees_of_freedom = len(self.data[self.model.dependent_vars[0].name]) - len(popt)
 
             s_sq = ss_res / degrees_of_freedom
 
@@ -1099,7 +1099,7 @@ class NonLinearLeastSquares(BaseFit):
             param: value for param, value in zip(self.model_appr.params, self.initial_guesses)
         }
 
-    def execute(self, relative_error=0.0001, max_iter=50):
+    def execute(self, relative_error=1e-8, max_iter=500):
         """
         Perform a non-linear least squares fit.
 

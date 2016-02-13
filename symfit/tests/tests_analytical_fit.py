@@ -257,7 +257,7 @@ class TestAnalyticalFit(unittest.TestCase):
 
         # We now define our model
         t, y = variables('t, y')
-        g = Parameter(11)
+        g = Parameter(9.0)
         t_model = {t: (2 * y / g)**0.5}
 
         # Different sigma for every point
