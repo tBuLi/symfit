@@ -21,6 +21,10 @@ else:
     import funcsigs as inspect_sig
 
 class Tests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        np.random.seed(0)
+
     def test_gaussian(self):
         x0, sig = parameters('x0, sig')
         x = Variable()
@@ -379,8 +383,7 @@ class Tests(unittest.TestCase):
         mean = (0.6,0.4) # x, y mean 0.6, 0.4
         cov = [[0.2**2,0],[0,0.1**2]]
 
-        np.random.seed(100)
-        data = np.random.multivariate_normal(mean, cov, 10000)
+        data = np.random.multivariate_normal(mean, cov, 1000000)
 
         # Insert them as y,x here as np fucks up cartesian conventions.
         ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
@@ -390,11 +393,11 @@ class Tests(unittest.TestCase):
         # Make a valid grid to match ydata
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
 
-        x0 = Parameter(0.63, min=0.5)
-        sig_x = Parameter(0.28, min=0.0)
+        x0 = Parameter()
+        sig_x = Parameter(min=0.0)
         x = Variable()
-        y0 = Parameter(0.45, max=0.5)
-        sig_y = Parameter(0.11, min=0.0)
+        y0 = Parameter()
+        sig_y = Parameter(min=0.0)
         A = Parameter()
         y = Variable()
         g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
