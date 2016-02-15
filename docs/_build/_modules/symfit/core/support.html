@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>symfit.core.support &mdash; symfit 0.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="symfit 0.3.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">symfit 0.3.0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for symfit.core.support</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains support functions and convenience methods used</span>
+<span class="sd">throughout symfit. Some are used predominantly internally, others are</span>
+<span class="sd">designed for users.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">symfit.core.argument</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">Variable</span>
+
+<span class="kn">from</span> <span class="nn">sympy.utilities.lambdify</span> <span class="kn">import</span> <span class="n">lambdify</span>
+<span class="kn">import</span> <span class="nn">sympy</span>
+
+<div class="viewcode-block" id="seperate_symbols"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.seperate_symbols">[docs]</a><span class="k">def</span> <span class="nf">seperate_symbols</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Seperate the symbols in symbolic function func. Return them in alphabetical</span>
+<span class="sd">    order.</span>
+
+<span class="sd">    :param func: scipy symbolic function.</span>
+<span class="sd">    :return: (vars, params), a tuple of all variables and parameters, each </span>
+<span class="sd">        sorted in alphabetical order.</span>
+<span class="sd">    :raises TypeError: only symfit Variable and Parameter are allowed, not sympy</span>
+<span class="sd">        Symbols.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="nb">vars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="kn">from</span> <span class="nn">sympy.tensor</span> <span class="kn">import</span> <span class="n">IndexedBase</span>
+    <span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">Symbol</span>
+    <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">func</span><span class="o">.</span><span class="n">free_symbols</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="p">(</span><span class="n">Variable</span><span class="p">,</span> <span class="n">IndexedBase</span><span class="p">,</span> <span class="n">Symbol</span><span class="p">)):</span>
+            <span class="nb">vars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;model contains an unknown symbol type, {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">symbol</span><span class="p">)))</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">symbol</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="nb">vars</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">symbol</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">vars</span><span class="p">,</span> <span class="n">params</span></div>
+
+<div class="viewcode-block" id="sympy_to_py"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.sympy_to_py">[docs]</a><span class="k">def</span> <span class="nf">sympy_to_py</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="nb">vars</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Turn a symbolic expression into a Python lambda function,</span>
+<span class="sd">    which has the names of the variables and parameters as it&#39;s argument names.</span>
+
+<span class="sd">    :param func: sympy expression</span>
+<span class="sd">    :param vars: variables in this model</span>
+<span class="sd">    :param params: parameters in this model</span>
+<span class="sd">    :return: lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars</span>
+<span class="sd">        first, then params.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">lambdify</span><span class="p">((</span><span class="nb">vars</span> <span class="o">+</span> <span class="n">params</span><span class="p">),</span> <span class="n">func</span><span class="p">,</span> <span class="n">modules</span><span class="o">=</span><span class="s">&#39;numpy&#39;</span><span class="p">,</span> <span class="n">dummify</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="sympy_to_scipy"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.sympy_to_scipy">[docs]</a><span class="k">def</span> <span class="nf">sympy_to_scipy</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="nb">vars</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a symbolic expression to one scipy digs. Not used by ``symfit`` any more.</span>
+
+<span class="sd">    :param func: sympy expression</span>
+<span class="sd">    :param vars: variables</span>
+<span class="sd">    :param params: parameters</span>
+<span class="sd">    :return: Scipy-style function to be used for numerical evaluation of the model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lambda_func</span> <span class="o">=</span> <span class="n">sympy_to_py</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="nb">vars</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">p</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Scipy style function.</span>
+
+<span class="sd">        :param x: list of arrays, NxM</span>
+<span class="sd">        :param p: tuple of parameter values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">ans</span> <span class="o">=</span> <span class="n">lambda_func</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="p">)))</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="c"># Possibly this is a constant function in which case it only has Parameters.</span>
+            <span class="n">ans</span> <span class="o">=</span> <span class="n">lambda_func</span><span class="p">(</span><span class="o">*</span><span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="p">))</span><span class="c"># * np.ones(x_shape)</span>
+        <span class="k">return</span> <span class="n">ans</span>
+
+    <span class="k">return</span> <span class="n">f</span></div>
+
+<div class="viewcode-block" id="variables"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.variables">[docs]</a><span class="k">def</span> <span class="nf">variables</span><span class="p">(</span><span class="n">names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convenience function for the creation of multiple variables.</span>
+
+<span class="sd">    :param names: string of variable names. Should be comma seperated.</span>
+<span class="sd">        Example: x, y = variables(&#39;x, y&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Variable</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="parameters"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.parameters">[docs]</a><span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="n">names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convenience function for the creation of multiple parameters.</span>
+
+<span class="sd">    :param names: string of parameter names. Should be comma seperated.</span>
+<span class="sd">        Example: a, b = parameters(&#39;a, b&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="cache"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.cache">[docs]</a><span class="k">def</span> <span class="nf">cache</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator function that gets a method as its input and either buffers the input,</span>
+<span class="sd">    or returns the buffered output. Used in conjunction with properties to take away</span>
+<span class="sd">    the standard buffering logic.</span>
+
+<span class="sd">    :param func:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">new_func</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">),</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">new_func</span></div>
+
+<div class="viewcode-block" id="jacobian"><a class="viewcode-back" href="../../../module_docs.html#symfit.core.support.jacobian">[docs]</a><span class="k">def</span> <span class="nf">jacobian</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">symbols</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Derive a symbolic expr w.r.t. each symbol in symbols. This returns a symbolic jacobian vector.</span>
+
+<span class="sd">    :param expr: A sympy Expr.</span>
+<span class="sd">    :param symbols: The symbols w.r.t. which to derive.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">jac</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">symbols</span><span class="p">:</span>
+        <span class="c"># Differentiate to every param</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">symbol</span><span class="p">)</span>
+        <span class="n">jac</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">jac</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">symfit 0.3.0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2014, tBuLi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
+    </div>
+  </body>
+</html>

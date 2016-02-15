@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Quick Start &mdash; symfit 0.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="symfit 0.3.0 documentation" href="index.html" />
+    <link rel="next" title="Tutorial" href="tutorial.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">symfit 0.3.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="quick-start">
+<h1>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h1>
+<p>If you simply want the most important parts about symfit, you came to the right place.</p>
+<div class="section" id="single-variable-problem">
+<h2>Single Variable Problem<a class="headerlink" href="#single-variable-problem" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre>from symfit.api import Parameter, Variable, exp, Fit
+
+A = Parameter(100, min=0)
+b = Parameter()
+x = Variable()
+model = A * exp(x * b)
+
+xdata = # your 1D xdata. This is a quick start guide, so I&#39;m assuming you know how to get it.
+ydata = # 1D ydata
+
+fit = Fit(model, xdata, ydata)
+fit_result = fit.execute()
+
+# Plot the fit.
+# The model *has* to be called by keyword arguments to prevent any ambiguity
+y = model(x=xdata, **fit_result.params)
+plt.plot(xdata, y)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="section" id="symfit-api-exposes-sympy-api">
+<h2>symfit.api exposes sympy.api<a class="headerlink" href="#symfit-api-exposes-sympy-api" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">symfit.api</span></code> exposes the sympy api as well, so mathematical expressions such as <code class="docutils literal"><span class="pre">exp</span></code>, <code class="docutils literal"><span class="pre">sin</span></code> and <code class="docutils literal"><span class="pre">pi</span></code> are importable from <code class="docutils literal"><span class="pre">symfit.api</span></code> as well. For more, read the <a class="reference external" href="http://docs.sympy.org">sympy docs</a>.</p>
+</div>
+<div class="section" id="initial-guess">
+<h2>Initial Guess<a class="headerlink" href="#initial-guess" title="Permalink to this headline">¶</a></h2>
+<p>For fitting to work as desired you should always give a good initial guess for a parameter.
+The <code class="docutils literal"><span class="pre">Parameter</span></code> object can therefore be initiated with the following keywords:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">value</span></code> the initial guess value.</li>
+<li><code class="docutils literal"><span class="pre">min</span></code> Minimal value for the parameter.</li>
+<li><code class="docutils literal"><span class="pre">max</span></code> Maximal value for the parameter.</li>
+<li><code class="docutils literal"><span class="pre">fixed</span></code> Fix the value of the parameter during the fitting to <code class="docutils literal"><span class="pre">value</span></code>.</li>
+</ul>
+<p>In the example above, we might change our <code class="docutils literal"><span class="pre">Parameter</span></code>&#8216;s to the following after looking at a plot of the data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">a</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="multivariable-problem">
+<h2>Multivariable Problem<a class="headerlink" href="#multivariable-problem" title="Permalink to this headline">¶</a></h2>
+<p>Let M be the number of variables in your model, and N the number of data point in xdata.
+Symfit assumes xdata to be of shape <span class="math">\(N \times M\)</span> or even <span class="math">\(N_1 \times \dots N_i \times M\)</span> dimensional, as long as either the first or last axis of the array is of the same length as the number of variables in your model.
+Currently it is assumed that the function is not vector valued, meaning that for every datapoint in xdata, only a single y value is returned.
+Vector valued functions are on my ToDo list.</p>
+<div class="highlight-python"><div class="highlight"><pre>from symfit.api import Parameter, Variable, Fit
+
+a = Parameter()
+b = Parameter()
+x = Variable()
+y = Variable()
+model = a * x**2 + b * y**2
+
+xdata = # your NxM data.
+ydata = # ydata
+
+fit = Fit(model, xdata, ydata)
+fit_result = fit.execute()
+
+# Plot the fit.
+z = model(x=xdata[:, 0] y=xdata[:, 1], **fit_result.params)
+plt.plot(xdata, z)
+plt.show()
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Quick Start</a><ul>
+<li><a class="reference internal" href="#single-variable-problem">Single Variable Problem</a></li>
+<li><a class="reference internal" href="#symfit-api-exposes-sympy-api">symfit.api exposes sympy.api</a></li>
+<li><a class="reference internal" href="#initial-guess">Initial Guess</a></li>
+<li><a class="reference internal" href="#multivariable-problem">Multivariable Problem</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="installation.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="next chapter">Tutorial</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/quickstart.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">symfit 0.3.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2014, tBuLi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
+    </div>
+  </body>
+</html>
