@@ -152,7 +152,7 @@ class InteractiveFit2D(Fit):
 
 
 if __name__ == "__main__":
-    from symfit import Parameter, Variable, exp, parameters
+    from symfit import Parameter, Variable, exp
 
     def distr(x, k, x0):
         kbT = 4.11
