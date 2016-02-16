@@ -1,0 +1,746 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>sympy.core.relational &mdash; symfit 0.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="symfit 0.3.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">symfit 0.3.0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for sympy.core.relational</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+
+<span class="kn">from</span> <span class="nn">.basic</span> <span class="kn">import</span> <span class="n">S</span>
+<span class="kn">from</span> <span class="nn">.expr</span> <span class="kn">import</span> <span class="n">Expr</span>
+<span class="kn">from</span> <span class="nn">.evalf</span> <span class="kn">import</span> <span class="n">EvalfMixin</span>
+<span class="kn">from</span> <span class="nn">.symbol</span> <span class="kn">import</span> <span class="n">Symbol</span>
+<span class="kn">from</span> <span class="nn">.sympify</span> <span class="kn">import</span> <span class="n">_sympify</span>
+<span class="kn">from</span> <span class="nn">.evaluate</span> <span class="kn">import</span> <span class="n">global_evaluate</span>
+
+<span class="kn">from</span> <span class="nn">sympy.logic.boolalg</span> <span class="kn">import</span> <span class="n">Boolean</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">&#39;Rel&#39;</span><span class="p">,</span> <span class="s">&#39;Eq&#39;</span><span class="p">,</span> <span class="s">&#39;Ne&#39;</span><span class="p">,</span> <span class="s">&#39;Lt&#39;</span><span class="p">,</span> <span class="s">&#39;Le&#39;</span><span class="p">,</span> <span class="s">&#39;Gt&#39;</span><span class="p">,</span> <span class="s">&#39;Ge&#39;</span><span class="p">,</span>
+    <span class="s">&#39;Relational&#39;</span><span class="p">,</span> <span class="s">&#39;Equality&#39;</span><span class="p">,</span> <span class="s">&#39;Unequality&#39;</span><span class="p">,</span> <span class="s">&#39;StrictLessThan&#39;</span><span class="p">,</span> <span class="s">&#39;LessThan&#39;</span><span class="p">,</span>
+    <span class="s">&#39;StrictGreaterThan&#39;</span><span class="p">,</span> <span class="s">&#39;GreaterThan&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="c"># Note, see issue 4986.  Ideally, we wouldn&#39;t want to subclass both Boolean</span>
+<span class="c"># and Expr.</span>
+
+<span class="k">class</span> <span class="nc">Relational</span><span class="p">(</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">EvalfMixin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for all relation types.</span>
+
+<span class="sd">    Subclasses of Relational should generally be instantiated directly, but</span>
+<span class="sd">    Relational can be instantiated with a valid `rop` value to dispatch to</span>
+<span class="sd">    the appropriate subclass.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ==========</span>
+<span class="sd">    rop : str or None</span>
+<span class="sd">        Indicates what subclass to instantiate.  Valid values can be found</span>
+<span class="sd">        in the keys of Relational.ValidRelationalOperator.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ========</span>
+
+<span class="sd">    &gt;&gt;&gt; from sympy import Rel</span>
+<span class="sd">    &gt;&gt;&gt; from sympy.abc import x, y</span>
+<span class="sd">    &gt;&gt;&gt; Rel(y, x+x**2, &#39;==&#39;)</span>
+<span class="sd">    y == x**2 + x</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">is_Relational</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="c"># ValidRelationOperator - Defined below, because the necessary classes</span>
+    <span class="c">#   have not yet been defined</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rop</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">assumptions</span><span class="p">):</span>
+        <span class="c"># If called by a subclass, do nothing special and pass on to Expr.</span>
+        <span class="k">if</span> <span class="n">cls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Relational</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Expr</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">assumptions</span><span class="p">)</span>
+        <span class="c"># If called directly with an operator, look up the subclass</span>
+        <span class="c"># corresponding to that operator and delegate to it</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cls</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">ValidRelationOperator</span><span class="p">[</span><span class="n">rop</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">assumptions</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Invalid relational operator symbol: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">rop</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lhs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The left-hand side of the relation.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rhs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The right-hand side of the relation.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_eval_evalf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prec</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">_evalf</span><span class="p">(</span><span class="n">prec</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_eval_simplify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ratio</span><span class="p">,</span> <span class="n">measure</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">ratio</span><span class="o">=</span><span class="n">ratio</span><span class="p">,</span> <span class="n">measure</span><span class="o">=</span><span class="n">measure</span><span class="p">),</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">ratio</span><span class="o">=</span><span class="n">ratio</span><span class="p">,</span> <span class="n">measure</span><span class="o">=</span><span class="n">measure</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">true</span><span class="p">,</span> <span class="n">S</span><span class="o">.</span><span class="n">false</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="p">,</span> <span class="n">Expr</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="p">,</span> <span class="n">Expr</span><span class="p">):</span>
+                <span class="n">dif</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span>
+                <span class="c"># We want a Number to compare with zero and be sure to get a</span>
+                <span class="c"># True/False answer.  Check if we can deduce that dif is</span>
+                <span class="c"># definitively zero or non-zero.  If non-zero, replace with an</span>
+                <span class="c"># approximation.  If .equals(0) gives None, cannot be deduced.</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">dif</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">Symbol</span><span class="p">):</span>
+                    <span class="n">know</span> <span class="o">=</span> <span class="n">dif</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">know</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span>
+                        <span class="n">dif</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">Zero</span>
+                    <span class="k">elif</span> <span class="n">know</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+                        <span class="n">dif</span> <span class="o">=</span> <span class="n">dif</span><span class="o">.</span><span class="n">evalf</span><span class="p">()</span>
+                <span class="c"># Can definitively compare a Number to zero, if appropriate.</span>
+                <span class="k">if</span> <span class="n">dif</span><span class="o">.</span><span class="n">is_Number</span> <span class="ow">and</span> <span class="p">(</span><span class="n">dif</span><span class="o">.</span><span class="n">is_real</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Eq</span><span class="p">,</span> <span class="n">Ne</span><span class="p">)):</span>
+                    <span class="c"># Always T/F (we never return an expression w/ the evalf)</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">_eval_relation</span><span class="p">(</span><span class="n">dif</span><span class="p">,</span> <span class="n">S</span><span class="o">.</span><span class="n">Zero</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">measure</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">ratio</span><span class="o">*</span><span class="n">measure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">r</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__nonzero__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;cannot determine truth value of</span><span class="se">\n</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="n">__bool__</span> <span class="o">=</span> <span class="n">__nonzero__</span>
+
+    <span class="k">def</span> <span class="nf">as_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rewrites univariate inequality in terms of real sets</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        ========</span>
+
+<span class="sd">        &gt;&gt;&gt; from sympy import Symbol, Eq</span>
+<span class="sd">        &gt;&gt;&gt; x = Symbol(&#39;x&#39;, real=True)</span>
+<span class="sd">        &gt;&gt;&gt; (x&gt;0).as_set()</span>
+<span class="sd">        (0, oo)</span>
+<span class="sd">        &gt;&gt;&gt; Eq(x, 0).as_set()</span>
+<span class="sd">        {0}</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">sympy.solvers.inequalities</span> <span class="kn">import</span> <span class="n">solve_univariate_inequality</span>
+        <span class="n">syms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_symbols</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">syms</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">sym</span> <span class="o">=</span> <span class="n">syms</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;Sorry, Relational.as_set procedure&quot;</span>
+                                      <span class="s">&quot; is not yet implemented for&quot;</span>
+                                      <span class="s">&quot; multivariate expressions&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">solve_univariate_inequality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sym</span><span class="p">,</span> <span class="n">relational</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+
+<span class="n">Rel</span> <span class="o">=</span> <span class="n">Relational</span>
+
+
+<span class="k">class</span> <span class="nc">Equality</span><span class="p">(</span><span class="n">Relational</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An equal relation between two objects.</span>
+
+<span class="sd">    Represents that two objects are equal.  If they can be easily shown</span>
+<span class="sd">    to be definitively equal (or unequal), this will reduce to True (or</span>
+<span class="sd">    False).  Otherwise, the relation is maintained as an unevaluated</span>
+<span class="sd">    Equality object.  Use the ``simplify`` function on this object for</span>
+<span class="sd">    more nontrivial evaluation of the equality relation.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ========</span>
+
+<span class="sd">    &gt;&gt;&gt; from sympy import Eq</span>
+<span class="sd">    &gt;&gt;&gt; from sympy.abc import x, y</span>
+<span class="sd">    &gt;&gt;&gt; Eq(y, x+x**2)</span>
+<span class="sd">    y == x**2 + x</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    ========</span>
+
+<span class="sd">    sympy.logic.boolalg.Equivalent : for representing equality between two</span>
+<span class="sd">        boolean expressions</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    =====</span>
+
+<span class="sd">    This class is not the same as the == operator.  The == operator tests</span>
+<span class="sd">    for exact structural equality between two expressions; this class</span>
+<span class="sd">    compares expressions mathematically.</span>
+
+<span class="sd">    If either object defines an `_eval_Eq` method, it can be used in place of</span>
+<span class="sd">    the default algorithm.  If `lhs._eval_Eq(rhs)` or `rhs._eval_Eq(lhs)`</span>
+<span class="sd">    returns anything other than None, that return value will be substituted for</span>
+<span class="sd">    the Equality.  If None is returned by `_eval_Eq`, an Equality object will</span>
+<span class="sd">    be created as usual.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rel_op</span> <span class="o">=</span> <span class="s">&#39;==&#39;</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">is_Equality</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="n">lhs</span> <span class="o">=</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="p">)</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+
+        <span class="n">evaluate</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;evaluate&#39;</span><span class="p">,</span> <span class="n">global_evaluate</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">evaluate</span><span class="p">:</span>
+            <span class="c"># If one expression has an _eval_Eq, return its results.</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="s">&#39;_eval_Eq&#39;</span><span class="p">):</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">lhs</span><span class="o">.</span><span class="n">_eval_Eq</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">r</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="s">&#39;_eval_Eq&#39;</span><span class="p">):</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">rhs</span><span class="o">.</span><span class="n">_eval_Eq</span><span class="p">(</span><span class="n">lhs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">r</span>
+            <span class="c"># If expressions have the same structure, they must be equal.</span>
+            <span class="k">if</span> <span class="n">lhs</span> <span class="o">==</span> <span class="n">rhs</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">S</span><span class="o">.</span><span class="n">true</span>
+
+            <span class="c"># If appropriate, check if the difference evaluates.  Detect</span>
+            <span class="c"># incompatibility such as lhs real and rhs not real.</span>
+            <span class="k">if</span> <span class="n">lhs</span><span class="o">.</span><span class="n">is_complex</span> <span class="ow">and</span> <span class="n">rhs</span><span class="o">.</span><span class="n">is_complex</span><span class="p">:</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">lhs</span> <span class="o">-</span> <span class="n">rhs</span><span class="p">)</span><span class="o">.</span><span class="n">is_zero</span>
+                <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Relational</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_relation</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span> <span class="o">==</span> <span class="n">rhs</span><span class="p">)</span>
+
+<span class="n">Eq</span> <span class="o">=</span> <span class="n">Equality</span>
+
+
+<span class="k">class</span> <span class="nc">Unequality</span><span class="p">(</span><span class="n">Relational</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An unequal relation between two objects.</span>
+
+<span class="sd">    Represents that two objects are not equal.  If they can be shown to be</span>
+<span class="sd">    definitively equal, this will reduce to False; if definitively unequal,</span>
+<span class="sd">    this will reduce to True.  Otherwise, the relation is maintained as an</span>
+<span class="sd">    Unequality object.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ========</span>
+
+<span class="sd">    &gt;&gt;&gt; from sympy import Ne</span>
+<span class="sd">    &gt;&gt;&gt; from sympy.abc import x, y</span>
+<span class="sd">    &gt;&gt;&gt; Ne(y, x+x**2)</span>
+<span class="sd">    y != x**2 + x</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    ========</span>
+<span class="sd">    Equality</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    =====</span>
+<span class="sd">    This class is not the same as the != operator.  The != operator tests</span>
+<span class="sd">    for exact structural equality between two expressions; this class</span>
+<span class="sd">    compares expressions mathematically.</span>
+
+<span class="sd">    This class is effectively the inverse of Equality.  As such, it uses the</span>
+<span class="sd">    same algorithms, including any available `_eval_Eq` methods.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rel_op</span> <span class="o">=</span> <span class="s">&#39;!=&#39;</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="n">lhs</span> <span class="o">=</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="p">)</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+
+        <span class="n">evaluate</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;evaluate&#39;</span><span class="p">,</span> <span class="n">global_evaluate</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">evaluate</span><span class="p">:</span>
+            <span class="n">is_equal</span> <span class="o">=</span> <span class="n">Equality</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_equal</span> <span class="o">==</span> <span class="bp">True</span> <span class="ow">or</span> <span class="n">is_equal</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="k">return</span> <span class="o">~</span><span class="n">is_equal</span>
+
+        <span class="k">return</span> <span class="n">Relational</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_relation</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span> <span class="o">!=</span> <span class="n">rhs</span><span class="p">)</span>
+
+<span class="n">Ne</span> <span class="o">=</span> <span class="n">Unequality</span>
+
+
+<span class="k">class</span> <span class="nc">_Inequality</span><span class="p">(</span><span class="n">Relational</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Internal base class for all *Than types.</span>
+
+<span class="sd">    Each subclass must implement _eval_relation to provide the method for</span>
+<span class="sd">    comparing two real numbers.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="n">lhs</span> <span class="o">=</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="p">)</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+
+        <span class="n">evaluate</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;evaluate&#39;</span><span class="p">,</span> <span class="n">global_evaluate</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">evaluate</span><span class="p">:</span>
+            <span class="c"># First we invoke the appropriate inequality method of `lhs`</span>
+            <span class="c"># (e.g., `lhs.__lt__`).  That method will try to reduce to</span>
+            <span class="c"># boolean or raise an exception.  It may keep calling</span>
+            <span class="c"># superclasses until it reaches `Expr` (e.g., `Expr.__lt__`).</span>
+            <span class="c"># In some cases, `Expr` will just invoke us again (if neither it</span>
+            <span class="c"># nor a subclass was able to reduce to boolean or raise an</span>
+            <span class="c"># exception).  In that case, it must call us with</span>
+            <span class="c"># `evaluate=False` to prevent infinite recursion.</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_eval_relation</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">r</span>
+            <span class="c"># Note: not sure r could be None, perhaps we never take this</span>
+            <span class="c"># path?  In principle, could use this to shortcut out if a</span>
+            <span class="c"># class realizes the inequality cannot be evaluated further.</span>
+
+        <span class="c"># make a &quot;non-evaluated&quot; Expr for the inequality</span>
+        <span class="k">return</span> <span class="n">Relational</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_Greater</span><span class="p">(</span><span class="n">_Inequality</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Not intended for general use</span>
+
+<span class="sd">    _Greater is only used so that GreaterThan and StrictGreaterThan may subclass</span>
+<span class="sd">    it for the .gts and .lts properties.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">gts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">_Less</span><span class="p">(</span><span class="n">_Inequality</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Not intended for general use.</span>
+
+<span class="sd">    _Less is only used so that LessThan and StrictLessThan may subclass it for</span>
+<span class="sd">    the .gts and .lts properties.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">gts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">GreaterThan</span><span class="p">(</span><span class="n">_Greater</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class representations of inequalities.</span>
+
+<span class="sd">    Extended Summary</span>
+<span class="sd">    ================</span>
+
+<span class="sd">    The ``*Than`` classes represent inequal relationships, where the left-hand</span>
+<span class="sd">    side is generally bigger or smaller than the right-hand side.  For example,</span>
+<span class="sd">    the GreaterThan class represents an inequal relationship where the</span>
+<span class="sd">    left-hand side is at least as big as the right side, if not bigger.  In</span>
+<span class="sd">    mathematical notation:</span>
+
+<span class="sd">    lhs &gt;= rhs</span>
+
+<span class="sd">    In total, there are four ``*Than`` classes, to represent the four</span>
+<span class="sd">    inequalities:</span>
+
+<span class="sd">    +-----------------+--------+</span>
+<span class="sd">    |Class Name       | Symbol |</span>
+<span class="sd">    +=================+========+</span>
+<span class="sd">    |GreaterThan      | (&gt;=)   |</span>
+<span class="sd">    +-----------------+--------+</span>
+<span class="sd">    |LessThan         | (&lt;=)   |</span>
+<span class="sd">    +-----------------+--------+</span>
+<span class="sd">    |StrictGreaterThan| (&gt;)    |</span>
+<span class="sd">    +-----------------+--------+</span>
+<span class="sd">    |StrictLessThan   | (&lt;)    |</span>
+<span class="sd">    +-----------------+--------+</span>
+
+<span class="sd">    All classes take two arguments, lhs and rhs.</span>
+
+<span class="sd">    +----------------------------+-----------------+</span>
+<span class="sd">    |Signature Example           | Math equivalent |</span>
+<span class="sd">    +============================+=================+</span>
+<span class="sd">    |GreaterThan(lhs, rhs)       |   lhs &gt;= rhs    |</span>
+<span class="sd">    +----------------------------+-----------------+</span>
+<span class="sd">    |LessThan(lhs, rhs)          |   lhs &lt;= rhs    |</span>
+<span class="sd">    +----------------------------+-----------------+</span>
+<span class="sd">    |StrictGreaterThan(lhs, rhs) |   lhs &gt;  rhs    |</span>
+<span class="sd">    +----------------------------+-----------------+</span>
+<span class="sd">    |StrictLessThan(lhs, rhs)    |   lhs &lt;  rhs    |</span>
+<span class="sd">    +----------------------------+-----------------+</span>
+
+<span class="sd">    In addition to the normal .lhs and .rhs of Relations, ``*Than`` inequality</span>
+<span class="sd">    objects also have the .lts and .gts properties, which represent the &quot;less</span>
+<span class="sd">    than side&quot; and &quot;greater than side&quot; of the operator.  Use of .lts and .gts</span>
+<span class="sd">    in an algorithm rather than .lhs and .rhs as an assumption of inequality</span>
+<span class="sd">    direction will make more explicit the intent of a certain section of code,</span>
+<span class="sd">    and will make it similarly more robust to client code changes:</span>
+
+<span class="sd">    &gt;&gt;&gt; from sympy import GreaterThan, StrictGreaterThan</span>
+<span class="sd">    &gt;&gt;&gt; from sympy import LessThan,    StrictLessThan</span>
+<span class="sd">    &gt;&gt;&gt; from sympy import And, Ge, Gt, Le, Lt, Rel, S</span>
+<span class="sd">    &gt;&gt;&gt; from sympy.abc import x, y, z</span>
+<span class="sd">    &gt;&gt;&gt; from sympy.core.relational import Relational</span>
+
+<span class="sd">    &gt;&gt;&gt; e = GreaterThan(x, 1)</span>
+<span class="sd">    &gt;&gt;&gt; e</span>
+<span class="sd">    x &gt;= 1</span>
+<span class="sd">    &gt;&gt;&gt; &#39;%s &gt;= %s is the same as %s &lt;= %s&#39; % (e.gts, e.lts, e.lts, e.gts)</span>
+<span class="sd">    &#39;x &gt;= 1 is the same as 1 &lt;= x&#39;</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ========</span>
+
+<span class="sd">    One generally does not instantiate these classes directly, but uses various</span>
+<span class="sd">    convenience methods:</span>
+
+<span class="sd">    &gt;&gt;&gt; e1 = Ge( x, 2 )      # Ge is a convenience wrapper</span>
+<span class="sd">    &gt;&gt;&gt; print(e1)</span>
+<span class="sd">    x &gt;= 2</span>
+
+<span class="sd">    &gt;&gt;&gt; rels = Ge( x, 2 ), Gt( x, 2 ), Le( x, 2 ), Lt( x, 2 )</span>
+<span class="sd">    &gt;&gt;&gt; print(&#39;%s\\n%s\\n%s\\n%s&#39; % rels)</span>
+<span class="sd">    x &gt;= 2</span>
+<span class="sd">    x &gt; 2</span>
+<span class="sd">    x &lt;= 2</span>
+<span class="sd">    x &lt; 2</span>
+
+<span class="sd">    Another option is to use the Python inequality operators (&gt;=, &gt;, &lt;=, &lt;)</span>
+<span class="sd">    directly.  Their main advantage over the Ge, Gt, Le, and Lt counterparts, is</span>
+<span class="sd">    that one can write a more &quot;mathematical looking&quot; statement rather than</span>
+<span class="sd">    littering the math with oddball function calls.  However there are certain</span>
+<span class="sd">    (minor) caveats of which to be aware (search for &#39;gotcha&#39;, below).</span>
+
+<span class="sd">    &gt;&gt;&gt; e2 = x &gt;= 2</span>
+<span class="sd">    &gt;&gt;&gt; print(e2)</span>
+<span class="sd">    x &gt;= 2</span>
+<span class="sd">    &gt;&gt;&gt; print(&quot;e1: %s,    e2: %s&quot; % (e1, e2))</span>
+<span class="sd">    e1: x &gt;= 2,    e2: x &gt;= 2</span>
+<span class="sd">    &gt;&gt;&gt; e1 == e2</span>
+<span class="sd">    True</span>
+
+<span class="sd">    However, it is also perfectly valid to instantiate a ``*Than`` class less</span>
+<span class="sd">    succinctly and less conveniently:</span>
+
+<span class="sd">    &gt;&gt;&gt; rels = Rel(x, 1, &#39;&gt;=&#39;), Relational(x, 1, &#39;&gt;=&#39;), GreaterThan(x, 1)</span>
+<span class="sd">    &gt;&gt;&gt; print(&#39;%s\\n%s\\n%s&#39; % rels)</span>
+<span class="sd">    x &gt;= 1</span>
+<span class="sd">    x &gt;= 1</span>
+<span class="sd">    x &gt;= 1</span>
+
+<span class="sd">    &gt;&gt;&gt; rels = Rel(x, 1, &#39;&gt;&#39;), Relational(x, 1, &#39;&gt;&#39;), StrictGreaterThan(x, 1)</span>
+<span class="sd">    &gt;&gt;&gt; print(&#39;%s\\n%s\\n%s&#39; % rels)</span>
+<span class="sd">    x &gt; 1</span>
+<span class="sd">    x &gt; 1</span>
+<span class="sd">    x &gt; 1</span>
+
+<span class="sd">    &gt;&gt;&gt; rels = Rel(x, 1, &#39;&lt;=&#39;), Relational(x, 1, &#39;&lt;=&#39;), LessThan(x, 1)</span>
+<span class="sd">    &gt;&gt;&gt; print(&quot;%s\\n%s\\n%s&quot; % rels)</span>
+<span class="sd">    x &lt;= 1</span>
+<span class="sd">    x &lt;= 1</span>
+<span class="sd">    x &lt;= 1</span>
+
+<span class="sd">    &gt;&gt;&gt; rels = Rel(x, 1, &#39;&lt;&#39;), Relational(x, 1, &#39;&lt;&#39;), StrictLessThan(x, 1)</span>
+<span class="sd">    &gt;&gt;&gt; print(&#39;%s\\n%s\\n%s&#39; % rels)</span>
+<span class="sd">    x &lt; 1</span>
+<span class="sd">    x &lt; 1</span>
+<span class="sd">    x &lt; 1</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    =====</span>
+
+<span class="sd">    There are a couple of &quot;gotchas&quot; when using Python&#39;s operators.</span>
+
+<span class="sd">    The first enters the mix when comparing against a literal number as the lhs</span>
+<span class="sd">    argument.  Due to the order that Python decides to parse a statement, it may</span>
+<span class="sd">    not immediately find two objects comparable.  For example, to evaluate the</span>
+<span class="sd">    statement (1 &lt; x), Python will first recognize the number 1 as a native</span>
+<span class="sd">    number, and then that x is *not* a native number.  At this point, because a</span>
+<span class="sd">    native Python number does not know how to compare itself with a SymPy object</span>
+<span class="sd">    Python will try the reflective operation, (x &gt; 1).  Unfortunately, there is</span>
+<span class="sd">    no way available to SymPy to recognize this has happened, so the statement</span>
+<span class="sd">    (1 &lt; x) will turn silently into (x &gt; 1).</span>
+
+<span class="sd">    &gt;&gt;&gt; e1 = x &gt;  1</span>
+<span class="sd">    &gt;&gt;&gt; e2 = x &gt;= 1</span>
+<span class="sd">    &gt;&gt;&gt; e3 = x &lt;  1</span>
+<span class="sd">    &gt;&gt;&gt; e4 = x &lt;= 1</span>
+<span class="sd">    &gt;&gt;&gt; e5 = 1 &gt;  x</span>
+<span class="sd">    &gt;&gt;&gt; e6 = 1 &gt;= x</span>
+<span class="sd">    &gt;&gt;&gt; e7 = 1 &lt;  x</span>
+<span class="sd">    &gt;&gt;&gt; e8 = 1 &lt;= x</span>
+<span class="sd">    &gt;&gt;&gt; print(&quot;%s     %s\\n&quot;*4 % (e1, e2, e3, e4, e5, e6, e7, e8))</span>
+<span class="sd">    x &gt; 1     x &gt;= 1</span>
+<span class="sd">    x &lt; 1     x &lt;= 1</span>
+<span class="sd">    x &lt; 1     x &lt;= 1</span>
+<span class="sd">    x &gt; 1     x &gt;= 1</span>
+
+<span class="sd">    If the order of the statement is important (for visual output to the</span>
+<span class="sd">    console, perhaps), one can work around this annoyance in a couple ways: (1)</span>
+<span class="sd">    &quot;sympify&quot; the literal before comparison, (2) use one of the wrappers, or (3)</span>
+<span class="sd">    use the less succinct methods described above:</span>
+
+<span class="sd">    &gt;&gt;&gt; e1 = S(1) &gt;  x</span>
+<span class="sd">    &gt;&gt;&gt; e2 = S(1) &gt;= x</span>
+<span class="sd">    &gt;&gt;&gt; e3 = S(1) &lt;  x</span>
+<span class="sd">    &gt;&gt;&gt; e4 = S(1) &lt;= x</span>
+<span class="sd">    &gt;&gt;&gt; e5 = Gt(1, x)</span>
+<span class="sd">    &gt;&gt;&gt; e6 = Ge(1, x)</span>
+<span class="sd">    &gt;&gt;&gt; e7 = Lt(1, x)</span>
+<span class="sd">    &gt;&gt;&gt; e8 = Le(1, x)</span>
+<span class="sd">    &gt;&gt;&gt; print(&quot;%s     %s\\n&quot;*4 % (e1, e2, e3, e4, e5, e6, e7, e8))</span>
+<span class="sd">    1 &gt; x     1 &gt;= x</span>
+<span class="sd">    1 &lt; x     1 &lt;= x</span>
+<span class="sd">    1 &gt; x     1 &gt;= x</span>
+<span class="sd">    1 &lt; x     1 &lt;= x</span>
+
+<span class="sd">    The other gotcha is with chained inequalities.  Occasionally, one may be</span>
+<span class="sd">    tempted to write statements like:</span>
+
+<span class="sd">    &gt;&gt;&gt; e = x &lt; y &lt; z</span>
+<span class="sd">    Traceback (most recent call last):</span>
+<span class="sd">    ...</span>
+<span class="sd">    TypeError: symbolic boolean expression has no truth value.</span>
+
+<span class="sd">    Due to an implementation detail or decision of Python [1]_, there is no way</span>
+<span class="sd">    for SymPy to reliably create that as a chained inequality.  To create a</span>
+<span class="sd">    chained inequality, the only method currently available is to make use of</span>
+<span class="sd">    And:</span>
+
+<span class="sd">    &gt;&gt;&gt; e = And(x &lt; y, y &lt; z)</span>
+<span class="sd">    &gt;&gt;&gt; type( e )</span>
+<span class="sd">    And</span>
+<span class="sd">    &gt;&gt;&gt; e</span>
+<span class="sd">    And(x &lt; y, y &lt; z)</span>
+
+<span class="sd">    Note that this is different than chaining an equality directly via use of</span>
+<span class="sd">    parenthesis (this is currently an open bug in SymPy [2]_):</span>
+
+<span class="sd">    &gt;&gt;&gt; e = (x &lt; y) &lt; z</span>
+<span class="sd">    &gt;&gt;&gt; type( e )</span>
+<span class="sd">    &lt;class &#39;sympy.core.relational.StrictLessThan&#39;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; e</span>
+<span class="sd">    (x &lt; y) &lt; z</span>
+
+<span class="sd">    Any code that explicitly relies on this latter functionality will not be</span>
+<span class="sd">    robust as this behaviour is completely wrong and will be corrected at some</span>
+<span class="sd">    point.  For the time being (circa Jan 2012), use And to create chained</span>
+<span class="sd">    inequalities.</span>
+
+<span class="sd">    .. [1] This implementation detail is that Python provides no reliable</span>
+<span class="sd">       method to determine that a chained inequality is being built.  Chained</span>
+<span class="sd">       comparison operators are evaluated pairwise, using &quot;and&quot; logic (see</span>
+<span class="sd">       http://docs.python.org/2/reference/expressions.html#notin).  This is done</span>
+<span class="sd">       in an efficient way, so that each object being compared is only</span>
+<span class="sd">       evaluated once and the comparison can short-circuit.  For example, ``1</span>
+<span class="sd">       &gt; 2 &gt; 3`` is evaluated by Python as ``(1 &gt; 2) and (2 &gt; 3)``.  The</span>
+<span class="sd">       ``and`` operator coerces each side into a bool, returning the object</span>
+<span class="sd">       itself when it short-circuits.  The bool of the --Than operators</span>
+<span class="sd">       will raise TypeError on purpose, because SymPy cannot determine the</span>
+<span class="sd">       mathematical ordering of symbolic expressions.  Thus, if we were to</span>
+<span class="sd">       compute ``x &gt; y &gt; z``, with ``x``, ``y``, and ``z`` being Symbols,</span>
+<span class="sd">       Python converts the statement (roughly) into these steps:</span>
+
+<span class="sd">        (1) x &gt; y &gt; z</span>
+<span class="sd">        (2) (x &gt; y) and (y &gt; z)</span>
+<span class="sd">        (3) (GreaterThanObject) and (y &gt; z)</span>
+<span class="sd">        (4) (GreaterThanObject.__nonzero__()) and (y &gt; z)</span>
+<span class="sd">        (5) TypeError</span>
+
+<span class="sd">       Because of the &quot;and&quot; added at step 2, the statement gets turned into a</span>
+<span class="sd">       weak ternary statement, and the first object&#39;s __nonzero__ method will</span>
+<span class="sd">       raise TypeError.  Thus, creating a chained inequality is not possible.</span>
+
+<span class="sd">           In Python, there is no way to override the ``and`` operator, or to</span>
+<span class="sd">           control how it short circuits, so it is impossible to make something</span>
+<span class="sd">           like ``x &gt; y &gt; z`` work.  There was a PEP to change this,</span>
+<span class="sd">           :pep:`335`, but it was officially closed in March, 2012.</span>
+
+<span class="sd">    .. [2] For more information, see these two bug reports:</span>
+
+<span class="sd">       &quot;Separate boolean and symbolic relationals&quot;</span>
+<span class="sd">       `Issue 4986 &lt;https://github.com/sympy/sympy/issues/4986&gt;`_</span>
+
+<span class="sd">       &quot;It right 0 &lt; x &lt; 1 ?&quot;</span>
+<span class="sd">       `Issue 6059 &lt;https://github.com/sympy/sympy/issues/6059&gt;`_</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rel_op</span> <span class="o">=</span> <span class="s">&#39;&gt;=&#39;</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_relation</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+        <span class="c"># We don&#39;t use the op symbol here: workaround issue #7951</span>
+        <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">__ge__</span><span class="p">(</span><span class="n">rhs</span><span class="p">))</span>
+
+<span class="n">Ge</span> <span class="o">=</span> <span class="n">GreaterThan</span>
+
+
+<span class="k">class</span> <span class="nc">LessThan</span><span class="p">(</span><span class="n">_Less</span><span class="p">):</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">GreaterThan</span><span class="o">.</span><span class="n">__doc__</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="n">rel_op</span> <span class="o">=</span> <span class="s">&#39;&lt;=&#39;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_relation</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+        <span class="c"># We don&#39;t use the op symbol here: workaround issue #7951</span>
+        <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">__le__</span><span class="p">(</span><span class="n">rhs</span><span class="p">))</span>
+
+<span class="n">Le</span> <span class="o">=</span> <span class="n">LessThan</span>
+
+
+<span class="k">class</span> <span class="nc">StrictGreaterThan</span><span class="p">(</span><span class="n">_Greater</span><span class="p">):</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">GreaterThan</span><span class="o">.</span><span class="n">__doc__</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="n">rel_op</span> <span class="o">=</span> <span class="s">&#39;&gt;&#39;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_relation</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+        <span class="c"># We don&#39;t use the op symbol here: workaround issue #7951</span>
+        <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">__gt__</span><span class="p">(</span><span class="n">rhs</span><span class="p">))</span>
+
+<span class="n">Gt</span> <span class="o">=</span> <span class="n">StrictGreaterThan</span>
+
+
+<span class="k">class</span> <span class="nc">StrictLessThan</span><span class="p">(</span><span class="n">_Less</span><span class="p">):</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">GreaterThan</span><span class="o">.</span><span class="n">__doc__</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="n">rel_op</span> <span class="o">=</span> <span class="s">&#39;&lt;&#39;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_relation</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">):</span>
+        <span class="c"># We don&#39;t use the op symbol here: workaround issue #7951</span>
+        <span class="k">return</span> <span class="n">_sympify</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">__lt__</span><span class="p">(</span><span class="n">rhs</span><span class="p">))</span>
+
+<span class="n">Lt</span> <span class="o">=</span> <span class="n">StrictLessThan</span>
+
+
+<span class="c"># A class-specific (not object-specific) data item used for a minor speedup.  It</span>
+<span class="c"># is defined here, rather than directly in the class, because the classes that</span>
+<span class="c"># it references have not been defined until now (e.g. StrictLessThan).</span>
+<span class="n">Relational</span><span class="o">.</span><span class="n">ValidRelationOperator</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="bp">None</span><span class="p">:</span> <span class="n">Equality</span><span class="p">,</span>
+    <span class="s">&#39;==&#39;</span><span class="p">:</span> <span class="n">Equality</span><span class="p">,</span>
+    <span class="s">&#39;eq&#39;</span><span class="p">:</span> <span class="n">Equality</span><span class="p">,</span>
+    <span class="s">&#39;!=&#39;</span><span class="p">:</span> <span class="n">Unequality</span><span class="p">,</span>
+    <span class="s">&#39;&lt;&gt;&#39;</span><span class="p">:</span> <span class="n">Unequality</span><span class="p">,</span>
+    <span class="s">&#39;ne&#39;</span><span class="p">:</span> <span class="n">Unequality</span><span class="p">,</span>
+    <span class="s">&#39;&gt;=&#39;</span><span class="p">:</span> <span class="n">GreaterThan</span><span class="p">,</span>
+    <span class="s">&#39;ge&#39;</span><span class="p">:</span> <span class="n">GreaterThan</span><span class="p">,</span>
+    <span class="s">&#39;&lt;=&#39;</span><span class="p">:</span> <span class="n">LessThan</span><span class="p">,</span>
+    <span class="s">&#39;le&#39;</span><span class="p">:</span> <span class="n">LessThan</span><span class="p">,</span>
+    <span class="s">&#39;&gt;&#39;</span><span class="p">:</span> <span class="n">StrictGreaterThan</span><span class="p">,</span>
+    <span class="s">&#39;gt&#39;</span><span class="p">:</span> <span class="n">StrictGreaterThan</span><span class="p">,</span>
+    <span class="s">&#39;&lt;&#39;</span><span class="p">:</span> <span class="n">StrictLessThan</span><span class="p">,</span>
+    <span class="s">&#39;lt&#39;</span><span class="p">:</span> <span class="n">StrictLessThan</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">symfit 0.3.0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2014, tBuLi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
+    </div>
+  </body>
+</html>

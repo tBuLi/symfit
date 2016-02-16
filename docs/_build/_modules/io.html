@@ -1,0 +1,177 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>io &mdash; symfit 0.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="symfit 0.3.0 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../index.html">symfit 0.3.0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for io</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;The io module provides the Python interfaces to stream handling. The</span>
+<span class="sd">builtin open function is defined in this module.</span>
+
+<span class="sd">At the top of the I/O hierarchy is the abstract base class IOBase. It</span>
+<span class="sd">defines the basic interface to a stream. Note, however, that there is no</span>
+<span class="sd">separation between reading and writing to streams; implementations are</span>
+<span class="sd">allowed to raise an IOError if they do not support a given operation.</span>
+
+<span class="sd">Extending IOBase is RawIOBase which deals simply with the reading and</span>
+<span class="sd">writing of raw bytes to a stream. FileIO subclasses RawIOBase to provide</span>
+<span class="sd">an interface to OS files.</span>
+
+<span class="sd">BufferedIOBase deals with buffering on a raw byte stream (RawIOBase). Its</span>
+<span class="sd">subclasses, BufferedWriter, BufferedReader, and BufferedRWPair buffer</span>
+<span class="sd">streams that are readable, writable, and both respectively.</span>
+<span class="sd">BufferedRandom provides a buffered interface to random access</span>
+<span class="sd">streams. BytesIO is a simple stream of in-memory bytes.</span>
+
+<span class="sd">Another IOBase subclass, TextIOBase, deals with the encoding and decoding</span>
+<span class="sd">of streams into text. TextIOWrapper, which extends it, is a buffered text</span>
+<span class="sd">interface to a buffered raw stream (`BufferedIOBase`). Finally, StringIO</span>
+<span class="sd">is a in-memory stream for text.</span>
+
+<span class="sd">Argument names are not part of the specification, and only the arguments</span>
+<span class="sd">of open() are intended to be used as keyword arguments.</span>
+
+<span class="sd">data:</span>
+
+<span class="sd">DEFAULT_BUFFER_SIZE</span>
+
+<span class="sd">   An int containing the default buffer size used by the module&#39;s buffered</span>
+<span class="sd">   I/O classes. open() uses the file&#39;s blksize (as obtained by os.stat) if</span>
+<span class="sd">   possible.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c"># New I/O library conforming to PEP 3116.</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;Guido van Rossum &lt;guido@python.org&gt;, &quot;</span>
+              <span class="s">&quot;Mike Verdone &lt;mike.verdone@gmail.com&gt;, &quot;</span>
+              <span class="s">&quot;Mark Russell &lt;mark.russell@zen.co.uk&gt;, &quot;</span>
+              <span class="s">&quot;Antoine Pitrou &lt;solipsis@pitrou.net&gt;, &quot;</span>
+              <span class="s">&quot;Amaury Forgeot d&#39;Arc &lt;amauryfa@gmail.com&gt;, &quot;</span>
+              <span class="s">&quot;Benjamin Peterson &lt;benjamin@python.org&gt;&quot;</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;BlockingIOError&quot;</span><span class="p">,</span> <span class="s">&quot;open&quot;</span><span class="p">,</span> <span class="s">&quot;IOBase&quot;</span><span class="p">,</span> <span class="s">&quot;RawIOBase&quot;</span><span class="p">,</span> <span class="s">&quot;FileIO&quot;</span><span class="p">,</span>
+           <span class="s">&quot;BytesIO&quot;</span><span class="p">,</span> <span class="s">&quot;StringIO&quot;</span><span class="p">,</span> <span class="s">&quot;BufferedIOBase&quot;</span><span class="p">,</span>
+           <span class="s">&quot;BufferedReader&quot;</span><span class="p">,</span> <span class="s">&quot;BufferedWriter&quot;</span><span class="p">,</span> <span class="s">&quot;BufferedRWPair&quot;</span><span class="p">,</span>
+           <span class="s">&quot;BufferedRandom&quot;</span><span class="p">,</span> <span class="s">&quot;TextIOBase&quot;</span><span class="p">,</span> <span class="s">&quot;TextIOWrapper&quot;</span><span class="p">,</span>
+           <span class="s">&quot;UnsupportedOperation&quot;</span><span class="p">,</span> <span class="s">&quot;SEEK_SET&quot;</span><span class="p">,</span> <span class="s">&quot;SEEK_CUR&quot;</span><span class="p">,</span> <span class="s">&quot;SEEK_END&quot;</span><span class="p">]</span>
+
+
+<span class="kn">import</span> <span class="nn">_io</span>
+<span class="kn">import</span> <span class="nn">abc</span>
+
+<span class="kn">from</span> <span class="nn">_io</span> <span class="kn">import</span> <span class="p">(</span><span class="n">DEFAULT_BUFFER_SIZE</span><span class="p">,</span> <span class="n">BlockingIOError</span><span class="p">,</span> <span class="n">UnsupportedOperation</span><span class="p">,</span>
+                 <span class="nb">open</span><span class="p">,</span> <span class="n">FileIO</span><span class="p">,</span> <span class="n">BytesIO</span><span class="p">,</span> <span class="n">StringIO</span><span class="p">,</span> <span class="n">BufferedReader</span><span class="p">,</span>
+                 <span class="n">BufferedWriter</span><span class="p">,</span> <span class="n">BufferedRWPair</span><span class="p">,</span> <span class="n">BufferedRandom</span><span class="p">,</span>
+                 <span class="n">IncrementalNewlineDecoder</span><span class="p">,</span> <span class="n">TextIOWrapper</span><span class="p">)</span>
+
+<span class="n">OpenWrapper</span> <span class="o">=</span> <span class="n">_io</span><span class="o">.</span><span class="n">open</span> <span class="c"># for compatibility with _pyio</span>
+
+<span class="c"># for seek()</span>
+<span class="n">SEEK_SET</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">SEEK_CUR</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">SEEK_END</span> <span class="o">=</span> <span class="mi">2</span>
+
+<span class="c"># Declaring ABCs in C is tricky so we do it here.</span>
+<span class="c"># Method descriptions and default implementations are inherited from the C</span>
+<span class="c"># version however.</span>
+<div class="viewcode-block" id="IOBase"><a class="viewcode-back" href="../index.html#io.IOBase">[docs]</a><span class="k">class</span> <span class="nc">IOBase</span><span class="p">(</span><span class="n">_io</span><span class="o">.</span><span class="n">_IOBase</span><span class="p">):</span>
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">_io</span><span class="o">.</span><span class="n">_IOBase</span><span class="o">.</span><span class="n">__doc__</span></div>
+
+<div class="viewcode-block" id="RawIOBase"><a class="viewcode-back" href="../index.html#io.RawIOBase">[docs]</a><span class="k">class</span> <span class="nc">RawIOBase</span><span class="p">(</span><span class="n">_io</span><span class="o">.</span><span class="n">_RawIOBase</span><span class="p">,</span> <span class="n">IOBase</span><span class="p">):</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">_io</span><span class="o">.</span><span class="n">_RawIOBase</span><span class="o">.</span><span class="n">__doc__</span></div>
+
+<div class="viewcode-block" id="BufferedIOBase"><a class="viewcode-back" href="../index.html#io.BufferedIOBase">[docs]</a><span class="k">class</span> <span class="nc">BufferedIOBase</span><span class="p">(</span><span class="n">_io</span><span class="o">.</span><span class="n">_BufferedIOBase</span><span class="p">,</span> <span class="n">IOBase</span><span class="p">):</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">_io</span><span class="o">.</span><span class="n">_BufferedIOBase</span><span class="o">.</span><span class="n">__doc__</span></div>
+
+<div class="viewcode-block" id="TextIOBase"><a class="viewcode-back" href="../index.html#io.TextIOBase">[docs]</a><span class="k">class</span> <span class="nc">TextIOBase</span><span class="p">(</span><span class="n">_io</span><span class="o">.</span><span class="n">_TextIOBase</span><span class="p">,</span> <span class="n">IOBase</span><span class="p">):</span>
+    <span class="n">__doc__</span> <span class="o">=</span> <span class="n">_io</span><span class="o">.</span><span class="n">_TextIOBase</span><span class="o">.</span><span class="n">__doc__</span></div>
+
+<span class="n">RawIOBase</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">FileIO</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">klass</span> <span class="ow">in</span> <span class="p">(</span><span class="n">BytesIO</span><span class="p">,</span> <span class="n">BufferedReader</span><span class="p">,</span> <span class="n">BufferedWriter</span><span class="p">,</span> <span class="n">BufferedRandom</span><span class="p">,</span>
+              <span class="n">BufferedRWPair</span><span class="p">):</span>
+    <span class="n">BufferedIOBase</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">klass</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">klass</span> <span class="ow">in</span> <span class="p">(</span><span class="n">StringIO</span><span class="p">,</span> <span class="n">TextIOWrapper</span><span class="p">):</span>
+    <span class="n">TextIOBase</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">klass</span><span class="p">)</span>
+<span class="k">del</span> <span class="n">klass</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../index.html">symfit 0.3.0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2014, tBuLi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
+    </div>
+  </body>
+</html>

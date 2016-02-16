@@ -1,0 +1,1343 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Module Documentation &mdash; symfit 0.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="symfit 0.3.0 documentation" href="index.html" />
+    <link rel="prev" title="Dependencies and Credits" href="dependencies.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="dependencies.html" title="Dependencies and Credits"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">symfit 0.3.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-documentation">
+<h1>Module Documentation<a class="headerlink" href="#module-documentation" title="Permalink to this headline">¶</a></h1>
+<p>This page contains documentation to everything <code class="docutils literal"><span class="pre">symfit</span></code> has to offer.</p>
+<div class="section" id="basefit">
+<h2>BaseFit<a class="headerlink" href="#basefit" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="symfit.core.fit.BaseFit">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">BaseFit</code><span class="sig-paren">(</span><em>model</em>, <em>*ordered_data</em>, <em>absolute_sigma=None</em>, <em>**named_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#BaseFit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.BaseFit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Abstract Base Class for all fitting objects. Most importantly, it takes care of linking the provided data to variables.
+The allowed variables are extracted from the model.</p>
+<dl class="method">
+<dt id="symfit.core.fit.BaseFit.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>model</em>, <em>*ordered_data</em>, <em>absolute_sigma=None</em>, <em>**named_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#BaseFit.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.BaseFit.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>model</strong> &#8211; (dict of) sympy expression or <code class="docutils literal"><span class="pre">Model</span></code> object.</li>
+<li><strong>bool</strong> (<em>absolute_sigma</em>) &#8211; True by default. If the sigma is only used
+for relative weights in your problem, you could consider setting it to
+False, but if your sigma are measurement errors, keep it at True.
+Note that curve_fit has this set to False by default, which is wrong in
+experimental science.</li>
+<li><strong>ordered_data</strong> &#8211; data for dependent, independent and sigma variables. Assigned in
+the following order: independent vars are assigned first, then dependent
+vars, then sigma&#8217;s in dependent vars. Within each group they are assigned in
+alphabetical order.</li>
+<li><strong>named_data</strong> &#8211; assign dependent, independent and sigma variables data by name.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Standard deviation can be provided to any variable. They have to be prefixed
+with <a href="#id7"><span class="problematic" id="id8">sigma_</span></a>. For example, let x be a Variable. Then sigma_x will give the
+stdev in x.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.BaseFit.__weakref__">
+<code class="descname">__weakref__</code><a class="headerlink" href="#symfit.core.fit.BaseFit.__weakref__" title="Permalink to this definition">¶</a></dt>
+<dd><p>list of weak references to the object (if defined)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.BaseFit.dependent_data">
+<code class="descname">dependent_data</code><a class="headerlink" href="#symfit.core.fit.BaseFit.dependent_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Data belonging to each dependent variable.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict with variable names as key, data as value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.BaseFit.execute">
+<code class="descname">execute</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span> &rarr; symfit.core.fit.FitResults<a class="reference internal" href="_modules/symfit/core/fit.html#BaseFit.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.BaseFit.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Every fit object has to define an execute method.
+Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Args kwargs:</th><td class="field-body"></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Instance of FitResults</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.BaseFit.independent_data">
+<code class="descname">independent_data</code><a class="headerlink" href="#symfit.core.fit.BaseFit.independent_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Data belonging to each independent variable.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict with variable names as key, data as value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.BaseFit.initial_guesses">
+<code class="descname">initial_guesses</code><a class="headerlink" href="#symfit.core.fit.BaseFit.initial_guesses" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Initial guesses for every parameter.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.BaseFit.sigma_data">
+<code class="descname">sigma_data</code><a class="headerlink" href="#symfit.core.fit.BaseFit.sigma_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Data belonging to each sigma variable.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict with variable names as key, data as value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-symfit.core.fit">
+<span id="fit"></span><h2>Fit<a class="headerlink" href="#module-symfit.core.fit" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">BaseFit</code><span class="sig-paren">(</span><em>model</em>, <em>*ordered_data</em>, <em>absolute_sigma=None</em>, <em>**named_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#BaseFit"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Abstract Base Class for all fitting objects. Most importantly, it takes care of linking the provided data to variables.
+The allowed variables are extracted from the model.</p>
+<dl class="method">
+<dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>model</em>, <em>*ordered_data</em>, <em>absolute_sigma=None</em>, <em>**named_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#BaseFit.__init__"><span class="viewcode-link">[source]</span></a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>model</strong> &#8211; (dict of) sympy expression or <code class="docutils literal"><span class="pre">Model</span></code> object.</li>
+<li><strong>bool</strong> (<em>absolute_sigma</em>) &#8211; True by default. If the sigma is only used
+for relative weights in your problem, you could consider setting it to
+False, but if your sigma are measurement errors, keep it at True.
+Note that curve_fit has this set to False by default, which is wrong in
+experimental science.</li>
+<li><strong>ordered_data</strong> &#8211; data for dependent, independent and sigma variables. Assigned in
+the following order: independent vars are assigned first, then dependent
+vars, then sigma&#8217;s in dependent vars. Within each group they are assigned in
+alphabetical order.</li>
+<li><strong>named_data</strong> &#8211; assign dependent, independent and sigma variables data by name.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Standard deviation can be provided to any variable. They have to be prefixed
+with <a href="#id9"><span class="problematic" id="id10">sigma_</span></a>. For example, let x be a Variable. Then sigma_x will give the
+stdev in x.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">__weakref__</code></dt>
+<dd><p>list of weak references to the object (if defined)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">dependent_data</code></dt>
+<dd><p>Read-only Property</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Data belonging to each dependent variable.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict with variable names as key, data as value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">execute</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span> &rarr; symfit.core.fit.FitResults<a class="reference internal" href="_modules/symfit/core/fit.html#BaseFit.execute"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Every fit object has to define an execute method.
+Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Args kwargs:</th><td class="field-body"></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Instance of FitResults</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">independent_data</code></dt>
+<dd><p>Read-only Property</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Data belonging to each independent variable.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict with variable names as key, data as value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">initial_guesses</code></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Initial guesses for every parameter.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">sigma_data</code></dt>
+<dd><p>Read-only Property</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Data belonging to each sigma variable.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict with variable names as key, data as value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.Constraint">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">Constraint</code><span class="sig-paren">(</span><em>constraint: sympy.core.relational.Relational</em>, <em>model: symfit.core.fit.Model</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Constraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Constraint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.fit.Model" title="symfit.core.fit.Model"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.fit.Model</span></code></a></p>
+<p>Constraints are a special type of model in that they have a type: &gt;=, == etc.
+They are made to have lhs - rhs == 0 of the original expression.</p>
+<p>For example, Eq(y + x, 4) -&gt; Eq(y + x - 4, 0)</p>
+<p>Since a constraint belongs to a certain model, it has to be initiated with knowledge of it&#8217;s parent model.
+This is important because all <code class="docutils literal"><span class="pre">numerical_</span></code> methods are done w.r.t. the parameters and variables of the parent
+model, not the constraint! This is because the constraint might not have all the parameter or variables that the
+model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
+not just those present in the constraint.</p>
+<dl class="method">
+<dt id="symfit.core.fit.Constraint.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>constraint: sympy.core.relational.Relational</em>, <em>model: symfit.core.fit.Model</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Constraint.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Constraint.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>constraint</strong> &#8211; constraint that model should be subjected to.</li>
+<li><strong>model</strong> &#8211; A constraint is always tied to a model.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Constraint.constraint_type">
+<code class="descname">constraint_type</code><a class="headerlink" href="#symfit.core.fit.Constraint.constraint_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal"><span class="pre">Equality</span></code></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Constraint.jacobian">
+<code class="descname">jacobian</code><a class="headerlink" href="#symfit.core.fit.Constraint.jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Jacobian &#8216;Matrix&#8217; filled with the symbolic expressions for all the partial derivatives.
+Partial derivatives are of the components of the function with respect to the Parameter&#8217;s,
+not the independent Variable&#8217;s.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Constraint.numerical_components">
+<code class="descname">numerical_components</code><a class="headerlink" href="#symfit.core.fit.Constraint.numerical_components" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda functions of each of the components in model_dict, to be used in numerical calculation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Constraint.numerical_jacobian">
+<code class="descname">numerical_jacobian</code><a class="headerlink" href="#symfit.core.fit.Constraint.numerical_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.Fit">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">Fit</code><span class="sig-paren">(</span><em>model</em>, <em>*ordered_data</em>, <em>absolute_sigma=None</em>, <em>**named_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.fit.NumericalLeastSquares" title="symfit.core.fit.NumericalLeastSquares"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.fit.NumericalLeastSquares</span></code></a></p>
+<p>Wrapper for NumericalLeastSquares to give it a more appealing name. In the future I hope to make this object more
+intelligent so it can search out the best fitting object based on certain qualifiers and return that instead.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.FitResults">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">FitResults</code><span class="sig-paren">(</span><em>params</em>, <em>popt</em>, <em>pcov</em>, <em>infodic</em>, <em>mesg</em>, <em>ier</em>, <em>ydata=None</em>, <em>sigma=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#FitResults"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.FitResults" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Class to display the results of a fit in a nice and unambiguous way.
+All things related to the fit are available on this class, e.g.
+- parameters + stdev
+- R squared (Regression coefficient.)
+- fitting status message</p>
+<p>This object is made to behave entirely read-only. This is a bit unnatural
+to enforce in Python but I feel it is necessary to guarantee the integrity
+of the results.</p>
+<dl class="method">
+<dt id="symfit.core.fit.FitResults.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>params</em>, <em>popt</em>, <em>pcov</em>, <em>infodic</em>, <em>mesg</em>, <em>ier</em>, <em>ydata=None</em>, <em>sigma=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#FitResults.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.FitResults.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Excuse the ugly names of most of these variables, they are inherited. Should be changed.
+from scipy.
+:param params: list of <code class="docutils literal"><span class="pre">Parameter</span></code>&#8216;s.
+:param popt: best fit parameters, same ordering as in params.
+:param pcov: covariance matrix.
+:param infodic: dict with fitting info.
+:param mesg: Status message.
+:param ier: Number of iterations.
+:param ydata:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.FitResults.__str__">
+<code class="descname">__str__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#FitResults.__str__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.FitResults.__str__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pretty print the results as a table.
+:return:</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.FitResults.__weakref__">
+<code class="descname">__weakref__</code><a class="headerlink" href="#symfit.core.fit.FitResults.__weakref__" title="Permalink to this definition">¶</a></dt>
+<dd><p>list of weak references to the object (if defined)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.FitResults.infodict">
+<code class="descname">infodict</code><a class="headerlink" href="#symfit.core.fit.FitResults.infodict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.FitResults.iterations">
+<code class="descname">iterations</code><a class="headerlink" href="#symfit.core.fit.FitResults.iterations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.FitResults.params">
+<code class="descname">params</code><a class="headerlink" href="#symfit.core.fit.FitResults.params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.FitResults.r_squared">
+<code class="descname">r_squared</code><a class="headerlink" href="#symfit.core.fit.FitResults.r_squared" title="Permalink to this definition">¶</a></dt>
+<dd><p>r_squared Property.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Regression coefficient.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.FitResults.status_message">
+<code class="descname">status_message</code><a class="headerlink" href="#symfit.core.fit.FitResults.status_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.Likelihood">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">Likelihood</code><span class="sig-paren">(</span><em>model</em>, <em>*args</em>, <em>constraints=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Likelihood"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.fit.Maximize" title="symfit.core.fit.Maximize"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.fit.Maximize</span></code></a></p>
+<p>Fit using a Maximum-Likelihood approach.</p>
+<dl class="method">
+<dt id="symfit.core.fit.Likelihood.error_func">
+<code class="descname">error_func</code><span class="sig-paren">(</span><em>p</em>, <em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Likelihood.error_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Likelihood.error_func" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error function to be maximised(!) in the case of likelihood fitting.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p</strong> &#8211; guess params</li>
+<li><strong>data</strong> &#8211; xdata</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">scalar value of log-likelihood</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.Likelihood.eval_jacobian">
+<code class="descname">eval_jacobian</code><span class="sig-paren">(</span><em>p</em>, <em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Likelihood.eval_jacobian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Likelihood.eval_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jacobian for likelihood is defined as <span class="math">\(\nabla_{\vec{p}}( \log( L(\vec{p} | \vec{x})))\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p</strong> &#8211; guess params</li>
+<li><strong>data</strong> &#8211; data for the variables.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">array of length number of <code class="docutils literal"><span class="pre">Parameter</span></code>&#8216;s in the model, with all partial derivatives evaluated at p, data.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.Maximize">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">Maximize</code><span class="sig-paren">(</span><em>model</em>, <em>*args</em>, <em>constraints=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Maximize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Maximize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.fit.Minimize" title="symfit.core.fit.Minimize"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.fit.Minimize</span></code></a></p>
+<p>Maximize a model subject to constraints.
+Simply flips the sign on error_func and eval_jacobian in order to maximize.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.Minimize">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">Minimize</code><span class="sig-paren">(</span><em>model</em>, <em>*args</em>, <em>constraints=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Minimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Minimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.fit.BaseFit" title="symfit.core.fit.BaseFit"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.fit.BaseFit</span></code></a></p>
+<p>Minimize a model subject to constraints. A wrapper for <code class="docutils literal"><span class="pre">scipy.optimize.minimize</span></code>.
+<code class="docutils literal"><span class="pre">Minimize</span></code> currently doesn&#8217;t work when data is provided to Variables, and doesn&#8217;t support vector functions.</p>
+<dl class="method">
+<dt id="symfit.core.fit.Minimize.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>model</em>, <em>*args</em>, <em>constraints=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Minimize.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Minimize.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Because in a lot of use cases for Minimize no data is supplied to variables,
+all the empty variables are replaced by an empty np array.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Constraints:</th><td class="field-body">constraints the minimization is subject to.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.Minimize.error_func">
+<code class="descname">error_func</code><span class="sig-paren">(</span><em>p</em>, <em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Minimize.error_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Minimize.error_func" title="Permalink to this definition">¶</a></dt>
+<dd><p>The function to be optimized. Scalar valued models are assumed. For Minimize the thing to evaluate is simply
+self.model(<a href="#id1"><span class="problematic" id="id2">*</span></a>(list(data) + list(p)))</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>p</strong> &#8211; array of floats for the parameters.</li>
+<li><strong>data</strong> &#8211; data to be provided to <code class="docutils literal"><span class="pre">Variable</span></code>&#8216;s.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.Minimize.eval_jacobian">
+<code class="descname">eval_jacobian</code><span class="sig-paren">(</span><em>p</em>, <em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Minimize.eval_jacobian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Minimize.eval_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes partial derivatives of model w.r.t. each <code class="docutils literal"><span class="pre">Parameter</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p</strong> &#8211; array of floats for the parameters.</li>
+<li><strong>data</strong> &#8211; data to be provided to <code class="docutils literal"><span class="pre">Variable</span></code>&#8216;s.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">array of length number of <code class="docutils literal"><span class="pre">Parameter</span></code>&#8216;s in the model, with all partial derivatives evaluated at p, data.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Minimize.scipy_constraints">
+<code class="descname">scipy_constraints</code><a class="headerlink" href="#symfit.core.fit.Minimize.scipy_constraints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read-only Property of all constraints in a scipy compatible format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">dict of scipy compatible statements.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.Model">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">Model</code><span class="sig-paren">(</span><em>*ordered_expressions</em>, <em>**named_expressions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Model represents a symbolic function and all it&#8217;s derived properties such as sum of squares, jacobian etc.
+Models can be initiated from several objects:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">a</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">from_dict</span><span class="p">({</span><span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">})</span>
+<span class="n">b</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Models are callable. The usual rules apply to the ordering of the arguments:</p>
+<ul class="simple">
+<li>first independent variables, then dependent variables, then parameters.</li>
+<li>within each of these groups they are ordered alphabetically.</li>
+</ul>
+<dl class="method">
+<dt id="symfit.core.fit.Model.__call__">
+<code class="descname">__call__</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Model.__call__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Model.__call__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluate the model for a certain value of the independent vars and parameters.
+Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.</p>
+<p>Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
+Alphabetical order within each group.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>args</strong> &#8211; </li>
+<li><strong>kwargs</strong> &#8211; </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
+even for scalar valued functions. This is done for consistency.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.Model.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>*ordered_expressions</em>, <em>**named_expressions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Model.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Model.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initiate a Model from keyword arguments:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">b</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ordered_expressions</strong> &#8211; sympy Expr</li>
+<li><strong>named_expressions</strong> &#8211; sympy Expr</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.Model.__str__">
+<code class="descname">__str__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Model.__str__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Model.__str__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pretty print this model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">str</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.__weakref__">
+<code class="descname">__weakref__</code><a class="headerlink" href="#symfit.core.fit.Model.__weakref__" title="Permalink to this definition">¶</a></dt>
+<dd><p>list of weak references to the object (if defined)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.bounds">
+<code class="descname">bounds</code><a class="headerlink" href="#symfit.core.fit.Model.bounds" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">List of tuples of all bounds on parameters.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.chi">
+<code class="descname">chi</code><a class="headerlink" href="#symfit.core.fit.Model.chi" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Symbolic Square root of <span class="math">\(\chi^2\)</span>. Required for MINPACK optimization only. Denoted as <span class="math">\(\sqrt(\chi^2)\)</span></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.chi_jacobian">
+<code class="descname">chi_jacobian</code><a class="headerlink" href="#symfit.core.fit.Model.chi_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a symbolic jacobian of the <span class="math">\(\sqrt(\chi^2)\)</span> function.
+Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector! This is because that&#8217;s what leastsq needs.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.chi_squared">
+<code class="descname">chi_squared</code><a class="headerlink" href="#symfit.core.fit.Model.chi_squared" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Symbolic <span class="math">\(\chi^2\)</span></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="symfit.core.fit.Model.from_dict">
+<em class="property">classmethod </em><code class="descname">from_dict</code><span class="sig-paren">(</span><em>model_dict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#Model.from_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.Model.from_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initiate a Model from a dict:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">a</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">from_dict</span><span class="p">({</span><span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>Prefered syntax.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>model_dict</strong> &#8211; dict of <code class="docutils literal"><span class="pre">Expr</span></code>, where dependent variables are the keys.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.jacobian">
+<code class="descname">jacobian</code><a class="headerlink" href="#symfit.core.fit.Model.jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Jacobian &#8216;Matrix&#8217; filled with the symbolic expressions for all the partial derivatives.</td>
+</tr>
+</tbody>
+</table>
+<p>Partial derivatives are of the components of the function with respect to the Parameter&#8217;s,
+not the independent Variable&#8217;s.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.numerical_chi">
+<code class="descname">numerical_chi</code><a class="headerlink" href="#symfit.core.fit.Model.numerical_chi" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda function of the <code class="docutils literal"><span class="pre">.chi</span></code> method, to be used in MINPACK optimisation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.numerical_chi_jacobian">
+<code class="descname">numerical_chi_jacobian</code><a class="headerlink" href="#symfit.core.fit.Model.numerical_chi_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda functions of the jacobian of the <code class="docutils literal"><span class="pre">.chi</span></code> method, which can be used in numerical optimization.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.numerical_chi_squared">
+<code class="descname">numerical_chi_squared</code><a class="headerlink" href="#symfit.core.fit.Model.numerical_chi_squared" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda function of the <code class="docutils literal"><span class="pre">.chi_squared</span></code> method, to be used in numerical optimisation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.numerical_components">
+<code class="descname">numerical_components</code><a class="headerlink" href="#symfit.core.fit.Model.numerical_components" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda functions of each of the components in model_dict, to be used in numerical calculation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.numerical_jacobian">
+<code class="descname">numerical_jacobian</code><a class="headerlink" href="#symfit.core.fit.Model.numerical_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.ss_res">
+<code class="descname">ss_res</code><a class="headerlink" href="#symfit.core.fit.Model.ss_res" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Residual sum of squares. Similar to chi_squared, but without considering weights.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.Model.vars">
+<code class="descname">vars</code><a class="headerlink" href="#symfit.core.fit.Model.vars" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Returns a list of dependent, independent and sigma variables, in that order.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.NumericalLeastSquares">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">NumericalLeastSquares</code><span class="sig-paren">(</span><em>model</em>, <em>*ordered_data</em>, <em>absolute_sigma=None</em>, <em>**named_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#NumericalLeastSquares"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.NumericalLeastSquares" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.fit.BaseFit" title="symfit.core.fit.BaseFit"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.fit.BaseFit</span></code></a></p>
+<p>Solves least squares numerically using leastsqbounds. Gives results consistent with MINPACK except
+when borders are provided.</p>
+<dl class="method">
+<dt id="symfit.core.fit.NumericalLeastSquares.execute">
+<code class="descname">execute</code><span class="sig-paren">(</span><em>*options</em>, <em>**kwoptions</em><span class="sig-paren">)</span> &rarr; symfit.core.fit.FitResults<a class="reference internal" href="_modules/symfit/core/fit.html#NumericalLeastSquares.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.NumericalLeastSquares.execute" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>options</strong> &#8211; Any postional arguments to be passed to leastsqbound</li>
+<li><strong>kwoptions</strong> &#8211; Any named arguments to be passed to leastsqbound</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.fit.ParameterDict">
+<em class="property">class </em><code class="descclassname">symfit.core.fit.</code><code class="descname">ParameterDict</code><span class="sig-paren">(</span><em>params</em>, <em>popt</em>, <em>pcov</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Container for all the parameters and their (co)variances.
+Behaves mostly like an OrderedDict: can be <a href="#id3"><span class="problematic" id="id4">**</span></a>-ed, allowing the sexy syntax where a model is
+called with values for the Variables and <a href="#id5"><span class="problematic" id="id6">**</span></a>params. However, under iteration
+it behaves like a list! In other words, it preserves order in the params.</p>
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.__getattr__">
+<code class="descname">__getattr__</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.__getattr__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.__getattr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>A user can access the value of a parameter directly through this object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> &#8211; Name of a <code class="docutils literal"><span class="pre">Parameter</span></code>.
+Naming convention:
+let a = Parameter(). Then:
+.a gives the value of the parameter.
+.a_stdev gives the standard deviation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.__getitem__">
+<code class="descname">__getitem__</code><span class="sig-paren">(</span><em>param_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.__getitem__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method allows this object to be addressed as a dict. This allows for the ** unpacking.
+Therefore return the value of the best fit parameter, as this is what the user expects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>param_name</strong> &#8211; Name of the <code class="docutils literal"><span class="pre">Parameter</span></code> whose value your interested in.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">the value of the best fit parameter with name &#8216;key&#8217;.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.__iter__">
+<code class="descname">__iter__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.__iter__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.__iter__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iteration over the <code class="docutils literal"><span class="pre">Parameter</span></code> instances.
+:return: iterator</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.__len__">
+<code class="descname">__len__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.__len__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.__len__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Length gives the number of <code class="docutils literal"><span class="pre">Parameter</span></code> instances.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">len(self.__params)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="symfit.core.fit.ParameterDict.__weakref__">
+<code class="descname">__weakref__</code><a class="headerlink" href="#symfit.core.fit.ParameterDict.__weakref__" title="Permalink to this definition">¶</a></dt>
+<dd><p>list of weak references to the object (if defined)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.get_stdev">
+<code class="descname">get_stdev</code><span class="sig-paren">(</span><em>param</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.get_stdev"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.get_stdev" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>param</strong> &#8211; <code class="docutils literal"><span class="pre">Parameter</span></code> instance.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">returns the standard deviation of param</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.get_value">
+<code class="descname">get_value</code><span class="sig-paren">(</span><em>param</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.get_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.get_value" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>param</strong> &#8211; <code class="docutils literal"><span class="pre">Parameter</span></code> instance.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">returns the numerical value of param</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.fit.ParameterDict.keys">
+<code class="descname">keys</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/fit.html#ParameterDict.keys"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.ParameterDict.keys" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">All <code class="docutils literal"><span class="pre">Parameter</span></code> names.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.fit.r_squared">
+<code class="descclassname">symfit.core.fit.</code><code class="descname">r_squared</code><span class="sig-paren">(</span><em>model: symfit.core.fit.Model</em>, <em>fit_result: symfit.core.fit.FitResults</em>, <em>data: collections.OrderedDict</em><span class="sig-paren">)</span> &rarr; float<a class="reference internal" href="_modules/symfit/core/fit.html#r_squared"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.fit.r_squared" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the coefficient of determination, R^2, for the fit.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-symfit.core.argument">
+<span id="argument"></span><h2>Argument<a class="headerlink" href="#module-symfit.core.argument" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="symfit.core.argument.Argument">
+<em class="property">class </em><code class="descclassname">symfit.core.argument.</code><code class="descname">Argument</code><span class="sig-paren">(</span><em>name=None</em>, <em>*sympy_args</em>, <em>**sympy_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/argument.html#Argument"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.argument.Argument" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">sympy.core.symbol.Symbol</span></code></p>
+<p>Base class for <code class="docutils literal"><span class="pre">symfit</span></code> symbols. This helps make <code class="docutils literal"><span class="pre">symfit</span></code> symbols distinguishable from <code class="docutils literal"><span class="pre">sympy</span></code> symbols.</p>
+<p>The <code class="docutils literal"><span class="pre">Argument</span></code> class also makes DRY possible in defining <code class="docutils literal"><span class="pre">Argument</span></code>&#8216;s: it uses <code class="docutils literal"><span class="pre">inspect</span></code> to read the lhs of the
+assignment and uses that as the name for the <code class="docutils literal"><span class="pre">Argument</span></code> is none is explicitly set.</p>
+<p>For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>x = Variable()
+print(x.name)
+&gt;&gt; &#39;x&#39;
+</pre></div>
+</div>
+<dl class="attribute">
+<dt id="symfit.core.argument.Argument.__weakref__">
+<code class="descname">__weakref__</code><a class="headerlink" href="#symfit.core.argument.Argument.__weakref__" title="Permalink to this definition">¶</a></dt>
+<dd><p>list of weak references to the object (if defined)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.argument.Parameter">
+<em class="property">class </em><code class="descclassname">symfit.core.argument.</code><code class="descname">Parameter</code><span class="sig-paren">(</span><em>value=1.0</em>, <em>min=None</em>, <em>max=None</em>, <em>fixed=False</em>, <em>name=None</em>, <em>*sympy_args</em>, <em>**sympy_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/argument.html#Parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.argument.Parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.argument.Argument" title="symfit.core.argument.Argument"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.argument.Argument</span></code></a></p>
+<p>Parameter objects are used to facilitate bounds on function parameters.</p>
+<dl class="method">
+<dt id="symfit.core.argument.Parameter.__call__">
+<code class="descname">__call__</code><span class="sig-paren">(</span><em>**values</em><span class="sig-paren">)</span><a class="headerlink" href="#symfit.core.argument.Parameter.__call__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>self</strong> &#8211; Any subclass of sympy.Expr</li>
+<li><strong>values</strong> &#8211; Values for the Parameters and Variables of the Expr.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The function evaluated at <code class="docutils literal"><span class="pre">values</span></code>. Depending on the Expr and <code class="docutils literal"><span class="pre">values</span></code>, this could be a single number or an array.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="symfit.core.argument.Parameter.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>value=1.0</em>, <em>min=None</em>, <em>max=None</em>, <em>fixed=False</em>, <em>name=None</em>, <em>*sympy_args</em>, <em>**sympy_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/argument.html#Parameter.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.argument.Parameter.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>value</strong> &#8211; Initial guess value.</li>
+<li><strong>min</strong> &#8211; Lower bound on the parameter value.</li>
+<li><strong>max</strong> &#8211; Upper bound on the parameter value.</li>
+<li><strong>fixed</strong> (<em>bool</em>) &#8211; Fix the parameter to <code class="docutils literal"><span class="pre">value</span></code> during fitting.</li>
+<li><strong>name</strong> &#8211; Name of the Parameter.</li>
+<li><strong>sympy_args</strong> &#8211; Args to pass to <code class="docutils literal"><span class="pre">sympy</span></code>.</li>
+<li><strong>sympy_kwargs</strong> &#8211; Kwargs to pass to <code class="docutils literal"><span class="pre">sympy</span></code>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="symfit.core.argument.Variable">
+<em class="property">class </em><code class="descclassname">symfit.core.argument.</code><code class="descname">Variable</code><span class="sig-paren">(</span><em>name=None</em>, <em>*sympy_args</em>, <em>**sympy_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/argument.html#Variable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.argument.Variable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#symfit.core.argument.Argument" title="symfit.core.argument.Argument"><code class="xref py py-class docutils literal"><span class="pre">symfit.core.argument.Argument</span></code></a></p>
+<p>Variable type.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-symfit.core.operators">
+<span id="operators"></span><h2>Operators<a class="headerlink" href="#module-symfit.core.operators" title="Permalink to this headline">¶</a></h2>
+<p>This module makes sympy Epressions callable, which makes the whole project feel more consistent.</p>
+<dl class="function">
+<dt id="symfit.core.operators.call">
+<code class="descclassname">symfit.core.operators.</code><code class="descname">call</code><span class="sig-paren">(</span><em>self</em>, <em>**values</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/operators.html#call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.operators.call" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>self</strong> &#8211; Any subclass of sympy.Expr</li>
+<li><strong>values</strong> &#8211; Values for the Parameters and Variables of the Expr.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The function evaluated at <code class="docutils literal"><span class="pre">values</span></code>. Depending on the Expr and <code class="docutils literal"><span class="pre">values</span></code>, this could be a single number or an array.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-symfit.core.support">
+<span id="support"></span><h2>Support<a class="headerlink" href="#module-symfit.core.support" title="Permalink to this headline">¶</a></h2>
+<p>This module contains support functions and convenience methods used
+throughout symfit. Some are used predominantly internally, others are
+designed for users.</p>
+<dl class="function">
+<dt id="symfit.core.support.cache">
+<code class="descclassname">symfit.core.support.</code><code class="descname">cache</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#cache"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.cache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorator function that gets a method as its input and either buffers the input,
+or returns the buffered output. Used in conjunction with properties to take away
+the standard buffering logic.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.support.jacobian">
+<code class="descclassname">symfit.core.support.</code><code class="descname">jacobian</code><span class="sig-paren">(</span><em>expr</em>, <em>symbols</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#jacobian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.jacobian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Derive a symbolic expr w.r.t. each symbol in symbols. This returns a symbolic jacobian vector.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>expr</strong> &#8211; A sympy Expr.</li>
+<li><strong>symbols</strong> &#8211; The symbols w.r.t. which to derive.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.support.parameters">
+<code class="descclassname">symfit.core.support.</code><code class="descname">parameters</code><span class="sig-paren">(</span><em>names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function for the creation of multiple parameters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>names</strong> &#8211; string of parameter names. Should be comma seperated.
+Example: a, b = parameters(&#8216;a, b&#8217;)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.support.seperate_symbols">
+<code class="descclassname">symfit.core.support.</code><code class="descname">seperate_symbols</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#seperate_symbols"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.seperate_symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Seperate the symbols in symbolic function func. Return them in alphabetical
+order.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; scipy symbolic function.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">(vars, params), a tuple of all variables and parameters, each 
+sorted in alphabetical order.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name" colspan="2">Raises TypeError:</th></tr>
+<tr class="field-odd field"><td>&nbsp;</td><td class="field-body">only symfit Variable and Parameter are allowed, not sympy
+Symbols.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.support.sympy_to_py">
+<code class="descclassname">symfit.core.support.</code><code class="descname">sympy_to_py</code><span class="sig-paren">(</span><em>func</em>, <em>vars</em>, <em>params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#sympy_to_py"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.sympy_to_py" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turn a symbolic expression into a Python lambda function,
+which has the names of the variables and parameters as it&#8217;s argument names.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>func</strong> &#8211; sympy expression</li>
+<li><strong>vars</strong> &#8211; variables in this model</li>
+<li><strong>params</strong> &#8211; parameters in this model</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars
+first, then params.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.support.sympy_to_scipy">
+<code class="descclassname">symfit.core.support.</code><code class="descname">sympy_to_scipy</code><span class="sig-paren">(</span><em>func</em>, <em>vars</em>, <em>params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#sympy_to_scipy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.sympy_to_scipy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a symbolic expression to one scipy digs. Not used by <code class="docutils literal"><span class="pre">symfit</span></code> any more.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>func</strong> &#8211; sympy expression</li>
+<li><strong>vars</strong> &#8211; variables</li>
+<li><strong>params</strong> &#8211; parameters</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Scipy-style function to be used for numerical evaluation of the model.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.core.support.variables">
+<code class="descclassname">symfit.core.support.</code><code class="descname">variables</code><span class="sig-paren">(</span><em>names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/core/support.html#variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.core.support.variables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function for the creation of multiple variables.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>names</strong> &#8211; string of variable names. Should be comma seperated.
+Example: x, y = variables(&#8216;x, y&#8217;)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-symfit.distributions">
+<span id="distributions"></span><h2>Distributions<a class="headerlink" href="#module-symfit.distributions" title="Permalink to this headline">¶</a></h2>
+<p>Some common distributions are defined in this module. That way, users can easily build
+more complicated expressions without making them look hard.</p>
+<p>I have deliberately chosen to start these function with a capital, e.g.
+Gaussian instead of gaussian, because this makes the resulting expressions more
+readable.</p>
+<dl class="function">
+<dt id="symfit.distributions.Exp">
+<code class="descclassname">symfit.distributions.</code><code class="descname">Exp</code><span class="sig-paren">(</span><em>x</em>, <em>l</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/distributions.html#Exp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.distributions.Exp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exponential Distribution pdf.
+:param x: free variable.
+:param l: rate parameter.
+:return: sympy.Expr for an Exponential Distribution pdf.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="symfit.distributions.Gaussian">
+<code class="descclassname">symfit.distributions.</code><code class="descname">Gaussian</code><span class="sig-paren">(</span><em>x</em>, <em>mu</em>, <em>sig</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symfit/distributions.html#Gaussian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#symfit.distributions.Gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gaussian pdf.
+:param x: free variable.
+:param mu: mean of the distribution.
+:param sig: standard deviation of the distribution.
+:return: sympy.Expr for a Gaussian pdf.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Module Documentation</a><ul>
+<li><a class="reference internal" href="#basefit">BaseFit</a></li>
+<li><a class="reference internal" href="#module-symfit.core.fit">Fit</a></li>
+<li><a class="reference internal" href="#module-symfit.core.argument">Argument</a></li>
+<li><a class="reference internal" href="#module-symfit.core.operators">Operators</a></li>
+<li><a class="reference internal" href="#module-symfit.core.support">Support</a></li>
+<li><a class="reference internal" href="#module-symfit.distributions">Distributions</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="dependencies.html"
+                        title="previous chapter">Dependencies and Credits</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/module_docs.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="dependencies.html" title="Dependencies and Credits"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">symfit 0.3.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2014, tBuLi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
+    </div>
+  </body>
+</html>
