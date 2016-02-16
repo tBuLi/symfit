@@ -23,7 +23,7 @@ model = {y: distr(x, k, x0)}
 x_data = np.linspace(0, 2.5, 50)
 y_data = model[y](x=x_data, k=1000, x0=1)
 fit = interactive_fit.InteractiveFit2D(model, x=x_data, y=y_data)
-fit.visual_guess(250)
+fit.visual_guess()
 print("Guessed values: ")
 for p in fit.model.params:
     print("{}: {}".format(p.name, p.value))
