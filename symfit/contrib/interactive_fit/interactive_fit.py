@@ -65,8 +65,8 @@ class InteractiveFit2D(Fit):
             ax.scatter(self.independent_data[x.name],
                        self.dependent_data[y.name])
 
-            vals = self._get_data(y, x)
-            plot, = ax.plot(*vals, c='r')
+            vals = self._get_data(x, y)
+            plot, = ax.plot(*vals, c='red')
             self._plots[proj] = plot
 
         i = 0.05
@@ -104,10 +104,10 @@ class InteractiveFit2D(Fit):
         for indep_var, dep_var in self._projections:
             plot = self._plots[(indep_var, dep_var)]
             # TODO: reduce dimensionality of self._x_points and vals for this projection
-            vals = self._get_data(dep_var, indep_var)
+            vals = self._get_data(indep_var, dep_var)
             plot.set_data(*vals)
 
-    def _get_data(self, dependent_var, independent_var):
+    def _get_data(self, independent_var, dependent_var):
         """
         Convenience method for evaluating the model, giving the projection
         dependent_var, independent_var
@@ -157,19 +157,38 @@ if __name__ == "__main__":
     def distr(x, k, x0):
         kbT = 4.11
         return exp(-k*(x-x0)**2/kbT)
+#
+#    x = Variable()
+#    y = Variable()
+#    k = Parameter(900)
+#    x0 = Parameter(1.5)
+#
+#    model = {y: distr(x, k, x0)}
+#    x_data = np.linspace(0, 2.5, 50)
+#    y_data = model[y](x=x_data, k=1000, x0=1)
+#    fit = InteractiveFit2D(model, x=x_data, y=y_data, n_points=250)
+#    fit.visual_guess()
+#    print("Guessed values: ")
+#    for p in fit.model.params:
+#        print("{}: {}".format(p.name, p.value))
+#    fit_result = fit.execute(maxfev=1000)
+#    print(fit_result)
 
     x = Variable()
-    y = Variable()
+    y1 = Variable()
+    y2 = Variable()
     k = Parameter(900)
     x0 = Parameter(1.5)
 
-    model = {y: distr(x, k, x0)}
+    model = {y1: k * (x-x0)**2,
+             y2: x - x0}
     x_data = np.linspace(0, 2.5, 50)
-    y_data = model[y](x=x_data, k=1000, x0=1)
-    fit = InteractiveFit2D(model, x=x_data, y=y_data, n_points=250)
+    y1_data = model[y1](x=x_data, k=1000, x0=1)
+    y2_data = model[y2](x=x_data, k=1000, x0=1)
+    fit = InteractiveFit2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
     fit.visual_guess()
     print("Guessed values: ")
     for p in fit.model.params:
         print("{}: {}".format(p.name, p.value))
-    fit_result = fit.execute(maxfev=1000)
+    fit_result = fit.execute(maxfev=50)
     print(fit_result)

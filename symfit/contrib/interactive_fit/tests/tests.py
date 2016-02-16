@@ -5,8 +5,9 @@ Created on Tue Feb 16 11:25:07 2016
 @author: peterkroon
 """
 
-from symfit.contrib.interactive_fit import interactive_fit
+from symfit.contrib import interactive_fit
 from symfit import Variable, Parameter, exp
+from symfit.distributions import Gaussian
 import numpy as np
 import unittest
 import matplotlib.colors
@@ -79,7 +80,7 @@ class Gaussian2DInteractiveFitTest(unittest.TestCase):
         x0 = self.x0.value
         kbT = 4.11
         true_y = np.exp(-k*(x_points-x0)**2/kbT)
-        actual_x, actual_y = self.fit._get_data(y, x)
+        actual_x, actual_y = self.fit._get_data(x, y)
         self.assertTrue(np.allclose(x_points, actual_x) and
                         np.allclose(true_y, actual_y))
 
@@ -99,6 +100,79 @@ class Gaussian2DInteractiveFitTest(unittest.TestCase):
         for plot in self.fit._plots.values():
             color = matplotlib.colors.ColorConverter().to_rgb(plot.get_color())
             self.assertEqual(color, (1, 0, 0))
+
+
+class VectorValuedTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        x = Variable()
+        y1 = Variable()
+        y2 = Variable()
+        k = Parameter(900)
+        x0 = Parameter(1.5)
+
+        model = {y1: k * (x-x0)**2,
+                 y2: x - x0}
+        x_data = np.linspace(0, 2.5, 50)
+        y1_data = model[y1](x=x_data, k=1000, x0=1)
+        y2_data = model[y2](x=x_data, k=1000, x0=1)
+        cls.fit = interactive_fit.InteractiveFit2D(model, x=x_data, y1=y1_data, y2=y2_data)
+
+    def test_number_of_projections(self):
+        self.assertEqual(len(self.fit._projections), 2)
+
+    def test_number_of_plots(self):
+        self.assertEqual(len(self.fit._plots), 2)
+
+    def test_plot_titles(self):
+        for proj in self.fit._projections:
+            plot = self.fit._plots[proj]
+            self.assertEqual(plot.axes.get_title(),
+                             "{} {}".format(proj[0].name, proj[1].name))
+
+
+@unittest.skip("3D problems are not yet supported")
+class Gaussian3DInteractiveFitTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        mean = (0.6,0.4) # x, y mean 0.6, 0.4
+        cov = [[0.2**2,0],[0,0.1**2]]
+        data = np.random.multivariate_normal(mean, cov, 1000000)
+
+        # Insert them as y,x here as np fucks up cartesian conventions.
+        ydata, xedges, yedges = np.histogram2d(data[:,0], data[:,1], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
+        xcentres = (xedges[:-1] + xedges[1:]) / 2
+        ycentres = (yedges[:-1] + yedges[1:]) / 2
+
+        # Make a valid grid to match ydata
+        xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
+        xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
+
+        x0 = Parameter(0.6)
+        sig_x = Parameter(0.2, min=0.0)
+        x = Variable()
+        y0 = Parameter(0.4)
+        sig_y = Parameter(0.1, min=0.0)
+        A = Parameter()
+        y = Variable()
+        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
+        cls.g = g
+        cls.xdata = xdata
+        cls.ydata = ydata
+        cls.fit = interactive_fit.InteractiveFit2D(g, xdata, ydata)
+
+    def test_number_of_projections(self):
+        self.assertEqual(len(self.fit._projections), 2)
+
+    def test_number_of_plots(self):
+        self.assertEqual(len(self.fit._plots), 2)
+
+    def test_plot_titles(self):
+        for proj in self.fit._projections:
+            plot = self.fit._plots[proj]
+            self.assertEqual(plot.axes.get_title(),
+                             "{} {}".format(proj[0].name, proj[1].name))
+
 
 if __name__ == '__main__':
     unittest.main()
