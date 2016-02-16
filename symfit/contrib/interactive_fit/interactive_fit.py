@@ -25,7 +25,7 @@ class InteractiveFit2D(Fit):
             n_points = kwargs.pop('n_points')
         else:
             n_points = 100
-        super().__init__(*args, **kwargs)
+        super(InteractiveFit2D, self).__init__(*args, **kwargs)
 
         if len(self.independent_data) > 1:
             raise IndexError("Only 2D problems are supported.")
