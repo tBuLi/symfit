@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from symfit import Fit  # Should be ...api import fit. Or something. Relative imports.
+from ... import Fit  # Should be ...api import fit. Or something. Relative imports.
+#from ...core.support import key2str, keywordonly
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 import itertools
@@ -20,12 +21,12 @@ class InteractiveFit2D(Fit):
     """A class that provides a visual_guess method which provides
     an graphical, interactive way of guessing initial fitting parameters."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, model, **kwargs):
         if 'n_points' in kwargs:
             n_points = kwargs.pop('n_points')
         else:
             n_points = 100
-        super(InteractiveFit2D, self).__init__(*args, **kwargs)
+        super(InteractiveFit2D, self).__init__(model, **kwargs)
 
         if len(self.independent_data) > 1:
             raise IndexError("Only 2D problems are supported.")
