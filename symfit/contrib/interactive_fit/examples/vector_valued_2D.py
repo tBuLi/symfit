@@ -15,8 +15,10 @@ y2 = Variable()
 k = Parameter(900)
 x0 = Parameter(1.5)
 
-model = {y1: k * (x-x0)**2,
-         y2: x - x0}
+model = {
+         y1: k * (x-x0)**2,
+         y2: x - x0
+        }
 x_data = np.linspace(0, 2.5, 50)
 y1_data = model[y1](x=x_data, k=1000, x0=1)
 y2_data = model[y2](x=x_data, k=1000, x0=1)
