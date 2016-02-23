@@ -2,7 +2,7 @@
 
 import numpy as np
 from ... import Fit  # Should be ...api import fit. Or something. Relative imports.
-#from ...core.support import key2str, keywordonly
+from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 import itertools
@@ -21,14 +21,12 @@ class InteractiveFit2D(Fit):
     """A class that provides a visual_guess method which provides
     an graphical, interactive way of guessing initial fitting parameters."""
 
-    def __init__(self, model, **kwargs):
-        if 'n_points' in kwargs:
-            n_points = kwargs.pop('n_points')
-        else:
-            n_points = 100
-        super(InteractiveFit2D, self).__init__(model, **kwargs)
+    @keywordonly(n_points=100)
+    def __init__(self, *args, **kwargs):
+        n_points = kwargs.pop('n_points')
+        super(InteractiveFit2D, self).__init__(*args, **kwargs)
 
-        if len(self.independent_data) > 1:
+        if len(self.independent_data) != 1:
             raise IndexError("Only 2D problems are supported.")
 
         self._projections = list(itertools.product(self.model.independent_vars,
@@ -43,6 +41,14 @@ class InteractiveFit2D(Fit):
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
         y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
 
+        self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
+        self._set_up_sliders()
+
+    def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
+        """
+        Prepare the matplotlib figure: make all the subplots; adjust their
+        x and y range; scatterplot the data; and plot an putative function.
+        """
         self.fig = plt.figure()
 
         # Make room for the sliders:
@@ -54,6 +60,8 @@ class InteractiveFit2D(Fit):
         nrows = int(np.ceil(len(self._projections)**0.5))
         ncols = int(np.ceil(len(self._projections)/nrows))
 
+        # Make all the subplots: set the x and y limits, scatter the data, and
+        # plot the putative function.
         self._plots = {}
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
@@ -70,6 +78,10 @@ class InteractiveFit2D(Fit):
             plot, = ax.plot(*vals, c='red')
             self._plots[proj] = plot
 
+    def _set_up_sliders(self):
+        """
+        Creates an slider for every parameter.
+        """
         i = 0.05
         self._sliders = {}
         for p in self.model.params:
@@ -78,7 +90,8 @@ class InteractiveFit2D(Fit):
             else:
                 axbg = 'red'
             # start-x, start-y, width, height
-            ax = self.fig.add_axes((0.162, i, 0.68, 0.03), axis_bgcolor=axbg, label=p.name)
+            ax = self.fig.add_axes((0.162, i, 0.68, 0.03),
+                                   axis_bgcolor=axbg, label=p.name)
             val = p.value
             if p.min is None:
                 minimum = 0
@@ -125,9 +138,9 @@ class InteractiveFit2D(Fit):
         x_points, y_points
         """
         x_points = self._x_points[independent_var.name]
-        arguments = {independent_var.name: x_points}
-        arguments.update({p.name: p.value for p in self.model.params})
-        return x_points, self.model[dependent_var](**arguments)
+        arguments = {independent_var: x_points}
+        arguments.update({p: p.value for p in self.model.params})
+        return x_points, self.model[dependent_var](**key2str(arguments))
 
     def visual_guess(self, n_points=100):
         """Create a matplotlib window with sliders for all parameters
