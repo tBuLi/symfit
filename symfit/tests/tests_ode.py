@@ -61,37 +61,37 @@ class TestODE(unittest.TestCase):
         # plt.plot(tdata, ode_model(tdata)[1], color='blue')
         # plt.show()
 
-    # def test_polgar(self):
-    #     """
-    #     Analysis of data published here:
-    #     This whole ODE support was build to do this analysis in the first place
-    #     """
-    #     a, b, c, d, t = variables('a, b, c, d, t')
-    #     k, p, l, m = parameters('k, p, l, m')
-    #
-    #     a0 = 10
-    #     b = a0 - d + a
-    #
-    #     model_dict = {
-    #         Derivative(d, t): l * c * b - m * d,
-    #         Derivative(c, t): k * a * b - p * c - l * c * b + m * d,
-    #         Derivative(a, t): - k * a * b + p * c,
-    #     }
-    #
-    #     ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
-    #
-    #     # Generate some data
-    #     tdata = np.linspace(0, 3, 1000)
-    #     # Eval
-    #     AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3)
-    #
-    #     plt.plot(tdata, AA, color='red', label='[AA]')
-    #     plt.plot(tdata, AAB, color='blue', label='[AAB]')
-    #     plt.plot(tdata, BAAB, color='green', label='[BAAB]')
-    #     plt.plot(tdata, b(d=BAAB, a=AA), color='pink', label='[B]')
-    #     plt.plot(tdata, AA + AAB + BAAB, color='black', label='total')
-    #     plt.legend()
-    #     plt.show()
+    def test_polgar(self):
+        """
+        Analysis of data published here:
+        This whole ODE support was build to do this analysis in the first place
+        """
+        a, b, c, d, t = variables('a, b, c, d, t')
+        k, p, l, m = parameters('k, p, l, m')
+
+        a0 = 10
+        b = a0 - d + a
+
+        model_dict = {
+            Derivative(d, t): l * c * b - m * d,
+            Derivative(c, t): k * a * b - p * c - l * c * b + m * d,
+            Derivative(a, t): - k * a * b + p * c,
+        }
+
+        ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
+
+        # Generate some data
+        tdata = np.linspace(0, 3, 1000)
+        # Eval
+        AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3)
+
+        # plt.plot(tdata, AA, color='red', label='[AA]')
+        # plt.plot(tdata, AAB, color='blue', label='[AAB]')
+        # plt.plot(tdata, BAAB, color='green', label='[BAAB]')
+        # plt.plot(tdata, b(d=BAAB, a=AA), color='pink', label='[B]')
+        # plt.plot(tdata, AA + AAB + BAAB, color='black', label='total')
+        # plt.legend()
+        # plt.show()
 
     def test_simple_kinetics(self):
         """
@@ -100,30 +100,34 @@ class TestODE(unittest.TestCase):
         tdata = np.array([10, 26, 44, 70, 120])
         adata = 10e-4 * np.array([44, 34, 27, 20, 14])
         a, b, t = variables('a, b, t')
-        k, = parameters('k')
+        k, a0 = parameters('k, a0')
         k.value = 0.01
+        # a0.value, a0.min, a0.max = 54 * 10e-4, 40e-4, 60e-4
+        a0 = 54 * 10e-4
 
         model_dict = {
-            Derivative(a, t): - k * a**2,
-            Derivative(b, t): k * a**2,
+            D(a, t): - k * a**2,
+            D(b, t): k * a**2,
         }
 
-        ode_model = ODEModel(model_dict, initial={t: 0.0, a: 54 * 10e-4, b: 0.0})
+        ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
 
         # Generate some data
         tvec = np.linspace(0, 500, 1000)
 
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute()
-        print(fit_result)
+        # print(fit_result)
+        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01)
+        self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
 
-        A, B = ode_model(t=tvec, **fit_result.params)
-        plt.plot()
-        plt.plot(tvec, A, label='[A]')
-        plt.plot(tvec, B, label='[B]')
-        plt.scatter(tdata, adata)
-        plt.legend()
-        plt.show()
+        # A, B = ode_model(t=tvec, **fit_result.params)
+        # plt.plot()
+        # plt.plot(tvec, A, label='[A]')
+        # plt.plot(tvec, B, label='[B]')
+        # plt.scatter(tdata, adata)
+        # plt.legend()
+        # plt.show()
 
 
 if __name__ == '__main__':

@@ -987,7 +987,6 @@ class NumericalLeastSquares(BaseFit):
                 result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
                 if flatten:
                     result[-1] = result[-1].flatten()
-        # print(np.sqrt(sum(result)).shape)
         return np.sqrt(sum(result))
 
     def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
@@ -999,7 +998,6 @@ class NumericalLeastSquares(BaseFit):
                 for index, component in enumerate(row):
                     result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
         result = [item.flatten() for item in result]
-        # print('jac stuff', chi.shape, result[0].shape, len(result))
         return - np.array(result).T
 
 
@@ -1792,7 +1790,20 @@ def r_squared(model, fit_result, data):
     return 1 - SS_res/SS_tot
 
 class ODEModel(CallableModel):
+    """
+    Model build from a system of ODEs. When the model is called, the ODE is
+    integrated. Currently the initial conditions are assumed to specify the
+    first point to begin the integration from. This is enforced.
+    """
     def __init__(self, model_dict, initial, exposed=None, *lsoda_args, **lsoda_kwargs):
+        """
+        :param model_dict:
+        :param initial: Initial conditions for the ODE. Must be provided!
+        :param exposed:
+        :param lsoda_args:
+        :param lsoda_kwargs:
+        :return:
+        """
         self.initial = initial
         self.lsoda_args = lsoda_args
         self.lsoda_kwargs = lsoda_kwargs
@@ -1816,14 +1827,21 @@ class ODEModel(CallableModel):
         )
         # Extract all the params and vars as a sorted, unique list.
         expressions = model_dict.values()
-        _params = set([])
+        model_params = set([])
+
+        # Only the once's that have a Parameter as initial parameter.
+        # self.initial_params = {value for var, value in self.initial.items()
+        #                        if isinstance(value, Parameter)}
+
         for expression in expressions:
             vars, params = seperate_symbols(expression)
-            _params.update(params)
+            model_params.update(params)
             # self.independent_vars.update(vars)
         # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(_params, key=sort_func)
-
+        self.params = sorted(model_params, key=sort_func)
+        # self.params = sorted(self.model_params | self.initial_params, key=sort_func)
+        # self.model_params = sorted(self.model_params, key=sort_func)
+        # self.initial_params = sorted(self.initial_params, key=sort_func)
 
         # Make Variable object corresponding to each var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
@@ -1859,6 +1877,7 @@ class ODEModel(CallableModel):
     @cache
     def _njacobian(self):
         return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
+        # return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
 
     def eval_components(self, *args, **kwargs):
         bound_arguments = self.__signature__.bind(*args, **kwargs)
@@ -1883,12 +1902,16 @@ class ODEModel(CallableModel):
             t_like = np.hstack((np.array([initial_independent]), t_like))
             start = 1
 
-        ans = odeint(f, initial_dependent, t_like, args=tuple(bound_arguments.arguments[param.name] for param in self.params), *self.lsoda_args, **self.lsoda_kwargs) #  Dfun=Dfun
+        ans = odeint(
+            f,
+            initial_dependent,
+            t_like,
+            args=tuple(bound_arguments.arguments[param.name] for param in self.params),
+            *self.lsoda_args, **self.lsoda_kwargs
+        ) #  Dfun=Dfun
         # We expose only the vars that the user wants to see
-        ans = np.array([column for var, column in zip(self, ans[start:].T) if var in self.exposed])
-        print(ans.shape)
-        # return ans
-        return ans
+        # ans = np.array([column for var, column in zip(self, ans[start:].T) if var in self.exposed])
+        return ans[start:].T
 
     def __call__(self, *args, **kwargs):
         """
@@ -1904,8 +1927,28 @@ class ODEModel(CallableModel):
             even for scalar valued functions. This is done for consistency.
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self if var in self.exposed])
-        # Ans = namedtuple('Ans', [var.name for var in self])
+        Ans = namedtuple('Ans', [var.name for var in self])
         ans = Ans(*self.eval_components(**bound_arguments.arguments))
-        print(ans[0].shape)
         return ans
+
+# class ODEFit(Fit):
+#     def __init__(self, *args, **kwargs):
+#         super(ODEFit, self).__init__(*args, **kwargs)
+#         self._param_indexes = {}
+#         for var, value in self.model.initial.items():
+#             if isinstance(value, Parameter):
+#                 try:
+#                     index = self.model.params.index(value)
+#                 except ValueError:
+#                     self.model.params.append(value)
+#                     index = self.model.params.index(value)
+#
+#                 self._param_indexes.update({var: index})
+#                 self.model.initial[var] = value.value
+#
+#     def error_func(self, p, independent_data, dependent_data, sigma_data, flatten=True):
+#         p = list(p)
+#         for var, param_index in self._param_indexes.items():
+#             self.model.initial[var] = p.pop(param_index)
+#         # print(self.model.initial)
+#         return super(ODEFit, self).error_func(p, independent_data, dependent_data, sigma_data, flatten)

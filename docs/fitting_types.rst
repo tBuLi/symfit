@@ -155,6 +155,65 @@ However, it makes perfect sense because in this problem they are parameters to b
 Furthermore, this way of defining it is consistent with the treatment of ``Variable``'s and ``Parameter``'s in ``symfit``.
 Be aware of this when using ``Minimize``, as the whole process won't work otherwise.
 
+ODE Fitting
+-----------
+Fitting to a system of ODEs is also remarkedly simple with ``symfit``. Let's do a
+simple example from reaction kinetics. Suppose we have a reaction A + A -> B with rate constant :math:`k`.
+We then need the following system of rate equations:
+
+.. math::
+
+  \frac{dA}{dt} = -k A^2
+  \frac{dB}{dt} = k A^2
+
+In ``symfit``, this becomes::
+
+    model_dict = {
+        D(a, t): - k * a**2,
+        D(b, t): k * a**2,
+    }
+
+We see that the ``symfit`` code is already very readable. Let's do a fit to this::
+
+    tdata = np.array([10, 26, 44, 70, 120])
+    adata = 10e-4 * np.array([44, 34, 27, 20, 14])
+    a, b, t = variables('a, b, t')
+    k = Parameter(0.1)
+    a0 = 54 * 10e-4
+
+    model_dict = {
+        D(a, t): - k * a**2,
+        D(b, t): k * a**2,
+    }
+
+    ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
+
+    fit = Fit(ode_model, t=tdata, a=adata, b=None)
+    fit_result = fit.execute()
+
+That's it! An ``ODEModel`` behaves just like any other model object, so ``Fit``
+knows how to deal with it! Note that since we don't know the concentration of
+B, we explicitely set ``b=None`` when calling ``Fit`` so it will be ignored.
+
+Upon every iteration of performing the fit the ODEModel is integrated again from
+the initial point using the new guesses for the parameters.
+
+We can plot it just like always::
+
+    # Generate some data
+    tvec = np.linspace(0, 500, 1000)
+
+    A, B = ode_model(t=tvec, **fit_result.params)
+    plt.plot(tvec, A, label='[A]')
+    plt.plot(tvec, B, label='[B]')
+    plt.scatter(tdata, adata)
+    plt.legend()
+    plt.show()
+
+.. figure:: _static/ode_model_fit.png
+   :width: 300px
+   :alt: Linear Model Fit Data
+
 How Does ``Fit`` Work?
 ----------------------
 How does ``Fit`` get from a (named) model and some data to a fit? Consider the following example::

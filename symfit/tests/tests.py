@@ -121,8 +121,6 @@ class Tests(unittest.TestCase):
 
         fit = NumericalLeastSquares(model, x=xdata, y=ydata)
         fit_result = fit.execute()
-        print(fit_result)
-        print(fit.model)
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.params.a, 3.0)
         self.assertAlmostEqual(fit_result.params.b, 2.0)
@@ -146,7 +144,6 @@ class Tests(unittest.TestCase):
             c_i=xdata[2],
         )
         fit_result = fit.execute()
-        print(fit_result)
 
         self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
         self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
@@ -439,7 +436,6 @@ class Tests(unittest.TestCase):
 
         fit = Fit(g, xx, yy, ydata)
         fit_result = fit.execute()
-        print(fit_result)
 
         # Again, the order seems to be swapped for py3k
         self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:,0]), 1)
@@ -480,7 +476,6 @@ class Tests(unittest.TestCase):
         # Unbounded
         fit = Maximize(model)
         fit_result = fit.execute()
-        # print(fit_result)
         self.assertAlmostEqual(fit_result.params.y, 1.)
         self.assertAlmostEqual(fit_result.params.x, 2.)
 
@@ -490,8 +485,6 @@ class Tests(unittest.TestCase):
         fit_result = fit.execute()
         self.assertAlmostEqual(fit_result.params.x, 1.00000009)
         self.assertAlmostEqual(fit_result.params.y, 1.)
-
-        print(fit_result)
 
     def test_minimize_with_data(self):
         """
@@ -676,7 +669,6 @@ class Tests(unittest.TestCase):
         fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False)
         # fit = Fit(model, x=xdata, y=ydata, z=zdata, absolute_sigma=False)
         fit_result = fit.execute()
-        print(fit_result)
 
         # Same as Mathematica default behavior.
         self.assertAlmostEqual(fit_result.params.a, 2.9956, 4)
@@ -738,7 +730,6 @@ class Tests(unittest.TestCase):
         fit = Fit(model, y=yn, sigma_y=sigma)
         fit_result = fit.execute()
 
-        print(fit_result)
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
         self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
@@ -746,8 +737,6 @@ class Tests(unittest.TestCase):
 
         fit_no_sigma = Fit(model, yn)
         fit_result_no_sigma = fit_no_sigma.execute()
-
-        print(fit_result_no_sigma)
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn,)
         # With or without sigma, the bestfit params should be in agreement in case of equal weights
@@ -761,7 +750,6 @@ class Tests(unittest.TestCase):
         mu = 0.0
         sigma_mu = sigma/N**0.5
 
-        print(mu, sigma_mu)
         # self.assertAlmostEqual(fit_result.params.a, mu, 5)
         self.assertAlmostEqual(fit_result.params.a_stdev, sigma_mu, 5)
 
