@@ -142,7 +142,7 @@ class InteractiveFit2D(Fit):
         arguments.update({p: p.value for p in self.model.params})
         return x_points, self.model[dependent_var](**key2str(arguments))
 
-    def visual_guess(self, n_points=100):
+    def visual_guess(self):
         """Create a matplotlib window with sliders for all parameters
         in this model, so that you may graphically guess initial fitting
         parameters. n_points is the number of points drawn for the plot.
