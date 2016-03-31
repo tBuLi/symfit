@@ -11,6 +11,8 @@ import sys
 import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
+from sympy.tensor import IndexedBase
+from sympy import Symbol
 
 from symfit.core.argument import Parameter, Variable
 
@@ -32,8 +34,6 @@ def seperate_symbols(func):
     """
     params = []
     vars = []
-    from sympy.tensor import IndexedBase
-    from sympy import Symbol
     for symbol in func.free_symbols:
         if isinstance(symbol, Parameter):
             params.append(symbol)
@@ -170,8 +170,11 @@ class keywordonly(object):
 
         floor = kwargs.pop('floor') if 'floor' in kwargs else True
 
-    However, I prefer it's usage because: it's clear from reading the function deceleration
-    there is an option to provide this argument. Plus your guaranteed that the pop works.
+    However, I prefer it's usage because: 
+    - it's clear from reading the function declaration there is an option to provide this 
+      argument. The information on possible keywords is where you'd expect it to be.
+    - you're guaranteed that the pop works.
+    - Perhaps in the future I will make this inspect-compatible so then we come full circle.
 
     Please note that this decorator needs a ** argument in order to work.
     """
@@ -194,7 +197,7 @@ class keywordonly(object):
             :param args: args used to call the function
             :param kwargs: kwargs used to call the function
             :return: Wrapped function which behaves like it has keyword-only arguments.
-            :raises: ``RequiredKeywordError`` if not all required keywords where specified.
+            :raises: ``RequiredKeywordError`` if not all required keywords were specified.
             """
             for kw in self.required_keywords:
                 if kw not in kwargs:
