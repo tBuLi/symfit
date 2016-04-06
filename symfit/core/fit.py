@@ -787,15 +787,8 @@ class TakesData(object):
         for var, sigma in self.model.sigmas.items():
             # print(var, sigma)
             if not isinstance(self.data[sigma.name], Iterable):
-<<<<<<< HEAD
-                try:
-                    self.data[sigma.name] *= np.ones(self.data[var.name].shape)
-                except AttributeError:
-                    pass
-=======
                 self.data[sigma.name] *= np.ones(self.data[var.name].shape)
                 # If no attribute shape exists, data is also not an array
->>>>>>> create_TakesData
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
         # given, False if no sigma is given.
