@@ -732,9 +732,9 @@ class Constraint(Model):
         return inspect_sig.Signature(parameters=parameters)
 
 
-class BaseFit(object):
+class TakesData(object):
     """
-    Abstract Base Class for all fitting objects. Most importantly, it takes care
+    An base class for everything that takes data. Most importantly, it takes care
     of linking the provided data to variables. The allowed variables are extracted
     from the model.
     """
@@ -840,6 +840,18 @@ class BaseFit(object):
         """
         return {var.name: self.data[var.name] for var in self.model.sigmas.values()}
 
+    @property
+    def initial_guesses(self):
+        """
+        :return: Initial guesses for every parameter.
+        """
+        return np.array([param.value for param in self.model.params])
+
+
+class BaseFit(TakesData):
+    """
+    Abstract base class for all fitting objects.
+    """
     def execute(self, *args, **kwargs):
         """
         Every fit object has to define an execute method.
@@ -862,13 +874,6 @@ class BaseFit(object):
         function to be minimized.
         """
         raise NotImplementedError('Every subclass of BaseFit must have an eval_jacobian method.')
-
-    @property
-    def initial_guesses(self):
-        """
-        :return: Initial guesses for every parameter.
-        """
-        return np.array([param.value for param in self.model.params])
 
 
 class NumericalLeastSquares(BaseFit):
