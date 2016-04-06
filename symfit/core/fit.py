@@ -732,9 +732,9 @@ class Constraint(Model):
         return inspect_sig.Signature(parameters=parameters)
 
 
-class BaseFit(object):
+class TakesData(object):
     """
-    Abstract Base Class for all fitting objects. Most importantly, it takes care
+    An base class for everything that takes data. Most importantly, it takes care
     of linking the provided data to variables. The allowed variables are extracted
     from the model.
     """
@@ -787,10 +787,15 @@ class BaseFit(object):
         for var, sigma in self.model.sigmas.items():
             # print(var, sigma)
             if not isinstance(self.data[sigma.name], Iterable):
+<<<<<<< HEAD
                 try:
                     self.data[sigma.name] *= np.ones(self.data[var.name].shape)
                 except AttributeError:
                     pass
+=======
+                self.data[sigma.name] *= np.ones(self.data[var.name].shape)
+                # If no attribute shape exists, data is also not an array
+>>>>>>> create_TakesData
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
         # given, False if no sigma is given.
@@ -837,6 +842,18 @@ class BaseFit(object):
         """
         return {var.name: self.data[var.name] for var in self.model.sigmas.values()}
 
+    @property
+    def initial_guesses(self):
+        """
+        :return: Initial guesses for every parameter.
+        """
+        return np.array([param.value for param in self.model.params])
+
+
+class BaseFit(TakesData):
+    """
+    Abstract base class for all fitting objects.
+    """
     def execute(self, *args, **kwargs):
         """
         Every fit object has to define an execute method.
@@ -859,13 +876,6 @@ class BaseFit(object):
         function to be minimized.
         """
         raise NotImplementedError('Every subclass of BaseFit must have an eval_jacobian method.')
-
-    @property
-    def initial_guesses(self):
-        """
-        :return: Initial guesses for every parameter.
-        """
-        return np.array([param.value for param in self.model.params])
 
 
 class NumericalLeastSquares(BaseFit):
@@ -1717,3 +1727,4 @@ def r_squared(model, fit_result, data):
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars)])
 
     return 1 - SS_res/SS_tot
+
