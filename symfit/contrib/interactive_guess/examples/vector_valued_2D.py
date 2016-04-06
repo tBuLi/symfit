@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Feb 16 15:04:10 2016
-
-@author: peterkroon
-"""
-from symfit import Variable, Parameter
-from symfit.contrib.interactive_fit import InteractiveFit2D
+from symfit import Variable, Parameter, Fit
+from symfit.contrib.interactive_guess import InteractiveGuess2D
 import numpy as np
 
 
@@ -22,10 +17,11 @@ model = {
 x_data = np.linspace(0, 2.5, 50)
 y1_data = model[y1](x=x_data, k=1000, x0=1)
 y2_data = model[y2](x=x_data, k=1000, x0=1)
-fit = InteractiveFit2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
-fit.visual_guess()
+guess = InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
 print("Guessed values: ")
-for p in fit.model.params:
+for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
+
+fit = Fit(model, x=x_data, y1=y1_data, y2=y2_data)
 fit_result = fit.execute(maxfev=50)
 print(fit_result)

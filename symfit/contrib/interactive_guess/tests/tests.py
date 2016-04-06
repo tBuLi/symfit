@@ -1,24 +1,18 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Feb 16 11:25:07 2016
-
-@author: peterkroon
-"""
-
-from symfit.contrib import interactive_fit
+from symfit.contrib import interactive_guess
 from symfit import Variable, Parameter, exp
 from symfit.distributions import Gaussian
 import numpy as np
 import unittest
 import matplotlib.colors
-
+import matplotlib.pyplot as plt
 
 def distr(x, k, x0):
     kbT = 4.11
     return exp(-k*(x-x0)**2/kbT)
 
 
-class Gaussian2DInteractiveFitTest(unittest.TestCase):
+class Gaussian2DInteractiveGuessTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         np.random.seed(0)
@@ -35,7 +29,8 @@ class Gaussian2DInteractiveFitTest(unittest.TestCase):
         model = {y: distr(x, k, x0)}
         x_data = np.linspace(0, 2.5, 50)
         y_data = model[y](x=x_data, k=1000, x0=1)
-        cls.fit = interactive_fit.InteractiveFit2D(model, x=x_data, y=y_data)
+        cls.fit = interactive_guess.InteractiveGuess2D(model, x=x_data, y=y_data)
+        plt.close(cls.fit.fig)
 
     def test_number_of_sliders(self):
         self.assertEqual(len(self.fit._sliders), 2)
@@ -116,7 +111,8 @@ class VectorValuedTest(unittest.TestCase):
         x_data = np.linspace(0, 2.5, 50)
         y1_data = model[y1](x=x_data, k=1000, x0=1)
         y2_data = model[y2](x=x_data, k=1000, x0=1)
-        cls.fit = interactive_fit.InteractiveFit2D(model, x=x_data, y1=y1_data, y2=y2_data)
+        cls.fit = interactive_guess.InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data)
+        plt.close(cls.fit.fig)
 
     def test_number_of_projections(self):
         self.assertEqual(len(self.fit._projections), 2)
@@ -159,7 +155,8 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
         cls.g = g
         cls.xdata = xdata
         cls.ydata = ydata
-        cls.fit = interactive_fit.InteractiveFit2D(g, xdata, ydata)
+        cls.fit = interactive_guess.InteractiveGuess2D(g, xdata, ydata)
+        plt.close(cls.fit.fig)
 
     def test_number_of_projections(self):
         self.assertEqual(len(self.fit._projections), 2)

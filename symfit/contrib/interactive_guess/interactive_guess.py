@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from ... import Fit  # Should be ...api import fit. Or something. Relative imports.
+from ...core.fit import TakesData  # Should be ...api import fit. Or something. Relative imports.
 from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -17,14 +17,30 @@ import itertools
 #    raise EnvironmentError("Your symfit version is not supported. YMMV.")
 
 
-class InteractiveFit2D(Fit):
+class InteractiveGuess2D(TakesData):
     """A class that provides a visual_guess method which provides
     an graphical, interactive way of guessing initial fitting parameters."""
 
     @keywordonly(n_points=100)
     def __init__(self, *args, **kwargs):
+        """Create a matplotlib window with sliders for all parameters
+        in this model, so that you may graphically guess initial fitting
+        parameters. n_points is the number of points drawn for the plot.
+        Data points are plotted as blue points, the proposed model as
+        a red line.
+        Slider extremes are taken from the parameters where possible. If
+        these are not provided, the minimum is 0; and the maximum is value*2.
+        If no initial value is provided, it defaults to 1.
+
+        This will modify the values of the parameters present in model.
+
+        Parameters
+        ----------
+        n_points : int
+            The number of points used for drawing the fitted function.
+        """
         n_points = kwargs.pop('n_points')
-        super(InteractiveFit2D, self).__init__(*args, **kwargs)
+        super(InteractiveGuess2D, self).__init__(*args, **kwargs)
 
         if len(self.independent_data) != 1:
             raise IndexError("Only 2D problems are supported.")
@@ -43,6 +59,7 @@ class InteractiveFit2D(Fit):
 
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
+        self.fig.show()
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
         """
@@ -141,68 +158,3 @@ class InteractiveFit2D(Fit):
         arguments = {independent_var: x_points}
         arguments.update({p: p.value for p in self.model.params})
         return x_points, self.model[dependent_var](**key2str(arguments))
-
-    def visual_guess(self):
-        """Create a matplotlib window with sliders for all parameters
-        in this model, so that you may graphically guess initial fitting
-        parameters. n_points is the number of points drawn for the plot.
-        Data points are plotted as blue points, the proposed model as
-        a red line.
-        Slider extremes are taken from the parameters where possible. If
-        these are not provided, the minimum is 0; and the maximum is value*2.
-        If no initial value is provided, it defaults to 1.
-
-        Parameters
-        ----------
-        n_points : int
-            The number of points used for drawing the fitted function.
-
-        Returns
-        -------
-        None
-        """
-        plt.show()
-        return
-
-
-if __name__ == "__main__":
-    from symfit import Parameter, Variable, exp
-
-    def distr(x, k, x0):
-        kbT = 4.11
-        return exp(-k*(x-x0)**2/kbT)
-#
-#    x = Variable()
-#    y = Variable()
-#    k = Parameter(900)
-#    x0 = Parameter(1.5)
-#
-#    model = {y: distr(x, k, x0)}
-#    x_data = np.linspace(0, 2.5, 50)
-#    y_data = model[y](x=x_data, k=1000, x0=1)
-#    fit = InteractiveFit2D(model, x=x_data, y=y_data, n_points=250)
-#    fit.visual_guess()
-#    print("Guessed values: ")
-#    for p in fit.model.params:
-#        print("{}: {}".format(p.name, p.value))
-#    fit_result = fit.execute(maxfev=1000)
-#    print(fit_result)
-
-    x = Variable()
-    y1 = Variable()
-    y2 = Variable()
-    k = Parameter(900)
-    x0 = Parameter(1.5)
-
-    model = {y1: k * (x-x0)**2,
-             y2: x - x0}
-    x_data = np.linspace(0, 2.5, 50)
-    y1_data = model[y1](x=x_data, k=1000, x0=1)
-    y2_data = model[y2](x=x_data, k=1000, x0=1)
-    fit = InteractiveFit2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
-    fit.visual_guess()
-    print("Guessed values: ")
-    for p in fit.model.params:
-        print("{}: {}".format(p.name, p.value))
-    fit_result = fit.execute(maxfev=50)
-    print(fit_result)
