@@ -1720,3 +1720,4 @@ def r_squared(model, fit_result, data):
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars)])
 
     return 1 - SS_res/SS_tot
+
