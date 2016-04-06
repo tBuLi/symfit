@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import namedtuple, Mapping, OrderedDict, Iterable
 import copy
 import sys
 import warnings
@@ -786,14 +786,9 @@ class TakesData(object):
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
             # print(var, sigma)
-            try:
-                iter(self.data[sigma.name])
-            except TypeError:
-                try:
-                    self.data[sigma.name] *= np.ones(self.data[var.name].shape)
-                except AttributeError:
-                    # If no attribute shape exists, data is also not an array
-                    pass
+            if not isinstance(self.data[sigma.name], Iterable):
+                self.data[sigma.name] *= np.ones(self.data[var.name].shape)
+                # If no attribute shape exists, data is also not an array
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
         # given, False if no sigma is given.
