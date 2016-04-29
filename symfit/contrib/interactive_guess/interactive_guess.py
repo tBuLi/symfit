@@ -83,9 +83,9 @@ class InteractiveGuess2D(TakesData):
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
             plotlabel = '${}({}) = {}$'.format(
-                sympy.printing.latex(y, 'plain'),
+                sympy.printing.latex(y, mode='plain'),
                 x.name,
-                sympy.printing.latex(self.model[y], 'plain'))
+                sympy.printing.latex(self.model[y], mode='plain'))
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
                                       label=plotlabel)
             ax.set_title(ax.get_label())
