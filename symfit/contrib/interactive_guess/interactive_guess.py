@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from ...core.fit import TakesData  # Should be ...api import fit. Or something. Relative imports.
+from ...core.fit import TakesData
 from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 import itertools
-
+import sympy.printing.latex
 
 #from pkg_resources import parse_version
 
@@ -82,8 +82,12 @@ class InteractiveGuess2D(TakesData):
         self._plots = {}
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
+            plotlabel = '${}({}) = {}$'.format(
+                sympy.printing.latex(y, 'plain'),
+                x.name,
+                sympy.printing.latex(self.model[y], 'plain'))
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
-                                      label='{} {}'.format(x.name, y.name))
+                                      label=plotlabel)
             ax.set_title(ax.get_label())
             ax.set_ylim(y_mins[y.name], y_maxs[y.name])
             ax.set_xlim(x_mins[x.name], x_maxs[x.name])
