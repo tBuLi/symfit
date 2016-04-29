@@ -50,13 +50,20 @@ class InteractiveGuess2D(TakesData):
 
         x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
-
+        for x in self.independent_data:
+            plotrange_x = x_maxs[x] - x_mins[x]
+            x_mins[x] -= 0.1 * plotrange_x
+            x_maxs[x] += 0.1 * plotrange_x
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
                           for v in self.independent_data}
 
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
-        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
-
+        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}        
+        for y in self.dependent_data:
+            plotrange_y = y_maxs[y] - y_mins[y]
+            y_mins[y] -= 0.1 * plotrange_y
+            y_maxs[y] += 0.1 * plotrange_y
+        
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
         self.fig.show()
