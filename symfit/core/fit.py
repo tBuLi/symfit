@@ -1792,17 +1792,23 @@ def r_squared(model, fit_result, data):
 class ODEModel(CallableModel):
     """
     Model build from a system of ODEs. When the model is called, the ODE is
-    integrated. Currently the initial conditions are assumed to specify the
-    first point to begin the integration from. This is enforced.
+    integrated using the LSODA package.
+
+    Currently the initial conditions are assumed to specify the
+    first point to begin the integration from. This is enforced. In future
+    versions one should be allowed to specify the initial value as a parameter.
     """
-    def __init__(self, model_dict, initial, exposed=None, *lsoda_args, **lsoda_kwargs):
+    def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
         """
-        :param model_dict:
-        :param initial: Initial conditions for the ODE. Must be provided!
-        :param exposed:
-        :param lsoda_args:
-        :param lsoda_kwargs:
-        :return:
+        :param model_dict: Dictionary specifying ODEs. e.g.
+            model_dict = {D(y, x): a * x**2}
+        :param initial: ``dict`` of initial conditions for the ODE.
+            Must be provided! e.g.
+            initial = {y: 1.0, x: 0.0}
+        :param lsoda_args: args to pass to the lsoda solver.
+            See `scipy's odeint <http://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.odeint.html>`_
+            for more info.
+        :param lsoda_kwargs: kwargs to pass to the lsoda solver.
         """
         self.initial = initial
         self.lsoda_args = lsoda_args
@@ -1843,10 +1849,8 @@ class ODEModel(CallableModel):
         # self.model_params = sorted(self.model_params, key=sort_func)
         # self.initial_params = sorted(self.initial_params, key=sort_func)
 
-        # Make Variable object corresponding to each var.
+        # Make Variable object corresponding to each sigma var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
-
-        self.exposed = exposed if exposed else self.dependent_vars
 
         self.__signature__ = self._make_signature()
 
@@ -1909,8 +1913,6 @@ class ODEModel(CallableModel):
             args=tuple(bound_arguments.arguments[param.name] for param in self.params),
             *self.lsoda_args, **self.lsoda_kwargs
         ) #  Dfun=Dfun
-        # We expose only the vars that the user wants to see
-        # ans = np.array([column for var, column in zip(self, ans[start:].T) if var in self.exposed])
         return ans[start:].T
 
     def __call__(self, *args, **kwargs):
@@ -1930,25 +1932,3 @@ class ODEModel(CallableModel):
         Ans = namedtuple('Ans', [var.name for var in self])
         ans = Ans(*self.eval_components(**bound_arguments.arguments))
         return ans
-
-# class ODEFit(Fit):
-#     def __init__(self, *args, **kwargs):
-#         super(ODEFit, self).__init__(*args, **kwargs)
-#         self._param_indexes = {}
-#         for var, value in self.model.initial.items():
-#             if isinstance(value, Parameter):
-#                 try:
-#                     index = self.model.params.index(value)
-#                 except ValueError:
-#                     self.model.params.append(value)
-#                     index = self.model.params.index(value)
-#
-#                 self._param_indexes.update({var: index})
-#                 self.model.initial[var] = value.value
-#
-#     def error_func(self, p, independent_data, dependent_data, sigma_data, flatten=True):
-#         p = list(p)
-#         for var, param_index in self._param_indexes.items():
-#             self.model.initial[var] = p.pop(param_index)
-#         # print(self.model.initial)
-#         return super(ODEFit, self).error_func(p, independent_data, dependent_data, sigma_data, flatten)
