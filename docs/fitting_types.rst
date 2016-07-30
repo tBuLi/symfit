@@ -193,7 +193,7 @@ We see that the ``symfit`` code is already very readable. Let's do a fit to this
 
 That's it! An ``ODEModel`` behaves just like any other model object, so ``Fit``
 knows how to deal with it! Note that since we don't know the concentration of
-B, we explicitely set ``b=None`` when calling ``Fit`` so it will be ignored.
+B, we explicitly set ``b=None`` when calling ``Fit`` so it will be ignored.
 
 Upon every iteration of performing the fit the ODEModel is integrated again from
 the initial point using the new guesses for the parameters.
@@ -213,6 +213,49 @@ We can plot it just like always::
 .. figure:: _static/ode_model_fit.png
    :width: 300px
    :alt: Linear Model Fit Data
+
+As an example of the power of ``symfit``'s ODE syntax, let's have a look at
+a system with 2 equilibria: compound AA + B <-p  k-> AAB and AAB + B <-m  l-> d.
+(In more readable this way then when sticking to conventional
+chemical notation.)
+
+In ``symfit`` these can be implemented as::
+
+    AA, B, AAB, BAAB, t = variables('AA, B, AAB, BAAB, t')
+    k, p, l, m = parameters('k, p, l, m')
+
+    AA_0 = 10 # Some made up initial amound of [AA]
+    B = AA_0 - BAAB + AA # [B] is not independent.
+
+    model_dict = {
+        D(BAAB, t): l * AAB * B - m * BAAB,
+        D(AAB, t): k * A * B - p * AAB - l * AAB * B + m * BAAB,
+        D(A, t): - k * A * B + p * AAB,
+    }
+
+The result is as readable as one can reasonably expect from a multicomponent
+system (and while using chemical notation).
+Let's plot the model for some kinetics constants::
+
+    model = ODEModel(model_dict, initial={t: 0.0, AA: AA_0, AAB: 0.0, BAAB: 0.0})
+
+    # Generate some data
+    tdata = np.linspace(0, 3, 1000)
+    # Eval the normal way.
+    AA, AAB, BAAB = model(t=tdata, k=0.1, l=0.2, m=0.3, p=0.3)
+
+    plt.plot(tdata, AA, color='red', label='[AA]')
+    plt.plot(tdata, AAB, color='blue', label='[AAB]')
+    plt.plot(tdata, BAAB, color='green', label='[BAAB]')
+    plt.plot(tdata, B(BAAB=BAAB, AA=AA), color='pink', label='[B]')
+    # plt.plot(tdata, AA + AAB + BAAB, color='black', label='total')
+    plt.legend()
+    plt.show()
+
+
+.. figure:: _static/ode_double_eq_integrated.png
+   :width: 300px
+   :alt: ODE integration
 
 How Does ``Fit`` Work?
 ----------------------
