@@ -1,15 +1,17 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import namedtuple, Mapping, Iterable, OrderedDict, deque
 import copy
 import sys
 import warnings
+from abc import abstractmethod
 
 import sympy
 from sympy.core.relational import Relational
 import numpy as np
 from scipy.optimize import minimize
+from scipy.integrate import odeint
 
 from symfit.core.argument import Parameter, Variable
-from symfit.core.support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str
+from symfit.core.support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str, deprecated
 from symfit.core.leastsqbound import leastsqbound
 
 if sys.version_info >= (3,0):
@@ -102,6 +104,7 @@ class ParameterDict(object):
                     pass
         raise AttributeError('No Parameter by the name {}.'.format(param_name))
 
+    @deprecated(replacement='value')
     def get_value(self, param):
         """
         Deprecated.
@@ -109,9 +112,9 @@ class ParameterDict(object):
         :return: returns the numerical value of param
         :raises: DeprecationWarning
         """
-        warnings.warn(DeprecationWarning('`.get_value` has been deprecated. Use `.value` instead.'))
         return self.value(param)
 
+    @deprecated(replacement='stdev')
     def get_stdev(self, param):
         """
         Deprecated.
@@ -119,7 +122,6 @@ class ParameterDict(object):
         :return: returns the standard deviation of param
         :raises: DeprecationWarning
         """
-        warnings.warn(DeprecationWarning('`.get_stdev` has been deprecated. Use `.stdev` instead.'))
         return self.stdev(param)
 
     def value(self, param):
@@ -296,97 +298,30 @@ class FitResults(object):
         param_2_number = list(self.params).index(param_2)
         return self.params.covariance_matrix[param_1_number, param_2_number]
 
-class Model(Mapping):
+class BaseModel(Mapping):
     """
-    Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
-    Models can be initiated from several objects::
-
-        a = Model.from_dict({y: x**2})
-        b = Model(y=x**2)
-
-    Models are callable. The usual rules apply to the ordering of the arguments:
-
-    * first independent variables, then dependent variables, then parameters.
-    * within each of these groups they are ordered alphabetically.
-
-    Models are also iterable, behaving as their internal model_dict. In the example above,
-    a[y] returns x**2, len(a) == 1, y in a == True, etc.
+    ABC for ``Model``'s. Makes sure models are iterable.
+    Models can be initiated from Mappings or Iterables of Expressions, or from an expression directly.
+    Expressions are not enforced for ducktyping purposes.
     """
-    def __init__(self, *ordered_expressions, **named_expressions):
-        """
-        Initiate a Model from keyword arguments::
-
-            b = Model(y=x**2)
-
-        :param ordered_expressions: sympy Expr
-        :param named_expressions: sympy Expr
-        """
-        model_dict = {sympy.Dummy('y_{}'.format(index + 1)): expr for index, expr in enumerate(ordered_expressions)}
-        model_dict.update(
-            {Variable(name=dep_var_name): expr for dep_var_name, expr in named_expressions.items()}
-        )
-        if model_dict:
-            self._init_from_dict(model_dict)
-
-    @classmethod
-    def from_dict(cls, model_dict):
+    def __init__(self, model):
         """
         Initiate a Model from a dict::
 
-            a = Model.from_dict({y: x**2})
+            a = Model({y: x**2})
 
-        Preferred way of initiating ``Model``.
+        Preferred way of initiating ``Model``, since now you know what the dependent variable is called.
 
-        :param model_dict: dict of ``Expr``, where dependent variables are the keys.
+        :param model: dict of ``Expr``, where dependent variables are the keys.
         """
-        self = cls()
-        self._init_from_dict(model_dict)
+        if not isinstance(model, Mapping):
+            if not isinstance(model, Iterable):
+                model = [model]
 
-        return self
+            model = {sympy.Dummy('y_{}'.format(index + 1)): expr for index, expr in enumerate(model)}
+            # model = {Variable('dummy_{}'.format(index + 1)): expr for index, expr in enumerate(model)}
 
-    def _init_from_dict(self, model_dict):
-        """
-        Initiate self from a model_dict to make sure attributes such as vars, params are available.
-
-        Creates lists of alphabetically sorted independent vars, dependent vars, sigma vars, and parameters.
-        Finally it creates a signature for this model so it can be called nicely. This signature only contains
-        independent vars and params, as one would expect.
-
-        :param model_dict: dict of (dependent_var, expression) pairs.
-        """
-        # try: # Normal vars have name's, Indexed objects don't directly.
-        #     [symbol.name for symbol in model_dict.keys()]
-        # except AttributeError as err:
-        #     raise err
-        #     sort_func = lambda symbol: symbol.base.label.name
-        # else:
-        sort_func = lambda symbol: str(symbol)
-        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
-        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
-
-        # Extract all the params and vars as a sorted, unique list.
-        expressions = model_dict.values()
-        _params, self.independent_vars = set([]), set([])
-        for expression in expressions:
-            vars, params = seperate_symbols(expression)
-            _params.update(params)
-            self.independent_vars.update(vars)
-        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(_params, key=sort_func)
-        self.independent_vars = sorted(self.independent_vars, key=sort_func)
-
-        # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
-
-        self.__signature__ = self._make_signature()
-
-    def _make_signature(self):
-        # Handle args and kwargs according to the allowed names.
-        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
-                for arg in self.independent_vars + self.params
-        ]
-        return inspect_sig.Signature(parameters=parameters)
+        self._init_from_dict(model)
 
     def __len__(self):
         """
@@ -432,6 +367,77 @@ class Model(Mapping):
             else:
                 return True
 
+    def _init_from_dict(self, model_dict):
+        """
+        Initiate self from a model_dict to make sure attributes such as vars, params are available.
+
+        Creates lists of alphabetically sorted independent vars, dependent vars, sigma vars, and parameters.
+        Finally it creates a signature for this model so it can be called nicely. This signature only contains
+        independent vars and params, as one would expect.
+
+        :param model_dict: dict of (dependent_var, expression) pairs.
+        """
+        sort_func = lambda symbol: str(symbol)
+        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
+        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
+
+        # Extract all the params and vars as a sorted, unique list.
+        expressions = model_dict.values()
+        _params, self.independent_vars = set([]), set([])
+        for expression in expressions:
+            vars, params = seperate_symbols(expression)
+            _params.update(params)
+            self.independent_vars.update(vars)
+        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
+        self.params = sorted(_params, key=sort_func)
+        self.independent_vars = sorted(self.independent_vars, key=sort_func)
+
+        # Make Variable object corresponding to each var.
+        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+
+    @property
+    @cache
+    def vars(self):
+        """
+        :return: Returns a list of dependent, independent and sigma variables, in that order.
+        """
+        return self.independent_vars + self.dependent_vars + [self.sigmas[var] for var in self.dependent_vars]
+
+    @property
+    def bounds(self):
+        """
+        :return: List of tuples of all bounds on parameters.
+        """
+        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
+
+
+class CallableModel(BaseModel):
+    """
+    Defines a callable model. The usual rules apply to the ordering of the arguments:
+
+    * first independent variables, then dependent variables, then parameters.
+    * within each of these groups they are ordered alphabetically.
+    """
+    @abstractmethod
+    def eval_components(self, *args, **kwargs):
+        """
+        Evaluate the components of the model with the given data.
+        Used for numerical evaluation.
+        """
+        pass
+
+    def _make_signature(self):
+        # Handle args and kwargs according to the allowed names.
+        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
+            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+                for arg in self.independent_vars + self.params
+        ]
+        return inspect_sig.Signature(parameters=parameters)
+
+    def _init_from_dict(self, model_dict):
+        super(CallableModel, self)._init_from_dict(model_dict)
+        self.__signature__ = self._make_signature()
+
     def __call__(self, *args, **kwargs):
         """
         Evaluate the model for a certain value of the independent vars and parameters.
@@ -447,8 +453,26 @@ class Model(Mapping):
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self])
-        return Ans(*[expression(**bound_arguments.arguments) for expression in self.numerical_components])
+        # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
+        return Ans(*self.eval_components(**bound_arguments.arguments))
 
+
+class Model(CallableModel):
+    """
+    Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
+    Models can be initiated from several objects::
+
+        a = Model({y: x**2})
+        b = Model(y=x**2)
+
+    Models are callable. The usual rules apply to the ordering of the arguments:
+
+    * first independent variables, then dependent variables, then parameters.
+    * within each of these groups they are ordered alphabetically.
+
+    Models are also iterable, behaving as their internal model_dict. In the example above,
+    a[y] returns x**2, len(a) == 1, y in a == True, etc.
+    """
     def __str__(self):
         """
         Printable representation of this model.
@@ -466,6 +490,16 @@ class Model(Mapping):
                 )
             )
         return "\n".join(parts)
+
+    @property
+    # @cache
+    def jacobian(self):
+        """
+        :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
+        Partial derivatives are of the components of the function with respect to the Parameter's,
+        not the independent Variable's.
+        """
+        return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
     @property
     # @cache
@@ -511,31 +545,13 @@ class Model(Mapping):
             jac.append(f)
         return jac
 
-    @property
-    # @cache
-    def jacobian(self):
-        """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-        Partial derivatives are of the components of the function with respect to the Parameter's,
-        not the independent Variable's.
-        """
-        return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
-
-    @property
-    # @cache
-    def ss_res(self):
-        """
-        :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
-        """
-        return sum((y - f)**2 for y, f in self.items())
-
-    @property
-    # @cache
-    def numerical_chi_squared(self):
-        """
-        :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
-        """
-        return sympy_to_py(self.chi_squared, self.vars, self.params)
+    # @property
+    # # @cache
+    # def ss_res(self):
+    #     """
+    #     :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
+    #     """
+    #     return sum((y - f)**2 for y, f in self.items())
 
     @property
     # @cache
@@ -544,6 +560,22 @@ class Model(Mapping):
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
         return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
+
+    @property
+    # @cache
+    def numerical_jacobian(self):
+        """
+        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
+        """
+        return [[sympy_to_py(partial, self.independent_vars, self.params) for partial in row] for row in self.jacobian]
+
+    @property
+    # @cache
+    def numerical_chi_squared(self):
+        """
+        :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
+        """
+        return sympy_to_py(self.chi_squared, self.vars, self.params)
 
     @property
     # @cache
@@ -569,28 +601,21 @@ class Model(Mapping):
         """
         return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
 
-    @property
-    # @cache
-    def numerical_jacobian(self):
+    def eval_components(self, *args, **kwargs):
+        """
+        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
+        """
+        return [expr(*args, **kwargs) for expr in self.numerical_components]
+        # return [sympy_to_py(expr, self.independent_vars, self.params)(*args, **kwargs) for expr in self.values()]
+
+    def eval_jacobian(self, *args, **kwargs):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
-        return [[sympy_to_py(partial, self.independent_vars, self.params) for partial in row] for row in self.jacobian]
-
-    @property
-    @cache
-    def vars(self):
-        """
-        :return: Returns a list of dependent, independent and sigma variables, in that order.
-        """
-        return self.independent_vars + self.dependent_vars + [self.sigmas[var] for var in self.dependent_vars]
-
-    @property
-    def bounds(self):
-        """
-        :return: List of tuples of all bounds on parameters.
-        """
-        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
+        return [
+            [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
+        ]
+        # return [[partial(*args, **kwargs) for partial in row] for row in self.jacobian]
 
 
 class TaylorModel(Model):
@@ -614,7 +639,8 @@ class TaylorModel(Model):
                 linear += jac.subs(params_0.items()) * (p - p0)
             model_dict[var] = linear
         self.params_0 = params_0
-        super(TaylorModel, self).__init__(**key2str(model_dict))
+        super(TaylorModel, self).__init__(model_dict)
+        # super(TaylorModel, self).__init__(**key2str(model_dict))
         self.model_dict_orig = copy.copy(self.model_dict)
 
     @property
@@ -641,7 +667,7 @@ class TaylorModel(Model):
 
             a = Parameter()
             x, y = variables('x, y')
-            model = TaylorModel.from_dict({y: sin(a * x)})
+            model = TaylorModel({y: sin(a * x)})
 
             model.p0 = {a: 0.0}
 
@@ -758,9 +784,7 @@ class BaseFit(object):
         stdev in x.
         """
         absolute_sigma = named_data.pop('absolute_sigma')
-        if isinstance(model, Mapping):
-            self.model = Model.from_dict(model)
-        elif isinstance(model, Model):
+        if isinstance(model, BaseModel):
             self.model = model
         else:
             self.model = Model(model)
@@ -881,23 +905,27 @@ class NumericalLeastSquares(BaseFit):
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
         """
+        if hasattr(self.model, 'numerical_jacobian'):
+            Dfun = self.eval_jacobian
+        else:
+            Dfun = None
 
         try:
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
-                Dfun=self.eval_jacobian,
-                args=(self.data.values(),),
+                Dfun=Dfun,
+                args=(self.independent_data, self.dependent_data, self.sigma_data,),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
                 full_output=True,
                 *options,
                 **kwoptions
             )
-        except ValueError:
+        except ValueError as err:
             # The exact Jacobian can contain nan's, causing the fit to fail. In such cases, try again without providing an exact jacobian.
             popt, cov_x, infodic, mesg, ier = leastsqbound(
                 self.error_func,
-                args=(self.data.values(),),
+                args=(self.independent_data, self.dependent_data, self.sigma_data,),
                 x0=self.initial_guesses,
                 bounds=self.model.bounds,
                 full_output=True,
@@ -910,7 +938,10 @@ class NumericalLeastSquares(BaseFit):
         else:
             # Rescale the covariance matrix with the residual variance
             ss_res = np.sum(infodic['fvec']**2)
-            degrees_of_freedom = len(self.data[self.model.dependent_vars[0].name]) - len(popt)
+            for data in self.dependent_data.values():
+                if data is not None:
+                    degrees_of_freedom = np.product(data.shape) - len(popt)
+                    break
 
             s_sq = ss_res / degrees_of_freedom
 
@@ -930,11 +961,43 @@ class NumericalLeastSquares(BaseFit):
         return self._fit_results
 
 
-    def error_func(self, p, data):
-        return self.model.numerical_chi(*(list(data) + list(p))).flatten()
+    def error_func(self, p, independent_data, dependent_data, sigma_data, flatten=True):
+        """
+        Returns the value of the square root of :math:`\\chi^2`, without summing over the components.
 
-    def eval_jacobian(self, p, data):
-        return np.array([component(*(list(data) + list(p))).flatten() for component in self.model.numerical_chi_jacobian]).T
+        This function now supports setting variables to None. Needs mathematical rigor!
+
+        :param p: array of parameter values.
+        :param independent_data: Data to provide to the independent variables.
+        :param dependent_data:
+        :param sigma_data:
+        :return: :math:`\\sqrt(\\chi^2)`
+        """
+        # import matplotlib.pyplot as plt
+
+        result = []
+        jac_args = list(independent_data.values()) + list(p)
+
+        # zip together the dependent vars and evaluated component
+        for y, ans in zip(self.model, self.model(*jac_args)):
+            # if 'd' in y.name:
+            #     plt.plot(jac_args[0], ans, label=str(p))
+            if dependent_data[y.name] is not None:
+                result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
+                if flatten:
+                    result[-1] = result[-1].flatten()
+        return np.sqrt(sum(result))
+
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
+        chi = self.error_func(p, independent_data, dependent_data, sigma_data, flatten=False)
+        jac_args = list(independent_data.values()) + list(p)
+        result = len(self.model.params) * [0.0]
+        for ans, y, row in zip(self.model(*jac_args), self.model, self.model.numerical_jacobian):
+            if dependent_data[y.name] is not None:
+                for index, component in enumerate(row):
+                    result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
+        result = [item.flatten() for item in result]
+        return - np.array(result).T
 
 
 class LinearLeastSquares(BaseFit):
@@ -1041,7 +1104,7 @@ class LinearLeastSquares(BaseFit):
             kwargs.update(self.data)
             # Sum of squared residuals. To be honest, I'm not sure why ss_res does not give the
             # right result but by using the chi_squared the results are compatible with curve_fit.
-            S = np.sum(self.model.numerical_chi_squared(**kwargs), dtype=float) / (len(W) - len(self.model.params))
+            S = np.sum(self.model.chi_squared(**kwargs), dtype=float) / (len(W) - len(self.model.params))
             cov_matrix *= S
 
         return cov_matrix
@@ -1233,6 +1296,7 @@ class Minimize(BaseFit):
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
                 ans.append(partial_derivative(*(list(data) + list(p))).flatten())
+        # ans = self.model.eval_jacobian(*(list(data) + list(p)))
         # for row in self.partial_jacobian:
         #     for partial_derivative in row:
         #         ans.append(partial_derivative(**{param.name: value for param, value in zip(self.model.params, p)}))
@@ -1487,6 +1551,9 @@ class Likelihood(Maximize):
         else:
             return np.array(ans)
 
+
+
+
 # class LagrangeMultipliers:
 #     """
 #     Class to analytically solve a function subject to constraints using Karush Kuhn Tucker.
@@ -1714,9 +1781,153 @@ def r_squared(model, fit_result, data):
     # First filter out the dependent vars
     y_is = [data[var.name] for var in model if var.name in data]
     x_is = [value for key, value in data.items() if key in model.__signature__.parameters]
-    y_bars = [np.mean(x) for x in y_is]
+    y_bars = [np.mean(y_i) for y_i in y_is if y_i is not None]
     f_is = model(*x_is, **fit_result.params)
-    SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is)])
-    SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars)])
+    SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
+    SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
 
     return 1 - SS_res/SS_tot
+
+class ODEModel(CallableModel):
+    """
+    Model build from a system of ODEs. When the model is called, the ODE is
+    integrated using the LSODA package.
+
+    Currently the initial conditions are assumed to specify the
+    first point to begin the integration from. This is enforced. In future
+    versions one should be allowed to specify the initial value as a parameter.
+    """
+    def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
+        """
+        :param model_dict: Dictionary specifying ODEs. e.g.
+            model_dict = {D(y, x): a * x**2}
+        :param initial: ``dict`` of initial conditions for the ODE.
+            Must be provided! e.g.
+            initial = {y: 1.0, x: 0.0}
+        :param lsoda_args: args to pass to the lsoda solver.
+            See `scipy's odeint <http://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.odeint.html>`_
+            for more info.
+        :param lsoda_kwargs: kwargs to pass to the lsoda solver.
+        """
+        self.initial = initial
+        self.lsoda_args = lsoda_args
+        self.lsoda_kwargs = lsoda_kwargs
+
+        sort_func = lambda symbol: str(symbol)
+        # Mapping from dependent vars to their derivatives
+        self.dependent_derivatives = {d: list(d.free_symbols - set(d.variables))[0] for d in model_dict}
+        self.dependent_vars = sorted(
+            self.dependent_derivatives.values(),
+            key=sort_func
+        )
+        self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
+        if not len(self.independent_vars):
+            raise ModelError('ODEModel can only have one independent variable.')
+
+        self.model_dict = OrderedDict(
+            sorted(
+                model_dict.items(),
+                key=lambda i: sort_func(self.dependent_derivatives[i[0]])
+            )
+        )
+        # Extract all the params and vars as a sorted, unique list.
+        expressions = model_dict.values()
+        model_params = set([])
+
+        # Only the once's that have a Parameter as initial parameter.
+        # self.initial_params = {value for var, value in self.initial.items()
+        #                        if isinstance(value, Parameter)}
+
+        for expression in expressions:
+            vars, params = seperate_symbols(expression)
+            model_params.update(params)
+            # self.independent_vars.update(vars)
+        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
+        self.params = sorted(model_params, key=sort_func)
+        # self.params = sorted(self.model_params | self.initial_params, key=sort_func)
+        # self.model_params = sorted(self.model_params, key=sort_func)
+        # self.initial_params = sorted(self.initial_params, key=sort_func)
+
+        # Make Variable object corresponding to each sigma var.
+        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+
+        self.__signature__ = self._make_signature()
+
+    def __getitem__(self, dependent_var):
+        """
+        Gives the function defined for the derivative of ``dependent_var``.
+        e.g. :math:`y' = f(y, t)`, model[y] -> f(y, t)
+
+        :param dependent_var:
+        :return:
+        """
+        for d, f in self.model_dict.items():
+            if dependent_var == self.dependent_derivatives[d]:
+                return f
+
+    def __iter__(self):
+        """
+        :return: iterable over self.model_dict
+        """
+        return iter(self.dependent_vars)
+
+    @property
+    @cache
+    def _ncomponents(self):
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
+
+    @property
+    @cache
+    def _njacobian(self):
+        return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
+        # return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
+
+    def eval_components(self, *args, **kwargs):
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        t_like = bound_arguments.arguments[self.independent_vars[0].name]
+
+        # System of functions to be integrated
+        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
+        # Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
+
+        initial_dependent = [self.initial[var] for var in self.dependent_vars]
+        initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
+
+        # Check if the time-like data includes the initial value, because integration should start there.
+        # For fitting to make sence, it should probably not be in there though.
+        if t_like[0] == initial_independent:
+            start = 0
+            warnings.warn("The initial point should probably not be included with your data points as this point will always be fitted perfectly.")
+        elif t_like[0] < initial_independent:
+            raise ModelError('ODEModel\'s can not be evaluated for values smaller than the initial value')
+        else:
+            assert len(t_like.shape) == 1
+            t_like = np.hstack((np.array([initial_independent]), t_like))
+            start = 1
+
+        ans = odeint(
+            f,
+            initial_dependent,
+            t_like,
+            args=tuple(bound_arguments.arguments[param.name] for param in self.params),
+            *self.lsoda_args, **self.lsoda_kwargs
+        ) #  Dfun=Dfun
+        return ans[start:].T
+
+    def __call__(self, *args, **kwargs):
+        """
+        Evaluate the model for a certain value of the independent vars and parameters.
+        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
+
+        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
+        Alphabetical order within each group.
+
+        :param args:
+        :param kwargs:
+        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
+            even for scalar valued functions. This is done for consistency.
+        """
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        Ans = namedtuple('Ans', [var.name for var in self])
+        ans = Ans(*self.eval_components(**bound_arguments.arguments))
+        return ans

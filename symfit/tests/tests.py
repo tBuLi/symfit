@@ -14,6 +14,7 @@ from symfit.distributions import Gaussian, Exp
 from symfit.tests.tests_fit_result import TestFitResults
 from symfit.tests.tests_analytical_fit import TestAnalyticalFit
 from symfit.tests.tests_model import TestModel
+from symfit.tests.tests_ode import TestODE
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -116,7 +117,7 @@ class Tests(unittest.TestCase):
         ydata = 3*xdata**2
 
         a = Parameter(1.0)
-        b = Parameter(1.0)
+        b = Parameter(2.5)
         x, y = variables('x, y')
 
 
@@ -124,8 +125,6 @@ class Tests(unittest.TestCase):
 
         fit = NumericalLeastSquares(model, x=xdata, y=ydata)
         fit_result = fit.execute()
-        print(fit_result)
-        print(fit.model)
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.params.a, 3.0)
         self.assertAlmostEqual(fit_result.params.b, 2.0)
@@ -149,7 +148,44 @@ class Tests(unittest.TestCase):
             c_i=xdata[2],
         )
         fit_result = fit.execute()
-        print(fit_result)
+
+        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
+        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+
+    def test_vector_none_fitting(self):
+        """
+        Fit to a vector model with one var's data set to None
+        """
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
+        xdata = np.array([
+            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+        ])
+
+        fit_none = NumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=None,
+        )
+        fit = NumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=xdata[2],
+        )
+        fit_none_result = fit_none.execute()
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_none_result.params.a, fit_result.params.a, 4)
+        self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 4)
+        self.assertAlmostEqual(fit_none_result.params.c, 1.0)
 
 
     def test_fitting(self):
@@ -162,11 +198,6 @@ class Tests(unittest.TestCase):
         new = a*x**b
 
         fit = NumericalLeastSquares(new, xdata, ydata)
-
-        self.assertTrue(issubclass(fit.model.chi_squared.__class__, sympy.Expr))
-        self.assertTrue(issubclass(fit.model.chi.__class__, sympy.Expr))
-        self.assertTrue(type(fit.model.numerical_chi_squared) is types.LambdaType)
-        self.assertTrue(type(fit.model.numerical_chi) is types.LambdaType)
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
@@ -227,10 +258,12 @@ class Tests(unittest.TestCase):
 
 
     def test_grid_fitting(self):
+        """
+        This fit seems to fail occasionally. WTF? I'm not in the randomness generation business.
+        """
         xdata = np.arange(-5, 5, 1)
-        ydata = np.arange(-5, 5, 1)
-        xx, yy = np.meshgrid(xdata, ydata, sparse=False)
-        # xdata_coor = np.dstack((xx, yy))
+        ydata = np.arange(5, 15, 1)
+        xx, yy = np.meshgrid(xdata, ydata, sparse=True)
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
@@ -238,10 +271,12 @@ class Tests(unittest.TestCase):
         b = Parameter(3.0, min=2.75)
         x = Variable()
         y = Variable()
-        new = (a*x**2 + b*y**2)
+        z = Variable()
+        new = {z: a*x**2 + b*y**2}
 
-        fit = Fit(new, xx, yy, zdata)
+        fit = Fit(new, x=xx, y=yy, z=zdata)
         results = fit.execute()
+
         self.assertAlmostEqual(results.params.a, 2.5)
         self.assertAlmostEqual(results.params.b, 3.)
 
@@ -255,7 +290,7 @@ class Tests(unittest.TestCase):
         a, b = parameters('a, b')
         x, y = variables('x, y')
         new = a*x**2 + b*y**2
-        model = Model(z=new)
+        model = Model(new)
         z, = model(3, 3, 2, 2)
 
         self.assertEqual(z, 36)
@@ -263,7 +298,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(arg_name, name)
 
         # From Model __init__ directly
-        model = Model(z_1=a*x**2, z_2=4*b*y**2, z_3=a*x**2 + b*y**2)
+        model = Model([a*x**2, 4*b*y**2, a*x**2 + b*y**2])
         z_1, z_2, z_3 = model(3, 3, 2, 2)
 
         self.assertEqual(z_1, 18)
@@ -274,7 +309,7 @@ class Tests(unittest.TestCase):
 
         # From dict
         z_1, z_2, z_3 = variables('z_1, z_2, z_3')
-        model = Model.from_dict({z_1: a*x**2, z_2: 4*b*y**2, z_3: a*x**2 + b*y**2})
+        model = Model({z_1: a*x**2, z_2: 4*b*y**2, z_3: a*x**2 + b*y**2})
         z_1, z_2, z_3 = model(3, 3, 2, 2)
 
         self.assertEqual(z_1, 18)
@@ -404,7 +439,6 @@ class Tests(unittest.TestCase):
 
         fit = Fit(g, xx, yy, ydata)
         fit_result = fit.execute()
-        print(fit_result)
 
         # Again, the order seems to be swapped for py3k
         self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:,0]), 1)
@@ -423,7 +457,7 @@ class Tests(unittest.TestCase):
         a_i, b_i, c_i = variables('a_i, b_i, c_i')
         # a_i, b_i, c_i, s_a, s_b, s_c = variables('a_i, b_i, c_i, s_a, s_b, s_c')
 
-        model = Model.from_dict({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
+        model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
         self.assertEqual([[2, 3, 0], [0, 5, 0], [0, 0, 7]], model.jacobian)
 
     def test_minimize(self):
@@ -445,7 +479,6 @@ class Tests(unittest.TestCase):
         # Unbounded
         fit = Maximize(model)
         fit_result = fit.execute()
-        # print(fit_result)
         self.assertAlmostEqual(fit_result.params.y, 1.)
         self.assertAlmostEqual(fit_result.params.x, 2.)
 
@@ -455,8 +488,6 @@ class Tests(unittest.TestCase):
         fit_result = fit.execute()
         self.assertAlmostEqual(fit_result.params.x, 1.00000009)
         self.assertAlmostEqual(fit_result.params.y, 1.)
-
-        print(fit_result)
 
     def test_minimize_with_data(self):
         """
@@ -629,7 +660,7 @@ class Tests(unittest.TestCase):
         errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
 
         # raise Exception(xy, z)
-        a = Parameter()
+        a = Parameter(3.0)
         b = Parameter(0.9)
         c = Parameter(5)
         x = Variable()
@@ -641,7 +672,6 @@ class Tests(unittest.TestCase):
         fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False)
         # fit = Fit(model, x=xdata, y=ydata, z=zdata, absolute_sigma=False)
         fit_result = fit.execute()
-        print(fit_result)
 
         # Same as Mathematica default behavior.
         self.assertAlmostEqual(fit_result.params.a, 2.9956, 4)
@@ -703,7 +733,6 @@ class Tests(unittest.TestCase):
         fit = Fit(model, y=yn, sigma_y=sigma)
         fit_result = fit.execute()
 
-        print(fit_result)
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
         self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
@@ -711,8 +740,6 @@ class Tests(unittest.TestCase):
 
         fit_no_sigma = Fit(model, yn)
         fit_result_no_sigma = fit_no_sigma.execute()
-
-        print(fit_result_no_sigma)
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn,)
         # With or without sigma, the bestfit params should be in agreement in case of equal weights
@@ -726,7 +753,6 @@ class Tests(unittest.TestCase):
         mu = 0.0
         sigma_mu = sigma/N**0.5
 
-        print(mu, sigma_mu)
         # self.assertAlmostEqual(fit_result.params.a, mu, 5)
         self.assertAlmostEqual(fit_result.params.a_stdev, sigma_mu, 5)
 
@@ -782,7 +808,7 @@ class Tests(unittest.TestCase):
         x, y_1, y_2 = variables('x, y_1, y_2')
         a, b = parameters('a, b')
 
-        model = Model.from_dict({
+        model = Model({
             y_1: 2 * a * x,
             y_2: b * x**2
         })

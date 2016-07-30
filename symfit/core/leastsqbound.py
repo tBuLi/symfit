@@ -274,6 +274,7 @@ def leastsqbound(func, x0, args=(), bounds=None, Dfun=None, full_output=0,
     if not isinstance(args, tuple):
         args = (args,)
     shape, dtype = _check_func('leastsq', 'func', func, x0, args, n)
+
     m = shape[0]
     if n > m:
         raise TypeError('Improper input: N=%s must not exceed M=%s' % (n, m))
