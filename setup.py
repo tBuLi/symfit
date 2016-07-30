@@ -57,7 +57,7 @@ You can find ``symfit`` on github at https://github.com/tBuLi/symfit.
 
 setup(
     name='symfit',
-    version='0.3.2',
+    version='0.3.3',
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
     author_email='m.roelfs@student.rug.nl',
