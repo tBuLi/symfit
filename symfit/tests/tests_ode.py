@@ -120,13 +120,13 @@ class TestODE(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(k), 4.302875e-01)
         self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
 
-        A, B = ode_model(t=tvec, **fit_result.params)
-        plt.plot()
-        plt.plot(tvec, A, label='[A]')
-        plt.plot(tvec, B, label='[B]')
-        plt.scatter(tdata, adata)
-        plt.legend()
-        plt.show()
+        # A, B = ode_model(t=tvec, **fit_result.params)
+        # plt.plot()
+        # plt.plot(tvec, A, label='[A]')
+        # plt.plot(tvec, B, label='[B]')
+        # plt.scatter(tdata, adata)
+        # plt.legend()
+        # plt.show()
 
 
 if __name__ == '__main__':
