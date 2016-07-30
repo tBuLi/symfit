@@ -8,8 +8,7 @@ import sympy
 from sympy.core.relational import Relational
 import numpy as np
 from scipy.optimize import minimize
-from scipy.integrate import ode, odeint
-from scipy.interpolate import interp1d
+from scipy.integrate import odeint
 
 from symfit.core.argument import Parameter, Variable
 from symfit.core.support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str, deprecated
