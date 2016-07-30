@@ -1,5 +1,5 @@
 from __future__ import print_function
-from symfit import Parameter, Variable, Fit, exp
+from symfit.api import Parameter, Variable, Fit, exp
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns

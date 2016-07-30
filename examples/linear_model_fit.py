@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-from symfit.api import Parameter, Variable, Fit
+from symfit import Parameter, Variable, Fit
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
