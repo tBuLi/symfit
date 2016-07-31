@@ -164,6 +164,7 @@ We then need the following system of rate equations:
 .. math::
 
   \frac{dA}{dt} = -k A^2
+
   \frac{dB}{dt} = k A^2
 
 In ``symfit``, this becomes::
@@ -215,9 +216,7 @@ We can plot it just like always::
    :alt: Linear Model Fit Data
 
 As an example of the power of ``symfit``'s ODE syntax, let's have a look at
-a system with 2 equilibria: compound AA + B <-p  k-> AAB and AAB + B <-m  l-> d.
-(In more readable this way then when sticking to conventional
-chemical notation.)
+a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> d.
 
 In ``symfit`` these can be implemented as::
 
