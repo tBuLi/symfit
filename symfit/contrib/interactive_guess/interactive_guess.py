@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from ...core.fit import TakesData  # Should be ...api import fit. Or something. Relative imports.
+from ...core.fit import TakesData
 from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 import itertools
-
+import sympy.printing.latex
 
 #from pkg_resources import parse_version
 
@@ -50,13 +50,20 @@ class InteractiveGuess2D(TakesData):
 
         x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
-
+        for x in self.independent_data:
+            plotrange_x = x_maxs[x] - x_mins[x]
+            x_mins[x] -= 0.1 * plotrange_x
+            x_maxs[x] += 0.1 * plotrange_x
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
                           for v in self.independent_data}
 
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
-        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
-
+        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}        
+        for y in self.dependent_data:
+            plotrange_y = y_maxs[y] - y_mins[y]
+            y_mins[y] -= 0.1 * plotrange_y
+            y_maxs[y] += 0.1 * plotrange_y
+        
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
         self.fig.show()
@@ -82,8 +89,12 @@ class InteractiveGuess2D(TakesData):
         self._plots = {}
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
+            plotlabel = '${}({}) = {}$'.format(
+                sympy.printing.latex(y, mode='plain'),
+                x.name,
+                sympy.printing.latex(self.model[y], mode='plain'))
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
-                                      label='{} {}'.format(x.name, y.name))
+                                      label=plotlabel)
             ax.set_title(ax.get_label())
             ax.set_ylim(y_mins[y.name], y_maxs[y.name])
             ax.set_xlim(x_mins[x.name], x_maxs[x.name])

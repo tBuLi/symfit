@@ -6,6 +6,8 @@ import numpy as np
 import unittest
 import matplotlib.colors
 import matplotlib.pyplot as plt
+import sympy.printing.latex
+
 
 def distr(x, k, x0):
     kbT = 4.11
@@ -87,9 +89,13 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
 
     def test_plot_titles(self):
         for proj in self.fit._projections:
+            x, y = proj
             plot = self.fit._plots[proj]
-            self.assertEqual(plot.axes.get_title(),
-                             "{} {}".format(proj[0].name, proj[1].name))
+            plotlabel = '${}({}) = {}$'.format(
+                sympy.printing.latex(y, mode='plain'),
+                x.name,
+                sympy.printing.latex(self.fit.model[y], mode='plain'))
+            self.assertEqual(plot.axes.get_title(), plotlabel)
 
     def test_plot_colors(self):
         for plot in self.fit._plots.values():
@@ -122,9 +128,13 @@ class VectorValuedTest(unittest.TestCase):
 
     def test_plot_titles(self):
         for proj in self.fit._projections:
+            x, y = proj
             plot = self.fit._plots[proj]
-            self.assertEqual(plot.axes.get_title(),
-                             "{} {}".format(proj[0].name, proj[1].name))
+            plotlabel = '${}({}) = {}$'.format(
+                sympy.printing.latex(y, mode='plain'),
+                x.name,
+                sympy.printing.latex(self.fit.model[y], mode='plain'))
+            self.assertEqual(plot.axes.get_title(), plotlabel)
 
 
 @unittest.skip("3D problems are not yet supported")
