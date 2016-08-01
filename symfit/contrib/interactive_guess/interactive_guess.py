@@ -89,7 +89,7 @@ class InteractiveGuess2D(TakesData):
             ax.set_xlim(x_mins[x.name], x_maxs[x.name])
             # TODO reduce dimensionality.
             ax.scatter(self.independent_data[x.name],
-                       self.dependent_data[y.name])
+                       self.dependent_data[y.name], c='b')
 
             vals = self._get_data(x, y)
             plot, = ax.plot(*vals, c='red')
@@ -101,26 +101,26 @@ class InteractiveGuess2D(TakesData):
         """
         i = 0.05
         self._sliders = {}
-        for p in self.model.params:
-            if not p.fixed:
+        for param in self.model.params:
+            if not param.fixed:
                 axbg = 'lightgoldenrodyellow'
             else:
                 axbg = 'red'
             # start-x, start-y, width, height
             ax = self.fig.add_axes((0.162, i, 0.68, 0.03),
-                                   axis_bgcolor=axbg, label=p.name)
-            val = p.value
-            if p.min is None:
+                                   axis_bgcolor=axbg, label=param.name)
+            val = param.value
+            if param.min is None:
                 minimum = 0
             else:
-                minimum = p.min
-            if p.max is None:
+                minimum = param.min
+            if param.max is None:
                 maximum = 2 * val
             else:
-                maximum = p.max
+                maximum = param.max
 
-            slid = plt.Slider(ax, p.name, minimum, maximum, valinit=val)
-            self._sliders[p] = slid
+            slid = plt.Slider(ax, param.name, minimum, maximum, valinit=val)
+            self._sliders[param] = slid
             slid.on_changed(self._update_plot)
             i += 0.05
 
@@ -130,8 +130,8 @@ class InteractiveGuess2D(TakesData):
         # I need to update the values for all parameters. This can be
         # circumvented by creating a seperate callback function for each
         # parameter.
-        for p in self.model.params:
-            p.value = self._sliders[p].val
+        for param in self.model.params:
+            param.value = self._sliders[param].val
         for indep_var, dep_var in self._projections:
             plot = self._plots[(indep_var, dep_var)]
             # TODO: reduce dimensionality of self._x_points and vals for this projection
@@ -156,5 +156,5 @@ class InteractiveGuess2D(TakesData):
         """
         x_points = self._x_points[independent_var.name]
         arguments = {independent_var: x_points}
-        arguments.update({p: p.value for p in self.model.params})
+        arguments.update({param: param.value for param in self.model.params})
         return x_points, self.model[dependent_var](**key2str(arguments))
