@@ -7,6 +7,7 @@ from functools import wraps
 from collections import OrderedDict
 import inspect
 import sys
+import warnings
 
 import numpy as np
 from sympy.utilities.lambdify import lambdify
@@ -212,3 +213,23 @@ class keywordonly(object):
                 else: # All defaults assigned where needed. Call func!
                     return func(*args, **kwargs)
         return wrapped_func
+
+class deprecated(object):
+    """
+    Decorator to raise a DeprecationWarning.
+    """
+    def __init__(self, replacement=None):
+        """
+        :param replacement: The function which should now be used instead.
+        """
+        self.replacement = replacement
+
+    def __call__(self, func):
+        @wraps(func)
+        def deprecated_func(*args, **kwargs):
+            warnings.warn(DeprecationWarning(
+                '`{}` has been deprecated.'.format(func.__name__)
+                + ' Use `{}` instead.'.format(self.replacement)) if self.replacement else ''
+            )
+            return func(*args, **kwargs)
+        return deprecated_func

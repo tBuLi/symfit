@@ -34,27 +34,27 @@ class TestAnalyticalFit(unittest.TestCase):
         a, b = parameters('a, b')
         x, y, z = variables('x, y, z')
 
-        model = Model.from_dict({y: a * x + b})
+        model = Model({y: a * x + b})
         appr = TaylorModel(model)
         self.assertEqual(set([a, b]), set(appr.params))
         appr.p0 = {a: 2.0, b: 5.0}
         self.assertEqual(set(appr.p0.keys()), set(appr.params_0[p] for p in appr.params))
         self.assertTrue(LinearLeastSquares.is_linear(appr))
 
-        model = Model.from_dict({z: a * x**2 + b * y**2})
+        model = Model({z: a * x**2 + b * y**2})
         appr = TaylorModel(model)
         appr.p0 = {a: 2, b: 5}
-        model = Model.from_dict({z: a * x**2 + b * y**2})
+        model = Model({z: a * x**2 + b * y**2})
         appr_2 = TaylorModel(model)
         appr_2.p0 = {a: 1, b: 1}
         self.assertTrue(appr == appr_2)
 
-        model = Model.from_dict({y: a * sympy.exp(x * b)})
+        model = Model({y: a * sympy.exp(x * b)})
         appr = TaylorModel(model)
         appr.p0 = {a: 2.0, b: 5.0}
         self.assertTrue(LinearLeastSquares.is_linear(appr))
 
-        model = Model.from_dict({y: sympy.sin(a * x)})
+        model = Model({y: sympy.sin(a * x)})
         appr = TaylorModel(model)
         appr.p0 = {a: 0.0}
         self.assertTrue(LinearLeastSquares.is_linear(appr))
@@ -124,24 +124,24 @@ class TestAnalyticalFit(unittest.TestCase):
         a, b, c, d = parameters('a, b, c, d')
         x, y = variables('x, y')
 
-        model = Model.from_dict({y: (a * x + c*x**2) + b})
+        model = Model({y: (a * x + c*x**2) + b})
         self.assertTrue(LinearLeastSquares.is_linear(model))
 
-        model = Model.from_dict({y: (a * x + c*x**2) + b + 2})
+        model = Model({y: (a * x + c*x**2) + b + 2})
         self.assertTrue(LinearLeastSquares.is_linear(model))
 
         # This test should be made to work in a future version.
-        # model = Model.from_dict({y: a * x**2 + sympy.exp(x * b)})
+        # model = Model({y: a * x**2 + sympy.exp(x * b)})
         # t_model = (2 * y / g)**0.5
         # self.assertTrue(LinearLeastSquares.is_linear(model))
 
-        model = Model.from_dict({y: a * sympy.exp(x * b)})
+        model = Model({y: a * sympy.exp(x * b)})
         self.assertFalse(LinearLeastSquares.is_linear(model))
 
-        model = Model.from_dict({y: a * x**3 + b * c})
+        model = Model({y: a * x**3 + b * c})
         self.assertFalse(LinearLeastSquares.is_linear(model))
 
-        model = Model.from_dict({y: a * x**3 + b * x + c})
+        model = Model({y: a * x**3 + b * x + c})
         self.assertTrue(LinearLeastSquares.is_linear(model))
 
     def test_weights(self):

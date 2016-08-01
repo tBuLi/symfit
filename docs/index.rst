@@ -15,6 +15,7 @@ Contents:
     installation
     tutorial
     fitting_types
+    style_guide
     technical_notes
     dependencies
     module_docs
