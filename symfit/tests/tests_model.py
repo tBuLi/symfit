@@ -22,7 +22,7 @@ class TestModel(unittest.TestCase):
         a, b = parameters('a, b')
 
         model_dict = OrderedDict([(y_1, a * x**2), (y_2, 2 * x * b)])
-        model = Model.from_dict(model_dict)
+        model = Model(model_dict)
 
         self.assertEqual(id(model[y_1]), id(model_dict[y_1]))
         self.assertEqual(id(model[y_2]), id(model_dict[y_2]))
@@ -41,7 +41,7 @@ class TestModel(unittest.TestCase):
         a, b = parameters('a, b')
 
         model_dict = {y_2: a * x**2, y_1: 2 * x * b}
-        model = Model.from_dict(model_dict)
+        model = Model(model_dict)
 
         self.assertEqual(model.dependent_vars, list(model.keys()))
 

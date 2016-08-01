@@ -155,6 +155,107 @@ However, it makes perfect sense because in this problem they are parameters to b
 Furthermore, this way of defining it is consistent with the treatment of ``Variable``'s and ``Parameter``'s in ``symfit``.
 Be aware of this when using ``Minimize``, as the whole process won't work otherwise.
 
+ODE Fitting
+-----------
+Fitting to a system of ODEs is also remarkedly simple with ``symfit``. Let's do a
+simple example from reaction kinetics. Suppose we have a reaction A + A -> B with rate constant :math:`k`.
+We then need the following system of rate equations:
+
+.. math::
+
+  \frac{dA}{dt} = -k A^2
+
+  \frac{dB}{dt} = k A^2
+
+In ``symfit``, this becomes::
+
+    model_dict = {
+        D(a, t): - k * a**2,
+        D(b, t): k * a**2,
+    }
+
+We see that the ``symfit`` code is already very readable. Let's do a fit to this::
+
+    tdata = np.array([10, 26, 44, 70, 120])
+    adata = 10e-4 * np.array([44, 34, 27, 20, 14])
+    a, b, t = variables('a, b, t')
+    k = Parameter(0.1)
+    a0 = 54 * 10e-4
+
+    model_dict = {
+        D(a, t): - k * a**2,
+        D(b, t): k * a**2,
+    }
+
+    ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
+
+    fit = Fit(ode_model, t=tdata, a=adata, b=None)
+    fit_result = fit.execute()
+
+That's it! An ``ODEModel`` behaves just like any other model object, so ``Fit``
+knows how to deal with it! Note that since we don't know the concentration of
+B, we explicitly set ``b=None`` when calling ``Fit`` so it will be ignored.
+
+Upon every iteration of performing the fit the ODEModel is integrated again from
+the initial point using the new guesses for the parameters.
+
+We can plot it just like always::
+
+    # Generate some data
+    tvec = np.linspace(0, 500, 1000)
+
+    A, B = ode_model(t=tvec, **fit_result.params)
+    plt.plot(tvec, A, label='[A]')
+    plt.plot(tvec, B, label='[B]')
+    plt.scatter(tdata, adata)
+    plt.legend()
+    plt.show()
+
+.. figure:: _static/ode_model_fit.png
+   :width: 300px
+   :alt: Linear Model Fit Data
+
+As an example of the power of ``symfit``'s ODE syntax, let's have a look at
+a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> d.
+
+In ``symfit`` these can be implemented as::
+
+    AA, B, AAB, BAAB, t = variables('AA, B, AAB, BAAB, t')
+    k, p, l, m = parameters('k, p, l, m')
+
+    AA_0 = 10 # Some made up initial amound of [AA]
+    B = AA_0 - BAAB + AA # [B] is not independent.
+
+    model_dict = {
+        D(BAAB, t): l * AAB * B - m * BAAB,
+        D(AAB, t): k * A * B - p * AAB - l * AAB * B + m * BAAB,
+        D(A, t): - k * A * B + p * AAB,
+    }
+
+The result is as readable as one can reasonably expect from a multicomponent
+system (and while using chemical notation).
+Let's plot the model for some kinetics constants::
+
+    model = ODEModel(model_dict, initial={t: 0.0, AA: AA_0, AAB: 0.0, BAAB: 0.0})
+
+    # Generate some data
+    tdata = np.linspace(0, 3, 1000)
+    # Eval the normal way.
+    AA, AAB, BAAB = model(t=tdata, k=0.1, l=0.2, m=0.3, p=0.3)
+
+    plt.plot(tdata, AA, color='red', label='[AA]')
+    plt.plot(tdata, AAB, color='blue', label='[AAB]')
+    plt.plot(tdata, BAAB, color='green', label='[BAAB]')
+    plt.plot(tdata, B(BAAB=BAAB, AA=AA), color='pink', label='[B]')
+    # plt.plot(tdata, AA + AAB + BAAB, color='black', label='total')
+    plt.legend()
+    plt.show()
+
+
+.. figure:: _static/ode_double_eq_integrated.png
+   :width: 300px
+   :alt: ODE integration
+
 How Does ``Fit`` Work?
 ----------------------
 How does ``Fit`` get from a (named) model and some data to a fit? Consider the following example::

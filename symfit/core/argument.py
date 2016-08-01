@@ -5,6 +5,11 @@ import inspect
 from sympy.core.symbol import Symbol
 from sympy.tensor import IndexedBase
 
+try: # This defines the basestring in both py2/py3.
+    basestring
+except NameError:
+    basestring = str
+
 class Argument(Symbol):
     """
     Base class for ``symfit`` symbols. This helps make ``symfit`` symbols distinguishable from ``sympy`` symbols.
@@ -21,7 +26,7 @@ class Argument(Symbol):
     def __new__(cls, name=None, **assumptions):
         assumptions['real'] = True
         # Super dirty way? to determine the variable name from the calling line.
-        if not name or type(name) != str:
+        if not name or not isinstance(name, basestring):
             frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
 
             # Check if the script is running in an exe

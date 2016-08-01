@@ -10,22 +10,6 @@ Well, there's a simple test.
 If I can give you pieces of example code and don't have to use any additional words to explain what it does, it's pythonic.
 
 ```python
-from symfit import parameters, Maximize, Equality, GreaterThan
-
-x, y = parameters('x, y')
-model = 2 * x * y + 2 * x - x**2 - 2 * y**2
-constraints = [
-    Equality(x**3, y),
-    GreaterThan(y, 1),
-]
-
-fit = Maximize(model, constraints=constraints)
-fit_result = fit.execute()
-```
-
-Need I say more? How about I let another code example do the talking?
-
-```python
 from symfit import parameters, variables, Fit
 
 a, b = parameters('a, b')
@@ -48,4 +32,39 @@ plt.show()
 
 <img src="http://symfit.readthedocs.org/en/latest/_images/linear_model_fit.png" alt="Linear Fit" width="600px">
 
-For more, check the docs at http://symfit.readthedocs.org.
+Need I say more? How about I let another code example do the talking?
+
+```python
+from symfit import parameters, Maximize, Equality, GreaterThan
+
+x, y = parameters('x, y')
+model = 2 * x * y + 2 * x - x**2 - 2 * y**2
+constraints = [
+    Equality(x**3, y),
+    GreaterThan(y, 1),
+]
+
+fit = Maximize(model, constraints=constraints)
+fit_result = fit.execute()
+```
+
+"But what if I need to fit to an ODE?"
+
+```python
+from symfit import variables, Parameter, ODEModel, Fit, D
+
+a, b, t = variables('a, b, t')
+k = Parameter(0.1)
+
+model_dict = {
+    D(a, t): - k * a**2,
+    D(b, t): k * a**2,
+}
+
+ode_model = ODEModel(model_dict, initial={t: 0.0, a: 54 * 10e-4, b: 0.0})
+
+fit = Fit(ode_model, t=tdata, a=adata, b=None)
+fit_result = fit.execute()
+```
+
+For more fitting delight, check the docs at http://symfit.readthedocs.org.
