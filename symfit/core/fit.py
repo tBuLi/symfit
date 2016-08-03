@@ -810,7 +810,7 @@ class TakesData(object):
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
             # print(var, sigma)
-            if not isinstance(self.data[sigma.name], Iterable) and self.data[var.name] is not None:
+            if not isinstance(self.data[sigma.name], Iterable) and hasattr(self.data[var.name], 'shape'):
                 self.data[sigma.name] *= np.ones(self.data[var.name].shape)
                 # If no attribute shape exists, data is also not an array
 
