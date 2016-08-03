@@ -73,11 +73,10 @@ class InteractiveGuess2D(TakesData):
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
         if not no_show:
-            # Yes, both are needed. Don't ask why. Blame matlotlib.
-            # Actually, it seems to depend on the phase of the moon. FML.
             # self.fig.show()  # Apparently this does something else,
             # see https://github.com/matplotlib/matplotlib/issues/6138
-            plt.show()
+            plt.show(block=True)
+            plt.close(self.fig)
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
         """
