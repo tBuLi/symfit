@@ -96,7 +96,7 @@ class InteractiveGuess2D(TakesData):
             title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
         else:
             title_format = '${dependant}({independant}) = {expression}$'
-    
+
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
             plotlabel = title_format.format(
@@ -141,7 +141,7 @@ class InteractiveGuess2D(TakesData):
             else:
                 maximum = param.max
 
-            slid = plt.Slider(ax, param.name, minimum, maximum, valinit=val)
+            slid = plt.Slider(ax, param.name, minimum, maximum, valinit=val, valfmt='% 5.4g')
             self._sliders[param] = slid
             slid.on_changed(self._update_plot)
             i += 0.05
