@@ -21,14 +21,14 @@ x0 = Parameter(1.5)
 
 model = Model({y: distr(x, k, x0)})
 x_data = np.linspace(0, 2.5, 50)
-y_data = model(x=x_data, k=1000, x0=1)
-print(y_data, type(y_data))
+y_data = model(x=x_data, k=1000, x0=1).y
+
 guess = interactive_guess.InteractiveGuess2D(model, x=x_data, y=y_data)
 
 print("Guessed values: ")
 for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
-    
+
 fit = Fit(model, x=x_data, y=y_data)
 fit_result = fit.execute(maxfev=1000)
 print(fit_result)
