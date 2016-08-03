@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from ...core.fit import TakesData, ODEModel
+from ... import ODEModel, D
+from ...core.fit import TakesData
 from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 import itertools
 import sympy.printing.latex
+
+plt.ioff()
 
 #from pkg_resources import parse_version
 
@@ -21,7 +24,7 @@ class InteractiveGuess2D(TakesData):
     """A class that provides a visual_guess method which provides
     an graphical, interactive way of guessing initial fitting parameters."""
 
-    @keywordonly(n_points=100)
+    @keywordonly(n_points=100, no_show=False)
     def __init__(self, *args, **kwargs):
         """Create a matplotlib window with sliders for all parameters
         in this model, so that you may graphically guess initial fitting
@@ -38,8 +41,11 @@ class InteractiveGuess2D(TakesData):
         ----------
         n_points : int
             The number of points used for drawing the fitted function.
+        no_show : bool
+            Whether or not to show the figure. Useful for testing.
         """
         n_points = kwargs.pop('n_points')
+        no_show = kwargs.pop('no_show')
         super(InteractiveGuess2D, self).__init__(*args, **kwargs)
 
         if len(self.independent_data) != 1:
@@ -66,10 +72,12 @@ class InteractiveGuess2D(TakesData):
 
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
-        # Yes, both are needed. Don't ask why. Blame matlotlib.
-        # Actually, it seems to depend on the phase of the moon. FML.
-        self.fig.show()
-        plt.show()
+        if not no_show:
+            # Yes, both are needed. Don't ask why. Blame matlotlib.
+            # Actually, it seems to depend on the phase of the moon. FML.
+            # self.fig.show()  # Apparently this does something else,
+            # see https://github.com/matplotlib/matplotlib/issues/6138
+            plt.show()
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
         """
@@ -91,14 +99,13 @@ class InteractiveGuess2D(TakesData):
         # plot the putative function.
         self._plots = {}
         data = self._get_data()
-        # TODO: do this per system component
-        if isinstance(self.model, ODEModel):
-            title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
-        else:
-            title_format = '${dependant}({independant}) = {expression}$'
 
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
+            if hasattr(self.model, 'dependent_derivatives') and D(y, x) in self.model:
+                title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
+            else:
+                title_format = '${dependant}({independant}) = {expression}$'
             plotlabel = title_format.format(
                 dependant=sympy.printing.latex(y, mode='plain'),
                 independant=x.name,
@@ -161,6 +168,7 @@ class InteractiveGuess2D(TakesData):
             y_vals = getattr(data, dep_var.name)
             x_vals = self._x_points[indep_var.name]
             plot.set_data(x_vals, y_vals)
+        self.fig.canvas.draw_idle()  # Force redraw
 
     def _get_data(self):
         """

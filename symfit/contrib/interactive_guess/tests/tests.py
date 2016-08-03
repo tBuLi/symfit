@@ -8,7 +8,7 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 import sympy.printing.latex
 
-
+plt.ioff()
 def distr(x, k, x0):
     kbT = 4.11
     return exp(-k*(x-x0)**2/kbT)
@@ -31,8 +31,8 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         model = {y: distr(x, k, x0)}
         x_data = np.linspace(0, 2.5, 50)
         y_data = model[y](x=x_data, k=1000, x0=1)
-        cls.fit = interactive_guess.InteractiveGuess2D(model, x=x_data, y=y_data)
-        plt.close(cls.fit.fig)
+        cls.fit = interactive_guess.InteractiveGuess2D(model, x=x_data, y=y_data, no_show=True)
+#        plt.close(cls.fit.fig)
 
     def test_number_of_sliders(self):
         self.assertEqual(len(self.fit._sliders), 2)
@@ -119,8 +119,8 @@ class VectorValuedTest(unittest.TestCase):
         x_data = np.linspace(0, 2.5, 50)
         y1_data = model[y1](x=x_data, k=1000, x0=1)
         y2_data = model[y2](x=x_data, k=1000, x0=1)
-        cls.fit = interactive_guess.InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data)
-        plt.close(cls.fit.fig)
+        cls.fit = interactive_guess.InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data, no_show=True)
+#        plt.close(cls.fit.fig)
 
     def test_number_of_projections(self):
         self.assertEqual(len(self.fit._projections), 2)
@@ -167,8 +167,8 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
         cls.g = g
         cls.xdata = xdata
         cls.ydata = ydata
-        cls.fit = interactive_guess.InteractiveGuess2D(g, xdata, ydata)
-        plt.close(cls.fit.fig)
+        cls.fit = interactive_guess.InteractiveGuess2D(g, xdata, ydata, no_show=True)
+#        plt.close(cls.fit.fig)
 
     def test_number_of_projections(self):
         self.assertEqual(len(self.fit._projections), 2)
