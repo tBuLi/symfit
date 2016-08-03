@@ -47,23 +47,25 @@ class InteractiveGuess2D(TakesData):
 
         self._projections = list(itertools.product(self.model.independent_vars,
                                                    self.model.dependent_vars))
-
         x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
-        for x in self.independent_data:
-            plotrange_x = x_maxs[x] - x_mins[x]
-            x_mins[x] -= 0.1 * plotrange_x
-            x_maxs[x] += 0.1 * plotrange_x
+        for x in self.model.independent_vars:
+            plotrange_x = x_maxs[x.name] - x_mins[x.name]
+            if hasattr(self.model, 'initial'):
+                x_mins[x.name] = self.model.initial[x]
+            else:
+                x_mins[x.name] -= 0.1 * plotrange_x
+            x_maxs[x.name] += 0.1 * plotrange_x
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
                           for v in self.independent_data}
 
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
-        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}        
+        y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
         for y in self.dependent_data:
             plotrange_y = y_maxs[y] - y_mins[y]
             y_mins[y] -= 0.1 * plotrange_y
             y_maxs[y] += 0.1 * plotrange_y
-        
+
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
         self.fig.show()
@@ -87,6 +89,7 @@ class InteractiveGuess2D(TakesData):
         # Make all the subplots: set the x and y limits, scatter the data, and
         # plot the putative function.
         self._plots = {}
+        data = self._get_data()
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
             plotlabel = '${}({}) = {}$'.format(
@@ -102,8 +105,9 @@ class InteractiveGuess2D(TakesData):
             ax.scatter(self.independent_data[x.name],
                        self.dependent_data[y.name], c='b')
 
-            vals = self._get_data(x, y)
-            plot, = ax.plot(*vals, c='red')
+            y_vals = getattr(data, y.name)
+            x_vals = self._x_points[x.name]
+            plot, = ax.plot(x_vals, y_vals, c='red')
             self._plots[proj] = plot
 
     def _set_up_sliders(self):
@@ -143,13 +147,15 @@ class InteractiveGuess2D(TakesData):
         # parameter.
         for param in self.model.params:
             param.value = self._sliders[param].val
+        data = self._get_data()
         for indep_var, dep_var in self._projections:
             plot = self._plots[(indep_var, dep_var)]
             # TODO: reduce dimensionality of self._x_points and vals for this projection
-            vals = self._get_data(indep_var, dep_var)
-            plot.set_data(*vals)
+            y_vals = getattr(data, dep_var.name)
+            x_vals = self._x_points[indep_var.name]
+            plot.set_data(x_vals, y_vals)
 
-    def _get_data(self, independent_var, dependent_var):
+    def _get_data(self):
         """
         Convenience method for evaluating the model, giving the projection
         dependent_var, independent_var
@@ -165,7 +171,6 @@ class InteractiveGuess2D(TakesData):
         -------
         x_points, y_points
         """
-        x_points = self._x_points[independent_var.name]
-        arguments = {independent_var: x_points}
+        arguments = self._x_points.copy()
         arguments.update({param: param.value for param in self.model.params})
-        return x_points, self.model[dependent_var](**key2str(arguments))
+        return self.model(**key2str(arguments))
