@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from ...core.fit import TakesData
+from ...core.fit import TakesData, ODEModel
 from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -67,8 +67,9 @@ class InteractiveGuess2D(TakesData):
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
         # Yes, both are needed. Don't ask why. Blame matlotlib.
-        plt.show()
+        # Actually, it seems to depend on the phase of the moon. FML.
         self.fig.show()
+        plt.show()
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
         """
@@ -90,12 +91,18 @@ class InteractiveGuess2D(TakesData):
         # plot the putative function.
         self._plots = {}
         data = self._get_data()
+        # TODO: do this per system component
+        if isinstance(self.model, ODEModel):
+            title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
+        else:
+            title_format = '${dependant}({independant}) = {expression}$'
+    
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
-            plotlabel = '${}({}) = {}$'.format(
-                sympy.printing.latex(y, mode='plain'),
-                x.name,
-                sympy.printing.latex(self.model[y], mode='plain'))
+            plotlabel = title_format.format(
+                dependant=sympy.printing.latex(y, mode='plain'),
+                independant=x.name,
+                expression=sympy.printing.latex(self.model[y], mode='plain'))
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
                                       label=plotlabel)
             ax.set_title(ax.get_label())
@@ -125,11 +132,11 @@ class InteractiveGuess2D(TakesData):
             ax = self.fig.add_axes((0.162, i, 0.68, 0.03),
                                    axis_bgcolor=axbg, label=param.name)
             val = param.value
-            if param.min is None:
+            if not hasattr(param, 'min') or param.min is None:
                 minimum = 0
             else:
                 minimum = param.min
-            if param.max is None:
+            if not hasattr(param, 'max') or param.max is None:
                 maximum = 2 * val
             else:
                 maximum = param.max
