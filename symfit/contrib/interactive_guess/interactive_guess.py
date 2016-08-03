@@ -157,19 +157,11 @@ class InteractiveGuess2D(TakesData):
 
     def _get_data(self):
         """
-        Convenience method for evaluating the model, giving the projection
-        dependent_var, independent_var
-
-        Parameters
-        ----------
-        dependent_var : Variable
-            The dependent variable to calculate the data for
-        independent_var : Variable
-            The independent variable to calculate the data for
+        Convenience method for evaluating the model
 
         Returns
         -------
-        x_points, y_points
+        named tuple with results
         """
         arguments = self._x_points.copy()
         arguments.update({param: param.value for param in self.model.params})
