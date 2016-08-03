@@ -51,9 +51,7 @@ class InteractiveGuess2D(TakesData):
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
         for x in self.model.independent_vars:
             plotrange_x = x_maxs[x.name] - x_mins[x.name]
-            if hasattr(self.model, 'initial'):
-                x_mins[x.name] = self.model.initial[x]
-            else:
+            if not hasattr(self.model, 'initial'):
                 x_mins[x.name] -= 0.1 * plotrange_x
             x_maxs[x.name] += 0.1 * plotrange_x
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
@@ -68,6 +66,8 @@ class InteractiveGuess2D(TakesData):
 
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
+        # Yes, both are needed. Don't ask why. Blame matlotlib.
+        plt.show()
         self.fig.show()
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
