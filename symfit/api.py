@@ -8,8 +8,3 @@ from symfit.core.support import variables, parameters
 
 # Expose the sympy API
 from sympy import *
-
-class D(Derivative):
-    """
-    Convenient wrapper for sympy.Derivative.
-    """
