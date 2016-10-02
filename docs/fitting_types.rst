@@ -271,30 +271,29 @@ the same background, but different amplitude and decay rate.
 
 In order to fit to this, we define the following model::
 
-    x, y_1, y_2 = variables('x, y_1, y_2')
+    x_1, x_2, y_1, y_2 = variables('x_1, x_2, y_1, y_2')
     y0, a_1, a_2, b_1, b_2 = parameters('y0, a_1, a_2, b_1, b_2')
 
     model = Model({
-        y_1: y0 + a_1 * exp(- b_1 * x),
-        y_2: y0 + a_2 * exp(- b_2 * x),
+        y_1: y0 + a_1 * exp(- b_1 * x_1),
+        y_2: y0 + a_2 * exp(- b_2 * x_2),
     })
 
-Note that ``y0`` and ``x`` are shared between the components. Fitting is then done in the normal way::
+Note that ``y0`` is shared between the components. Fitting is then done in the normal way::
 
-    fit = Fit(model, x=xdata, y_1=ydata1, y_2=ydata2)
+    fit = Fit(model, x_1=xdata1, x_2=xdata2, y_1=ydata1, y_2=ydata2)
     fit_result = fit.execute()
 
 
 .. figure:: _static/global_fitting.png
-   :width: 300px
+   :width: 500px
    :alt: ODE integration
 
-In an actual scenario the x-axis will probably also differ. In this case, one
-can simply enter seperate ``Variable``'s for each line.
 
-.. warning:: The regression coeeficient is not properly defined for vector-valued models, but it is still listed!
-Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
-Do not cite the overall :math:`R^2` given by ``symfit``.
+.. warning::
+    The regression coeeficient is not properly defined for vector-valued models, but it is still listed!
+    Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
+    Do not cite the overall :math:`R^2` given by ``symfit``.
 
 Advanced usage
 ..............
@@ -304,7 +303,7 @@ Some examples are given below.
 
 Same parameters and same function, different (in)dependent variables::
 
-    datasets = [A_1, A_2, ...] # I'm going to assume this holds the untangled datasets one through six
+    datasets = [data_1, data_2, data_3, data_4, data_5, data_6]
 
     xs = variables('x_1, x_2, x_3, x_4, x_5, x_6')
     ys = variables('y_1, y_2, y_3, y_4, y_5, y_6')
@@ -320,7 +319,7 @@ How Does ``Fit`` Work?
 ----------------------
 How does ``Fit`` get from a (named) model and some data to a fit? Consider the following example::
 
-    from symfit.api import parameters, variables, Fit
+    from symfit import parameters, variables, Fit
 
     a, b = parameters('a, b')
     x, y = variables('x, y')
