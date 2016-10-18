@@ -61,7 +61,7 @@ setup(
     description='Symbolic Fitting; fitting as it should be.',
     author='Martin Roelfs',
     author_email='m.roelfs@student.rug.nl',
-    packages=['symfit', 'symfit.core', 'symfit.tests', 'symfit.contrib'],
+    packages=['symfit', 'symfit.core', 'symfit.tests', 'symfit.contrib', 'symfit.contrib.interactive_guess'],
     long_description=long_description,
     url='https://github.com/tBuLi/symfit', #'symfit.readthedocs.org',
     license='MIT',
