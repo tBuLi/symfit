@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict, Iterable
+from collections import namedtuple, Mapping, OrderedDict
 import copy
 import sys
 import warnings
@@ -810,8 +810,14 @@ class TakesData(object):
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
             # print(var, sigma)
-            if not isinstance(self.data[sigma.name], Iterable) and hasattr(self.data[var.name], 'shape'):
+            try:
                 self.data[sigma.name] *= np.ones(self.data[var.name].shape)
+            except AttributeError:
+                pass
+                # self.data[var.name] does not have a shape
+            except TypeError:
+                pass
+                # self.data[sigma.name] is not iterable
                 # If no attribute shape exists, data is also not an array
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
@@ -1894,7 +1900,12 @@ class ODEModel(CallableModel):
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
-        # For fitting to make sence, it should probably not be in there though.
+        # For fitting to make sence, it should probably not be in there though. Needs mathematical backing.
+        try:
+            t_like[0]
+        except (TypeError, IndexError): # Python scalar gives TypeError, numpy scalars IndexError
+            t_like = np.array([t_like]) # Allow evaluation at one point.
+
         if t_like[0] == initial_independent:
             start = 0
             warnings.warn("The initial point should probably not be included with your data points as this point will always be fitted perfectly.")

@@ -233,3 +233,9 @@ class deprecated(object):
             )
             return func(*args, **kwargs)
         return deprecated_func
+
+class D(sympy.Derivative):
+    """
+    Convenience wrapper for ``sympy.Derivative``. Used most notably in defining
+    ``ODEModel``'s.
+    """

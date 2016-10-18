@@ -128,6 +128,81 @@ class TestODE(unittest.TestCase):
         # plt.legend()
         # plt.show()
 
+    def test_single_eval(self):
+        """
+        Eval an ODEModel at a single value rather than a vector.
+        """
+        x, y, t = variables('x, y, t')
+        k, = parameters('k') # C is the integration constant.
+
+        # The harmonic oscillator as a system, >1st order is not supported yet.
+        harmonic_dict = {
+            D(x, t): - k * y,
+            D(y, t): k * x,
+        }
+        harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
+
+        tdata = np.linspace(0, 100, 101)
+        X, Y = harmonic_model(t=tdata, k=0.1)
+        for index, t in enumerate(tdata):
+            X_point, Y_point = harmonic_model(t=t, k=0.1)
+            self.assertAlmostEqual(X_point, X[index])
+            self.assertAlmostEqual(Y_point, Y[index])
+
+        # plt.plot(tdata, Y)
+        # plt.scatter(tdata[-1], Y_point)
+        # plt.show()
+
+    def test_mixed_model(self):
+        """
+        In principle some components of the model might be provided as ODEs
+        while others are not. This is a slightly fabricated scenario to test if
+        this is true.
+
+        We take a harmonic oscilater as a system of first order ODEs and
+        partially solve it. This should be the same as the original ODE.
+
+        DISCLAIMER
+        I'm not even conviced this should be allowed, and since it doesn't work
+        out of the box I'm not going te break my head over it. If a usecase
+        presents itself I'll look into it again.
+        """
+
+
+        # x, t = variables('x, t')
+        # k, C = parameters('k, C') # C is the integration constant.
+        #
+        # # First order system, partially integrated
+        # y = k * x * t,
+        # mixed_dict = {
+        #     D(x, t): - k * y,
+        # }
+        # mixed_model = ODEModel(mixed_dict, initial={t: 0.0, x: 1.0})
+        #
+        # tdata = np.linspace(0, 31.6, 1000)
+        # # Eval
+        # X, = mixed_model(t=tdata, k=0.1)
+        #
+        # plt.plot(t, X)
+        # plt.show()
+        #
+        # x, y, t = variables('x, y, t')
+        # k, C = parameters('k, C') # C is the integration constant.
+        #
+        # # The harmonic oscillator as a system, >1st order is not supported yet.
+        # harmonic_dict = {
+        #     D(x, t): - k * y,
+        #     D(y, t): k * x,
+        # }
+        # harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
+        #
+        # tdata = np.linspace(0, 31.6, 1000)
+        # # Eval
+        # X, Y = harmonic_model(t=tdata, k=0.1)
+        #
+        # plt.scatter(X, Y)
+        # plt.show()
+
 
 if __name__ == '__main__':
     unittest.main()

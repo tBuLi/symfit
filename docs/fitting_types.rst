@@ -256,11 +256,70 @@ Let's plot the model for some kinetics constants::
    :width: 300px
    :alt: ODE integration
 
+Global FItting
+--------------
+In a global fitting problem, we fit to multiple datasets where one or more
+parameters might be shared. The same syntax used for ODE fitting makes this
+problem very easy to solve in ``symfit``.
+
+As a simple example, suppose we have two datasets measuring exponential decay, with
+the same background, but different amplitude and decay rate.
+
+.. math::
+
+    f(x) = y_0 + a * e^{- b * x}
+
+In order to fit to this, we define the following model::
+
+    x_1, x_2, y_1, y_2 = variables('x_1, x_2, y_1, y_2')
+    y0, a_1, a_2, b_1, b_2 = parameters('y0, a_1, a_2, b_1, b_2')
+
+    model = Model({
+        y_1: y0 + a_1 * exp(- b_1 * x_1),
+        y_2: y0 + a_2 * exp(- b_2 * x_2),
+    })
+
+Note that ``y0`` is shared between the components. Fitting is then done in the normal way::
+
+    fit = Fit(model, x_1=xdata1, x_2=xdata2, y_1=ydata1, y_2=ydata2)
+    fit_result = fit.execute()
+
+
+.. figure:: _static/global_fitting.png
+   :width: 500px
+   :alt: ODE integration
+
+
+.. warning::
+    The regression coeeficient is not properly defined for vector-valued models, but it is still listed!
+    Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
+    Do not cite the overall :math:`R^2` given by ``symfit``.
+
+Advanced usage
+..............
+In general, the separate components of the model can be whatever you need them to be.
+You can mix and match which variables and parameters should be coupled and decoupled ad lib.
+Some examples are given below.
+
+Same parameters and same function, different (in)dependent variables::
+
+    datasets = [data_1, data_2, data_3, data_4, data_5, data_6]
+
+    xs = variables('x_1, x_2, x_3, x_4, x_5, x_6')
+    ys = variables('y_1, y_2, y_3, y_4, y_5, y_6')
+    zs = variables(', '.join('z_{}'.format(i) for i in range(6)))
+    a, b = parameters('a, b')
+
+    model_dict = {
+        z: a/(y * b) *  exp(- a * x)
+            for x, y, z in zip(xs, ys, zs)
+    }
+
 How Does ``Fit`` Work?
 ----------------------
 How does ``Fit`` get from a (named) model and some data to a fit? Consider the following example::
 
-    from symfit.api import parameters, variables, Fit
+    from symfit import parameters, variables, Fit
 
     a, b = parameters('a, b')
     x, y = variables('x, y')

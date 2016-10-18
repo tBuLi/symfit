@@ -12,11 +12,15 @@ If I can give you pieces of example code and don't have to use any additional wo
 ```python
 from symfit import parameters, variables, Fit
 
+xdata = [1.0, 2.0, 3.0, 4.0, 5.0]
+ydata = [2.3, 3.3, 4.1, 5.5, 6.7]
+yerr = [0.1, 0.1, 0.1, 0.1, 0.1]
+
 a, b = parameters('a, b')
 x, y = variables('x, y')
 model = {y: a * x + b}
 
-fit = Fit(model, x=xdata, y=ydata, sigma_y=sigma)
+fit = Fit(model, x=xdata, y=ydata, sigma_y=yerr)
 fit_result = fit.execute()
 ```
 
@@ -53,6 +57,9 @@ fit_result = fit.execute()
 ```python
 from symfit import variables, Parameter, ODEModel, Fit, D
 
+tdata = np.array([10, 26, 44, 70, 120])
+adata = 10e-4 * np.array([44, 34, 27, 20, 14])
+        
 a, b, t = variables('a, b, t')
 k = Parameter(0.1)
 
