@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import namedtuple, Mapping, OrderedDict, Iterable
 import copy
 import sys
 import warnings
