@@ -1894,7 +1894,12 @@ class ODEModel(CallableModel):
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
-        # For fitting to make sence, it should probably not be in there though.
+        # For fitting to make sence, it should probably not be in there though. Needs mathematical backing.
+        try:
+            t_like[0]
+        except (TypeError, IndexError): # Python scalar gives TypeError, numpy scalars IndexError
+            t_like = np.array([t_like]) # Allow evaluation at one point.
+
         if t_like[0] == initial_independent:
             start = 0
             warnings.warn("The initial point should probably not be included with your data points as this point will always be fitted perfectly.")

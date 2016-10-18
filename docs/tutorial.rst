@@ -117,7 +117,7 @@ This syntax also supports vector valued functions::
     model = {y_1: a * x**2, y_2: 2 * x * b}
 
 One thing to note about such models is that now ``model(x=xdata)`` obviously no longer works as ``type(model) == dict``.
-There is a prevered way to resolve this. If any kind of fitting object has been initiated, it will have a ``.model`` atribute
+There is a preferred way to resolve this. If any kind of fitting object has been initiated, it will have a ``.model`` atribute
 containing an instance of ``Model``. This can again be called::
 
     model = {y_1: a * x**2, y_2: 2 * x * b}
