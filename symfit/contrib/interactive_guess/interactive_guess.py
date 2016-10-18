@@ -167,7 +167,7 @@ class InteractiveGuess2D(TakesData):
             y_vals = getattr(data, dep_var.name)
             x_vals = self._x_points[indep_var.name]
             plot.set_data(x_vals, y_vals)
-        self.fig.canvas.draw_idle()  # Force redraw
+#        self.fig.canvas.draw()  # Force redraw
 
     def _get_data(self):
         """
