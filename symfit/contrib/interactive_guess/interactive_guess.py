@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from ... import ODEModel, D
+from ... import ODEModel, Derivative
 from ...core.fit import TakesData
 from ...core.support import keywordonly, key2str
 import matplotlib.pyplot as plt
@@ -101,7 +101,7 @@ class InteractiveGuess2D(TakesData):
 
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
-            if hasattr(self.model, 'dependent_derivatives') and D(y, x) in self.model:
+            if hasattr(self.model, 'dependent_derivatives') and Derivative(y, x) in self.model:
                 title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
             else:
                 title_format = '${dependant}({independant}) = {expression}$'
