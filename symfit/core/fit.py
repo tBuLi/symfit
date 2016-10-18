@@ -315,10 +315,12 @@ class BaseModel(Mapping):
         :param model: dict of ``Expr``, where dependent variables are the keys.
         """
         if not isinstance(model, Mapping):
-            if not isinstance(model, Iterable):
-                model = [model]
+            try:
+                enum = enumerate(model)
+            except TypeError:
+                enum = enumerate([model])
 
-            model = {sympy.Dummy('y_{}'.format(index + 1)): expr for index, expr in enumerate(model)}
+            model = {sympy.Dummy('y_{}'.format(index + 1)): expr for index, expr in enum}
             # model = {Variable('dummy_{}'.format(index + 1)): expr for index, expr in enumerate(model)}
 
         self._init_from_dict(model)
