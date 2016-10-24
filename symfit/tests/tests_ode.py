@@ -6,9 +6,6 @@ from symfit.api import parameters, variables, Derivative, ODEModel, exp
 from symfit.core.fit import Fit
 from symfit.distributions import Gaussian
 
-# import matplotlib.pyplot as plt
-# import seaborn
-
 
 class TestODE(unittest.TestCase):
     """
