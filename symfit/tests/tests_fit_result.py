@@ -5,7 +5,7 @@ import sympy
 import types
 
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, NumericalLeastSquares
+from symfit.api import Variable, Parameter, Fit, FitResults, NumericalLeastSquares, Model
 from symfit.distributions import Gaussian
 
 
@@ -35,20 +35,23 @@ class TestFitResults(unittest.TestCase):
             fit_result.params = 'hello'
         except AttributeError:
             self.assertTrue(True) # desired result
-        else:
+        finally:
             self.assertNotEqual(fit_result.params, 'hello')
 
         try:
             # Bypass the property getter. This will work, as it set's the instance value of __params.
             fit_result.__params = 'hello'
-        except AttributeError as foo:
+        except AttributeError:
             self.assertTrue(False) # undesired result
-        else:
+        finally:
             self.assertNotEqual(fit_result.params, 'hello')
             # The assginment will have succeeded on the instance because we set it from the outside.
             # I must admit I don't fully understand why this is allowed and I don't like it.
             # However, the tests below show that it did not influence the class method itself so
             # fitting still works fine.
+            # assinging to __params makes *new* instance attribute, the "real"
+            # __params instance is called _FitResult__params. See dir(fit_results) and
+            # https://www.python.org/dev/peps/pep-0008/#designing-for-inheritance
             self.assertEqual(fit_result.__params, 'hello')
 
         # Do a second fit and dubble check that we do not overwrtie something crusial.
@@ -59,14 +62,14 @@ class TestFitResults(unittest.TestCase):
 
         zdata = 2.5*xx**2 + 3.0*yy**2
 
-        a = Parameter(2, max=2.75)
-        b = Parameter(4, min=2.75)
+        a = Parameter(1., max=2.75)
+        b = Parameter(5., min=2.75)
         x = Variable()
         y = Variable()
-        new = a*x**2 + b*y**2
+        new = Variable()
+        new_model = Model({new: a*x**2 + b*y**2 })
 
-
-        fit_2 = Fit(new, xx, yy, zdata)
+        fit_2 = Fit(new_model, x=xx, y=yy, new=zdata)
         fit_result_2 = fit_2.execute()
         self.assertNotAlmostEqual(fit_result.params.a, fit_result_2.params.a)
         self.assertAlmostEqual(fit_result.params.a, 3.0)
