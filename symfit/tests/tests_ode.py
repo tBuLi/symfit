@@ -105,8 +105,8 @@ class TestODE(unittest.TestCase):
         a0 = 54 * 10e-4
 
         model_dict = {
-            D(a, t): - k * a**2,
-            D(b, t): k * a**2,
+            Derivative(a, t): - k * a**2,
+            Derivative(b, t): k * a**2,
         }
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
@@ -137,8 +137,8 @@ class TestODE(unittest.TestCase):
 
         # The harmonic oscillator as a system, >1st order is not supported yet.
         harmonic_dict = {
-            D(x, t): - k * y,
-            D(y, t): k * x,
+            Derivative(x, t): - k * y,
+            Derivative(y, t): k * x,
         }
         harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
 
@@ -146,8 +146,10 @@ class TestODE(unittest.TestCase):
         X, Y = harmonic_model(t=tdata, k=0.1)
         for index, t in enumerate(tdata):
             X_point, Y_point = harmonic_model(t=t, k=0.1)
-            self.assertAlmostEqual(X_point, X[index])
-            self.assertAlmostEqual(Y_point, Y[index])
+            np.testing.assert_allclose(X_point, X[index])
+            np.testing.assert_allclose(Y_point, Y[index])
+            # self.assertAlmostEqual(X_point, X[index])
+            # self.assertAlmostEqual(Y_point, Y[index])
 
         # plt.plot(tdata, Y)
         # plt.scatter(tdata[-1], Y_point)
@@ -167,6 +169,7 @@ class TestODE(unittest.TestCase):
         out of the box I'm not going te break my head over it. If a usecase
         presents itself I'll look into it again.
         """
+        pass
 
 
         # x, t = variables('x, t')
@@ -175,7 +178,7 @@ class TestODE(unittest.TestCase):
         # # First order system, partially integrated
         # y = k * x * t,
         # mixed_dict = {
-        #     D(x, t): - k * y,
+        #     Derivative(x, t): - k * y,
         # }
         # mixed_model = ODEModel(mixed_dict, initial={t: 0.0, x: 1.0})
         #
@@ -191,8 +194,8 @@ class TestODE(unittest.TestCase):
         #
         # # The harmonic oscillator as a system, >1st order is not supported yet.
         # harmonic_dict = {
-        #     D(x, t): - k * y,
-        #     D(y, t): k * x,
+        #     Derivative(x, t): - k * y,
+        #     Derivative(y, t): k * x,
         # }
         # harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
         #
