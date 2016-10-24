@@ -1,12 +1,9 @@
 from __future__ import division, print_function
 import unittest
-import warnings
-import sympy
-import types
 
 import numpy as np
-from symfit.api import *
-from symfit.core.fit import *
+from symfit.api import parameters, variables, Derivative, ODEModel, exp
+from symfit.core.fit import Fit
 from symfit.distributions import Gaussian
 
 # import matplotlib.pyplot as plt
