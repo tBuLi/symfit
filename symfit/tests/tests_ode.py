@@ -9,8 +9,8 @@ from symfit.api import *
 from symfit.core.fit import *
 from symfit.distributions import Gaussian
 
-import matplotlib.pyplot as plt
-import seaborn
+# import matplotlib.pyplot as plt
+# import seaborn
 
 
 class TestODE(unittest.TestCase):
