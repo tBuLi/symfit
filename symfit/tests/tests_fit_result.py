@@ -5,7 +5,7 @@ import sympy
 import types
 
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, NumericalLeastSquares, Model
+from symfit import Variable, Parameter, Fit, FitResults, NumericalLeastSquares, Model
 from symfit.distributions import Gaussian
 
 
