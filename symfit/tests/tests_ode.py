@@ -2,7 +2,8 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit.api import parameters, variables, Derivative, ODEModel, exp
+from symfit import parameters, variables, ODEModel, exp
+from symfit.core.support import D
 from symfit.core.fit import Fit
 from symfit.distributions import Gaussian
 
@@ -17,7 +18,7 @@ class TestODE(unittest.TestCase):
         p.value = 3.0
 
         model_dict = {
-            Derivative(y, t): - p * y,
+            D(y, t): - p * y,
         }
 
         # Lets say we know the exact solution to this problem
@@ -42,8 +43,8 @@ class TestODE(unittest.TestCase):
         u_0, u_1, t = variables('u_0, u_1, t')
 
         model_dict = {
-            Derivative(u_0, t): u_1,
-            Derivative(u_1, t): 3 * (1 - u_0**2) * u_1 - u_1
+            D(u_0, t): u_1,
+            D(u_1, t): 3 * (1 - u_0**2) * u_1 - u_1
         }
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, u_0: 2.0, u_1: 1.0})
@@ -64,11 +65,10 @@ class TestODE(unittest.TestCase):
 
         a0 = 10
         b = a0 - d + a
-
         model_dict = {
-            Derivative(d, t): l * c * b - m * d,
-            Derivative(c, t): k * a * b - p * c - l * c * b + m * d,
-            Derivative(a, t): - k * a * b + p * c,
+            D(d, t): l * c * b - m * d,
+            D(c, t): k * a * b - p * c - l * c * b + m * d,
+            D(a, t): - k * a * b + p * c,
         }
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
@@ -99,8 +99,8 @@ class TestODE(unittest.TestCase):
         a0 = 54 * 10e-4
 
         model_dict = {
-            Derivative(a, t): - k * a**2,
-            Derivative(b, t): k * a**2,
+            D(a, t): - k * a**2,
+            D(b, t): k * a**2,
         }
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
@@ -131,8 +131,8 @@ class TestODE(unittest.TestCase):
 
         # The harmonic oscillator as a system, >1st order is not supported yet.
         harmonic_dict = {
-            Derivative(x, t): - k * y,
-            Derivative(y, t): k * x,
+            D(x, t): - k * y,
+            D(y, t): k * x,
         }
         harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
 
@@ -172,7 +172,7 @@ class TestODE(unittest.TestCase):
         # # First order system, partially integrated
         # y = k * x * t,
         # mixed_dict = {
-        #     Derivative(x, t): - k * y,
+        #     D(x, t): - k * y,
         # }
         # mixed_model = ODEModel(mixed_dict, initial={t: 0.0, x: 1.0})
         #
@@ -188,8 +188,8 @@ class TestODE(unittest.TestCase):
         #
         # # The harmonic oscillator as a system, >1st order is not supported yet.
         # harmonic_dict = {
-        #     Derivative(x, t): - k * y,
-        #     Derivative(y, t): k * x,
+        #     D(x, t): - k * y,
+        #     D(y, t): k * x,
         # }
         # harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
         #
