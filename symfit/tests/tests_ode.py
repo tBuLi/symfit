@@ -133,12 +133,17 @@ class TestODE(unittest.TestCase):
             D(x, t): - k * y,
             D(y, t): k * x,
         }
-        harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
 
+        # Make a second model to prevent caching of integration results.
+        # This also means harmonic_dict should NOT be a Model object.
+        harmonic_model_array = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
+        harmonic_model_points = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
         tdata = np.linspace(0, 100, 101)
-        X, Y = harmonic_model(t=tdata, k=0.1)
-        for t, X_val, Y_val in zip(tdata, X, Y):
-            X_point, Y_point = harmonic_model(t=t, k=0.1)
+        X, Y = harmonic_model_array(t=tdata, k=0.1)
+        # Reverse the data to prevent using the result at time t to calculate
+        # t+dt
+        for t, X_val, Y_val in zip(tdata[::-1], X[::-1], Y[::-1]):
+            X_point, Y_point = harmonic_model_points(t=t, k=0.1)
             self.assertAlmostEqual(X_point[0], X_val)
             self.assertAlmostEqual(Y_point[0], Y_val)
 
