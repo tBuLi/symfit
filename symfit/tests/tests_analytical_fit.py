@@ -266,12 +266,12 @@ class TestAnalyticalFit(unittest.TestCase):
         import time
         tick = time.time()
         fit_result = fit.execute()
-        print(time.time() - tick)
+#        print(time.time() - tick)
 
         fit = NumericalLeastSquares(t_model, y=y_data, t=t_data, sigma_t=sigma_t)
         tick = time.time()
         num_result = fit.execute()
-        print(time.time() - tick)
+#        print(time.time() - tick)
 
         self.assertAlmostEqual(num_result.value(g), fit_result.value(g))
 

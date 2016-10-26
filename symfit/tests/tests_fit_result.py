@@ -112,7 +112,7 @@ class TestFitResults(unittest.TestCase):
         self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
         self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
 
-    def test_fitting(self):
+    def test_fitting_2(self):
         np.random.seed(4242)
         mean = (0.3, 0.3) # x, y mean 0.6, 0.4
         cov = [
@@ -164,8 +164,8 @@ class TestFitResults(unittest.TestCase):
         for param_1 in fit_result.params:
             for param_2 in fit_result.params:
                 self.assertAlmostEqual(fit_result.covariance(param_1, param_2), fit_result.covariance(param_2, param_1))
-        print(fit_result.params.covariance_matrix)
-        print(fit_result.covariance(x0_1, x0_2))
+#        print(fit_result.params.covariance_matrix)
+#        print(fit_result.covariance(x0_1, x0_2))
 
         with warnings.catch_warnings(record=True) as w:
             # Cause all warnings to always be triggered.

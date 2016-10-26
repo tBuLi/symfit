@@ -3,23 +3,26 @@ import unittest
 import sys
 import sympy
 import types
+import warnings
+
 
 from sympy import symbols
 import numpy as np
 import scipy.stats
 from scipy.optimize import curve_fit
 
-from symfit import Variable, Parameter, Fit, FitResults, Maximize, Minimize, exp, Likelihood, ln, log, variables, parameters, Model, NumericalLeastSquares
+from symfit import Variable, Parameter, Fit, FitResults, Maximize, Likelihood, log, variables, parameters, Model, NumericalLeastSquares
 from symfit.distributions import Gaussian, Exp
 from symfit.tests.tests_fit_result import TestFitResults
 from symfit.tests.tests_analytical_fit import TestAnalyticalFit
 from symfit.tests.tests_model import TestModel
 from symfit.tests.tests_ode import TestODE
 
-if sys.version_info >= (3,0):
+if sys.version_info >= (3, 0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
+
 
 class Tests(unittest.TestCase):
     @classmethod
@@ -458,10 +461,10 @@ class Tests(unittest.TestCase):
 
         from scipy.optimize import minimize
         res = minimize(func, [-1.0,1.0], args=(-1.0,),
-               method='SLSQP', options={'disp': True})
+               method='SLSQP', options={'disp': False})
 
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-               constraints=cons, method='SLSQP', options={'disp': True})
+               constraints=cons, method='SLSQP', options={'disp': False})
 
     def test_likelihood_fitting_exponential(self):
         """
@@ -747,15 +750,24 @@ class Tests(unittest.TestCase):
     def test_model_from_dict(self):
         x, y_1, y_2 = variables('x, y_1, y_2')
         a, b = parameters('a, b')
-
-        model = Model({
-            y_1: 2 * a * x,
-            y_2: b * x**2
-        })
+        # This way the test fails rather than errors.
+        try:
+            Model({
+                   y_1: 2 * a * x,
+                   y_2: b * x**2
+                  })
+        except Exception as error:
+            self.fail('test_model_from_dict raised {}'.format(error))
 
         # model = Model(y_1=2 * a * x, y_2=b * x**2)
 
 
-
 if __name__ == '__main__':
-    unittest.main()
+    try:
+        unittest.main(warnings='ignore')
+        # Note that unittest will catch and handle exceptions raised by tests.
+        # So this line will *only* deal with exceptions raised by the line above
+    except TypeError:
+        # In Py2, unittest.main doesn't take a warnings argument
+        warnings.simplefilter('ignore')
+        unittest.main()
