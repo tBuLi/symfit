@@ -137,12 +137,10 @@ class TestODE(unittest.TestCase):
 
         tdata = np.linspace(0, 100, 101)
         X, Y = harmonic_model(t=tdata, k=0.1)
-        for index, t in enumerate(tdata):
+        for t, X_val, Y_val in zip(tdata, X, Y):
             X_point, Y_point = harmonic_model(t=t, k=0.1)
-            np.testing.assert_allclose(X_point, X[index])
-            np.testing.assert_allclose(Y_point, Y[index])
-            # self.assertAlmostEqual(X_point, X[index])
-            # self.assertAlmostEqual(Y_point, Y[index])
+            self.assertAlmostEqual(X_point[0], X_val)
+            self.assertAlmostEqual(Y_point[0], Y_val)
 
         # plt.plot(tdata, Y)
         # plt.scatter(tdata[-1], Y_point)
