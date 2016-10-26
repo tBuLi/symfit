@@ -481,7 +481,7 @@ class Tests(unittest.TestCase):
         fit = Likelihood(pdf, xdata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.b, 5., 1)
+        self.assertAlmostEqual(fit_result.params.b, np.mean(xdata), 3)
 
     def test_likelihood_fitting_gaussian(self):
         """
@@ -500,8 +500,8 @@ class Tests(unittest.TestCase):
         fit = Likelihood(pdf, xdata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.mu, np.mean(xdata), 5)
-        self.assertAlmostEqual(fit_result.params.sig, np.std(xdata), 5)
+        self.assertAlmostEqual(fit_result.params.mu, np.mean(xdata), 1)
+        self.assertAlmostEqual(fit_result.params.sig, np.std(xdata), 3)
 
 
     def test_parameter_add(self):
