@@ -838,9 +838,9 @@ class BaseFit(object):
         Read-only Property
 
         :return: Data belonging to each dependent variable.
-        :rtype: dict with variable names as key, data as value.
+        :rtype: OrderedDict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model}
+        return OrderedDict((var.name, self.data[var.name]) for var in self.model)
 
     @property
     @cache
@@ -849,9 +849,9 @@ class BaseFit(object):
         Read-only Property
 
         :return: Data belonging to each independent variable.
-        :rtype: dict with variable names as key, data as value.
+        :rtype: OrderedDict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model.independent_vars}
+        return OrderedDict((var.name, self.data[var.name]) for var in self.model.independent_vars)
 
     @property
     @cache
@@ -860,9 +860,10 @@ class BaseFit(object):
         Read-only Property
 
         :return: Data belonging to each sigma variable.
-        :rtype: dict with variable names as key, data as value.
+        :rtype: OrderedDict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model.sigmas.values()}
+        sigmas = self.model.sigmas
+        return OrderedDict((sigmas[var].name, self.data[sigmas[var].name]) for var in self.model)
 
     def execute(self, *args, **kwargs):
         """
