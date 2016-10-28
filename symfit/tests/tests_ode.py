@@ -140,9 +140,13 @@ class TestODE(unittest.TestCase):
         harmonic_model_points = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
         tdata = np.linspace(0, 100, 101)
         X, Y = harmonic_model_array(t=tdata, k=0.1)
-        # Reverse the data to prevent using the result at time t to calculate
+        # Shuffle the data to prevent using the result at time t to calculate
         # t+dt
-        for t, X_val, Y_val in zip(tdata[::-1], X[::-1], Y[::-1]):
+        random_order = np.random.permutation(len(tdata))
+        for idx in random_order:
+            t = tdata[idx]
+            X_val = X[idx]
+            Y_val = Y[idx]
             X_point, Y_point = harmonic_model_points(t=t, k=0.1)
             self.assertAlmostEqual(X_point[0], X_val)
             self.assertAlmostEqual(Y_point[0], Y_val)
