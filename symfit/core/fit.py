@@ -1268,21 +1268,19 @@ class Minimize(BaseFit):
                     self.constraints.append(Constraint(constraint, self.model))
 
 
-    def error_func(self, p, data):
+    def error_func(self, p, independent_data, dependent_data, sigma_data):
         """
-        The function to be optimized. Scalar valued models are assumed. For Minimize the thing to evaluate is simply
-        self.model(*(list(data) + list(p)))
+        The function to be optimized. Scalar valued models are assumed. For
+        Minimize the thing to minimize is simply `self.model` directly.
 
         :param p: array of floats for the parameters.
         :param data: data to be provided to ``Variable``'s.
         """
-        # if self.dependent_data:
-        #     ans = self.model.numerical_chi_squared(*(list(self.data.values()) + list(p)))
-        # else:
-        ans, = self.model(*(list(data) + list(p)))
+        jac_args = list(independent_data.values()) + list(p)
+        ans, = self.model(*jac_args)
         return ans
 
-    def eval_jacobian(self, p, data):
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
         """
         Takes partial derivatives of model w.r.t. each ``Parameter``.
 
@@ -1290,10 +1288,11 @@ class Minimize(BaseFit):
         :param data: data to be provided to ``Variable``'s.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
+        jac_args = list(independent_data.values()) + list(p)
         ans = []
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
-                ans.append(partial_derivative(*(list(data) + list(p))).flatten())
+                ans.append(partial_derivative(*jac_args).flatten())
         # ans = self.model.eval_jacobian(*(list(data) + list(p)))
         # for row in self.partial_jacobian:
         #     for partial_derivative in row:
@@ -1306,7 +1305,8 @@ class Minimize(BaseFit):
             self.error_func,
             self.initial_guesses,
             method=method,
-            args=([value for key, value in self.data.items() if key in self.model.__signature__.parameters],),
+            # args=([value for key, value in self.data.items() if key in self.model.__signature__.parameters],),
+            args=(self.independent_data, self.dependent_data, self.sigma_data,),
             bounds=self.model.bounds,
             constraints=self.scipy_constraints,
             jac=self.eval_jacobian,
@@ -1520,31 +1520,33 @@ class Likelihood(Maximize):
     #     )
     #     return self.__fit_results
 
-    def error_func(self, p, data):
+    def error_func(self, p, independent_data, dependent_data, sigma_data):
         """
-        Error function to be maximised(!) in the case of likelihood fitting.
+        Error function to be maximised(!) in the case of log-likelihood fitting.
 
         :param p: guess params
         :param data: xdata
         :return: scalar value of log-likelihood
         """
-        ans = - np.nansum(np.log(self.model(*(list(data) + list(p)))))
+        jac_args = list(independent_data.values()) + list(p)
+        ans = - np.nansum(np.log(self.model(*jac_args)))
         return ans
 
-    def eval_jacobian(self, p, data):
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
         """
-        Jacobian for likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
+        Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
         :param p: guess params
         :param data: data for the variables.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
+        jac_args = list(independent_data.values()) + list(p)
         ans = []
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
                 ans.append(
                     - np.nansum(
-                        partial_derivative(*(list(data) + list(p))).flatten() / self.model(*(list(data) + list(p)))
+                        partial_derivative(*jac_args).flatten() / self.model(*jac_args)
                     )
                 )
         else:
