@@ -1012,7 +1012,7 @@ class LinearLeastSquares(BaseFit):
 
     * It does not check if the model can be linearized by a simple substitution.
       For example, exp(a * x) -> b * exp(x). You will have to do this manually.
-    * Does not use bounds or guesses on the ``Parameter``'s. Then again, it doesn't have too,
+    * Does not use bounds or guesses on the ``Parameter``'s. Then again, it doesn't have to,
       since you have an exact solution. No guesses required.
     * It only works with scalar functions. This is strictly enforced.
 
@@ -1238,7 +1238,9 @@ class Fit(NumericalLeastSquares):
 class Minimize(BaseFit):
     """
     Minimize a model subject to constraints. A wrapper for ``scipy.optimize.minimize``.
-    ``Minimize`` currently doesn't work when data is provided to Variables, and doesn't support vector functions.
+
+    ``Minimize`` itself doesn't work when data is provided to its Variables, use
+    one of its subclasses for that.
     """
     @keywordonly(constraints=None)
     def __init__(self, model, *args, **kwargs):
@@ -1253,14 +1255,9 @@ class Minimize(BaseFit):
         constraints = kwargs.pop('constraints')
         super(Minimize, self).__init__(model, *args, **kwargs)
         for var, data in self.data.items():
-            if data is None: # Replace None by an empty array
+            if data is None:
                 # self.data[var] = np.array([])
                 self.data[var] = 0
-
-        try:
-            assert len(self.model) == 1
-        except AssertionError:
-            raise TypeError('Minimize (currently?) only works with scalar functions.')
 
         self.constraints = []
         if constraints:
@@ -1473,15 +1470,16 @@ class Maximize(Minimize):
     Maximize a model subject to constraints.
     Simply flips the sign on error_func and eval_jacobian in order to maximize.
     """
-    def error_func(self, p, data):
-        return - super(Maximize, self).error_func(p, data)
+    def error_func(self, p, independent_data, dependent_data, sigma_data):
+        return - super(Maximize, self).error_func(p, independent_data, dependent_data, sigma_data)
 
-    def eval_jacobian(self, p, data):
-        return - super(Maximize, self).eval_jacobian(p, data)
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
+        return - super(Maximize, self).eval_jacobian(p, independent_data, dependent_data, sigma_data)
 
 class Likelihood(Maximize):
     """
-    Fit using a Maximum-Likelihood approach.
+    Fit using a Maximum-Likelihood approach. This object maximizes the
+    log-likelihood function.
     """
     # def __init__(self, model, *args, **kwargs):
     #     """
