@@ -1251,18 +1251,13 @@ class Minimize(BaseFit):
         :constraints: constraints the minimization is subject to.
         :type constraints: list
         """
-        # constraints = kwargs.pop('constraints') if 'constraints' in kwargs else None
         constraints = kwargs.pop('constraints')
         super(Minimize, self).__init__(model, *args, **kwargs)
-        for var, data in self.data.items():
-            if data is None:
-                # self.data[var] = np.array([])
-                self.data[var] = 0
 
         self.constraints = []
         if constraints:
             for constraint in constraints:
-                if isinstance(model, Constraint):
+                if isinstance(constraint, Constraint):
                     self.constraints.append(constraint)
                 else:
                     self.constraints.append(Constraint(constraint, self.model))
