@@ -4,7 +4,7 @@ Created on Mon Dec  7 11:28:58 2015
 
 @author: peterkroon
 """
-from symfit import Variable, Parameter, exp, Fit, Model
+from symfit import Variable, Parameter, exp, NumericalLeastSquares, Model
 from symfit.contrib.interactive_guess import interactive_guess
 import numpy as np
 
@@ -29,6 +29,6 @@ print("Guessed values: ")
 for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
 
-fit = Fit(model, x=x_data, y=y_data)
+fit = NumericalLeastSquares(model, x=x_data, y=y_data)
 fit_result = fit.execute(maxfev=1000)
 print(fit_result)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from symfit import variables, Parameter, Fit, D, ODEModel
+from symfit import variables, Parameter, NumericalLeastSquares, D, ODEModel
 import numpy as np
 from symfit.contrib.interactive_guess import InteractiveGuess2D
 
@@ -24,6 +24,6 @@ print("Guessed values: ")
 for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
 
-fit = Fit(model, A=concentration, t=tdata)
+fit = NumericalLeastSquares(model, A=concentration, t=tdata)
 fit_result = fit.execute()
 print(fit_result)
