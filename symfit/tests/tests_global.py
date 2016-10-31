@@ -18,7 +18,7 @@ else:
     import funcsigs as inspect_sig
 
 
-class Tests(unittest.TestCase):
+class TestsGlobal(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         np.random.seed(0)
