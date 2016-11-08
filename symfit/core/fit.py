@@ -1875,7 +1875,7 @@ class ODEModel(CallableModel):
 
         # System of functions to be integrated
         f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
-        # Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
+        Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
@@ -1902,8 +1902,9 @@ class ODEModel(CallableModel):
             initial_dependent,
             t_like,
             args=tuple(bound_arguments.arguments[param.name] for param in self.params),
+            Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
-        ) #  Dfun=Dfun
+        )
         return ans[start:].T
 
     def __call__(self, *args, **kwargs):
