@@ -141,10 +141,9 @@ class ParameterDict(object):
     @property
     def covariance_matrix(self):
         """
-        Read-Only Property. Returns the covariance matrix.
+        Returns the covariance matrix.
         """
         return self.__pcov
-
 
 
 class FitResults(object):
@@ -964,7 +963,7 @@ class NumericalLeastSquares(BaseFit):
 
     def error_func(self, p, independent_data, dependent_data, sigma_data, flatten=True):
         """
-        Returns the value of the square root of :math:`\\chi^2`, without summing over the components.
+        Returns the value of the square root of :math:`\\chi^2`, summing over the components.
 
         This function now supports setting variables to None. Needs mathematical rigor!
 
@@ -972,6 +971,7 @@ class NumericalLeastSquares(BaseFit):
         :param independent_data: Data to provide to the independent variables.
         :param dependent_data:
         :param sigma_data:
+        :param flatten: If True, summing is performed over the data indices (default).
         :return: :math:`\\sqrt(\\chi^2)`
         """
         # import matplotlib.pyplot as plt
@@ -1288,10 +1288,6 @@ class Minimize(BaseFit):
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
                 ans.append(partial_derivative(*jac_args).flatten())
-        # ans = self.model.eval_jacobian(*(list(data) + list(p)))
-        # for row in self.partial_jacobian:
-        #     for partial_derivative in row:
-        #         ans.append(partial_derivative(**{param.name: value for param, value in zip(self.model.params, p)}))
         else:
             return np.array(ans)
 
@@ -1348,7 +1344,6 @@ class Minimize(BaseFit):
                 'type': types[constraint.constraint_type],
                 # Assume the lhs is the equation.
                 'fun': lambda p, x, c: c(*(list(x.values()) + list(p)))[0],
-                # 'fun': lambda p, x, c: c.numerical_components[0](*(list(x.values()) + list(p))),
                 # Assume the lhs is the equation.
                 'jac' : lambda p, x, c: [component(*(list(x.values()) + list(p))) for component in c.numerical_jacobian[0]],
                 'args': (self.data, constraint)
