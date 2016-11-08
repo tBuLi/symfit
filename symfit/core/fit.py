@@ -1538,8 +1538,166 @@ class Likelihood(Maximize):
         else:
             return np.array(ans)
 
+class HasCovarianceMatrix(object):
+    """
+    Mixin class for calculating the covariance matrix for any model that has a
+    well-defined Jacobian :math:`J`. The covariance is then approximated as
+    :math:`J^T W J`, where W contains the weights of each data point.
 
+    Supports vector valued models, but is unable to estimate covariances for
+    those, just variances. Therefore, take the result with a grain of salt for
+    vector models.
+    """
+    def covariance_matrix(self, best_fit_params):
+        """
+        Given best fit parameters, this function finds the covariance matrix.
+        This matrix gives the (co)variance in the parameters.
 
+        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
+        :return: covariance matrix.
+        """
+        # The rest of this method is concerned with determining the covariance matrix
+        sigma = np.vstack(list(self.sigma_data.values()))
+        # Weight matrix. Since it should be a diagonal matrix, we just remember
+        # this and multiply it elementwise for efficiency.
+        W = 1/sigma**2
+
+        kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
+        kwargs.update(self.independent_data)
+        jac = np.atleast_2d([
+            [
+                np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
+            ] for row in self.model.numerical_jacobian
+        ])
+        # Order jacobian as param, component, datapoint
+        jac = np.swapaxes(jac,0,1)
+
+        cov_matrix_inv = np.tensordot(W*jac, jac, ([2,1],[2,1]))
+        return np.linalg.inv(cov_matrix_inv)
+
+class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
+    """
+    This object performs :math:`\chi^2` minimization, subject to constraints.
+    As an example, we could imagine fitting the angles of a triangle::
+
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
+        data = np.array([
+            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+        ])
+
+        fit = ConstrainedNumericalLeastSquares(
+            model=model,
+            a_i=data[0],
+            b_i=data[1],
+            c_i=data[2],
+            constraints=[Equality(a + b + c, 180)]
+        )
+        fit_result = fit.execute()
+
+    Unlike `NumericalLeastSquares`, it also supports vector components of unequal
+    length and is therefore preferred for Global Fitting problems.
+
+    In order to perform minimization, this object is a subclass of `Minimize`,
+    and the output might therefore deviate slightly from the MINPACK result given
+    by the more traditional `NumericalLeastSquares` object.
+    """
+    def error_func(self, p, independent_data, dependent_data, sigma_data, flatten_components=True):
+        """
+        Returns :math:`\\chi^2`, summing over all the vector components and
+        data indices.
+
+        This function now supports setting variables to None. Needs mathematical rigor!
+
+        :param p: array of floats for the parameters.
+        :param data: data to be provided to ``Variable``'s.
+        :param flatten_components: If ``True``, :math:`\\chi^2` is returned.
+            If ``False``, the :math:`\\chi^2` per vector component is returned.
+        """
+        jac_args = list(independent_data.values()) + list(p)
+        evaluated_func = self.model(*jac_args)
+
+        chi2 = [0 for _ in evaluated_func]
+        for index, (dep_var_name, dep_var_value) in enumerate(evaluated_func._asdict().items()):
+            dep_data = dependent_data[dep_var_name]
+            if dep_data is not None:
+                sigma = sigma_data['sigma_{}'.format(dep_var_name)] # Should be changed with #41
+                chi2[index] += np.sum((dep_var_value - dep_data)**2/sigma**2)
+                # chi2 += np.sum((dep_var_value - dep_data)**2/sigma**2)
+        chi2 = np.sum(chi2) if flatten_components else chi2
+        return chi2
+
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
+        """
+        Evaluates the jacobian of :math:`\\chi^2`, summing over all the vector
+        components and data indices.
+
+        :return: array of len(self.model.params) containing the components of the Jacobian.
+        """
+        jac_args = list(independent_data.values()) + list(p)
+        evaluated_func = self.model(*jac_args)
+        result = [0.0 for _ in self.model.params]
+
+        for ans, y, row in zip(evaluated_func, self.model, self.model.numerical_jacobian):
+            dep_data = dependent_data[y.name]
+            if dep_data is not None:
+                sigma = sigma_data['sigma_{}'.format(y.name)] # Should be changed with #41
+                for index, component in enumerate(row):
+                    result[index] += np.sum(
+                        component(*jac_args) * ((dep_data - ans)/sigma**2)
+                    )
+        return - np.array(result).T
+
+    def execute(self, *args, **kwargs):
+        """
+        This wraps the execute of 'Minimize' with the calculation of the
+        covariance matrix. Read `Minimize.execute` for a more general
+        description.
+        """
+        fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
+        # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
+        popt = [fit_result.value(p) for p in self.model.params]
+
+        cov_matrix = self.covariance_matrix(fit_result.params)
+
+        if self.absolute_sigma:
+            s_sq = 1
+        else:
+            # Rescale the covariance matrix with the residual variance
+            ss_res = self.error_func(
+                [fit_result.value(p) for p in self.model.params],
+                self.independent_data,
+                self.dependent_data,
+                self.sigma_data,
+                flatten_components=False
+            )
+            for data in self.dependent_data.values():
+                if data is not None:
+                    degrees_of_freedom = np.product(data.shape) - len(popt)
+                    break
+
+            s_sq = ss_res / degrees_of_freedom
+
+        cov_matrix = cov_matrix * s_sq
+        if len(self.model) > 1:
+            # For vector-models, make all off-diagonal values nan
+            cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
+
+        results = FitResults(
+            params=self.model.params,
+            popt=popt,
+            pcov=cov_matrix,
+            infodic=fit_result.infodict,
+            mesg=fit_result.status_message,
+            ier=fit_result.iterations,
+        )
+        results.r_squared = fit_result.r_squared
+        return results
 
 # class LagrangeMultipliers:
 #     """
