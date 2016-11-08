@@ -1297,7 +1297,8 @@ class Minimize(BaseFit):
             args=(self.independent_data, self.dependent_data, self.sigma_data,),
             bounds=self.model.bounds,
             constraints=self.scipy_constraints,
-            jac=self.eval_jacobian,
+            jac=self.eval_jacobian if hasattr(self.model, 'numerical_jacobian') else None,
+            # jac=self.eval_jacobian,
             *args,
             **kwargs
         )
