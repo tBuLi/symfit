@@ -178,13 +178,9 @@ class FitResults(object):
         :param ydata:
         """
         # Validate the types in rough way
-        assert(type(infodic) == dict)
         self.__infodict = infodic
-        assert(type(mesg) == str)
         self.__status_message = mesg
-        assert(type(ier) == int)
         self.__iterations = ier
-        # assert(type(ydata) == np.ndarray)
         self.__ydata = ydata
         self.__params = ParameterDict(params, popt, pcov)
         self.__sigma = sigma
