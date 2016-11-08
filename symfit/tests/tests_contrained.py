@@ -43,7 +43,7 @@ class TestConstrained(unittest.TestCase):
 
         fit = ConstrainedNumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute()
-        # print(fit_result)
+
         self.assertAlmostEqual(fit_result.value(k), 4.302875e-01)
         self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
 
@@ -96,7 +96,7 @@ class TestConstrained(unittest.TestCase):
 
         fit = ConstrainedNumericalLeastSquares(model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
         fit_result = fit.execute()
-        print(fit_result)
+
         # fit_curves = model(x_1=xdata[0], x_2=xdata[1], **fit_result.params)
         self.assertAlmostEqual(fit_result.value(y0), 1.061892e+01, 3)
         self.assertAlmostEqual(fit_result.value(a_1), 1.013269e+02, 3)
@@ -138,11 +138,9 @@ class TestConstrained(unittest.TestCase):
 
         constr_fit = ConstrainedNumericalLeastSquares(model, y=yn, sigma_y=sigma)
         constr_result = constr_fit.execute()
-        print(constr_result)
 
         fit = NumericalLeastSquares(model, y=yn, sigma_y=sigma)
         fit_result = fit.execute()
-        # print(fit_result)
 
         self.assertAlmostEqual(fit_result.value(a), constr_result.value(a), 5)
         self.assertAlmostEqual(fit_result.stdev(a), constr_result.stdev(a), 5)
@@ -159,11 +157,9 @@ class TestConstrained(unittest.TestCase):
         # Compare for absolute_sigma = False.
         constr_fit = ConstrainedNumericalLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
         constr_result = constr_fit.execute()
-        print(constr_result)
 
         fit = NumericalLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
         fit_result = fit.execute()
-        print(fit_result)
 
         self.assertAlmostEqual(fit_result.value(a), constr_result.value(a), 5)
         self.assertAlmostEqual(fit_result.stdev(a), constr_result.stdev(a), 5)
@@ -189,7 +185,6 @@ class TestConstrained(unittest.TestCase):
         # results = fit.execute(options={'maxiter': 10})
         results = fit.execute()
 
-        print(results)
 
         self.assertAlmostEqual(results.value(a), 2.5, 4)
         self.assertAlmostEqual(results.value(b), 3.0, 4)
@@ -439,8 +434,6 @@ class TestConstrained(unittest.TestCase):
         const_result = const_fit.execute(tol=1e-8)
         fit = NumericalLeastSquares(model, xdata, ydata, zdata)
         std_result = fit.execute()
-        print(const_result)
-        print(std_result)
 
         self.assertAlmostEqual(const_result.value(a), std_result.value(a), 4)
         self.assertAlmostEqual(const_result.value(b), std_result.value(b), 4)
