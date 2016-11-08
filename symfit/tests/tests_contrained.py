@@ -96,6 +96,7 @@ class TestConstrained(unittest.TestCase):
 
         fit = ConstrainedNumericalLeastSquares(model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
         fit_result = fit.execute()
+        print(fit_result)
         # fit_curves = model(x_1=xdata[0], x_2=xdata[1], **fit_result.params)
         self.assertAlmostEqual(fit_result.value(y0), 1.061892e+01, 3)
         self.assertAlmostEqual(fit_result.value(a_1), 1.013269e+02, 3)
@@ -336,8 +337,8 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_new_result.stdev(c), np.std(xdata[2],ddof=1)/np.sqrt(N), 4)
 
 
-        # With the correct values of sigma, abslute_sigma=True should be in
-        # agreement. with analytical.
+        # With the correct values of sigma, absolute_sigma=True should be in
+        # agreement with analytical.
         sigmadata = np.array([
             np.std(xdata[0],ddof=1),
             np.std(xdata[1],ddof=1),
@@ -351,7 +352,6 @@ class TestConstrained(unittest.TestCase):
             sigma_a_i=sigmadata[0],
             sigma_b_i=sigmadata[1],
             sigma_c_i=sigmadata[2],
-            # absolute_sigma=False
         )
         fit_result = fit.execute(tol=1e-9)
         self.assertAlmostEqual(fit_result.stdev(a), np.std(xdata[0],ddof=1)/np.sqrt(N), 2)
@@ -376,6 +376,37 @@ class TestConstrained(unittest.TestCase):
         self.assertNotAlmostEqual(fit_result.stdev(a), np.std(xdata[0],ddof=1)/np.sqrt(N), 3)
         self.assertNotAlmostEqual(fit_result.stdev(b), np.std(xdata[1],ddof=1)/np.sqrt(N), 3)
         self.assertNotAlmostEqual(fit_result.stdev(c), np.std(xdata[2],ddof=1)/np.sqrt(N), 3)
+
+    def test_covariances(self):
+        """
+        Compare the equal and unequal length handeling of `HasCovarianceMatrix`.
+        If it works properly, the unequal length method should reduce to the
+        equal length one if called qith equal length data. Computing unequal
+        dataset length covariances remains something to be careful with, but
+        this backwards compatibility provides some validation.
+        """
+        N = 10000
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
+        np.random.seed(1)
+        # Sample from a multivariate normal with correlation.
+        pcov = np.array([[0.4, 0.3, 0.5], [0.3, 0.8, 0.4], [0.5, 0.4, 1.2]])
+        xdata = np.random.multivariate_normal([10, 100, 70], pcov, N).T
+
+        fit = ConstrainedNumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=xdata[2],
+        )
+        fit_result = fit.execute()
+
+        cov_equal = fit._cov_mat_equal_lenghts(fit_result.params)
+        cov_unequal = fit._cov_mat_unequal_lenghts(fit_result.params)
+        np.testing.assert_array_equal(cov_equal, cov_unequal)
 
     def test_error_advanced(self):
         """
