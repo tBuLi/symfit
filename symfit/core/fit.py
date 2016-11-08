@@ -787,7 +787,8 @@ class BaseFit(object):
         # Handle ordered_data and named_data according to the allowed names.
         var_names = [var.name for var in self.model.vars]
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
+            # inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
+            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=None)
                 for name in var_names
         ]
 
@@ -808,11 +809,12 @@ class BaseFit(object):
             try:
                 iter(self.data[sigma.name])
             except TypeError:
-                try:
+                # if self.data[var.name] is None and self.data[sigma.name] is None:
+                #     pass # This is the way it's supposed to be.
+                if self.data[var.name] is not None and self.data[sigma.name] is None:
+                    self.data[sigma.name] = np.ones(self.data[var.name].shape)
+                elif self.data[var.name] is not None:
                     self.data[sigma.name] *= np.ones(self.data[var.name].shape)
-                except AttributeError:
-                    # If no attribute shape exists, data is also not an array
-                    pass
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
         # given, False if no sigma is given.
@@ -820,7 +822,7 @@ class BaseFit(object):
             self.absolute_sigma = absolute_sigma
         else:
             for name, value in self.sigmas.items():
-                if value is not 1:
+                if value is not None:
                     self.absolute_sigma = True
                     break
             else:
@@ -1556,6 +1558,22 @@ class HasCovarianceMatrix(object):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :return: covariance matrix.
         """
+        if None in self.sigma_data.values():
+            return np.array(
+                [[float('nan') for p in self.model.params] for p in self.model.params]
+            )
+        if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
+            # All shapes identical
+            return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
+        else:
+            return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+
+    def _cov_mat_equal_lenghts(self, best_fit_params):
+        """
+        If all the data arrays are of equal size, use this method. This will
+        typically be the case, and this method is a lot faster because it allows
+        for numpy magic.
+        """
         # The rest of this method is concerned with determining the covariance matrix
         sigma = np.vstack(list(self.sigma_data.values()))
         # Weight matrix. Since it should be a diagonal matrix, we just remember
@@ -1572,7 +1590,44 @@ class HasCovarianceMatrix(object):
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac,0,1)
 
-        cov_matrix_inv = np.tensordot(W*jac, jac, ([2,1],[2,1]))
+        # Dot away all but the parameter dimension!
+        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
+        return np.linalg.inv(cov_matrix_inv)
+
+    def _cov_mat_unequal_lenghts(self, best_fit_params):
+        """
+        If the data arrays are of unequal size, use this method. Less efficient
+        but more general than the method for equal size datasets.
+        """
+        # The rest of this method is concerned with determining the covariance matrix
+        sigma = list(self.sigma_data.values())
+        # Weight matrix. Since it should be a diagonal matrix, we just remember
+        # this and multiply it elementwise for efficiency.
+        W = [1/s**2 for s in sigma]
+
+        kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
+        kwargs.update(self.independent_data)
+        jac = [
+            [
+                np.ones(s.shape) * comp(**kwargs) for comp in row
+            ] for row, s in zip(self.model.numerical_jacobian, sigma)
+        ]
+
+        # Order jacobian as param, component, datapoint
+        jac = np.swapaxes(jac,0,1)
+        # Weigh each component with its respective weight.
+        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
+
+        # Buil the inverse cov_matrix.
+        cov_matrix_inv = []
+        # iterate along the parameters first
+        for index, jac_w_p in enumerate(jac_weighed):
+            cov_matrix_inv.append([])
+            for jac_p in jac:
+                # Now we have to dot product these guys properly.
+                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
+                cov_matrix_inv[index].append(dot)
+
         return np.linalg.inv(cov_matrix_inv)
 
 class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
@@ -1676,10 +1731,15 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
                 self.sigma_data,
                 flatten_components=False
             )
+            degrees_of_freedom = []
             for data in self.dependent_data.values():
                 if data is not None:
-                    degrees_of_freedom = np.product(data.shape) - len(popt)
+                    degrees_of_freedom.append(np.product(data.shape) - len(popt))
+                    # degrees_of_freedom = np.product(data.shape) - len(popt)
                     break
+                else:
+                    degrees_of_freedom.append(1)
+            degrees_of_freedom = np.array(degrees_of_freedom)
 
             s_sq = ss_res / degrees_of_freedom
 
