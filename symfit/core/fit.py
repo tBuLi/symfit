@@ -1292,12 +1292,12 @@ class Minimize(BaseFit):
             self.error_func,
             self.initial_guesses,
             method=method,
-            # args=([value for key, value in self.data.items() if key in self.model.__signature__.parameters],),
             args=(self.independent_data, self.dependent_data, self.sigma_data,),
             bounds=self.model.bounds,
             constraints=self.scipy_constraints,
             jac=self.eval_jacobian,
-            # options={'disp': True},
+            *args,
+            **kwargs
         )
 
         # Build infodic
