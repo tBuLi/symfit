@@ -1049,24 +1049,28 @@ class GlobalLeastSquares(NumericalLeastSquares):
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
         """
-        # DE metaparameters come from http://www.hvass-labs.org/people/magnus/thesis/pedersen08thesis.pdf
-        # and http://www.hvass-labs.org/people/magnus/publications/pedersen10good-de.pdf
+        # DE metaparameters come from http://www1.icsi.berkeley.edu/~storn/code.html
+        # Alternative sources are http://www.hvass-labs.org/people/magnus/thesis/pedersen08thesis.pdf
+        # and http://www.hvass-labs.org/people/magnus/publications/pedersen10good-de.pdf and
+        # http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7332852
         # TODO: improve default DE metaparameters
         # TODO, optional: polish by a manual call to scipy minimize to get
         #                 errors in the parameters (and use the jacobian?)
         kwargs = {
-                  'strategy': 'best2bin', 
-                  'popsize': 20,
-                  'mutation': 0.7,
-                  'recombination': 0.7,
+                  'strategy': 'rand1bin', 
+                  'popsize': min(10*len(self.model.params), 40),
+                  'mutation': [0.5, 1],
+                  'recombination': 0.9,
+                  'polish': True,
+                  'init': 'latinhypercube',
                  }
         kwargs.update(kwoptions)
+        if kwargs['popsize'] < 3:
+            raise ValueError('popsize has to be at least 3')
         ans = differential_evolution(
                         self.error_func,
                         bounds=self.model.bounds,
                         args=(self.independent_data, self.dependent_data, self.sigma_data,),
-                        polish=True,
-                        init='latinhypercube',
                         *options, **kwargs
                         )
         infodic = {

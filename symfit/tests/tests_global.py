@@ -266,5 +266,21 @@ class TestsGlobal(unittest.TestCase):
         self.assertAlmostEqual(np.abs(fit_result.params.sig_y), np.std(data[:, 1]), 1)
         self.assertGreaterEqual(fit_result.r_squared, 0.99)
 
+    def test_meta_parameters(self):
+        xdata = np.linspace(1,10,10)
+        ydata = 3*xdata**2
+
+        a = Parameter(min=0, max=5) #3.1, min=2.5, max=3.5
+        b = Parameter(min=0, max=5)
+        x = Variable()
+        new = a*x**b
+
+        fit = GlobalLeastSquares(new, xdata, ydata)
+        try:
+            # Stupid settings for (super)fast convergence
+            fit.execute(tol=1, popsize=5, strategy='best1bin')
+        except Exception as error:
+            self.fail('test_meta_parameters raised {}'.format(str(error)))
+
 if __name__ == '__main__':
     unittest.main()
