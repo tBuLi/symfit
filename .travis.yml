@@ -31,4 +31,4 @@ install:
   - source activate pyenv
   - pip install .
 # Run tests
-script: nosetests
+script: nosetests ./symfit/tests/tests.py
