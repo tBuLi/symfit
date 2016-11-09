@@ -1,13 +1,10 @@
 from __future__ import division, print_function
 import unittest
-import warnings
-import sympy
-import types
 
 import numpy as np
-from symfit.api import *
-from symfit.core.fit import *
-from symfit.distributions import Gaussian
+from symfit import (variables, Variable, parameters, Parameter, ODEModel,
+                    ConstrainedNumericalLeastSquares, NumericalLeastSquares,
+                    Equality, D, Model, log, FitResults)
 
 
 class TestConstrained(unittest.TestCase):
@@ -35,9 +32,6 @@ class TestConstrained(unittest.TestCase):
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
 
-        # Generate some data
-        tvec = np.linspace(0, 500, 1000)
-
         fit = ConstrainedNumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute(tol=1e-9)
 
@@ -56,7 +50,8 @@ class TestConstrained(unittest.TestCase):
         #
         # self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
         # self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
-
+        # Generate some data
+        # tvec = np.linspace(0, 500, 1000)
         # A, B = ode_model(t=tvec, **fit_result.params)
         # plt.plot()
         # plt.plot(tvec, A, label='[A]')
@@ -84,7 +79,7 @@ class TestConstrained(unittest.TestCase):
         # Generate data from this model
         # xdata = np.linspace(0, 10)
         xdata1 = np.linspace(0, 10)
-        xdata2 = xdata1[::2] # Make the sets of unequal size
+        xdata2 = xdata1[::2]  # Make the sets of unequal size
 
         ydata1, ydata2 = model(x_1=xdata1, x_2=xdata2, a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
         # Add some noise to make it appear like real data
@@ -104,7 +99,8 @@ class TestConstrained(unittest.TestCase):
 
         sigma_y = np.concatenate((np.ones(20), [2., 4., 5, 7, 3]))
 
-        fit = ConstrainedNumericalLeastSquares(model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
+        fit = ConstrainedNumericalLeastSquares(model, x_1=xdata[0], x_2=xdata[1],
+                                               y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
         fit_result = fit.execute()
 
         # fit_curves = model(x_1=xdata[0], x_2=xdata[1], **fit_result.params)
@@ -115,7 +111,7 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(b_2), 1.565253e+00, 3)
 
     def test_named_fitting(self):
-        xdata = np.linspace(1,10,10)
+        xdata = np.linspace(1, 10, 10)
         ydata = 3*xdata**2
 
         a = Parameter(1.0)
@@ -156,8 +152,6 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_result.stdev(a), constr_result.stdev(a), 5)
 
         # Analytical answer for mean of N(0,sigma):
-        mu = 0.0
-        # mu = np.mean(yn)
         sigma_mu = sigma/N**0.5
 
         # self.assertAlmostEqual(fit_result.value(a), mu, 5)
@@ -175,9 +169,6 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_result.stdev(a), constr_result.stdev(a), 5)
 
     def test_grid_fitting(self):
-        """
-        This fit seems to fail occasionally. WTF? I'm not in the randomness generation business.
-        """
         xdata = np.arange(-5, 5, 1)
         ydata = np.arange(5, 15, 1)
         xx, yy = np.meshgrid(xdata, ydata, sparse=False)
@@ -194,7 +185,6 @@ class TestConstrained(unittest.TestCase):
         fit = ConstrainedNumericalLeastSquares(new, x=xx, y=yy, z=zdata)
         # results = fit.execute(options={'maxiter': 10})
         results = fit.execute()
-
 
         self.assertAlmostEqual(results.value(a), 2.5, 4)
         self.assertAlmostEqual(results.value(b), 3.0, 4)
@@ -335,13 +325,13 @@ class TestConstrained(unittest.TestCase):
 
         # Since no sigma were provided, absolute_sigma=False. Therefore the
         # standard deviation doesn't match the expected value, but it does match the emperical value
-        self.assertAlmostEqual(fit_new_result.stdev(a)/(np.std(xdata[0],ddof=1)/np.sqrt(N)), 1.0, 3)
-        self.assertAlmostEqual(fit_new_result.stdev(b)/(np.std(xdata[1],ddof=1)/np.sqrt(N)), 1.0, 3)
-        self.assertAlmostEqual(fit_new_result.stdev(c)/(np.std(xdata[2],ddof=1)/np.sqrt(N)), 1.0, 3)
+        self.assertAlmostEqual(fit_new_result.stdev(a)/(np.std(xdata[0], ddof=1)/np.sqrt(N)), 1.0, 3)
+        self.assertAlmostEqual(fit_new_result.stdev(b)/(np.std(xdata[1], ddof=1)/np.sqrt(N)), 1.0, 3)
+        self.assertAlmostEqual(fit_new_result.stdev(c)/(np.std(xdata[2], ddof=1)/np.sqrt(N)), 1.0, 3)
         # Test for a miss on the exact value
-        self.assertNotAlmostEqual(fit_new_result.stdev(a)/np.sqrt(pcov[0,0]/N), 1.0, 3)
-        self.assertNotAlmostEqual(fit_new_result.stdev(b)/np.sqrt(pcov[1,1]/N), 1.0, 3)
-        self.assertNotAlmostEqual(fit_new_result.stdev(c)/np.sqrt(pcov[2,2]/N), 1.0, 3)
+        self.assertNotAlmostEqual(fit_new_result.stdev(a)/np.sqrt(pcov[0, 0]/N), 1.0, 3)
+        self.assertNotAlmostEqual(fit_new_result.stdev(b)/np.sqrt(pcov[1, 1]/N), 1.0, 3)
+        self.assertNotAlmostEqual(fit_new_result.stdev(c)/np.sqrt(pcov[2, 2]/N), 1.0, 3)
 
         # The standard object actually does not predict the right values for
         # stdev, because its method for computing them apperantly does not allow
@@ -352,9 +342,9 @@ class TestConstrained(unittest.TestCase):
         # With the correct values of sigma, absolute_sigma=True should be in
         # agreement with analytical.
         sigmadata = np.array([
-            np.sqrt(pcov[0,0]),
-            np.sqrt(pcov[1,1]),
-            np.sqrt(pcov[2,2])
+            np.sqrt(pcov[0, 0]),
+            np.sqrt(pcov[1, 1]),
+            np.sqrt(pcov[2, 2])
         ])
         fit = ConstrainedNumericalLeastSquares(
             model=model,
@@ -369,9 +359,9 @@ class TestConstrained(unittest.TestCase):
         fit_result = fit.execute(tol=1e-9)
         # The standard deviation in the mean is stdev/sqrt(N),
         # see test_param_error_analytical
-        self.assertAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0,0]/N), 1.0, 4)
-        self.assertAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1,1]/N), 1.0, 4)
-        self.assertAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2,2]/N), 1.0, 4)
+        self.assertAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0, 0]/N), 1.0, 4)
+        self.assertAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1, 1]/N), 1.0, 4)
+        self.assertAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2, 2]/N), 1.0, 4)
 
 
         # Finally, we should confirm that with unrealistic sigma and
@@ -390,9 +380,9 @@ class TestConstrained(unittest.TestCase):
         )
         fit_result = fit2.execute(tol=1e-9)
         # Should be off bigly
-        self.assertNotAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0,0]/N), 1.0, 1)
-        self.assertNotAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1,1]/N), 1.0, 1)
-        self.assertNotAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2,2]/N), 1.0, 1)
+        self.assertNotAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0, 0]/N), 1.0, 1)
+        self.assertNotAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1, 1]/N), 1.0, 1)
+        self.assertNotAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2, 2]/N), 1.0, 1)
 
     def test_covariances(self):
         """
@@ -432,9 +422,9 @@ class TestConstrained(unittest.TestCase):
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
-            sigma_a_i=np.sqrt(pcov[0,0]),
-            sigma_b_i=np.sqrt(pcov[1,1]),
-            sigma_c_i=np.sqrt(pcov[2,2]),
+            sigma_a_i=np.sqrt(pcov[0, 0]),
+            sigma_b_i=np.sqrt(pcov[1, 1]),
+            sigma_c_i=np.sqrt(pcov[2, 2]),
             absolute_sigma=True
         )
         fit_result = fit.execute()
