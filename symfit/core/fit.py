@@ -1769,8 +1769,6 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         This wraps the execute of 'Minimize' with the calculation of the
         covariance matrix. Read `Minimize.execute` for a more general
         description.
-
-        
         """
         fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
         # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
