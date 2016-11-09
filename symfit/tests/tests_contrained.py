@@ -42,10 +42,23 @@ class TestConstrained(unittest.TestCase):
         tvec = np.linspace(0, 500, 1000)
 
         fit = ConstrainedNumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
-        fit_result = fit.execute()
+        fit_result = fit.execute(tol=1e-9)
 
-        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01)
-        self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
+        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
+        self.assertTrue(np.isnan(fit_result.stdev(k)))
+
+        # These lines should be possible, but dont currently for ODEModels.
+        # It allows the user to force uncertainty estimation by giving sigma
+        # argument arrays of the right size.
+        # fit = ConstrainedNumericalLeastSquares(
+        #     ode_model, t=tdata, a=adata, b=None,
+        #     sigma_a=np.ones(adata.shape), sigma_b=np.ones(adata.shape)
+        # )
+        # fit_result = fit.execute(tol=1e-9)
+        # print(fit_result)
+        #
+        # self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
+        # self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
 
         # A, B = ode_model(t=tvec, **fit_result.params)
         # plt.plot()
@@ -308,6 +321,10 @@ class TestConstrained(unittest.TestCase):
         fit_new_result = fit.execute(tol=1e-9)
         std_result = fit_std.execute()
 
+        # When no errors are given, we default to `absolute_sigma=False`, since
+        # that is the best we can do.
+        self.assertFalse(fit.absolute_sigma)
+
         # The standard method and the Constrained object called without constraints
         # should give roughly the same parameter values.
         self.assertAlmostEqual(fit_new_result.value(a), std_result.value(a), 3)
@@ -319,25 +336,28 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_new_result.value(b), np.mean(xdata[1]), 4)
         self.assertAlmostEqual(fit_new_result.value(c), np.mean(xdata[2]), 4)
 
+        # Since no sigma were provided, absolute_sigma=False. Therefore the
+        # standard deviation doesn't match the expected value, but it does match the emperical value
+        self.assertAlmostEqual(fit_new_result.stdev(a)/(np.std(xdata[0],ddof=1)/np.sqrt(N)), 1.0, 3)
+        self.assertAlmostEqual(fit_new_result.stdev(b)/(np.std(xdata[1],ddof=1)/np.sqrt(N)), 1.0, 3)
+        self.assertAlmostEqual(fit_new_result.stdev(c)/(np.std(xdata[2],ddof=1)/np.sqrt(N)), 1.0, 3)
+        # Test for a miss on the exact value
+        self.assertNotAlmostEqual(fit_new_result.stdev(a)/np.sqrt(pcov[0,0]/N), 1.0, 3)
+        self.assertNotAlmostEqual(fit_new_result.stdev(b)/np.sqrt(pcov[1,1]/N), 1.0, 3)
+        self.assertNotAlmostEqual(fit_new_result.stdev(c)/np.sqrt(pcov[2,2]/N), 1.0, 3)
+
         # The standard object actually does not predict the right values for
         # stdev, because its method for computing them apperantly does not allow
         # for vector valued functions.
         # So actually, for vector valued functions its better to use
-        # ConstrainedNumericalLeastSquares.
-
-        # The standerd deviation in the mean is stdev/sqrt(N),
-        # see test_param_error_analytical
-        self.assertAlmostEqual(fit_new_result.stdev(a), np.std(xdata[0],ddof=1)/np.sqrt(N), 4)
-        self.assertAlmostEqual(fit_new_result.stdev(b), np.std(xdata[1],ddof=1)/np.sqrt(N), 4)
-        self.assertAlmostEqual(fit_new_result.stdev(c), np.std(xdata[2],ddof=1)/np.sqrt(N), 4)
-
+        # ConstrainedNumericalLeastSquares, though this does not give covariances.
 
         # With the correct values of sigma, absolute_sigma=True should be in
         # agreement with analytical.
         sigmadata = np.array([
-            np.std(xdata[0],ddof=1),
-            np.std(xdata[1],ddof=1),
-            np.std(xdata[2],ddof=1)
+            np.sqrt(pcov[0,0]),
+            np.sqrt(pcov[1,1]),
+            np.sqrt(pcov[2,2])
         ])
         fit = ConstrainedNumericalLeastSquares(
             model=model,
@@ -348,10 +368,13 @@ class TestConstrained(unittest.TestCase):
             sigma_b_i=sigmadata[1],
             sigma_c_i=sigmadata[2],
         )
+        self.assertTrue(fit.absolute_sigma)
         fit_result = fit.execute(tol=1e-9)
-        self.assertAlmostEqual(fit_result.stdev(a), np.std(xdata[0],ddof=1)/np.sqrt(N), 2)
-        self.assertAlmostEqual(fit_result.stdev(b), np.std(xdata[1],ddof=1)/np.sqrt(N), 2)
-        self.assertAlmostEqual(fit_result.stdev(c), np.std(xdata[2],ddof=1)/np.sqrt(N), 2)
+        # The standard deviation in the mean is stdev/sqrt(N),
+        # see test_param_error_analytical
+        self.assertAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0,0]/N), 1.0, 4)
+        self.assertAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1,1]/N), 1.0, 4)
+        self.assertAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2,2]/N), 1.0, 4)
 
 
         # Finally, we should confirm that with unrealistic sigma and
@@ -366,11 +389,13 @@ class TestConstrained(unittest.TestCase):
             sigma_a_i=sigmadata[0],
             sigma_b_i=sigmadata[1],
             sigma_c_i=sigmadata[2],
+            absolute_sigma=True
         )
         fit_result = fit2.execute(tol=1e-9)
-        self.assertNotAlmostEqual(fit_result.stdev(a), np.std(xdata[0],ddof=1)/np.sqrt(N), 3)
-        self.assertNotAlmostEqual(fit_result.stdev(b), np.std(xdata[1],ddof=1)/np.sqrt(N), 3)
-        self.assertNotAlmostEqual(fit_result.stdev(c), np.std(xdata[2],ddof=1)/np.sqrt(N), 3)
+        # Should be off bigly
+        self.assertNotAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0,0]/N), 1.0, 1)
+        self.assertNotAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1,1]/N), 1.0, 1)
+        self.assertNotAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2,2]/N), 1.0, 1)
 
     def test_covariances(self):
         """
@@ -388,7 +413,7 @@ class TestConstrained(unittest.TestCase):
 
         np.random.seed(1)
         # Sample from a multivariate normal with correlation.
-        pcov = np.array([[0.4, 0.3, 0.5], [0.3, 0.8, 0.4], [0.5, 0.4, 1.2]])
+        pcov = 1e-1 * np.array([[0.4, 0.3, 0.5], [0.3, 0.8, 0.4], [0.5, 0.4, 1.2]])
         xdata = np.random.multivariate_normal([10, 100, 70], pcov, N).T
 
         fit = ConstrainedNumericalLeastSquares(
@@ -396,12 +421,30 @@ class TestConstrained(unittest.TestCase):
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            absolute_sigma=False
         )
         fit_result = fit.execute()
 
         cov_equal = fit._cov_mat_equal_lenghts(fit_result.params)
         cov_unequal = fit._cov_mat_unequal_lenghts(fit_result.params)
-        np.testing.assert_array_equal(cov_equal, cov_unequal)
+        np.testing.assert_array_almost_equal(cov_equal, cov_unequal)
+
+        # Try with absolute_sigma=True
+        fit = ConstrainedNumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=xdata[2],
+            sigma_a_i=np.sqrt(pcov[0,0]),
+            sigma_b_i=np.sqrt(pcov[1,1]),
+            sigma_c_i=np.sqrt(pcov[2,2]),
+            absolute_sigma=True
+        )
+        fit_result = fit.execute()
+
+        cov_equal = fit._cov_mat_equal_lenghts(fit_result.params)
+        cov_unequal = fit._cov_mat_unequal_lenghts(fit_result.params)
+        np.testing.assert_array_almost_equal(cov_equal, cov_unequal)
 
     def test_error_advanced(self):
         """
@@ -417,11 +460,8 @@ class TestConstrained(unittest.TestCase):
             [4.7, 8.4, 10.]
         ]
         xdata, ydata, zdata = [np.array(data) for data in zip(*data)]
-        xy = np.vstack((xdata, ydata))
-        # z = np.array(z)
-        errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
+        # errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
 
-        # raise Exception(xy, z)
         a = Parameter(3.0)
         b = Parameter(0.9)
         c = Parameter(5)
@@ -430,10 +470,12 @@ class TestConstrained(unittest.TestCase):
         z = Variable()
         model = {z: a * log(b * x + c * y)}
 
-        const_fit = ConstrainedNumericalLeastSquares(model, xdata, ydata, zdata)
+        const_fit = ConstrainedNumericalLeastSquares(model, xdata, ydata, zdata, absolute_sigma=False)
         const_result = const_fit.execute(tol=1e-8)
-        fit = NumericalLeastSquares(model, xdata, ydata, zdata)
+        fit = NumericalLeastSquares(model, xdata, ydata, zdata, absolute_sigma=False)
         std_result = fit.execute()
+
+        self.assertEqual(const_fit.absolute_sigma, fit.absolute_sigma)
 
         self.assertAlmostEqual(const_result.value(a), std_result.value(a), 4)
         self.assertAlmostEqual(const_result.value(b), std_result.value(b), 4)

@@ -805,7 +805,6 @@ class BaseFit(object):
 
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
-            # print(var, sigma)
             try:
                 iter(self.data[sigma.name])
             except TypeError:
@@ -1569,17 +1568,59 @@ class HasCovarianceMatrix(object):
         else:
             return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
 
+    def _reduced_residual_ss(self, best_fit_params, flatten=True):
+        """
+        Calculate the residual Sum of Squares divided by the d.o.f..
+        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
+        :param flatten: when `True`, return the total sum of squares (SS).
+            If `False`, return the componentwise SS.
+        :return: The reduced residual sum of squares.
+        """
+        popt = [best_fit_params[p.name] for p in self.model.params]
+        # Rescale the covariance matrix with the residual variance
+        ss_res = self.error_func(
+            [best_fit_params[p.name] for p in self.model.params],
+            self.independent_data,
+            self.dependent_data,
+            self.sigma_data,
+            flatten_components=flatten
+        )
+
+        degrees_of_freedom = 0 if flatten else []
+        for data in self.dependent_data.values():
+            if flatten:
+                if data is not None:
+                    degrees_of_freedom += np.product(data.shape)
+            else:
+                if data is not None:
+                    degrees_of_freedom.append(np.product(data.shape))
+                    # degrees_of_freedom = np.product(data.shape) - len(popt)
+                    # break
+                else: # the correspoding component in ss_res will be 0 so it is ok to add any non-zero number.
+                    degrees_of_freedom.append(len(popt) + 1)
+        degrees_of_freedom = np.array(degrees_of_freedom)
+        s_sq = ss_res / (degrees_of_freedom - len(popt))
+        # s_sq = ss_res / degrees_of_freedom
+
+        return s_sq
+
     def _cov_mat_equal_lenghts(self, best_fit_params):
         """
         If all the data arrays are of equal size, use this method. This will
         typically be the case, and this method is a lot faster because it allows
         for numpy magic.
+
+        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         """
-        # The rest of this method is concerned with determining the covariance matrix
         sigma = np.vstack(list(self.sigma_data.values()))
         # Weight matrix. Since it should be a diagonal matrix, we just remember
         # this and multiply it elementwise for efficiency.
-        W = 1/sigma**2
+        # It is also rescaled by the reduced residual ss in case of absolute_sigma==False
+        if self.absolute_sigma:
+            W = 1/sigma**2
+        else:
+            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
+            W = 1/sigma**2/s_sq[:, np.newaxis]
 
         kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
         kwargs.update(self.independent_data)
@@ -1593,18 +1634,23 @@ class HasCovarianceMatrix(object):
 
         # Dot away all but the parameter dimension!
         cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-        return np.linalg.inv(cov_matrix_inv)
+        cov_matrix = np.linalg.inv(cov_matrix_inv)
+        return cov_matrix
 
     def _cov_mat_unequal_lenghts(self, best_fit_params):
         """
         If the data arrays are of unequal size, use this method. Less efficient
         but more general than the method for equal size datasets.
         """
-        # The rest of this method is concerned with determining the covariance matrix
         sigma = list(self.sigma_data.values())
         # Weight matrix. Since it should be a diagonal matrix, we just remember
         # this and multiply it elementwise for efficiency.
-        W = [1/s**2 for s in sigma]
+        if self.absolute_sigma:
+            W = [1/s**2 for s in sigma]
+        else:
+            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
+            # W = 1/sigma**2/s_sq[:, np.newaxis]
+            W = [1/s**2/res for s, res in zip(sigma, s_sq)]
 
         kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
         kwargs.update(self.independent_data)
@@ -1629,7 +1675,8 @@ class HasCovarianceMatrix(object):
                 dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
                 cov_matrix_inv[index].append(dot)
 
-        return np.linalg.inv(cov_matrix_inv)
+        cov_matrix = np.linalg.inv(cov_matrix_inv)
+        return cov_matrix
 
 class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
     """
@@ -1715,36 +1762,15 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         covariance matrix. Read `Minimize.execute` for a more general
         description.
         """
-        fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
+        default_kwargs = {'tol': 1e-9}
+        default_kwargs.update(kwargs)
+        fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **default_kwargs)
         # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
         popt = [fit_result.value(p) for p in self.model.params]
 
         cov_matrix = self.covariance_matrix(fit_result.params)
 
-        if self.absolute_sigma:
-            s_sq = 1
-        else:
-            # Rescale the covariance matrix with the residual variance
-            ss_res = self.error_func(
-                [fit_result.value(p) for p in self.model.params],
-                self.independent_data,
-                self.dependent_data,
-                self.sigma_data,
-                flatten_components=False
-            )
-            degrees_of_freedom = []
-            for data in self.dependent_data.values():
-                if data is not None:
-                    degrees_of_freedom.append(np.product(data.shape) - len(popt))
-                    # degrees_of_freedom = np.product(data.shape) - len(popt)
-                    break
-                else:
-                    degrees_of_freedom.append(1)
-            degrees_of_freedom = np.array(degrees_of_freedom)
 
-            s_sq = ss_res / degrees_of_freedom
-
-        cov_matrix = cov_matrix * s_sq
         if len(self.model) > 1:
             # For vector-models, make all off-diagonal values nan
             cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
