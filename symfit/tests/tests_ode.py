@@ -2,8 +2,7 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit
-from symfit.core.support import D
+from symfit import parameters, variables, ODEModel, exp, Fit, D
 from symfit.distributions import Gaussian
 
 

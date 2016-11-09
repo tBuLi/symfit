@@ -11,13 +11,14 @@ import numpy as np
 import scipy.stats
 from scipy.optimize import curve_fit
 
-from symfit import Variable, Parameter, Fit, FitResults, Maximize, Likelihood, log, variables, parameters, Model, NumericalLeastSquares
+from symfit import (Variable, Parameter, Fit, FitResults, Maximize, Likelihood,
+                    log, variables, parameters, Model, NumericalLeastSquares)
 from symfit.distributions import Gaussian, Exp
 from symfit.tests.tests_fit_result import TestFitResults
 from symfit.tests.tests_analytical_fit import TestAnalyticalFit
 from symfit.tests.tests_model import TestModel
 from symfit.tests.tests_ode import TestODE
-from symfit.tests.tests_contrained import TestConstrained
+from symfit.tests.tests_constrained import TestConstrained
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
