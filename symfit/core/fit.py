@@ -1763,15 +1763,16 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
                     )
         return - np.array(result).T
 
+    @keywordonly(tol=1e-9)
     def execute(self, *args, **kwargs):
         """
         This wraps the execute of 'Minimize' with the calculation of the
         covariance matrix. Read `Minimize.execute` for a more general
         description.
+
+        
         """
-        default_kwargs = {'tol': 1e-9}
-        default_kwargs.update(kwargs)
-        fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **default_kwargs)
+        fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
         # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
         popt = [fit_result.value(p) for p in self.model.params]
 
