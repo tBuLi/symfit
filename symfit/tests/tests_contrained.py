@@ -464,14 +464,14 @@ class TestConstrained(unittest.TestCase):
 
         a = Parameter(3.0)
         b = Parameter(0.9)
-        c = Parameter(5)
+        c = Parameter(5.0)
         x = Variable()
         y = Variable()
         z = Variable()
         model = {z: a * log(b * x + c * y)}
 
         const_fit = ConstrainedNumericalLeastSquares(model, xdata, ydata, zdata, absolute_sigma=False)
-        const_result = const_fit.execute(tol=1e-8)
+        const_result = const_fit.execute()
         fit = NumericalLeastSquares(model, xdata, ydata, zdata, absolute_sigma=False)
         std_result = fit.execute()
 
