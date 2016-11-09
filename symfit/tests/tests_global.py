@@ -68,19 +68,20 @@ class TestsGlobal(unittest.TestCase):
 
         self.assertAlmostEqual(fit_result.params.a, 9.985691, 4)
         self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 4)
 
     def test_vector_none_fitting(self):
         """
         Fit to a vector model with one var's data set to None
         """
         a, b, c = parameters('a, b, c')
+        a.value=10
         a.min = 0
-        a.max = 10
+        a.max = 25
         b.min = 0
-        b.max = 10
+        b.max = 150
         c.min = 0
-        c.max = 10
+        c.max = 100
         a_i, b_i, c_i = variables('a_i, b_i, c_i')
 
         model = {a_i: a, b_i: b, c_i: c}
@@ -90,6 +91,14 @@ class TestsGlobal(unittest.TestCase):
             [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
             [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
         ])
+        fit = Fit(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=None,
+        )
+        fit_result = fit.execute()
+        print(fit_result)
 
         fit_none = GlobalLeastSquares(
             model=model,
@@ -97,18 +106,13 @@ class TestsGlobal(unittest.TestCase):
             b_i=xdata[1],
             c_i=None,
         )
-        fit = Fit(
-            model=model,
-            a_i=xdata[0],
-            b_i=xdata[1],
-            c_i=xdata[2],
-        )
-        fit_none_result = fit_none.execute()
-        fit_result = fit.execute()
+        
+        fit_none_result = fit_none.execute(tol=1e-3)
+        print(fit_result)
+        print(fit_none_result)
 
-        self.assertAlmostEqual(fit_none_result.params.a, fit_result.params.a, 4)
-        self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 4)
-        self.assertAlmostEqual(fit_none_result.params.c, 1.0)
+        self.assertAlmostEqual(fit_none_result.params.a, fit_result.params.a, 2)
+        self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 2)
 
 
     def test_fitting(self):
