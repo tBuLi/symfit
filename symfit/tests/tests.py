@@ -128,8 +128,93 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_none_result.params.a, fit_result.params.a, 4)
         self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 4)
         self.assertAlmostEqual(fit_none_result.params.c, 1.0)
+        
+    def test_vector_fitting_bounds_guess(self):
+        a, b, c = parameters('a, b, c')
+        a.min = 0
+        a.value = 10
+        a.max = 25
+        b.min = 0
+        b.max = 500
+        b.value = 100
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
 
+        model = {a_i: a, b_i: b, c_i: c}
 
+        xdata = np.array([
+            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+        ])
+
+        fit = NumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=xdata[2],
+        )
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
+        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+
+    def test_vector_fitting_bounds(self):
+        a, b, c = parameters('a, b, c')
+        a.min = 0
+        a.max = 25
+        b.min = 0
+        b.max = 500
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
+        xdata = np.array([
+            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+        ])
+
+        fit = NumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=xdata[2],
+        )
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
+        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+
+    
+    def test_vector_fitting_guess(self):
+        a, b, c = parameters('a, b, c')
+        a.value = 10
+        b.value = 100
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
+        xdata = np.array([
+            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+        ])
+
+        fit = NumericalLeastSquares(
+            model=model,
+            a_i=xdata[0],
+            b_i=xdata[1],
+            c_i=xdata[2],
+        )
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
+        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+
+        
     def test_fitting(self):
         xdata = np.linspace(1,10,10)
         ydata = 3*xdata**2
