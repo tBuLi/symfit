@@ -146,12 +146,8 @@ class TestODE(unittest.TestCase):
         X, Y = harmonic_model(t=tdata, k=0.1)
         for index, t in enumerate(tdata):
             X_point, Y_point = harmonic_model(t=t, k=0.1)
-            self.assertAlmostEqual(X_point, X[index])
-            self.assertAlmostEqual(Y_point, Y[index])
-
-        # plt.plot(tdata, Y)
-        # plt.scatter(tdata[-1], Y_point)
-        # plt.show()
+            self.assertAlmostEqual(X_point[0], X[index])
+            self.assertAlmostEqual(Y_point[0], Y[index])
 
     def test_mixed_model(self):
         """

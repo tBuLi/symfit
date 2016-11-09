@@ -141,10 +141,9 @@ class ParameterDict(object):
     @property
     def covariance_matrix(self):
         """
-        Read-Only Property. Returns the covariance matrix.
+        Returns the covariance matrix.
         """
         return self.__pcov
-
 
 
 class FitResults(object):
@@ -179,13 +178,9 @@ class FitResults(object):
         :param ydata:
         """
         # Validate the types in rough way
-        assert(type(infodic) == dict)
         self.__infodict = infodic
-        assert(type(mesg) == str)
         self.__status_message = mesg
-        assert(type(ier) == int)
         self.__iterations = ier
-        # assert(type(ydata) == np.ndarray)
         self.__ydata = ydata
         self.__params = ParameterDict(params, popt, pcov)
         self.__sigma = sigma
@@ -794,7 +789,8 @@ class TakesData(object):
         # Handle ordered_data and named_data according to the allowed names.
         var_names = [var.name for var in self.model.vars]
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
+            # inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
+            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=None)
                 for name in var_names
         ]
 
@@ -811,16 +807,15 @@ class TakesData(object):
 
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
-            # print(var, sigma)
             try:
-                self.data[sigma.name] *= np.ones(self.data[var.name].shape)
-            except AttributeError:
-                pass
-                # self.data[var.name] does not have a shape
+                iter(self.data[sigma.name])
             except TypeError:
-                pass
-                # self.data[sigma.name] is not iterable
-                # If no attribute shape exists, data is also not an array
+                # if self.data[var.name] is None and self.data[sigma.name] is None:
+                #     pass # This is the way it's supposed to be.
+                if self.data[var.name] is not None and self.data[sigma.name] is None:
+                    self.data[sigma.name] = np.ones(self.data[var.name].shape)
+                elif self.data[var.name] is not None:
+                    self.data[sigma.name] *= np.ones(self.data[var.name].shape)
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
         # given, False if no sigma is given.
@@ -828,7 +823,7 @@ class TakesData(object):
             self.absolute_sigma = absolute_sigma
         else:
             for name, value in self.sigmas.items():
-                if value is not 1:
+                if value is not None:
                     self.absolute_sigma = True
                     break
             else:
@@ -841,9 +836,9 @@ class TakesData(object):
         Read-only Property
 
         :return: Data belonging to each dependent variable.
-        :rtype: dict with variable names as key, data as value.
+        :rtype: OrderedDict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model}
+        return OrderedDict((var.name, self.data[var.name]) for var in self.model)
 
     @property
     @cache
@@ -852,9 +847,9 @@ class TakesData(object):
         Read-only Property
 
         :return: Data belonging to each independent variable.
-        :rtype: dict with variable names as key, data as value.
+        :rtype: OrderedDict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model.independent_vars}
+        return OrderedDict((var.name, self.data[var.name]) for var in self.model.independent_vars)
 
     @property
     @cache
@@ -863,9 +858,10 @@ class TakesData(object):
         Read-only Property
 
         :return: Data belonging to each sigma variable.
-        :rtype: dict with variable names as key, data as value.
+        :rtype: OrderedDict with variable names as key, data as value.
         """
-        return {var.name: self.data[var.name] for var in self.model.sigmas.values()}
+        sigmas = self.model.sigmas
+        return OrderedDict((sigmas[var].name, self.data[sigmas[var].name]) for var in self.model)
 
     @property
     def initial_guesses(self):
@@ -971,7 +967,7 @@ class NumericalLeastSquares(BaseFit):
 
     def error_func(self, p, independent_data, dependent_data, sigma_data, flatten=True):
         """
-        Returns the value of the square root of :math:`\\chi^2`, without summing over the components.
+        Returns the value of the square root of :math:`\\chi^2`, summing over the components.
 
         This function now supports setting variables to None. Needs mathematical rigor!
 
@@ -979,6 +975,7 @@ class NumericalLeastSquares(BaseFit):
         :param independent_data: Data to provide to the independent variables.
         :param dependent_data:
         :param sigma_data:
+        :param flatten: If True, summing is performed over the data indices (default).
         :return: :math:`\\sqrt(\\chi^2)`
         """
         # import matplotlib.pyplot as plt
@@ -1019,7 +1016,7 @@ class LinearLeastSquares(BaseFit):
 
     * It does not check if the model can be linearized by a simple substitution.
       For example, exp(a * x) -> b * exp(x). You will have to do this manually.
-    * Does not use bounds or guesses on the ``Parameter``'s. Then again, it doesn't have too,
+    * Does not use bounds or guesses on the ``Parameter``'s. Then again, it doesn't have to,
       since you have an exact solution. No guesses required.
     * It only works with scalar functions. This is strictly enforced.
 
@@ -1245,7 +1242,9 @@ class Fit(NumericalLeastSquares):
 class Minimize(BaseFit):
     """
     Minimize a model subject to constraints. A wrapper for ``scipy.optimize.minimize``.
-    ``Minimize`` currently doesn't work when data is provided to Variables, and doesn't support vector functions.
+
+    ``Minimize`` itself doesn't work when data is provided to its Variables, use
+    one of its subclasses for that.
     """
     @keywordonly(constraints=None)
     def __init__(self, model, *args, **kwargs):
@@ -1256,43 +1255,31 @@ class Minimize(BaseFit):
         :constraints: constraints the minimization is subject to.
         :type constraints: list
         """
-        # constraints = kwargs.pop('constraints') if 'constraints' in kwargs else None
         constraints = kwargs.pop('constraints')
         super(Minimize, self).__init__(model, *args, **kwargs)
-        for var, data in self.data.items():
-            if data is None: # Replace None by an empty array
-                # self.data[var] = np.array([])
-                self.data[var] = 0
-
-        try:
-            assert len(self.model) == 1
-        except AssertionError:
-            raise TypeError('Minimize (currently?) only works with scalar functions.')
 
         self.constraints = []
         if constraints:
             for constraint in constraints:
-                if isinstance(model, Constraint):
+                if isinstance(constraint, Constraint):
                     self.constraints.append(constraint)
                 else:
                     self.constraints.append(Constraint(constraint, self.model))
 
 
-    def error_func(self, p, data):
+    def error_func(self, p, independent_data, dependent_data, sigma_data):
         """
-        The function to be optimized. Scalar valued models are assumed. For Minimize the thing to evaluate is simply
-        self.model(*(list(data) + list(p)))
+        The function to be optimized. Scalar valued models are assumed. For
+        Minimize the thing to minimize is simply `self.model` directly.
 
         :param p: array of floats for the parameters.
         :param data: data to be provided to ``Variable``'s.
         """
-        # if self.dependent_data:
-        #     ans = self.model.numerical_chi_squared(*(list(self.data.values()) + list(p)))
-        # else:
-        ans, = self.model(*(list(data) + list(p)))
+        jac_args = list(independent_data.values()) + list(p)
+        ans, = self.model(*jac_args)
         return ans
 
-    def eval_jacobian(self, p, data):
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
         """
         Takes partial derivatives of model w.r.t. each ``Parameter``.
 
@@ -1300,14 +1287,11 @@ class Minimize(BaseFit):
         :param data: data to be provided to ``Variable``'s.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
+        jac_args = list(independent_data.values()) + list(p)
         ans = []
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
-                ans.append(partial_derivative(*(list(data) + list(p))).flatten())
-        # ans = self.model.eval_jacobian(*(list(data) + list(p)))
-        # for row in self.partial_jacobian:
-        #     for partial_derivative in row:
-        #         ans.append(partial_derivative(**{param.name: value for param, value in zip(self.model.params, p)}))
+                ans.append(partial_derivative(*jac_args).flatten())
         else:
             return np.array(ans)
 
@@ -1316,11 +1300,13 @@ class Minimize(BaseFit):
             self.error_func,
             self.initial_guesses,
             method=method,
-            args=([value for key, value in self.data.items() if key in self.model.__signature__.parameters],),
+            args=(self.independent_data, self.dependent_data, self.sigma_data,),
             bounds=self.model.bounds,
             constraints=self.scipy_constraints,
-            jac=self.eval_jacobian,
-            # options={'disp': True},
+            jac=self.eval_jacobian if hasattr(self.model, 'numerical_jacobian') else None,
+            # jac=self.eval_jacobian,
+            *args,
+            **kwargs
         )
 
         # Build infodic
@@ -1363,7 +1349,6 @@ class Minimize(BaseFit):
                 'type': types[constraint.constraint_type],
                 # Assume the lhs is the equation.
                 'fun': lambda p, x, c: c(*(list(x.values()) + list(p)))[0],
-                # 'fun': lambda p, x, c: c.numerical_components[0](*(list(x.values()) + list(p))),
                 # Assume the lhs is the equation.
                 'jac' : lambda p, x, c: [component(*(list(x.values()) + list(p))) for component in c.numerical_jacobian[0]],
                 'args': (self.data, constraint)
@@ -1480,15 +1465,16 @@ class Maximize(Minimize):
     Maximize a model subject to constraints.
     Simply flips the sign on error_func and eval_jacobian in order to maximize.
     """
-    def error_func(self, p, data):
-        return - super(Maximize, self).error_func(p, data)
+    def error_func(self, p, independent_data, dependent_data, sigma_data):
+        return - super(Maximize, self).error_func(p, independent_data, dependent_data, sigma_data)
 
-    def eval_jacobian(self, p, data):
-        return - super(Maximize, self).eval_jacobian(p, data)
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
+        return - super(Maximize, self).eval_jacobian(p, independent_data, dependent_data, sigma_data)
 
 class Likelihood(Maximize):
     """
-    Fit using a Maximum-Likelihood approach.
+    Fit using a Maximum-Likelihood approach. This object maximizes the
+    log-likelihood function.
     """
     # def __init__(self, model, *args, **kwargs):
     #     """
@@ -1529,38 +1515,283 @@ class Likelihood(Maximize):
     #     )
     #     return self.__fit_results
 
-    def error_func(self, p, data):
+    def error_func(self, p, independent_data, dependent_data, sigma_data):
         """
-        Error function to be maximised(!) in the case of likelihood fitting.
+        Error function to be maximised(!) in the case of log-likelihood fitting.
 
         :param p: guess params
         :param data: xdata
         :return: scalar value of log-likelihood
         """
-        ans = - np.nansum(np.log(self.model(*(list(data) + list(p)))))
+        jac_args = list(independent_data.values()) + list(p)
+        ans = - np.nansum(np.log(self.model(*jac_args)))
         return ans
 
-    def eval_jacobian(self, p, data):
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
         """
-        Jacobian for likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
+        Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
         :param p: guess params
         :param data: data for the variables.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
+        jac_args = list(independent_data.values()) + list(p)
         ans = []
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
                 ans.append(
                     - np.nansum(
-                        partial_derivative(*(list(data) + list(p))).flatten() / self.model(*(list(data) + list(p)))
+                        partial_derivative(*jac_args).flatten() / self.model(*jac_args)
                     )
                 )
         else:
             return np.array(ans)
 
+class HasCovarianceMatrix(object):
+    """
+    Mixin class for calculating the covariance matrix for any model that has a
+    well-defined Jacobian :math:`J`. The covariance is then approximated as
+    :math:`J^T W J`, where W contains the weights of each data point.
+
+    Supports vector valued models, but is unable to estimate covariances for
+    those, just variances. Therefore, take the result with a grain of salt for
+    vector models.
+    """
+    def covariance_matrix(self, best_fit_params):
+        """
+        Given best fit parameters, this function finds the covariance matrix.
+        This matrix gives the (co)variance in the parameters.
+
+        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
+        :return: covariance matrix.
+        """
+        if None in self.sigma_data.values():
+            return np.array(
+                [[float('nan') for p in self.model.params] for p in self.model.params]
+            )
+        if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
+            # All shapes identical
+            return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
+        else:
+            return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+
+    def _reduced_residual_ss(self, best_fit_params, flatten=True):
+        """
+        Calculate the residual Sum of Squares divided by the d.o.f..
+        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
+        :param flatten: when `True`, return the total sum of squares (SS).
+            If `False`, return the componentwise SS.
+        :return: The reduced residual sum of squares.
+        """
+        popt = [best_fit_params[p.name] for p in self.model.params]
+        # Rescale the covariance matrix with the residual variance
+        ss_res = self.error_func(
+            [best_fit_params[p.name] for p in self.model.params],
+            self.independent_data,
+            self.dependent_data,
+            self.sigma_data,
+            flatten_components=flatten
+        )
+
+        degrees_of_freedom = 0 if flatten else []
+        for data in self.dependent_data.values():
+            if flatten:
+                if data is not None:
+                    degrees_of_freedom += np.product(data.shape)
+            else:
+                if data is not None:
+                    degrees_of_freedom.append(np.product(data.shape))
+                    # degrees_of_freedom = np.product(data.shape) - len(popt)
+                    # break
+                else: # the correspoding component in ss_res will be 0 so it is ok to add any non-zero number.
+                    degrees_of_freedom.append(len(popt) + 1)
+        degrees_of_freedom = np.array(degrees_of_freedom)
+        s_sq = ss_res / (degrees_of_freedom - len(popt))
+        # s_sq = ss_res / degrees_of_freedom
+
+        return s_sq
+
+    def _cov_mat_equal_lenghts(self, best_fit_params):
+        """
+        If all the data arrays are of equal size, use this method. This will
+        typically be the case, and this method is a lot faster because it allows
+        for numpy magic.
+
+        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
+        """
+        sigma = np.vstack(list(self.sigma_data.values()))
+        # Weight matrix. Since it should be a diagonal matrix, we just remember
+        # this and multiply it elementwise for efficiency.
+        # It is also rescaled by the reduced residual ss in case of absolute_sigma==False
+        if self.absolute_sigma:
+            W = 1/sigma**2
+        else:
+            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
+            W = 1/sigma**2/s_sq[:, np.newaxis]
+
+        kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
+        kwargs.update(self.independent_data)
+        jac = np.atleast_2d([
+            [
+                np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
+            ] for row in self.model.numerical_jacobian
+        ])
+        # Order jacobian as param, component, datapoint
+        jac = np.swapaxes(jac,0,1)
+
+        # Dot away all but the parameter dimension!
+        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
+        cov_matrix = np.linalg.inv(cov_matrix_inv)
+        return cov_matrix
+
+    def _cov_mat_unequal_lenghts(self, best_fit_params):
+        """
+        If the data arrays are of unequal size, use this method. Less efficient
+        but more general than the method for equal size datasets.
+        """
+        sigma = list(self.sigma_data.values())
+        # Weight matrix. Since it should be a diagonal matrix, we just remember
+        # this and multiply it elementwise for efficiency.
+        if self.absolute_sigma:
+            W = [1/s**2 for s in sigma]
+        else:
+            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
+            # W = 1/sigma**2/s_sq[:, np.newaxis]
+            W = [1/s**2/res for s, res in zip(sigma, s_sq)]
+
+        kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
+        kwargs.update(self.independent_data)
+        jac = [
+            [
+                np.ones(s.shape) * comp(**kwargs) for comp in row
+            ] for row, s in zip(self.model.numerical_jacobian, sigma)
+        ]
+
+        # Order jacobian as param, component, datapoint
+        jac = np.swapaxes(jac,0,1)
+        # Weigh each component with its respective weight.
+        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
+
+        # Buil the inverse cov_matrix.
+        cov_matrix_inv = []
+        # iterate along the parameters first
+        for index, jac_w_p in enumerate(jac_weighed):
+            cov_matrix_inv.append([])
+            for jac_p in jac:
+                # Now we have to dot product these guys properly.
+                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
+                cov_matrix_inv[index].append(dot)
+
+        cov_matrix = np.linalg.inv(cov_matrix_inv)
+        return cov_matrix
+
+class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
+    """
+    This object performs :math:`\chi^2` minimization, subject to constraints.
+    As an example, we could imagine fitting the angles of a triangle::
+
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
+        data = np.array([
+            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+        ])
+
+        fit = ConstrainedNumericalLeastSquares(
+            model=model,
+            a_i=data[0],
+            b_i=data[1],
+            c_i=data[2],
+            constraints=[Equality(a + b + c, 180)]
+        )
+        fit_result = fit.execute()
+
+    Unlike `NumericalLeastSquares`, it also supports vector components of unequal
+    length and is therefore preferred for Global Fitting problems.
+
+    In order to perform minimization, this object is a subclass of `Minimize`,
+    and the output might therefore deviate slightly from the MINPACK result given
+    by the more traditional `NumericalLeastSquares` object.
+    """
+    def error_func(self, p, independent_data, dependent_data, sigma_data, flatten_components=True):
+        """
+        Returns :math:`\\chi^2`, summing over all the vector components and
+        data indices.
+
+        This function now supports setting variables to None. Needs mathematical rigor!
+
+        :param p: array of floats for the parameters.
+        :param data: data to be provided to ``Variable``'s.
+        :param flatten_components: If ``True``, :math:`\\chi^2` is returned.
+            If ``False``, the :math:`\\chi^2` per vector component is returned.
+        """
+        jac_args = list(independent_data.values()) + list(p)
+        evaluated_func = self.model(*jac_args)
+
+        chi2 = [0 for _ in evaluated_func]
+        for index, (dep_var_name, dep_var_value) in enumerate(evaluated_func._asdict().items()):
+            dep_data = dependent_data[dep_var_name]
+            if dep_data is not None:
+                sigma = sigma_data['sigma_{}'.format(dep_var_name)] # Should be changed with #41
+                chi2[index] += np.sum((dep_var_value - dep_data)**2/sigma**2)
+                # chi2 += np.sum((dep_var_value - dep_data)**2/sigma**2)
+        chi2 = np.sum(chi2) if flatten_components else chi2
+        return chi2
+
+    def eval_jacobian(self, p, independent_data, dependent_data, sigma_data):
+        """
+        Evaluates the jacobian of :math:`\\chi^2`, summing over all the vector
+        components and data indices.
+
+        :return: array of len(self.model.params) containing the components of the Jacobian.
+        """
+        jac_args = list(independent_data.values()) + list(p)
+        evaluated_func = self.model(*jac_args)
+        result = [0.0 for _ in self.model.params]
+
+        for ans, y, row in zip(evaluated_func, self.model, self.model.numerical_jacobian):
+            dep_data = dependent_data[y.name]
+            if dep_data is not None:
+                sigma = sigma_data['sigma_{}'.format(y.name)] # Should be changed with #41
+                for index, component in enumerate(row):
+                    result[index] += np.sum(
+                        component(*jac_args) * ((dep_data - ans)/sigma**2)
+                    )
+        return - np.array(result).T
+
+    def execute(self, *args, **kwargs):
+        """
+        This wraps the execute of 'Minimize' with the calculation of the
+        covariance matrix. Read `Minimize.execute` for a more general
+        description.
+        """
+        default_kwargs = {'tol': 1e-9}
+        default_kwargs.update(kwargs)
+        fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **default_kwargs)
+        # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
+        popt = [fit_result.value(p) for p in self.model.params]
+
+        cov_matrix = self.covariance_matrix(fit_result.params)
 
 
+        if len(self.model) > 1:
+            # For vector-models, make all off-diagonal values nan
+            cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
+
+        results = FitResults(
+            params=self.model.params,
+            popt=popt,
+            pcov=cov_matrix,
+            infodic=fit_result.infodict,
+            mesg=fit_result.status_message,
+            ier=fit_result.iterations,
+        )
+        results.r_squared = fit_result.r_squared
+        return results
 
 # class LagrangeMultipliers:
 #     """
@@ -1896,7 +2127,7 @@ class ODEModel(CallableModel):
 
         # System of functions to be integrated
         f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
-        # Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
+        Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
@@ -1923,8 +2154,9 @@ class ODEModel(CallableModel):
             initial_dependent,
             t_like,
             args=tuple(bound_arguments.arguments[param.name] for param in self.params),
+            Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
-        ) #  Dfun=Dfun
+        )
         return ans[start:].T
 
     def __call__(self, *args, **kwargs):

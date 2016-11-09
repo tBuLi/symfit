@@ -15,6 +15,7 @@ from symfit.tests.tests_fit_result import TestFitResults
 from symfit.tests.tests_analytical_fit import TestAnalyticalFit
 from symfit.tests.tests_model import TestModel
 from symfit.tests.tests_ode import TestODE
+from symfit.tests.tests_contrained import TestConstrained
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -544,18 +545,19 @@ class Tests(unittest.TestCase):
         Fit using the likelihood method.
         """
         mu, sig = parameters('mu, sig')
-        sig.min = 0.0
-        sig.value = 3.
+        sig.min = 0.01
+        sig.value = 3.0
         mu.value = 50.
         x = Variable()
         pdf = Gaussian(x, mu, sig)
         # pdf = sympy.exp(-(x - mu)**2/(2*sig**2))/sympy.sqrt(2*sympy.pi*sig**2)
 
-        np.random.seed(100)
+        np.random.seed(10)
         xdata = np.random.normal(51., 3.5, 100000)
 
         fit = Likelihood(pdf, xdata)
         fit_result = fit.execute()
+        print(fit_result)
 
         self.assertAlmostEqual(fit_result.params.mu, np.mean(xdata), 5)
         self.assertAlmostEqual(fit_result.params.sig, np.std(xdata), 5)
@@ -722,9 +724,9 @@ class Tests(unittest.TestCase):
         N = 10000
         sigma = 10.0
         xn = np.arange(N, dtype=np.float)
-        yn = np.zeros_like(xn)
+        # yn = np.zeros_like(xn)
         np.random.seed(10)
-        yn = yn + np.random.normal(size=len(yn), scale=sigma)
+        yn = np.random.normal(size=len(xn), scale=sigma)
 
         a = Parameter()
         y = Variable()
