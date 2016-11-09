@@ -167,7 +167,7 @@ class keywordonly(object):
             floor = kwargs.pop('floor')
             return np.floor(x**2) if floor else x**2
 
-    This decorator is not much better than::
+    This decorator is not much more than::
 
         floor = kwargs.pop('floor') if 'floor' in kwargs else True
 
@@ -177,7 +177,8 @@ class keywordonly(object):
     - you're guaranteed that the pop works.
     - Perhaps in the future I will make this inspect-compatible so then we come full circle.
 
-    Please note that this decorator needs a ** argument in order to work.
+    Please note that this decorator needs a ** argument on the wrapped function
+    in order to work.
     """
     def __init__(self, **kwonly_arguments):
         self.kwonly_arguments = kwonly_arguments
