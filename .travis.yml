@@ -31,3 +31,25 @@ install:
   - pip install .
 # Run tests
 script: nosetests ./symfit/tests/tests.py
+
+deploy:
+  # test pypi
+  - provider: pypi
+    distributions: sdist
+    server: https://testpypi.python.org/pypi
+    user: "tbuli"
+    password:
+    on:
+      branch: deploy
+      tags: false
+      condition: $TRAVIS_PYTHON_VERSION = "2.7"
+  # production pypi
+  - provider: pypi
+    distributions: sdist
+    user: "tbuli"
+    password:
+      secure: 
+    on:
+      branch: master
+      tags: true
+      condition: $TRAVIS_PYTHON_VERSION = "2.7"
