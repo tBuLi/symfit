@@ -1774,23 +1774,25 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
         popt = [fit_result.value(p) for p in self.model.params]
 
-        cov_matrix = self.covariance_matrix(fit_result.params)
+        try:
+            cov_matrix = self.covariance_matrix(fit_result.params)
+        except np.linalg.linalg.LinAlgError:
+            return fit_result  # Return without covariance matrix since it is singular
+        else:
+            if len(self.model) > 1:
+                # For vector-models, make all off-diagonal values nan
+                cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
 
-
-        if len(self.model) > 1:
-            # For vector-models, make all off-diagonal values nan
-            cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
-
-        results = FitResults(
-            params=self.model.params,
-            popt=popt,
-            pcov=cov_matrix,
-            infodic=fit_result.infodict,
-            mesg=fit_result.status_message,
-            ier=fit_result.iterations,
-        )
-        results.r_squared = fit_result.r_squared
-        return results
+            results = FitResults(
+                params=self.model.params,
+                popt=popt,
+                pcov=cov_matrix,
+                infodic=fit_result.infodict,
+                mesg=fit_result.status_message,
+                ier=fit_result.iterations,
+            )
+            results.r_squared = fit_result.r_squared
+            return results
 
 # class LagrangeMultipliers:
 #     """
