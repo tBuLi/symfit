@@ -93,10 +93,10 @@ class TestAnalyticalFit(unittest.TestCase):
         fit = NumericalLeastSquares(model, x=xdata, y=ydata)#, absolute_sigma=False)
         fit_result = fit.execute()
 
-        popt, pcov = curve_fit(
-            lambda z, c, d: c * z + d, xdata, ydata,
-            # Dfun=lambda p, x, y, func: np.transpose([x, np.ones_like(x)])
-        )
+        popt, pcov = curve_fit(lambda z, c, d: c * z + d, xdata, ydata,
+                               jac=lambda z, c, d: np.transpose([xdata, np.ones_like(xdata)]))
+#                               jac=lambda p, x, y, func: np.transpose([x, np.ones_like(x)]))
+                                # Dfun=lambda p, x, y, func: print(p, func, x, y))
 
         # curve_fit
         self.assertAlmostEqual(a_exact, popt[0], 4)
@@ -266,12 +266,12 @@ class TestAnalyticalFit(unittest.TestCase):
         import time
         tick = time.time()
         fit_result = fit.execute()
-        print(time.time() - tick)
+#        print(time.time() - tick)
 
         fit = NumericalLeastSquares(t_model, y=y_data, t=t_data, sigma_t=sigma_t)
         tick = time.time()
         num_result = fit.execute()
-        print(time.time() - tick)
+#        print(time.time() - tick)
 
         self.assertAlmostEqual(num_result.value(g), fit_result.value(g))
 

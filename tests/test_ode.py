@@ -1,16 +1,9 @@
 from __future__ import division, print_function
 import unittest
-import warnings
-import sympy
-import types
 
 import numpy as np
-from symfit.api import *
-from symfit.core.fit import *
+from symfit import parameters, variables, ODEModel, exp, Fit, D
 from symfit.distributions import Gaussian
-
-import matplotlib.pyplot as plt
-import seaborn
 
 
 class TestODE(unittest.TestCase):
@@ -23,7 +16,7 @@ class TestODE(unittest.TestCase):
         p.value = 3.0
 
         model_dict = {
-            Derivative(y, t): - p * y,
+            D(y, t): - p * y,
         }
 
         # Lets say we know the exact solution to this problem
@@ -48,8 +41,8 @@ class TestODE(unittest.TestCase):
         u_0, u_1, t = variables('u_0, u_1, t')
 
         model_dict = {
-            Derivative(u_0, t): u_1,
-            Derivative(u_1, t): 3 * (1 - u_0**2) * u_1 - u_1
+            D(u_0, t): u_1,
+            D(u_1, t): 3 * (1 - u_0**2) * u_1 - u_1
         }
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, u_0: 2.0, u_1: 1.0})
@@ -70,11 +63,10 @@ class TestODE(unittest.TestCase):
 
         a0 = 10
         b = a0 - d + a
-
         model_dict = {
-            Derivative(d, t): l * c * b - m * d,
-            Derivative(c, t): k * a * b - p * c - l * c * b + m * d,
-            Derivative(a, t): - k * a * b + p * c,
+            D(d, t): l * c * b - m * d,
+            D(c, t): k * a * b - p * c - l * c * b + m * d,
+            D(a, t): - k * a * b + p * c,
         }
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
@@ -140,14 +132,27 @@ class TestODE(unittest.TestCase):
             D(x, t): - k * y,
             D(y, t): k * x,
         }
-        harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
 
+        # Make a second model to prevent caching of integration results.
+        # This also means harmonic_dict should NOT be a Model object.
+        harmonic_model_array = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
+        harmonic_model_points = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
         tdata = np.linspace(0, 100, 101)
-        X, Y = harmonic_model(t=tdata, k=0.1)
-        for index, t in enumerate(tdata):
-            X_point, Y_point = harmonic_model(t=t, k=0.1)
-            self.assertAlmostEqual(X_point[0], X[index])
-            self.assertAlmostEqual(Y_point[0], Y[index])
+        X, Y = harmonic_model_array(t=tdata, k=0.1)
+        # Shuffle the data to prevent using the result at time t to calculate
+        # t+dt
+        random_order = np.random.permutation(len(tdata))
+        for idx in random_order:
+            t = tdata[idx]
+            X_val = X[idx]
+            Y_val = Y[idx]
+            X_point, Y_point = harmonic_model_points(t=t, k=0.1)
+            self.assertAlmostEqual(X_point[0], X_val)
+            self.assertAlmostEqual(Y_point[0], Y_val)
+
+        # plt.plot(tdata, Y)
+        # plt.scatter(tdata[-1], Y_point)
+        # plt.show()
 
     def test_mixed_model(self):
         """
@@ -163,6 +168,7 @@ class TestODE(unittest.TestCase):
         out of the box I'm not going te break my head over it. If a usecase
         presents itself I'll look into it again.
         """
+        pass
 
 
         # x, t = variables('x, t')
