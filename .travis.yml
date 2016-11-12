@@ -1,45 +1,33 @@
 language: python
+# Choose the supported versions of python.
 python:
-- '2.7'
-- '3.4'
-- '3.5'
+  - "2.7"
+  - "3.4"
+  - "3.5"
+# Use miniconda to install the python scientific stack.
+# This proved to be easier and faster than faster than using pip
 before_install:
-- |
-  wget \
-    http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh \
-    -O miniconda.sh
-- chmod +x miniconda.sh
-- "./miniconda.sh -b -p $(pwd)/miniconda"
-- export PATH=$(pwd)/miniconda/bin:$PATH
-- conda update --yes conda
-- export DISPLAY=:99.0
-- sh -e /etc/init.d/xvfb start
+  - |
+   wget \
+     http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh \
+     -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b -p $(pwd)/miniconda
+  - export PATH=$(pwd)/miniconda/bin:$PATH
+  - conda update --yes conda
+# Provide a X display for plotting
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+# Install the dependencies
+# We explicitely install the python scientific stack using conda. Lighter
+# dependencies can be installed automatically with pip.
 install:
-- |
-  conda create \
-    --yes -q -n pyenv \
-    python=$TRAVIS_PYTHON_VERSION \
-    numpy scipy sympy matplotlib seaborn nose
-- source activate pyenv
-- pip install .
+  - | 
+    conda create \
+      --yes -q -n pyenv \
+      python=$TRAVIS_PYTHON_VERSION \
+      numpy scipy sympy matplotlib seaborn nose
+  - source activate pyenv
+  - pip install .
+# Run tests
 script: nosetests ./symfit/tests/tests.py
-deploy:
-  matrix:
-  - provider: pypi
-    distributions: sdist
-    server: https://testpypi.python.org/pypi
-    user: tbuli
-    password: nzvMJZxSUAT1Rc58P0f4Q3wOlf1LEMWxl2vmM5OuhQdNAl18D2VjVfAoz2o4KwBZEq65MZYuAzktfht28or5PCncZ6ZXOB+svkuhJ87MHsaIXnojG/srPS8BjWqlIecS4v40FBCxa5uleu2lNWWNG73AkKl3H4v8ypvR05z+dVfKZ4RsuKjrWkrKRdHOFxGo5qCkPxmakztKh4ww9/iKPT6MlGOy/QCq2Pr1R9R/tDOc+BNox4/OTZW9AVB9JkTx2aZNlBswPbDNQOfPD0En6Msq83sXgGv3HT/PGFQ58blKVxssogEdUsGbTgqMSXcpA/ic3aw8S9U3UKHLlu6MCfY6T4Q1gTQA2RsVvDkvDTEQDEgNx8BUI+t3T1tNJ/PgKlh4CMMtXminK4Ba87feOvYfNDgAw7LDa4Kph+tYxjHAoRfWgbs+7pq8waJ5OSPB75+tSs9vLMqJA5z1/s294K3pCEUsNyWgqAG8K/dXatJf+5kGEgSZyK4azS6gaBG1Dbq1aE0Zoy6PdKrW9l9Kkd5TU7gdKT4ora6l+EDvo0WqllvpKzS7VqRyAPY17nR7UidxzjvaNR6QXLKS/+Hinu60W45J5G9fAc7FpJQMrdHkYodQsXbAWELPSI3l5A3nTfbQ8rsqNcl9c50y1ijdx4AnDvWc4DzZAgjP2vKxpxs=
-    on:
-      branch: master
-      tags: false
-      condition: $TRAVIS_PYTHON_VERSION = "2.7"
-  - provider: pypi
-    distributions: sdist
-    user: tbuli
-    password:
-      secure: nzvMJZxSUAT1Rc58P0f4Q3wOlf1LEMWxl2vmM5OuhQdNAl18D2VjVfAoz2o4KwBZEq65MZYuAzktfht28or5PCncZ6ZXOB+svkuhJ87MHsaIXnojG/srPS8BjWqlIecS4v40FBCxa5uleu2lNWWNG73AkKl3H4v8ypvR05z+dVfKZ4RsuKjrWkrKRdHOFxGo5qCkPxmakztKh4ww9/iKPT6MlGOy/QCq2Pr1R9R/tDOc+BNox4/OTZW9AVB9JkTx2aZNlBswPbDNQOfPD0En6Msq83sXgGv3HT/PGFQ58blKVxssogEdUsGbTgqMSXcpA/ic3aw8S9U3UKHLlu6MCfY6T4Q1gTQA2RsVvDkvDTEQDEgNx8BUI+t3T1tNJ/PgKlh4CMMtXminK4Ba87feOvYfNDgAw7LDa4Kph+tYxjHAoRfWgbs+7pq8waJ5OSPB75+tSs9vLMqJA5z1/s294K3pCEUsNyWgqAG8K/dXatJf+5kGEgSZyK4azS6gaBG1Dbq1aE0Zoy6PdKrW9l9Kkd5TU7gdKT4ora6l+EDvo0WqllvpKzS7VqRyAPY17nR7UidxzjvaNR6QXLKS/+Hinu60W45J5G9fAc7FpJQMrdHkYodQsXbAWELPSI3l5A3nTfbQ8rsqNcl9c50y1ijdx4AnDvWc4DzZAgjP2vKxpxs=
-    on:
-      branch: master
-      tags: true
-      condition: $TRAVIS_PYTHON_VERSION = "2.7"
