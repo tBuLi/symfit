@@ -23,6 +23,8 @@ install:
 - source activate pyenv
 - pip install .
 script: nosetests ./symfit/tests/tests.py
+before_deploy:  # https://github.com/travis-ci/travis-ci/issues/5145
+- rvm 1.9.3 do gem install mime-types -v 2.6.2
 deploy:
   matrix:
   - provider: pypi
