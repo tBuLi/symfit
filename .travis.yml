@@ -29,10 +29,9 @@ install:
       numpy scipy sympy matplotlib seaborn nose
   - source activate pyenv
   - pip install .
+  - pip install twine
 # Run tests
 script: nosetests ./symfit/tests/tests.py
-before_deploy:
-  pip install twine
 deploy:
   # test pypi
   - provider: pypi
