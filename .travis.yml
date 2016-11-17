@@ -5,30 +5,18 @@ python:
   - "3.3"
   - "3.4"
   - "3.5"
-# Use miniconda to install the python scientific stack.
-# This proved to be easier and faster than faster than using pip
+cache:
+  - pip
 before_install:
-  - |
-   wget \
-     http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh \
-     -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b -p $(pwd)/miniconda
-  - export PATH=$(pwd)/miniconda/bin:$PATH
-  - conda update --yes conda
-# Provide a X display for plotting
+## Provide a X display for plotting
   - "export DISPLAY=:99.0"
   - "sh -e /etc/init.d/xvfb start"
-# Install the dependencies
-# We explicitely install the python scientific stack using conda. Lighter
-# dependencies can be installed automatically with pip.
+## Install the dependencies
 install:
-  - | 
-    conda create \
-      --yes -q -n pyenv \
-      python=$TRAVIS_PYTHON_VERSION \
-      numpy scipy sympy matplotlib seaborn nose
-  - source activate pyenv
+  # Upgrade pip to enable the --only-binary flag
+  - pip install --upgrade pip
+  - pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
+  - pip install --upgrade nose
   - pip install .
 # Run tests
 script: nosetests ./symfit/tests/tests.py
