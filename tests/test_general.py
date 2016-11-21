@@ -758,9 +758,9 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(a), 2.9956, 4)
         self.assertAlmostEqual(fit_result.value(b), 0.563212, 4)
         self.assertAlmostEqual(fit_result.value(c), 3.59732, 4)
-        self.assertAlmostEqual(fit_result.value(a), 0.278304, 4)
-        self.assertAlmostEqual(fit_result.value(b), 0.224107, 4)
-        self.assertAlmostEqual(fit_result.value(c), 0.980352, 4)
+        self.assertAlmostEqual(fit_result.stdev(a), 0.278304, 4)
+        self.assertAlmostEqual(fit_result.stdev(b), 0.224107, 4)
+        self.assertAlmostEqual(fit_result.stdev(c), 0.980352, 4)
 
         fit = Fit(model, xdata, ydata, zdata, absolute_sigma=True)
         fit_result = fit.execute()
