@@ -3,7 +3,7 @@ import unittest
 import sys
 import sympy
 import warnings
-
+from collections import namedtuple
 
 import numpy as np
 import scipy.stats
@@ -331,7 +331,9 @@ class Tests(unittest.TestCase):
         x, y = variables('x, y')
         new = a*x**2 + b*y**2
         model = Model(new)
-        z, = model(3, 3, 2, 2)
+        ans = model(3, 3, 2, 2)
+        self.assertIsInstance(ans, namedtuple)
+        z, = ans
 
         self.assertEqual(z, 36)
         for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
@@ -375,6 +377,7 @@ class Tests(unittest.TestCase):
         fit = Fit(new, xdata[0], xdata[1], zdata)
 
         result = fit.model(xdata[0], xdata[1], 2, 3)
+        self.assertIsInstance(result, namedtuple)
 
         for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(fit.model).parameters):
             self.assertEqual(arg_name, name)
