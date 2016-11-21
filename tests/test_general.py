@@ -7,10 +7,11 @@ from collections import namedtuple
 
 import numpy as np
 import scipy.stats
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 
 from symfit import (Variable, Parameter, Fit, FitResults, Maximize, Likelihood,
-                    log, variables, parameters, Model, NumericalLeastSquares)
+                    log, variables, parameters, Model, NumericalLeastSquares,
+                    Eq, Ge)
 from symfit.distributions import Gaussian, Exp
 #from symfit.tests.tests_fit_result import TestFitResults
 #from symfit.tests.tests_analytical_fit import TestAnalyticalFit
@@ -523,49 +524,21 @@ class Tests(unittest.TestCase):
     # TODO: Should be 2 tests?
     def test_minimize(self):
         """
-        Tests maximizing a function with and without constraints.
+        Tests maximizing a function with and without constraints, taken from the
+        scipy `minimize` tutorial. Compare the symfit result with the scipy
+        result.
+        https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
         """
         x = Parameter(-1.0)
         y = Parameter(1.0)
         z = Variable()
         model = {z: 2*x*y + 2*x - x**2 - 2*y**2}
-        from sympy import Eq, Ge
+
         constraints = [
             Ge(y - 1, 0),  # y - 1 >= 0,
             Eq(x**3 - y, 0),  # x**3 - y == 0,
         ]
 
-        # model = {z: (x - 2)**2 + (y - 5) ** 2}
-
-        # raise Exception(model.atoms(), model.as_ordered_terms())
-        # self.assertIsInstance(constraints[0], Eq)
-
-        # Unbounded
-        fit = Maximize(model)
-        fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.params.y, 1.)
-        self.assertAlmostEqual(fit_result.params.x, 2.)
-
-        fit = Maximize(model, constraints=constraints)
-        self.assertEqual(fit.constraints[0].constraint_type, Ge)
-        self.assertEqual(fit.constraints[1].constraint_type, Eq)
-        fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.params.x, 1.00000009)
-        self.assertAlmostEqual(fit_result.params.y, 1.)
-
-    # TODO: Write test
-    def test_minimize_with_data(self):
-        """
-        Make up test case that tests a Minimize with data.
-        """
-        pass
-
-    # TODO: fix test, rename
-    def test_scipy_style(self):
-        """
-        Checks the results from scipy with Minimize, with and without
-        constraints. Currently does nothing?
-        """
         def func(x, sign=1.0):
             """ Objective function """
             return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
@@ -584,12 +557,32 @@ class Tests(unittest.TestCase):
              'fun' : lambda x: np.array([x[1] - 1]),
              'jac' : lambda x: np.array([0.0, 1.0])})
 
-        from scipy.optimize import minimize
-        res = minimize(func, [-1.0,1.0], args=(-1.0,),
+        # Unconstrained fit
+        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                method='SLSQP', options={'disp': False})
+        fit = Maximize(model)
+        fit_result = fit.execute()
 
+        self.assertAlmostEqual(fit_result.params.x, res.x[0])
+        self.assertAlmostEqual(fit_result.params.y, res.x[1])
+
+        # Same test, but with constraints in place.
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                constraints=cons, method='SLSQP', options={'disp': False})
+
+        fit = Maximize(model, constraints=constraints)
+        self.assertEqual(fit.constraints[0].constraint_type, Ge)
+        self.assertEqual(fit.constraints[1].constraint_type, Eq)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.params.x, res.x[0])
+        self.assertAlmostEqual(fit_result.params.y, res.x[1])
+
+    # TODO: Write test
+    def test_minimize_with_data(self):
+        """
+        Make up test case that tests a Minimize with data.
+        """
+        pass
 
     def test_likelihood_fitting_exponential(self):
         """
