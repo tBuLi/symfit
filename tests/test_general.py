@@ -144,7 +144,7 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 4)
         self.assertAlmostEqual(fit_none_result.params.c, 1.0)
 
-    @unittest.skip  # Known failure
+    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
     def test_vector_fitting_bounds_guess(self):
         """
         Tests fitting to a 3 component vector valued function, with bounds and
@@ -179,7 +179,7 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
         self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
 
-    @unittest.skip  # Known failure
+    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
     def test_vector_fitting_bounds(self):
         """
         Tests fitting to a 3 component vector valued function, with bounds.
@@ -211,7 +211,6 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
         self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
 
-    @unittest.skip  # Known failure
     def test_vector_fitting_guess(self):
         """
         Tests fitting to a 3 component vector valued function, with guesses.
@@ -237,9 +236,9 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
+        self.assertAlmostEqual(fit_result.params.a, 9.985691, 4)
         self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 4)
 
     def test_fitting(self):
         """
