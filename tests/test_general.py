@@ -422,13 +422,12 @@ class Tests(unittest.TestCase):
         Tests fitting to a scalar gaussian with 2 independent variables with
         tight bounds.
         """
-        np.random.seed(4242)
-        mean = (0.3, 0.3)  # x, y mean 0.6, 0.4
+        mean = (0.3, 0.4)  # x, y mean 0.6, 0.4
         cov = [[0.01**2, 0], [0, 0.01**2]]
-        data = np.random.multivariate_normal(mean, cov, 1000000)
-        mean = (0.7, 0.7)  # x, y mean 0.6, 0.4
+        data = np.random.multivariate_normal(mean, cov, 3000000)
+        mean = (0.7, 0.8)  # x, y mean 0.6, 0.4
         cov = [[0.01**2, 0], [0, 0.01**2]]
-        data_2 = np.random.multivariate_normal(mean, cov, 1000000)
+        data_2 = np.random.multivariate_normal(mean, cov, 3000000)
         data = np.vstack((data, data_2))
 
         # Insert them as y,x here as np fucks up cartesian conventions.
@@ -444,16 +443,16 @@ class Tests(unittest.TestCase):
         x = Variable()
         y = Variable()
 
-        x0_1 = Parameter(0.7, min=0.6, max=0.8)
+        x0_1 = Parameter(0.7, min=0.6, max=0.9)
         sig_x_1 = Parameter(0.1, min=0.0, max=0.2)
-        y0_1 = Parameter(0.7, min=0.6, max=0.8)
+        y0_1 = Parameter(0.8, min=0.6, max=0.9)
         sig_y_1 = Parameter(0.1, min=0.0, max=0.2)
         A_1 = Parameter()
         g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
 
-        x0_2 = Parameter(0.3, min=0.2, max=0.4)
+        x0_2 = Parameter(0.3, min=0.2, max=0.5)
         sig_x_2 = Parameter(0.1, min=0.0, max=0.2)
-        y0_2 = Parameter(0.3, min=0.2, max=0.4)
+        y0_2 = Parameter(0.4, min=0.2, max=0.5)
         sig_y_2 = Parameter(0.1, min=0.0, max=0.2)
         A_2 = Parameter()
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
@@ -462,8 +461,10 @@ class Tests(unittest.TestCase):
         fit = Fit(model, xx, yy, ydata)
         fit_result = fit.execute()
 
-        # img = model(x=xx, y=yy, **fit_result.params)
-        # img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
+        img = model(x=xx, y=yy, **fit_result.params)
+        img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
+        img_g_2 = g_2(x=xx, y=yy, **fit_result.params)
+        np.testing.assert_array_equal(img, img_g_1 + img_g_2)
 
         # Equal up to some precision. Not much obviously.
         self.assertAlmostEqual(fit_result.value(x0_1), 0.7, 3)
