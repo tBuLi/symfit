@@ -29,20 +29,6 @@ class Tests(unittest.TestCase):
     def setUpClass(cls):
         np.random.seed(0)
 
-    def test_gaussian(self):
-        """
-        Make sure that symfit.distributions.Gaussians produces the expected
-        sympy expression.
-        """
-        x0, sig = parameters('x0, sig')
-        x = Variable()
-
-        new = sympy.exp(-(x - x0)**2/(2*sig**2))/sympy.sqrt((2*sympy.pi*sig**2))
-        self.assertIsInstance(new, sympy.Expr)
-        g = Gaussian(x, x0, sig)
-        self.assertTrue(issubclass(g.__class__, sympy.Expr))
-        self.assertEqual(new, g)
-
     def test_callable(self):
         """
         Make sure that symfit expressions are callable (with scalars and
