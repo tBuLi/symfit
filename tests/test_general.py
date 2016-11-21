@@ -65,8 +65,8 @@ class Tests(unittest.TestCase):
         fit = NumericalLeastSquares(model, x=xdata, y=ydata)
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
-        self.assertAlmostEqual(fit_result.params.a, 3.0)
-        self.assertAlmostEqual(fit_result.params.b, 2.0)
+        self.assertAlmostEqual(fit_result.value(a), 3.0)
+        self.assertAlmostEqual(fit_result.value(b), 2.0)
 
     def test_vector_fitting(self):
         """
@@ -92,9 +92,9 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
-        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.value(a), 9.985691, 6)
+        self.assertAlmostEqual(fit_result.value(b), 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.value(c), 7.085713e+01, 5)
 
     def test_vector_none_fitting(self):
         """
@@ -127,10 +127,10 @@ class Tests(unittest.TestCase):
         fit_none_result = fit_none.execute()
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_none_result.params.a, fit_result.params.a, 4)
-        self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 4)
+        self.assertAlmostEqual(fit_none_result.value(a), fit_result.value(a), 4)
+        self.assertAlmostEqual(fit_none_result.value(b), fit_result.value(b), 4)
         # the parameter without data should be unchanged.
-        self.assertAlmostEqual(fit_none_result.params.c, 1.0)
+        self.assertAlmostEqual(fit_none_result.value(c), 1.0)
 
     @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
     def test_vector_fitting_bounds_guess(self):
@@ -163,9 +163,9 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
-        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.value(a), 9.985691, 6)
+        self.assertAlmostEqual(fit_result.value(b), 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.value(c), 7.085713e+01, 5)
 
     @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
     def test_vector_fitting_bounds(self):
@@ -195,9 +195,9 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.a, 9.985691, 6)
-        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.value(a), 9.985691, 6)
+        self.assertAlmostEqual(fit_result.value(b), 1.006143e+02, 4)
+        self.assertAlmostEqual(fit_result.value(c), 7.085713e+01, 5)
 
     def test_vector_fitting_guess(self):
         """
@@ -224,9 +224,9 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.a, 9.985691, 4)
-        self.assertAlmostEqual(fit_result.params.b, 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.params.c, 7.085713e+01, 4)
+        self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 4)
+        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata[1]), 4)
+        self.assertAlmostEqual(fit_result.value(c), np.mean(xdata[2]), 4)
 
     def test_fitting(self):
         """
@@ -246,21 +246,14 @@ class Tests(unittest.TestCase):
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
-        self.assertAlmostEqual(fit_result.params.a, 3.0)
-        self.assertAlmostEqual(fit_result.params.b, 2.0)
+        self.assertAlmostEqual(fit_result.value(a), 3.0)
+        self.assertAlmostEqual(fit_result.value(b), 2.0)
 
-        self.assertIsInstance(fit_result.params.a_stdev, float)
-        self.assertIsInstance(fit_result.params.b_stdev, float)
+        self.assertIsInstance(fit_result.stdev(a), float)
+        self.assertIsInstance(fit_result.stdev(b), float)
 
         self.assertIsInstance(fit_result.r_squared, float)
         self.assertEqual(fit_result.r_squared, 1.0)  # by definition since there's no fuzzyness
-
-        # Test several false ways to access the data.
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_fdska'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'c'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_stdev'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
 
     # def test_analytical_fitting(self):
     #     """
@@ -317,8 +310,8 @@ class Tests(unittest.TestCase):
         fit = Fit(new, x=xx, y=yy, z=zdata)
         results = fit.execute()
 
-        self.assertAlmostEqual(results.params.a, 2.5)
-        self.assertAlmostEqual(results.params.b, 3.)
+        self.assertAlmostEqual(results.value(a), 2.5)
+        self.assertAlmostEqual(results.value(b), 3.)
 
     # TODO: Should be 3 tests?
     def test_model_callable(self):
@@ -473,10 +466,10 @@ class Tests(unittest.TestCase):
         # img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
 
         # Equal up to some precision. Not much obviously.
-        self.assertAlmostEqual(fit_result.params.x0_1, 0.7, 3)
-        self.assertAlmostEqual(fit_result.params.y0_1, 0.7, 3)
-        self.assertAlmostEqual(fit_result.params.x0_2, 0.3, 3)
-        self.assertAlmostEqual(fit_result.params.y0_2, 0.3, 3)
+        self.assertAlmostEqual(fit_result.value(x0_1), 0.7, 3)
+        self.assertAlmostEqual(fit_result.value(y0_1), 0.8, 3)
+        self.assertAlmostEqual(fit_result.value(x0_2), 0.3, 3)
+        self.assertAlmostEqual(fit_result.value(y0_2), 0.4, 3)
 
     def test_gaussian_2d_fitting(self):
         """
@@ -510,12 +503,10 @@ class Tests(unittest.TestCase):
         fit = Fit(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:, 0]), 1)
-#        self.assertAlmostEqual(fit_result.params.x0, mean[0], 1)
-        self.assertAlmostEqual(fit_result.params.y0, np.mean(data[:, 1]), 1)
-#        self.assertAlmostEqual(fit_result.params.y0, mean[1], 1)
-        self.assertAlmostEqual(np.abs(fit_result.params.sig_x), np.std(data[:, 0]), 1)
-        self.assertAlmostEqual(np.abs(fit_result.params.sig_y), np.std(data[:, 1]), 1)
+        self.assertAlmostEqual(fit_result.value(x0), np.mean(data[:, 0]), 1)
+        self.assertAlmostEqual(fit_result.value(y0), np.mean(data[:, 1]), 1)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig_x)), np.std(data[:, 0]), 1)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig_y)), np.std(data[:, 1]), 1)
         self.assertGreaterEqual(fit_result.r_squared, 0.99)
 
     def test_jacobian_matrix(self):
@@ -571,8 +562,8 @@ class Tests(unittest.TestCase):
         fit = Maximize(model)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.x, res.x[0])
-        self.assertAlmostEqual(fit_result.params.y, res.x[1])
+        self.assertAlmostEqual(fit_result.value(x), res.x[0])
+        self.assertAlmostEqual(fit_result.value(y), res.x[1])
 
         # Same test, but with constraints in place.
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
@@ -582,8 +573,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(fit.constraints[0].constraint_type, Ge)
         self.assertEqual(fit.constraints[1].constraint_type, Eq)
         fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.params.x, res.x[0])
-        self.assertAlmostEqual(fit_result.params.y, res.x[1])
+        self.assertAlmostEqual(fit_result.value(x), res.x[0])
+        self.assertAlmostEqual(fit_result.value(y), res.x[1])
 
     # TODO: Write test
     def test_minimize_with_data(self):
@@ -607,7 +598,7 @@ class Tests(unittest.TestCase):
         fit = Likelihood(pdf, xdata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.b, np.mean(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata), 3)
 
     def test_likelihood_fitting_gaussian(self):
         """
@@ -627,8 +618,8 @@ class Tests(unittest.TestCase):
         fit = Likelihood(pdf, xdata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.mu, np.mean(xdata), 1)
-        self.assertAlmostEqual(fit_result.params.sig, np.std(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(mu), np.mean(xdata), 1)
+        self.assertAlmostEqual(fit_result.value(sig), np.std(xdata), 3)
 
     def test_parameter_add(self):
         """
@@ -707,30 +698,30 @@ class Tests(unittest.TestCase):
         # Lets with the results from curve_fit, no weights
         popt_noweights, pcov_noweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data)
 
-        self.assertAlmostEqual(fit_result.params.g, popt_noweights[0])
-        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_noweights[0, 0]))
+        self.assertAlmostEqual(fit_result.value(g), popt_noweights[0])
+        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_noweights[0, 0]))
 
         # Same sigma everywere
         fit = Fit(t_model, y_data, t_data, 0.0031, absolute_sigma=False)
         fit_result = fit.execute()
         popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031, absolute_sigma=False)
-        self.assertAlmostEqual(fit_result.params.g, popt_sameweights[0], 4)
-        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_sameweights[0, 0]), 4)
+        self.assertAlmostEqual(fit_result.value(g), popt_sameweights[0], 4)
+        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_sameweights[0, 0]), 4)
         # Same weight everywere should be the same as no weight when absolute_sigma=False
-        self.assertAlmostEqual(fit_result.params.g, popt_noweights[0], 4)
-        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov_noweights[0, 0]), 4)
+        self.assertAlmostEqual(fit_result.value(g), popt_noweights[0], 4)
+        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_noweights[0, 0]), 4)
 
         # Different sigma for every point
         fit = Fit(t_model, y_data, t_data, 0.1*sigma_t, absolute_sigma=False)
         fit_result = fit.execute()
         popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t)
 
-        self.assertAlmostEqual(fit_result.params.g, popt[0])
-        self.assertAlmostEqual(fit_result.params.g_stdev, np.sqrt(pcov[0, 0]))
+        self.assertAlmostEqual(fit_result.value(g), popt[0])
+        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov[0, 0]))
 
         # according to Mathematica
-        self.assertAlmostEqual(fit_result.params.g, 9.095, 3)
-        self.assertAlmostEqual(fit_result.params.g_stdev, 0.102, 3)
+        self.assertAlmostEqual(fit_result.value(g), 9.095, 3)
+        self.assertAlmostEqual(fit_result.stdev(g), 0.102, 3)
 
     def test_error_advanced(self):
         """
@@ -764,23 +755,23 @@ class Tests(unittest.TestCase):
         fit_result = fit.execute()
 
         # Same as Mathematica default behavior.
-        self.assertAlmostEqual(fit_result.params.a, 2.9956, 4)
-        self.assertAlmostEqual(fit_result.params.b, 0.563212, 4)
-        self.assertAlmostEqual(fit_result.params.c, 3.59732, 4)
-        self.assertAlmostEqual(fit_result.params.a_stdev, 0.278304, 4)
-        self.assertAlmostEqual(fit_result.params.b_stdev, 0.224107, 4)
-        self.assertAlmostEqual(fit_result.params.c_stdev, 0.980352, 4)
+        self.assertAlmostEqual(fit_result.value(a), 2.9956, 4)
+        self.assertAlmostEqual(fit_result.value(b), 0.563212, 4)
+        self.assertAlmostEqual(fit_result.value(c), 3.59732, 4)
+        self.assertAlmostEqual(fit_result.value(a), 0.278304, 4)
+        self.assertAlmostEqual(fit_result.value(b), 0.224107, 4)
+        self.assertAlmostEqual(fit_result.value(c), 0.980352, 4)
 
         fit = Fit(model, xdata, ydata, zdata, absolute_sigma=True)
         fit_result = fit.execute()
         # Same as Mathematica in Measurement error mode, but without suplying
         # any errors.
-        self.assertAlmostEqual(fit_result.params.a, 2.9956, 4)
-        self.assertAlmostEqual(fit_result.params.b, 0.563212, 4)
-        self.assertAlmostEqual(fit_result.params.c, 3.59732, 4)
-        self.assertAlmostEqual(fit_result.params.a_stdev, 0.643259, 4)
-        self.assertAlmostEqual(fit_result.params.b_stdev, 0.517992, 4)
-        self.assertAlmostEqual(fit_result.params.c_stdev, 2.26594, 4)
+        self.assertAlmostEqual(fit_result.value(a), 2.9956, 4)
+        self.assertAlmostEqual(fit_result.value(b), 0.563212, 4)
+        self.assertAlmostEqual(fit_result.value(c), 3.59732, 4)
+        self.assertAlmostEqual(fit_result.stdev(a), 0.643259, 4)
+        self.assertAlmostEqual(fit_result.stdev(b), 0.517992, 4)
+        self.assertAlmostEqual(fit_result.stdev(c), 2.26594, 4)
 
         fit = Fit(model, xdata, ydata, zdata, sigma_z=errors)
         fit_result = fit.execute()
@@ -788,20 +779,20 @@ class Tests(unittest.TestCase):
         popt, pcov, infodict, errmsg, ier = curve_fit(lambda x_vec, a, b, c: a * np.log(b * x_vec[0] + c * x_vec[1]), xy, zdata, sigma=errors, absolute_sigma=True, full_output=True)
 
         # Same as curve_fit?
-        self.assertAlmostEqual(fit_result.params.a, popt[0], 4)
-        self.assertAlmostEqual(fit_result.params.b, popt[1], 4)
-        self.assertAlmostEqual(fit_result.params.c, popt[2], 4)
-        self.assertAlmostEqual(fit_result.params.a_stdev, np.sqrt(pcov[0,0]), 4)
-        self.assertAlmostEqual(fit_result.params.b_stdev, np.sqrt(pcov[1,1]), 4)
-        self.assertAlmostEqual(fit_result.params.c_stdev, np.sqrt(pcov[2,2]), 4)
+        self.assertAlmostEqual(fit_result.value(a), popt[0], 4)
+        self.assertAlmostEqual(fit_result.value(b), popt[1], 4)
+        self.assertAlmostEqual(fit_result.value(c), popt[2], 4)
+        self.assertAlmostEqual(fit_result.stdev(a), np.sqrt(pcov[0,0]), 4)
+        self.assertAlmostEqual(fit_result.stdev(b), np.sqrt(pcov[1,1]), 4)
+        self.assertAlmostEqual(fit_result.stdev(c), np.sqrt(pcov[2,2]), 4)
 
         # Same as Mathematica with MEASUREMENT ERROR
-        self.assertAlmostEqual(fit_result.params.a, 2.68807, 4)
-        self.assertAlmostEqual(fit_result.params.b, 0.941344, 4)
-        self.assertAlmostEqual(fit_result.params.c, 5.01541, 4)
-        self.assertAlmostEqual(fit_result.params.a_stdev, 0.0974628, 4)
-        self.assertAlmostEqual(fit_result.params.b_stdev, 0.247018, 4)
-        self.assertAlmostEqual(fit_result.params.c_stdev, 0.597661, 4)
+        self.assertAlmostEqual(fit_result.value(a), 2.68807, 4)
+        self.assertAlmostEqual(fit_result.value(b), 0.941344, 4)
+        self.assertAlmostEqual(fit_result.value(c), 5.01541, 4)
+        self.assertAlmostEqual(fit_result.stdev(a), 0.0974628, 4)
+        self.assertAlmostEqual(fit_result.stdev(b), 0.247018, 4)
+        self.assertAlmostEqual(fit_result.stdev(c), 0.597661, 4)
 
     def test_error_analytical(self):
         """
@@ -826,26 +817,25 @@ class Tests(unittest.TestCase):
 
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
-        self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
-        self.assertAlmostEqual(fit_result.params.a_stdev, np.sqrt(np.diag(pcov))[0], 2)
+        self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
+        self.assertAlmostEqual(fit_result.stdev(a), np.sqrt(np.diag(pcov))[0], 2)
 
         fit_no_sigma = Fit(model, yn)
         fit_result_no_sigma = fit_no_sigma.execute()
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn,)
         # With or without sigma, the bestfit params should be in agreement in case of equal weights
-        self.assertAlmostEqual(fit_result.params.a, fit_result_no_sigma.params.a, 5)
+        self.assertAlmostEqual(fit_result.value(a), fit_result_no_sigma.value(a), 5)
         # Since symfit is all about absolute errors, the sigma will not be in agreement
-        self.assertNotEqual(fit_result.params.a_stdev, fit_result_no_sigma.params.a_stdev, 5)
-        self.assertAlmostEqual(fit_result_no_sigma.params.a, popt[0], 5)
-        self.assertAlmostEqual(fit_result_no_sigma.params.a_stdev, pcov[0][0]**0.5, 5)
+        self.assertNotEqual(fit_result.stdev(a), fit_result_no_sigma.stdev(a), 5)
+        self.assertAlmostEqual(fit_result_no_sigma.value(a), popt[0], 5)
+        self.assertAlmostEqual(fit_result_no_sigma.stdev(a), pcov[0][0]**0.5, 5)
 
         # Analytical answer for mean of N(0,1):
         mu = 0.0
         sigma_mu = sigma/N**0.5
 
-        # self.assertAlmostEqual(fit_result.params.a, mu, 5)
-        self.assertAlmostEqual(fit_result.params.a_stdev, sigma_mu, 5)
+        self.assertAlmostEqual(fit_result.stdev(a), sigma_mu, 5)
 
     # TODO: redudant with test_error_analytical?
     # def test_straight_line_analytical(self):
