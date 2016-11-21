@@ -98,8 +98,8 @@ class Tests(unittest.TestCase):
 
     def test_vector_none_fitting(self):
         """
-        Fit to a 3 component vector valued function with one var's data set to
-        None, without bounds or guesses.
+        Fit to a 3 component vector valued function with one variables data set
+        to None, without bounds or guesses.
         """
         a, b, c = parameters('a, b, c')
         a_i, b_i, c_i = variables('a_i, b_i, c_i')
@@ -129,6 +129,7 @@ class Tests(unittest.TestCase):
 
         self.assertAlmostEqual(fit_none_result.params.a, fit_result.params.a, 4)
         self.assertAlmostEqual(fit_none_result.params.b, fit_result.params.b, 4)
+        # the parameter without data should be unchanged.
         self.assertAlmostEqual(fit_none_result.params.c, 1.0)
 
     @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
@@ -298,7 +299,7 @@ class Tests(unittest.TestCase):
 
     def test_grid_fitting(self):
         """
-        Tests fitting a scalar function with 2 independant variables.
+        Tests fitting a scalar function with 2 independent variables.
         """
         xdata = np.arange(-5, 5, 1)
         ydata = np.arange(5, 15, 1)
@@ -341,7 +342,11 @@ class Tests(unittest.TestCase):
             self.assertEqual(arg_name, name)
 
         # From Model __init__ directly
-        model = Model([a*x**2, 4*b*y**2, a*x**2 + b*y**2])
+        model = Model([
+            a*x**2,
+            4*b*y**2,
+            a*x**2 + b*y**2
+        ])
         z_1, z_2, z_3 = model(3, 3, 2, 2)
 
         self.assertEqual(z_1, 18)
@@ -352,7 +357,11 @@ class Tests(unittest.TestCase):
 
         # From dict
         z_1, z_2, z_3 = variables('z_1, z_2, z_3')
-        model = Model({z_1: a*x**2, z_2: 4*b*y**2, z_3: a*x**2 + b*y**2})
+        model = Model({
+            z_1: a*x**2,
+            z_2: 4*b*y**2,
+            z_3: a*x**2 + b*y**2
+        })
         z_1, z_2, z_3 = model(3, 3, 2, 2)
 
         self.assertEqual(z_1, 18)
@@ -363,7 +372,7 @@ class Tests(unittest.TestCase):
 
     def test_2D_fitting(self):
         """
-        Makes sure that a scalar model with 2 indepedant variables has the
+        Makes sure that a scalar model with 2 independent variables has the
         proper signature, and that the fit result is of the correct type.
         """
         xdata = np.random.randint(-10, 11, size=(2, 400))
@@ -471,7 +480,7 @@ class Tests(unittest.TestCase):
 
     def test_gaussian_2d_fitting(self):
         """
-        Tests fitting to a scalar gaussian function with 2 independant
+        Tests fitting to a scalar gaussian function with 2 independent
         variables.
         """
         mean = (0.6, 0.4)  # x, y mean 0.6, 0.4
@@ -500,8 +509,7 @@ class Tests(unittest.TestCase):
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
         fit = Fit(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()
-        
-        # Again, the order seems to be swapped for py3k
+
         self.assertAlmostEqual(fit_result.params.x0, np.mean(data[:, 0]), 1)
 #        self.assertAlmostEqual(fit_result.params.x0, mean[0], 1)
         self.assertAlmostEqual(fit_result.params.y0, np.mean(data[:, 1]), 1)
