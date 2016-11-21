@@ -3,7 +3,6 @@ import unittest
 import sys
 import sympy
 import warnings
-from collections import namedtuple
 
 import numpy as np
 import scipy.stats
@@ -327,7 +326,7 @@ class Tests(unittest.TestCase):
         new = a*x**2 + b*y**2
         model = Model(new)
         ans = model(3, 3, 2, 2)
-        self.assertIsInstance(ans, namedtuple)
+        self.assertIsInstance(ans, tuple)
         z, = ans
 
         self.assertEqual(z, 36)
@@ -380,7 +379,7 @@ class Tests(unittest.TestCase):
         fit = Fit(new, xdata[0], xdata[1], zdata)
 
         result = fit.model(xdata[0], xdata[1], 2, 3)
-        self.assertIsInstance(result, namedtuple)
+        self.assertIsInstance(result, tuple)
 
         for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(fit.model).parameters):
             self.assertEqual(arg_name, name)
