@@ -19,10 +19,11 @@ install:
   conda create \
     --yes -q -n pyenv \
     python=$TRAVIS_PYTHON_VERSION \
-    numpy scipy sympy matplotlib seaborn nose
+    numpy scipy sympy nose
 - source activate pyenv
 - pip install .
-script: nosetests ./symfit/tests/tests.py
+# Run tests
+script: nosetests
 deploy:
   matrix:
   - provider: pypi
