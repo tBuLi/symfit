@@ -404,22 +404,22 @@ class Tests(unittest.TestCase):
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.params.A, 5.0)
-        self.assertAlmostEqual(np.abs(fit_result.params.sig), 1.0)
-        self.assertAlmostEqual(fit_result.params.x0, 0.0)
+        self.assertAlmostEqual(fit_result.value(A), 5.0)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0)
+        self.assertAlmostEqual(fit_result.value(x0), 0.0)
         # raise Exception([i for i in fit_result.params])
         sexy = g(x=2.0, **fit_result.params)
         ugly = g(
             x=2.0,
-            x0=fit_result.params.x0,
-            A=fit_result.params.A,
-            sig=fit_result.params.sig,
+            x0=fit_result.value(x0),
+            A=fit_result.value(A),
+            sig=fit_result.value(sig),
         )
         self.assertEqual(sexy, ugly)
 
     def test_2_gaussian_2d_fitting(self):
         """
-        Tests fitting to a scalar gaussian with 2 independant variables with
+        Tests fitting to a scalar gaussian with 2 independent variables with
         tight bounds.
         """
         np.random.seed(4242)
