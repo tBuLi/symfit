@@ -3,7 +3,6 @@ import sys
 import inspect
 
 from sympy.core.symbol import Symbol
-from sympy.tensor import IndexedBase
 
 try: # This defines the basestring in both py2/py3.
     basestring
@@ -65,15 +64,17 @@ class Argument(Symbol):
                 return super(Argument, cls).__new__(cls, generated_name, **assumptions)
         return super(Argument,cls).__new__(cls, name, **assumptions)
 
-    def __init__(self, name=None, *sympy_args, **sympy_kwargs):
+    def __init__(self, name=None, **assumptions):
+        # TODO: A more careful look at Symbol.__init__ is needed! However, it
+        # seems we don't have to pass anything on to it.
         if name is not None:
             self.name = name
-        super(Argument, self).__init__(*sympy_args, **sympy_kwargs)
+        super(Argument, self).__init__()
 
 
 class Parameter(Argument):
     """ Parameter objects are used to facilitate bounds on function parameters. """
-    def __init__(self, value=1.0, min=None, max=None, fixed=False, name=None, *sympy_args, **sympy_kwargs):
+    def __init__(self, value=1.0, min=None, max=None, fixed=False, name=None, **assumptions):
         """
         :param value: Initial guess value.
         :param min: Lower bound on the parameter value.
@@ -81,10 +82,9 @@ class Parameter(Argument):
         :param fixed: Fix the parameter to ``value`` during fitting.
         :type fixed: bool
         :param name: Name of the Parameter.
-        :param sympy_args: Args to pass to ``sympy``.
-        :param sympy_kwargs: Kwargs to pass to ``sympy``.
+        :param assumptions: assumptions to pass to ``sympy``.
         """
-        super(Parameter, self).__init__(name, *sympy_args, **sympy_kwargs)
+        super(Parameter, self).__init__(name, **assumptions)
         self.value = value
         self.fixed = fixed
         if not self.fixed:

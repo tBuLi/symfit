@@ -5,7 +5,7 @@ import sympy
 import types
 
 import numpy as np
-from symfit.api import Variable, Parameter, Fit, FitResults, NumericalLeastSquares
+from symfit import Variable, Parameter, Fit, FitResults, NumericalLeastSquares, Model
 from symfit.distributions import Gaussian
 
 
@@ -35,20 +35,23 @@ class TestFitResults(unittest.TestCase):
             fit_result.params = 'hello'
         except AttributeError:
             self.assertTrue(True) # desired result
-        else:
+        finally:
             self.assertNotEqual(fit_result.params, 'hello')
 
         try:
             # Bypass the property getter. This will work, as it set's the instance value of __params.
             fit_result.__params = 'hello'
-        except AttributeError as foo:
+        except AttributeError:
             self.assertTrue(False) # undesired result
-        else:
+        finally:
             self.assertNotEqual(fit_result.params, 'hello')
             # The assginment will have succeeded on the instance because we set it from the outside.
             # I must admit I don't fully understand why this is allowed and I don't like it.
             # However, the tests below show that it did not influence the class method itself so
             # fitting still works fine.
+            # assinging to __params makes *new* instance attribute, the "real"
+            # __params instance is called _FitResult__params. See dir(fit_results) and
+            # https://www.python.org/dev/peps/pep-0008/#designing-for-inheritance
             self.assertEqual(fit_result.__params, 'hello')
 
         # Do a second fit and dubble check that we do not overwrtie something crusial.
@@ -59,21 +62,21 @@ class TestFitResults(unittest.TestCase):
 
         zdata = 2.5*xx**2 + 3.0*yy**2
 
-        a = Parameter(2, max=2.75)
-        b = Parameter(4, min=2.75)
+        a = Parameter(1., max=2.75)
+        b = Parameter(5., min=2.75)
         x = Variable()
         y = Variable()
-        new = a*x**2 + b*y**2
+        new = Variable()
+        new_model = Model({new: a*x**2 + b*y**2 })
 
-
-        fit_2 = Fit(new, xx, yy, zdata)
+        fit_2 = Fit(new_model, x=xx, y=yy, new=zdata)
         fit_result_2 = fit_2.execute()
-        self.assertNotAlmostEqual(fit_result.params.a, fit_result_2.params.a)
-        self.assertAlmostEqual(fit_result.params.a, 3.0)
-        self.assertAlmostEqual(fit_result_2.params.a, 2.5)
-        self.assertNotAlmostEqual(fit_result.params.b, fit_result_2.params.b)
-        self.assertAlmostEqual(fit_result.params.b, 2.0)
-        self.assertAlmostEqual(fit_result_2.params.b, 3.0)
+        self.assertNotAlmostEqual(fit_result.value(a), fit_result_2.value(a))
+        self.assertAlmostEqual(fit_result.value(a), 3.0)
+        self.assertAlmostEqual(fit_result_2.value(a), 2.5)
+        self.assertNotAlmostEqual(fit_result.value(b), fit_result_2.value(b))
+        self.assertAlmostEqual(fit_result.value(b), 2.0)
+        self.assertAlmostEqual(fit_result_2.value(b), 3.0)
 
     def test_fitting(self):
         xdata = np.linspace(1,10,10)
@@ -93,11 +96,11 @@ class TestFitResults(unittest.TestCase):
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
-        self.assertAlmostEqual(fit_result.params.a, 3.0)
-        self.assertAlmostEqual(fit_result.params.b, 2.0)
+        self.assertAlmostEqual(fit_result.value(a), 3.0)
+        self.assertAlmostEqual(fit_result.value(b), 2.0)
 
-        self.assertIsInstance(fit_result.params.a_stdev, float)
-        self.assertIsInstance(fit_result.params.b_stdev, float)
+        self.assertIsInstance(fit_result.stdev(a), float)
+        self.assertIsInstance(fit_result.stdev(b), float)
 
         self.assertIsInstance(fit_result.r_squared, float)
         self.assertEqual(fit_result.r_squared, 1.0)  # by definition since there's no fuzzyness
@@ -109,7 +112,7 @@ class TestFitResults(unittest.TestCase):
         self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
         self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
 
-    def test_fitting(self):
+    def test_fitting_2(self):
         np.random.seed(4242)
         mean = (0.3, 0.3) # x, y mean 0.6, 0.4
         cov = [
@@ -161,8 +164,8 @@ class TestFitResults(unittest.TestCase):
         for param_1 in fit_result.params:
             for param_2 in fit_result.params:
                 self.assertAlmostEqual(fit_result.covariance(param_1, param_2), fit_result.covariance(param_2, param_1))
-        print(fit_result.params.covariance_matrix)
-        print(fit_result.covariance(x0_1, x0_2))
+#        print(fit_result.params.covariance_matrix)
+#        print(fit_result.covariance(x0_1, x0_2))
 
         with warnings.catch_warnings(record=True) as w:
             # Cause all warnings to always be triggered.
