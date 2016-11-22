@@ -12,11 +12,6 @@ from symfit import (Variable, Parameter, Fit, FitResults, Maximize, Likelihood,
                     log, variables, parameters, Model, NumericalLeastSquares,
                     Eq, Ge)
 from symfit.distributions import Gaussian, Exp
-from tests.test_fit_result import TestFitResults
-from tests.test_analytical_fit import TestAnalyticalFit
-from tests.test_model import TestModel
-from tests.test_ode import TestODE
-from tests.test_constrained import TestConstrained
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
