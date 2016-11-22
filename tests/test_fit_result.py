@@ -71,12 +71,12 @@ class TestFitResults(unittest.TestCase):
 
         fit_2 = Fit(new_model, x=xx, y=yy, new=zdata)
         fit_result_2 = fit_2.execute()
-        self.assertNotAlmostEqual(fit_result.params.a, fit_result_2.params.a)
-        self.assertAlmostEqual(fit_result.params.a, 3.0)
-        self.assertAlmostEqual(fit_result_2.params.a, 2.5)
-        self.assertNotAlmostEqual(fit_result.params.b, fit_result_2.params.b)
-        self.assertAlmostEqual(fit_result.params.b, 2.0)
-        self.assertAlmostEqual(fit_result_2.params.b, 3.0)
+        self.assertNotAlmostEqual(fit_result.value(a), fit_result_2.value(a))
+        self.assertAlmostEqual(fit_result.value(a), 3.0)
+        self.assertAlmostEqual(fit_result_2.value(a), 2.5)
+        self.assertNotAlmostEqual(fit_result.value(b), fit_result_2.value(b))
+        self.assertAlmostEqual(fit_result.value(b), 2.0)
+        self.assertAlmostEqual(fit_result_2.value(b), 3.0)
 
     def test_fitting(self):
         xdata = np.linspace(1,10,10)
@@ -96,11 +96,11 @@ class TestFitResults(unittest.TestCase):
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
-        self.assertAlmostEqual(fit_result.params.a, 3.0)
-        self.assertAlmostEqual(fit_result.params.b, 2.0)
+        self.assertAlmostEqual(fit_result.value(a), 3.0)
+        self.assertAlmostEqual(fit_result.value(b), 2.0)
 
-        self.assertIsInstance(fit_result.params.a_stdev, float)
-        self.assertIsInstance(fit_result.params.b_stdev, float)
+        self.assertIsInstance(fit_result.stdev(a), float)
+        self.assertIsInstance(fit_result.stdev(b), float)
 
         self.assertIsInstance(fit_result.r_squared, float)
         self.assertEqual(fit_result.r_squared, 1.0)  # by definition since there's no fuzzyness

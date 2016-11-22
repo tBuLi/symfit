@@ -104,8 +104,8 @@ class TestAnalyticalFit(unittest.TestCase):
         self.assertAlmostEqual(var_a_exact, pcov[0][0], 6)
         self.assertAlmostEqual(var_b_exact, pcov[1][1], 6)
 
-        self.assertAlmostEqual(a_exact, fit_result.params.a, 4)
-        self.assertAlmostEqual(b_exact, fit_result.params.b, 4)
+        self.assertAlmostEqual(a_exact, fit_result.value(a), 4)
+        self.assertAlmostEqual(b_exact, fit_result.value(b), 4)
         self.assertAlmostEqual(var_a_exact, fit_result.variance(a), 6)
         self.assertAlmostEqual(var_b_exact, fit_result.variance(b), 6)
 
@@ -222,11 +222,11 @@ class TestAnalyticalFit(unittest.TestCase):
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=False)
 
 
-        self.assertAlmostEqual(fit_result.params.a, num_result.params.a)
-        self.assertAlmostEqual(fit_result.params.a_stdev, num_result.params.a_stdev)
+        self.assertAlmostEqual(fit_result.value(a), num_result.value(a))
+        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a))
 
-        self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
-        self.assertAlmostEqual(fit_result.params.a_stdev, pcov[0, 0]**0.5, 5)
+        self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
+        self.assertAlmostEqual(fit_result.stdev(a), pcov[0, 0]**0.5, 5)
 
         fit = LinearLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=True)
         fit_result = fit.execute()
@@ -236,11 +236,11 @@ class TestAnalyticalFit(unittest.TestCase):
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
 
-        self.assertAlmostEqual(fit_result.params.a, num_result.params.a)
-        self.assertAlmostEqual(fit_result.params.a_stdev, num_result.params.a_stdev)
+        self.assertAlmostEqual(fit_result.value(a), num_result.value(a))
+        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a))
 
-        self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
-        self.assertAlmostEqual(fit_result.params.a_stdev, pcov[0, 0]**0.5, 5)
+        self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
+        self.assertAlmostEqual(fit_result.stdev(a), pcov[0, 0]**0.5, 5)
     #
     def test_nonlinearfit(self):
         """
