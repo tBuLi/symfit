@@ -31,6 +31,7 @@ before_deploy:
 - ls
 - echo $PATH
 deploy:
+  # PyPI testing server, deploy always from the deploy branch.
   - provider: pypi
     distributions: "sdist bdist_wheel"
     server: https://testpypi.python.org/pypi
@@ -39,7 +40,7 @@ deploy:
       secure: nzvMJZxSUAT1Rc58P0f4Q3wOlf1LEMWxl2vmM5OuhQdNAl18D2VjVfAoz2o4KwBZEq65MZYuAzktfht28or5PCncZ6ZXOB+svkuhJ87MHsaIXnojG/srPS8BjWqlIecS4v40FBCxa5uleu2lNWWNG73AkKl3H4v8ypvR05z+dVfKZ4RsuKjrWkrKRdHOFxGo5qCkPxmakztKh4ww9/iKPT6MlGOy/QCq2Pr1R9R/tDOc+BNox4/OTZW9AVB9JkTx2aZNlBswPbDNQOfPD0En6Msq83sXgGv3HT/PGFQ58blKVxssogEdUsGbTgqMSXcpA/ic3aw8S9U3UKHLlu6MCfY6T4Q1gTQA2RsVvDkvDTEQDEgNx8BUI+t3T1tNJ/PgKlh4CMMtXminK4Ba87feOvYfNDgAw7LDa4Kph+tYxjHAoRfWgbs+7pq8waJ5OSPB75+tSs9vLMqJA5z1/s294K3pCEUsNyWgqAG8K/dXatJf+5kGEgSZyK4azS6gaBG1Dbq1aE0Zoy6PdKrW9l9Kkd5TU7gdKT4ora6l+EDvo0WqllvpKzS7VqRyAPY17nR7UidxzjvaNR6QXLKS/+Hinu60W45J5G9fAc7FpJQMrdHkYodQsXbAWELPSI3l5A3nTfbQ8rsqNcl9c50y1ijdx4AnDvWc4DzZAgjP2vKxpxs=
     skip_cleanup: true
     on:
-      all_branches: true
+      branch: master
       tags: false
       condition: $TRAVIS_PYTHON_VERSION = "2.7"
   - provider: pypi
@@ -47,9 +48,13 @@ deploy:
     user: "tbuli"
     password:
       secure: nzvMJZxSUAT1Rc58P0f4Q3wOlf1LEMWxl2vmM5OuhQdNAl18D2VjVfAoz2o4KwBZEq65MZYuAzktfht28or5PCncZ6ZXOB+svkuhJ87MHsaIXnojG/srPS8BjWqlIecS4v40FBCxa5uleu2lNWWNG73AkKl3H4v8ypvR05z+dVfKZ4RsuKjrWkrKRdHOFxGo5qCkPxmakztKh4ww9/iKPT6MlGOy/QCq2Pr1R9R/tDOc+BNox4/OTZW9AVB9JkTx2aZNlBswPbDNQOfPD0En6Msq83sXgGv3HT/PGFQ58blKVxssogEdUsGbTgqMSXcpA/ic3aw8S9U3UKHLlu6MCfY6T4Q1gTQA2RsVvDkvDTEQDEgNx8BUI+t3T1tNJ/PgKlh4CMMtXminK4Ba87feOvYfNDgAw7LDa4Kph+tYxjHAoRfWgbs+7pq8waJ5OSPB75+tSs9vLMqJA5z1/s294K3pCEUsNyWgqAG8K/dXatJf+5kGEgSZyK4azS6gaBG1Dbq1aE0Zoy6PdKrW9l9Kkd5TU7gdKT4ora6l+EDvo0WqllvpKzS7VqRyAPY17nR7UidxzjvaNR6QXLKS/+Hinu60W45J5G9fAc7FpJQMrdHkYodQsXbAWELPSI3l5A3nTfbQ8rsqNcl9c50y1ijdx4AnDvWc4DzZAgjP2vKxpxs=
+    skip_cleanup: true
     on:
-      all_branches: true
+      branch: master
       tags: true
+      # This condition makes sure we only push a new distro once, from the py2
+      # test. This is because symfit is a universal wheel. If ever it isnt, this
+      # condition should be removed.
       condition: $TRAVIS_PYTHON_VERSION = "2.7"
 after_deploy:
 - pwd
