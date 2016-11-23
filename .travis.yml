@@ -11,7 +11,6 @@ before_install:
 - chmod +x miniconda.sh
 - "./miniconda.sh -b -p $(pwd)/miniconda"
 - export PATH=$(pwd)/miniconda/bin:$PATH
-- export SKIP_GENERATE_AUTHORS=1
 - conda update --yes conda
 - export DISPLAY=:99.0
 - sh -e /etc/init.d/xvfb start
@@ -31,6 +30,7 @@ before_deploy:
 - pwd
 - ls
 - echo $PATH
+- export SKIP_GENERATE_AUTHORS=1  # stop pbr from autogenerating AUTHORS.
 deploy:
   - provider: pypi
     distributions: "sdist bdist_wheel"
