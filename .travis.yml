@@ -23,8 +23,13 @@ install:
 - source activate pyenv
 - pip install .
 - pip install twine
+- echo $PATH
 # Run tests
 script: nosetests
+before_deploy:
+- pwd
+- ls
+- echo $PATH
 deploy:
   - provider: pypi
     distributions: sdist
@@ -46,3 +51,7 @@ deploy:
       all_branches: true
       tags: true
       condition: $TRAVIS_PYTHON_VERSION = "2.7"
+after_deploy:
+- pwd
+- ls
+- echo $PATH
