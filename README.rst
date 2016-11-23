@@ -35,12 +35,13 @@ Cool right? So now that we have done a fit, how do can we use the results?
     plt.show()
 
 .. figure:: http://symfit.readthedocs.org/en/latest/_images/linear_model_fit.png
-           :width: 600px
-           :alt: Linear Fit
+    :width: 600px
+    :alt: Linear Fit
 
 Need I say more? How about I let another code example do the talking?
 
 ::
+
     from symfit import parameters, Maximize, Equality, GreaterThan
     
     x, y = parameters('x, y')
