@@ -2,7 +2,7 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit, D
+from symfit import parameters, variables, ODEModel, exp, Fit, D, NumericalLeastSquares
 from symfit.distributions import Gaussian
 
 
@@ -106,11 +106,17 @@ class TestODE(unittest.TestCase):
         # Generate some data
         tvec = np.linspace(0, 500, 1000)
 
+        fit = NumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
+        fit_result = fit.execute()
+        # print(fit_result)
+        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
+        self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03, 4)
+
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute()
         # print(fit_result)
-        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01)
-        self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
+        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
+        self.assertTrue(np.isnan(fit_result.stdev(k)))
 
         # A, B = ode_model(t=tvec, **fit_result.params)
         # plt.plot()

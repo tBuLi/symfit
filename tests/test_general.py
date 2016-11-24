@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit, minimize
 
 from symfit import (Variable, Parameter, Fit, FitResults, Maximize, Likelihood,
                     log, variables, parameters, Model, NumericalLeastSquares,
-                    Eq, Ge)
+                    ConstrainedNumericalLeastSquares, Eq, Ge)
 from symfit.distributions import Gaussian, Exp
 
 if sys.version_info >= (3, 0):
@@ -290,7 +290,7 @@ class Tests(unittest.TestCase):
         """
         xdata = np.arange(-5, 5, 1)
         ydata = np.arange(5, 15, 1)
-        xx, yy = np.meshgrid(xdata, ydata, sparse=True)
+        xx, yy = np.meshgrid(xdata, ydata, sparse=False)
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
@@ -303,6 +303,8 @@ class Tests(unittest.TestCase):
 
         fit = Fit(new, x=xx, y=yy, z=zdata)
         results = fit.execute()
+
+        self.assertIsInstance(fit.fit, ConstrainedNumericalLeastSquares)
 
         self.assertAlmostEqual(results.value(a), 2.5)
         self.assertAlmostEqual(results.value(b), 3.)
@@ -495,7 +497,7 @@ class Tests(unittest.TestCase):
         g = Variable()
 #        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
-        fit = Fit(model, x=xx, y=yy, g=ydata)
+        fit = NumericalLeastSquares(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(x0), np.mean(data[:, 0]), 1)

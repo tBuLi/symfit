@@ -189,6 +189,28 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(results.value(a), 2.5, 4)
         self.assertAlmostEqual(results.value(b), 3.0, 4)
 
+    @unittest.skip('ConstrainedNumericalLeastSquares fails to compute the '
+                   'covariance matrix for a sparse grid.')
+    def test_grid_fitting_sparse(self):
+        xdata = np.arange(-5, 5, 1)
+        ydata = np.arange(5, 15, 1)
+        xx, yy = np.meshgrid(xdata, ydata, sparse=True)
+
+        zdata = (2.5*xx**2 + 3.0*yy**2)
+
+        a = Parameter(2.4, max=2.75)
+        b = Parameter(3.1, min=2.75)
+        x = Variable()
+        y = Variable()
+        z = Variable()
+        new = {z: a*x**2 + b*y**2}
+
+        fit = ConstrainedNumericalLeastSquares(new, x=xx, y=yy, z=zdata)
+        results = fit.execute()
+
+        self.assertAlmostEqual(results.value(a), 2.5, 4)
+        self.assertAlmostEqual(results.value(b), 3.0, 4)
+
     def test_vector_constrained_fitting(self):
         """
         Tests `ConstrainedNumericalLeastSquares` with vector models. The
