@@ -1219,24 +1219,38 @@ class NonLinearLeastSquares(BaseFit):
         return self._fit_results
 
 
-class Fit(NumericalLeastSquares):
+class Fit(object):
     """
-    Wrapper for ``NumericalLeastSquares`` to give it a more appealing name.
-    In the future I hope to make this object more intelligent so it can
-    search out the best fitting object based on certain qualifiers and
-    return that instead.
+    Your one stop fitting solution! Based on the nature of the input, this
+    object will attempt to select the right fitting type for your problem.
 
-    Therefore do not assume this object to always behave as a certain
-    fitting type! If it matters to you to have for example ``NumericalLeastSquares``
-    or ``NonLinearLeastSquares`` for your problem, use those objects directly.
-    What of course will not change, is the API.
+    If you need very specific control over how the problem is solved, please use
+    one of the available fitting objects directly.
+
+    Currently `Fit` will select between `NumericalLeastSquares` and
+    `ConstrainedNumericalLeastSquares`.
     """
+    def __init__(self, *args, **kwargs):
+        if 'constraints' in kwargs:
+            self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
+        else:
+            init = TakesData(*args, **kwargs)
+            self.model = init.model
+            if not all(min is None and max is None for min, max in self.model.bounds):
+                # Bounds have been set.
+                self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
+            else:
+                if self.model.shared_parameters:
+                    self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
+                else:
+                    self.fit = NumericalLeastSquares(*args, **kwargs)
+
     def execute(self, *options, **kwoptions):
         """
-        Execute ``Fit``, giving any ``options`` and ``kwoptions`` to
-        ``NumericalLeastSquares``.
+        Execute ``Fit``, giving any ``options`` and ``kwoptions`` to the
+        fitting object.
         """
-        return super(Fit, self).execute(*options, **kwoptions)
+        return self.fit.execute(*options, **kwoptions)
 
 
 class Minimize(BaseFit):
