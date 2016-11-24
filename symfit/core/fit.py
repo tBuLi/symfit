@@ -407,6 +407,25 @@ class BaseModel(Mapping):
         """
         return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
 
+    @property
+    def shared_parameters(self):
+        """
+        :return: bool, indicating if parameters are shared between the vector
+            components of this model.
+        """
+        if len(self) == 1:  # Not a vector
+            return False
+        else:
+            params_thusfar = []
+            for component in self.values():
+                vars, params = seperate_symbols(component)
+                if set(params).intersection(set(params_thusfar)):
+                    return True
+                else:
+                    params_thusfar += params
+            else:
+                return False
+
 
 class CallableModel(BaseModel):
     """
