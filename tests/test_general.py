@@ -126,7 +126,8 @@ class Tests(unittest.TestCase):
         # the parameter without data should be unchanged.
         self.assertAlmostEqual(fit_none_result.value(c), 1.0)
 
-    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
+    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds. '
+                   'However, this object is no longer used by Fit by default.')
     def test_vector_fitting_bounds_guess(self):
         """
         Tests fitting to a 3 component vector valued function, with bounds and
@@ -157,11 +158,12 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(a), 9.985691, 6)
-        self.assertAlmostEqual(fit_result.value(b), 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.value(c), 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 4)
+        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata[1]), 4)
+        self.assertAlmostEqual(fit_result.value(c), np.mean(xdata[2]), 4)
 
-    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.')
+    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.'
+                   'However, this object is no longer used by Fit by default.')
     def test_vector_fitting_bounds(self):
         """
         Tests fitting to a 3 component vector valued function, with bounds.
@@ -189,9 +191,9 @@ class Tests(unittest.TestCase):
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(a), 9.985691, 6)
-        self.assertAlmostEqual(fit_result.value(b), 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.value(c), 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 4)
+        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata[1]), 4)
+        self.assertAlmostEqual(fit_result.value(c), np.mean(xdata[2]), 4)
 
     def test_vector_fitting_guess(self):
         """
@@ -456,6 +458,8 @@ class Tests(unittest.TestCase):
         model = g_1 + g_2
         fit = Fit(model, xx, yy, ydata)
         fit_result = fit.execute()
+
+        self.assertIsInstance(fit.fit, ConstrainedNumericalLeastSquares)
 
         img = model(x=xx, y=yy, **fit_result.params)
         img_g_1 = g_1(x=xx, y=yy, **fit_result.params)

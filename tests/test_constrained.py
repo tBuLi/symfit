@@ -5,7 +5,7 @@ import numpy as np
 from symfit import (variables, Variable, parameters, Parameter, ODEModel,
                     ConstrainedNumericalLeastSquares, NumericalLeastSquares,
                     Equality, D, Model, log, FitResults)
-
+from symfit.distributions import Gaussian
 
 class TestConstrained(unittest.TestCase):
     """
@@ -493,6 +493,56 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(const_result.stdev(a), std_result.stdev(a), 4)
         self.assertAlmostEqual(const_result.stdev(b), std_result.stdev(b), 4)
         self.assertAlmostEqual(const_result.stdev(c), std_result.stdev(c), 4)
+
+    def test_gaussian_2d_fitting(self):
+        """
+        Tests fitting to a scalar gaussian function with 2 independent
+        variables. Very sensitive to initial guesses, and if they are chosen too
+        restrictive ConstrainedNumericalLeastSquares actually throws a tantrum.
+        It therefore appears to be more sensitive than NumericalLeastSquares.
+        """
+        mean = (0.6, 0.4)  # x, y mean 0.6, 0.4
+        cov = [[0.2**2, 0], [0, 0.1**2]]
+
+        np.random.seed(0)
+        data = np.random.multivariate_normal(mean, cov, 100000)
+
+        # Insert them as y,x here as np fucks up cartesian conventions.
+        ydata, xedges, yedges = np.histogram2d(data[:, 0], data[:, 1], bins=100,
+                                               range=[[0.0, 1.0], [0.0, 1.0]])
+        xcentres = (xedges[:-1] + xedges[1:]) / 2
+        ycentres = (yedges[:-1] + yedges[1:]) / 2
+
+        # Make a valid grid to match ydata
+        xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
+
+        x0 = Parameter(value=mean[0], min=0.0, max=1.0)
+        sig_x = Parameter(0.2, min=0.0, max=0.3)
+        y0 = Parameter(value=mean[1], min=0.0, max=1.0)
+        sig_y = Parameter(0.1, min=0.0, max=0.3)
+        A = Parameter(value=np.mean(ydata), min=0.0)
+        x = Variable()
+        y = Variable()
+        g = Variable()
+        model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
+        fit = ConstrainedNumericalLeastSquares(model, x=xx, y=yy, g=ydata)
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.value(x0), np.mean(data[:, 0]), 3)
+        self.assertAlmostEqual(fit_result.value(y0), np.mean(data[:, 1]), 3)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig_x)), np.std(data[:, 0]), 2)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig_y)), np.std(data[:, 1]), 2)
+        self.assertGreaterEqual(fit_result.r_squared, 0.96)
+
+        # Compare with industry standard MINPACK
+        fit_std = NumericalLeastSquares(model, x=xx, y=yy, g=ydata)
+        fit_std_result = fit_std.execute()
+
+        self.assertAlmostEqual(fit_std_result.value(x0), fit_result.value(x0), 4)
+        self.assertAlmostEqual(fit_std_result.value(y0), fit_result.value(y0), 4)
+        self.assertAlmostEqual(fit_std_result.value(sig_x), fit_result.value(sig_x), 4)
+        self.assertAlmostEqual(fit_std_result.value(sig_y), fit_result.value(sig_y), 4)
+        self.assertAlmostEqual(fit_std_result.r_squared, fit_result.r_squared, 4)
 
 if __name__ == '__main__':
     unittest.main()
