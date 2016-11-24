@@ -1254,12 +1254,12 @@ class Fit(object):
             self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
         else:
             init = TakesData(*args, **kwargs)
-            self.model = init.model
-            if not all(min is None and max is None for min, max in self.model.bounds):
+            # self.model = init.model
+            if not all(min is None and max is None for min, max in init.model.bounds):
                 # Bounds have been set.
                 self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
             else:
-                if self.model.shared_parameters:
+                if init.model.shared_parameters:
                     self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
                 else:
                     self.fit = NumericalLeastSquares(*args, **kwargs)
@@ -1270,6 +1270,15 @@ class Fit(object):
         fitting object.
         """
         return self.fit.execute(*options, **kwoptions)
+
+    @property
+    def model(self):
+        """ Property which returns self.fit.model """
+        return self.fit.model
+
+    @model.setter
+    def model(self, new_model):
+        self.fit.model = new_model
 
 
 class Minimize(BaseFit):
