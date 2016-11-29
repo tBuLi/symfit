@@ -256,6 +256,37 @@ Let's plot the model for some kinetics constants::
    :width: 300px
    :alt: ODE integration
 
+More common examples, such as dampened harmonic oscillators also work as expected:
+
+  # oscillator strength
+  k = symfit.Parameter()
+  # mass, just there for the physics
+  m = symfit.Parameter(fixed=True)
+  # Dampening factor
+  gamma = symfit.Parameter(1)
+  
+  x, v, a, t = symfit.variables('x, v, a, t')
+  
+  a = (-k * x - gamma * v)/m
+  ode_model = symfit.ODEModel({
+                              D(x, t): v,
+                              D(v, t): a,
+                              },
+                              initial={t: 0, v: 0, x: 1})
+    
+  times = np.linspace(0, 15, 150)
+  data = ode_model(times, k=11, gamma=0.9, m=m.value).x
+  noise = np.random.normal(1, 0.1, data.shape)  # 10% error
+  data *= noise
+    
+  fit = symfit.Fit(ode_model, t=times, x=data)
+  fit_result = fit.execute()
+
+
+.. figure:: _static/ode_dampened_harmonic_oscillator.png
+   :widht: 300px
+   :alt: Dampened harmonic oscillator
+
 Global FItting
 --------------
 In a global fitting problem, we fit to multiple datasets where one or more
