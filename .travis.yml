@@ -12,7 +12,7 @@ before_install:
 ## Install the dependencies
 install:
   # Upgrade pip to enable the --only-binary flag
-  - pip install --upgrade pip
+  - pip install --upgrade pip setuptools
   # TODO: There should be a version switch here. Actually, are these statements needed? Or does pip install . take care of it?
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
