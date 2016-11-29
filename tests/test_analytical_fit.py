@@ -93,10 +93,10 @@ class TestAnalyticalFit(unittest.TestCase):
         fit = NumericalLeastSquares(model, x=xdata, y=ydata)#, absolute_sigma=False)
         fit_result = fit.execute()
 
-        popt, pcov = curve_fit(
-            lambda z, c, d: c * z + d, xdata, ydata,
-            # Dfun=lambda p, x, y, func: np.transpose([x, np.ones_like(x)])
-        )
+        popt, pcov = curve_fit(lambda z, c, d: c * z + d, xdata, ydata,
+                               jac=lambda z, c, d: np.transpose([xdata, np.ones_like(xdata)]))
+#                               jac=lambda p, x, y, func: np.transpose([x, np.ones_like(x)]))
+                                # Dfun=lambda p, x, y, func: print(p, func, x, y))
 
         # curve_fit
         self.assertAlmostEqual(a_exact, popt[0], 4)
@@ -104,8 +104,8 @@ class TestAnalyticalFit(unittest.TestCase):
         self.assertAlmostEqual(var_a_exact, pcov[0][0], 6)
         self.assertAlmostEqual(var_b_exact, pcov[1][1], 6)
 
-        self.assertAlmostEqual(a_exact, fit_result.params.a, 4)
-        self.assertAlmostEqual(b_exact, fit_result.params.b, 4)
+        self.assertAlmostEqual(a_exact, fit_result.value(a), 4)
+        self.assertAlmostEqual(b_exact, fit_result.value(b), 4)
         self.assertAlmostEqual(var_a_exact, fit_result.variance(a), 6)
         self.assertAlmostEqual(var_b_exact, fit_result.variance(b), 6)
 
@@ -222,11 +222,11 @@ class TestAnalyticalFit(unittest.TestCase):
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=False)
 
 
-        self.assertAlmostEqual(fit_result.params.a, num_result.params.a)
-        self.assertAlmostEqual(fit_result.params.a_stdev, num_result.params.a_stdev)
+        self.assertAlmostEqual(fit_result.value(a), num_result.value(a))
+        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a))
 
-        self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
-        self.assertAlmostEqual(fit_result.params.a_stdev, pcov[0, 0]**0.5, 5)
+        self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
+        self.assertAlmostEqual(fit_result.stdev(a), pcov[0, 0]**0.5, 5)
 
         fit = LinearLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=True)
         fit_result = fit.execute()
@@ -236,11 +236,11 @@ class TestAnalyticalFit(unittest.TestCase):
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
 
-        self.assertAlmostEqual(fit_result.params.a, num_result.params.a)
-        self.assertAlmostEqual(fit_result.params.a_stdev, num_result.params.a_stdev)
+        self.assertAlmostEqual(fit_result.value(a), num_result.value(a))
+        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a))
 
-        self.assertAlmostEqual(fit_result.params.a, popt[0], 5)
-        self.assertAlmostEqual(fit_result.params.a_stdev, pcov[0, 0]**0.5, 5)
+        self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
+        self.assertAlmostEqual(fit_result.stdev(a), pcov[0, 0]**0.5, 5)
     #
     def test_nonlinearfit(self):
         """
@@ -266,12 +266,12 @@ class TestAnalyticalFit(unittest.TestCase):
         import time
         tick = time.time()
         fit_result = fit.execute()
-        print(time.time() - tick)
+#        print(time.time() - tick)
 
         fit = NumericalLeastSquares(t_model, y=y_data, t=t_data, sigma_t=sigma_t)
         tick = time.time()
         num_result = fit.execute()
-        print(time.time() - tick)
+#        print(time.time() - tick)
 
         self.assertAlmostEqual(num_result.value(g), fit_result.value(g))
 
