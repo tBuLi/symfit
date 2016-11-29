@@ -21,7 +21,7 @@ install:
     python=$TRAVIS_PYTHON_VERSION \
     numpy scipy sympy nose
 - source activate pyenv
-- pip install .
+- pip install .[*]
 - pip install twine
 - echo $PATH
 # Run tests
