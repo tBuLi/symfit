@@ -407,6 +407,25 @@ class BaseModel(Mapping):
         """
         return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
 
+    @property
+    def shared_parameters(self):
+        """
+        :return: bool, indicating if parameters are shared between the vector
+            components of this model.
+        """
+        if len(self) == 1:  # Not a vector
+            return False
+        else:
+            params_thusfar = []
+            for component in self.values():
+                vars, params = seperate_symbols(component)
+                if set(params).intersection(set(params_thusfar)):
+                    return True
+                else:
+                    params_thusfar += params
+            else:
+                return False
+
 
 class CallableModel(BaseModel):
     """
@@ -1219,24 +1238,47 @@ class NonLinearLeastSquares(BaseFit):
         return self._fit_results
 
 
-class Fit(NumericalLeastSquares):
+class Fit(object):
     """
-    Wrapper for ``NumericalLeastSquares`` to give it a more appealing name.
-    In the future I hope to make this object more intelligent so it can
-    search out the best fitting object based on certain qualifiers and
-    return that instead.
+    Your one stop fitting solution! Based on the nature of the input, this
+    object will attempt to select the right fitting type for your problem.
 
-    Therefore do not assume this object to always behave as a certain
-    fitting type! If it matters to you to have for example ``NumericalLeastSquares``
-    or ``NonLinearLeastSquares`` for your problem, use those objects directly.
-    What of course will not change, is the API.
+    If you need very specific control over how the problem is solved, please use
+    one of the available fitting objects directly.
+
+    Currently `Fit` will select between `NumericalLeastSquares` and
+    `ConstrainedNumericalLeastSquares`.
     """
+    def __init__(self, *args, **kwargs):
+        if 'constraints' in kwargs:
+            self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
+        else:
+            init = TakesData(*args, **kwargs)
+            # self.model = init.model
+            if not all(min is None and max is None for min, max in init.model.bounds):
+                # Bounds have been set.
+                self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
+            else:
+                if init.model.shared_parameters:
+                    self.fit = ConstrainedNumericalLeastSquares(*args, **kwargs)
+                else:
+                    self.fit = NumericalLeastSquares(*args, **kwargs)
+
     def execute(self, *options, **kwoptions):
         """
-        Execute ``Fit``, giving any ``options`` and ``kwoptions`` to
-        ``NumericalLeastSquares``.
+        Execute ``Fit``, giving any ``options`` and ``kwoptions`` to the
+        fitting object.
         """
-        return super(Fit, self).execute(*options, **kwoptions)
+        return self.fit.execute(*options, **kwoptions)
+
+    @property
+    def model(self):
+        """ Property which returns self.fit.model """
+        return self.fit.model
+
+    @model.setter
+    def model(self, new_model):
+        self.fit.model = new_model
 
 
 class Minimize(BaseFit):
@@ -1774,23 +1816,25 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
         popt = [fit_result.value(p) for p in self.model.params]
 
-        cov_matrix = self.covariance_matrix(fit_result.params)
+        try:
+            cov_matrix = self.covariance_matrix(fit_result.params)
+        except np.linalg.linalg.LinAlgError:
+            return fit_result  # Return without covariance matrix since it is singular
+        else:
+            if len(self.model) > 1:
+                # For vector-models, make all off-diagonal values nan
+                cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
 
-
-        if len(self.model) > 1:
-            # For vector-models, make all off-diagonal values nan
-            cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
-
-        results = FitResults(
-            params=self.model.params,
-            popt=popt,
-            pcov=cov_matrix,
-            infodic=fit_result.infodict,
-            mesg=fit_result.status_message,
-            ier=fit_result.iterations,
-        )
-        results.r_squared = fit_result.r_squared
-        return results
+            results = FitResults(
+                params=self.model.params,
+                popt=popt,
+                pcov=cov_matrix,
+                infodic=fit_result.infodict,
+                mesg=fit_result.status_message,
+                ier=fit_result.iterations,
+            )
+            results.r_squared = fit_result.r_squared
+            return results
 
 # class LagrangeMultipliers:
 #     """
