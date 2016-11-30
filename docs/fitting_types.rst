@@ -14,10 +14,10 @@ The default fitting object does least-squares fitting::
     model = a * x + b
 
     # Generate some data
-    xdata = np.linspace(0, 100, 100) # From 0 to 100 in 100 steps
+    xdata = np.linspace(0, 100, 100)  # From 0 to 100 in 100 steps
     a_vec = np.random.normal(15.0, scale=2.0, size=(100,))
     b_vec = np.random.normal(100.0, scale=2.0, size=(100,))
-    ydata = a_vec * xdata + b_vec # Point scattered around the line 5 * x + 105
+    ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
 
     fit = Fit(model, xdata, ydata)
     fit_result = fit.execute()
@@ -34,6 +34,8 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
 
     fit = Fit(model, x=xdata, y=ydata, sigma_y=sigma)
 
+.. Is this syntax still correct and preferred?
+
 ``symfit`` assumes these sigma to be from measurement errors by default, and not just as a relative weight.
 This means the standard deviations on parameters are calculated assuming the absolute size 
 of sigma is significant. This is the case for measurement errors and therefore for most use cases ``symfit`` was
@@ -45,7 +47,7 @@ Looking through their mailing list this seems to have been implemented the 'wron
 for historical reasons, and was understandably never changed so as not to loose backwards compatibility.
 Since this is a new project, we don't have that problem.
 
-``Fit`` currently simply wraps ``NumericalLeastSquares``, but might become more intelligent in the future.
+``Fit`` is somewhat intelligent, and tries to pick the correct implementation depending on your problem.
 
 (Non)LinearLeastSquares
 -----------------------
@@ -58,7 +60,7 @@ no guesses needed.
 the model by a linear one around the value of your guesses and repeating that process iteratively.
 This process is therefore very sensitive to getting good initial guesses.
 
-Note's on these objects:
+Notes on these objects:
 
 - Use ``NonLinearLeastSquares`` instead of ``LinearLeastSquares`` unless you have a reason not to.
   ``NonLinearLeastSquares`` will behave exactly the same as ``LinearLeastSquares`` when the model is linear.
@@ -94,7 +96,7 @@ Off-course ``fit_result`` is a normal ``FitResults`` object. Because ``scipy.opt
 Minimize/Maximize
 -----------------
 Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapper to ``scipy.optimize.minimize``. As an
-example I present an example from the ``scipy`` `docs
+example I present an example from the ```scipy`` docs
 <http://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
 
 Suppose we want to maximize the following function:
@@ -151,13 +153,13 @@ Takes a couple of read-throughs to make sense, doesn't it? Let's do the same pro
 Done! ``symfit`` will determine all derivatives automatically, no need for you to think about it.
 
 .. warning:: You might have noticed that ``x`` and ``y`` are ``Parameter``'s in the above problem, which may strike you as weird.
-However, it makes perfect sense because in this problem they are parameters to be optimised, not variables.
-Furthermore, this way of defining it is consistent with the treatment of ``Variable``'s and ``Parameter``'s in ``symfit``.
-Be aware of this when using ``Minimize``, as the whole process won't work otherwise.
+  However, it makes perfect sense because in this problem they are parameters to be optimised, not independent variables.
+  Furthermore, this way of defining it is consistent with the treatment of ``Variable``'s and ``Parameter``'s in ``symfit``.
+  Be aware of this when using ``Minimize``, as the whole process won't work otherwise.
 
 ODE Fitting
 -----------
-Fitting to a system of ODEs is also remarkedly simple with ``symfit``. Let's do a
+Fitting to a system of ordinary differential equations (ODEs) is also remarkedly simple with ``symfit``. Let's do a
 simple example from reaction kinetics. Suppose we have a reaction A + A -> B with rate constant :math:`k`.
 We then need the following system of rate equations:
 
@@ -196,6 +198,8 @@ That's it! An ``ODEModel`` behaves just like any other model object, so ``Fit``
 knows how to deal with it! Note that since we don't know the concentration of
 B, we explicitly set ``b=None`` when calling ``Fit`` so it will be ignored.
 
+.. warning:: Fitting to ODEs is extremely difficult from an algorithmic point of view, since these systems are usually very sensitive to the parameters. Using (very) good initial guesses for the parameters and values is critical!
+
 Upon every iteration of performing the fit the ODEModel is integrated again from
 the initial point using the new guesses for the parameters.
 
@@ -223,8 +227,8 @@ In ``symfit`` these can be implemented as::
     AA, B, AAB, BAAB, t = variables('AA, B, AAB, BAAB, t')
     k, p, l, m = parameters('k, p, l, m')
 
-    AA_0 = 10 # Some made up initial amound of [AA]
-    B = AA_0 - BAAB + AA # [B] is not independent.
+    AA_0 = 10  # Some made up initial amound of [AA]
+    B = AA_0 - BAAB + AA  # [B] is not independent.
 
     model_dict = {
         D(BAAB, t): l * AAB * B - m * BAAB,
@@ -258,15 +262,16 @@ Let's plot the model for some kinetics constants::
 
 More common examples, such as dampened harmonic oscillators also work as expected::
 
-    # oscillator strength
+    # Oscillator strength
     k = Parameter()
-    # mass, just there for the physics
+    # Mass, just there for the physics
     m = 1
     # Dampening factor
     gamma = Parameter()
 
     x, v, t = symfit.variables('x, v, t')
 
+    # Define the force based on Hooke's law, and dampening
     a = (-k * x - gamma * v)/m
     model_dict = {
         D(x, t): v,
@@ -274,8 +279,10 @@ More common examples, such as dampened harmonic oscillators also work as expecte
     }
     ode_model = ODEModel(model_dict, initial={t: 0, v: 0, x: 1})
     
+    # Let's create some data...
     times = np.linspace(0, 15, 150)
     data = ode_model(times, k=11, gamma=0.9, m=m.value).x
+    # ... and add some noise to it.
     noise = np.random.normal(1, 0.1, data.shape)  # 10% error
     data *= noise
     
@@ -286,6 +293,8 @@ More common examples, such as dampened harmonic oscillators also work as expecte
 .. figure:: _static/ode_dampened_harmonic_oscillator.png
    :width: 300px
    :alt: Dampened harmonic oscillator
+
+.. note:: Evaluating the model above will produce a named tuple with values for both ``x`` and ``v``. Since we are only interested in the values for ``x``, we immediately select with with ``.x``.
 
 Global FItting
 --------------
@@ -321,7 +330,7 @@ Note that ``y0`` is shared between the components. Fitting is then done in the n
    :alt: ODE integration
 
 
-.. warning::
+.. danger::
     The regression coeeficient is not properly defined for vector-valued models, but it is still listed!
     Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
     Do not cite the overall :math:`R^2` given by ``symfit``.
@@ -338,7 +347,7 @@ Same parameters and same function, different (in)dependent variables::
 
     xs = variables('x_1, x_2, x_3, x_4, x_5, x_6')
     ys = variables('y_1, y_2, y_3, y_4, y_5, y_6')
-    zs = variables(', '.join('z_{}'.format(i) for i in range(6)))
+    zs = variables(', '.join('z_{}'.format(i) for i in range(1, 7)))
     a, b = parameters('a, b')
 
     model_dict = {
@@ -348,6 +357,8 @@ Same parameters and same function, different (in)dependent variables::
 
 How Does ``Fit`` Work?
 ----------------------
+.. Is this section relevant? 
+
 How does ``Fit`` get from a (named) model and some data to a fit? Consider the following example::
 
     from symfit import parameters, variables, Fit
@@ -378,6 +389,7 @@ We are now almost there. Just two steps left. The first is to wrap all the data 
 
 where ``data_per_var`` is a dict containing variable names: value pairs.
 
+.. All that is left is to do a minimization, not nescessarily using leastsqbound
 Now all that is left is to call ``leastsqbound`` and have it find the best fit parameters::
 
     best_fit_parameters, covariance_matrix = leastsqbound(
@@ -396,6 +408,7 @@ Then you'll have to use the ordering. Variables throughout ``symfit``'s objects 
 way: first independent variables, then dependent variables, then sigma variables, and lastly parameters when applicable.
 Within each group alphabetical ordering applies.
 
+.. Does this still work?
 It is therefore always possible to assign data to variables in an unambiguis way using this ordering. In the above example::
 
     fit = Fit(model, x_data, y_data, sigma_data)
