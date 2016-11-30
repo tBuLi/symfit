@@ -28,7 +28,7 @@ Best Practices
 
 * When evaluating vector valued models use the variable names to access the elements::
 
-    model = {y_1: x**2, y_2: x**3}
+    model = Model({y_1: x**2, y_2: x**3})
     solutions = model(x=xdata)
     sol_1 = solutions.y_1
     sol_2 = solutions.y_2
