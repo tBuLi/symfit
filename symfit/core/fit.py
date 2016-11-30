@@ -30,8 +30,8 @@ class ModelError(Exception):
 class ParameterDict(object):
     """
     Container for all the parameters and their (co)variances.
-    Behaves mostly like an OrderedDict: can be **-ed, allowing the sexy syntax where a model is
-    called with values for the Variables and **params. However, under iteration
+    Behaves mostly like an OrderedDict: can be \*\*-ed, allowing the sexy syntax where a model is
+    called with values for the Variables and \*\*params. However, under iteration
     it behaves like a list! In other words, it preserves order in the params.
     """
     def __init__(self, params, popt, pcov, *args, **kwargs):
@@ -796,7 +796,7 @@ class TakesData(object):
         :param named_data: assign dependent, independent and sigma variables data by name.
 
         Standard deviation can be provided to any variable. They have to be prefixed
-        with sigma_. For example, let x be a Variable. Then sigma_x will give the
+        with sigma\_. For example, let x be a Variable. Then sigma_x will give the
         stdev in x.
         """
         absolute_sigma = named_data.pop('absolute_sigma')
