@@ -347,7 +347,7 @@ class BaseModel(Mapping):
         ``Model``'s are considered equal when they have the same dependent variables,
         and the same expressions for those dependent variables. The same is defined here
         as passing sympy == for the vars themselves, and as expr1 - expr2 == 0 for the
-        expressions. For more info check the `sympy docs<https://github.com/sympy/sympy/wiki/Faq>`_.
+        expressions. For more info check the `sympy docs <https://github.com/sympy/sympy/wiki/Faq>`_.
 
         :param other: Instance of ``Model``.
         :return: bool
@@ -512,8 +512,8 @@ class Model(CallableModel):
     def jacobian(self):
         """
         :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-        Partial derivatives are of the components of the function with respect to the Parameter's,
-        not the independent Variable's.
+          Partial derivatives are of the components of the function with respect to the Parameter's,
+          not the independent Variable's.
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
@@ -663,9 +663,9 @@ class TaylorModel(Model):
     def params(self):
         """
         params returns only the `free` parameters. Strictly speaking, the expression for a
-        ``TaylorModel`` contains both the parameters :math:`\vec{p}` and :math:`\vec{p_0}`
-        around which to expand, but params should only give :math:`\vec{p}`. To get a
-        mapping to the :math:`\vec{p_0}`, use ``.params_0``.
+        ``TaylorModel`` contains both the parameters :math:`\\vec{p}` and :math:`\\vec{p_0}`
+        around which to expand, but params should only give :math:`\\vec{p}`. To get a
+        mapping to the :math:`\\vec{p_0}`, use ``.params_0``.
         """
         return [p for p in self._params if p not in self.params_0.values()]
 
