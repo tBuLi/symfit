@@ -97,7 +97,7 @@ Minimize/Maximize
 -----------------
 Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapper to ``scipy.optimize.minimize``. As an
 example I present an example from the ``scipy`` `docs
-<http://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
+<https://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
 
 Suppose we want to maximize the following function:
 
