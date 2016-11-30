@@ -96,7 +96,7 @@ Off-course ``fit_result`` is a normal ``FitResults`` object. Because ``scipy.opt
 Minimize/Maximize
 -----------------
 Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapper to ``scipy.optimize.minimize``. As an
-example I present an example from the ```scipy`` docs
+example I present an example from the ``scipy`` `docs
 <http://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
 
 Suppose we want to maximize the following function:
@@ -330,7 +330,7 @@ Note that ``y0`` is shared between the components. Fitting is then done in the n
    :alt: ODE integration
 
 
-.. danger::
+.. warning::
     The regression coeeficient is not properly defined for vector-valued models, but it is still listed!
     Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
     Do not cite the overall :math:`R^2` given by ``symfit``.
@@ -390,6 +390,7 @@ We are now almost there. Just two steps left. The first is to wrap all the data 
 where ``data_per_var`` is a dict containing variable names: value pairs.
 
 .. All that is left is to do a minimization, not nescessarily using leastsqbound
+
 Now all that is left is to call ``leastsqbound`` and have it find the best fit parameters::
 
     best_fit_parameters, covariance_matrix = leastsqbound(
@@ -409,6 +410,7 @@ way: first independent variables, then dependent variables, then sigma variables
 Within each group alphabetical ordering applies.
 
 .. Does this still work?
+
 It is therefore always possible to assign data to variables in an unambiguis way using this ordering. In the above example::
 
     fit = Fit(model, x_data, y_data, sigma_data)

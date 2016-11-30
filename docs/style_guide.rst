@@ -26,7 +26,7 @@ Best Practices
   and to make sure your code is transportable, always use named models. And the
   result is more readable anyway, right?
 
-* When evaluating models use the variable names::
+* When evaluating vector valued models use the variable names to access the elements::
 
     model = {y_1: x**2, y_2: x**3}
     solutions = model(x=xdata)
