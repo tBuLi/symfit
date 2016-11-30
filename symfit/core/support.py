@@ -162,16 +162,17 @@ class keywordonly(object):
 
     Example::
 
-        @keywordonly(floor=True)
-        def f(x, **kwargs):
-            floor = kwargs.pop('floor')
-            return np.floor(x**2) if floor else x**2
+      @keywordonly(floor=True)
+      def f(x, **kwargs):
+          floor = kwargs.pop('floor')
+          return np.floor(x**2) if floor else x**2
 
     This decorator is not much more than::
 
-        floor = kwargs.pop('floor') if 'floor' in kwargs else True
+      floor = kwargs.pop('floor') if 'floor' in kwargs else True
 
-    However, I prefer it's usage because: 
+    However, I prefer it's usage because:
+ 
     - it's clear from reading the function declaration there is an option to provide this 
       argument. The information on possible keywords is where you'd expect it to be.
     - you're guaranteed that the pop works.
