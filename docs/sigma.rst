@@ -79,6 +79,6 @@ Mathematica.
 
 Since ``symfit`` is a fitting tool for the practical man, measurement errors are assumed by default.
 
-.. [taldcroft] http://nbviewer.ipython.org/urls/gist.github.com/taldcroft/5014170/raw/31e29e235407e4913dc0ec403af7ed524372b612/curve_fit.ipynb
+.. [taldcroft] http://nbviewer.jupyter.org/urls/gist.github.com/taldcroft/5014170/raw/31e29e235407e4913dc0ec403af7ed524372b612/curve_fit.ipynb
 .. [Mathematica] http://reference.wolfram.com/language/howto/FitModelsWithMeasurementErrors.html
 .. |+-| unicode:: U+00B1 .. Plusminus sign
