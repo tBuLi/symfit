@@ -5,7 +5,7 @@ Simple Example
 --------------
 The example below shows how easy it is to define a model that we could fit to. ::
 
-  from symfit.api import Parameter, Variable
+  from symfit import Parameter, Variable
   
   a = Parameter()
   b = Parameter()
@@ -14,13 +14,13 @@ The example below shows how easy it is to define a model that we could fit to. :
 
 Lets fit this model to some generated data. ::
 
-  from symfit.api import Fit
+  from symfit import Fit
   import numpy as np
   
   xdata = np.linspace(0, 100, 100) # From 0 to 100 in 100 steps
   a_vec = np.random.normal(15.0, scale=2.0, size=(100,))
   b_vec = np.random.normal(100.0, scale=2.0, size=(100,))
-  ydata = a_vec * xdata + b_vec # Point scattered around the line 5 * x + 105
+  ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
   
   fit = Fit(model, xdata, ydata)
   fit_result = fit.execute()
@@ -36,10 +36,12 @@ Initial Guess
 For fitting to work as desired you should always give a good initial guess for a parameter.
 The ``Parameter`` object can therefore be initiated with the following keywords:
 
-* ``value`` the initial guess value.
+* ``value`` the initial guess value. Defaults to ``1``.
 * ``min`` Minimal value for the parameter.
 * ``max`` Maximal value for the parameter.
-* ``fixed`` Fix the value of the parameter during the fitting to ``value``.
+* ``fixed`` Whether the parameter's ``value`` can vary during fitting.
+
+.. Why k, l and m? And the parameters names b and c?
 
 In the example above, we might change our ``Parameter``'s to the following after looking at a plot of the data::
 
@@ -56,16 +58,18 @@ This object holds all information about the fit.
 The fitting process does not modify the ``Parameter`` objects. 
 In the above example, ``k.value`` will still be ``4.0`` and not the value we obtain after fitting. To get the value of fit parameters we can do::
 
-  >>> print(fit_result.params.a)
+  >>> print(fit_result.value(a))
   >>> 14.66946...
-  >>> print(fit_result.params.a_stdev)
+  >>> print(fit_result.stdev(a))
   >>> 0.3367571...
-  >>> print(fit_result.params.b)
+  >>> print(fit_result.value(b))
   >>> 104.6558...
-  >>> print(fit_result.params.b_stdev)
+  >>> print(fit_result.stdev(b))
   >>> 19.49172...
   >>> print(fit_result.r_squared)
   >>> 0.950890866472
+
+.. Link to API docs?
 
 For more FitResults, see the API docs.
 
@@ -76,7 +80,7 @@ In order to do this, we simply call the model with these values::
 
   import matplotlib.pyplot as plt
   
-  y = model(x=xdata, a=fit_result.params.a, b=fit_result.params.b)
+  y = model(x=xdata, a=fit_result.value(a), b=fit_result.value(b))
   plt.plot(xdata, y)
   plt.show()
 
@@ -86,7 +90,7 @@ In order to do this, we simply call the model with these values::
   
 The model *has* to be called by keyword arguments to prevent any ambiguity. So the following does not work::
 
-  y = model(xdata, fit_result.params.a, fit_result.params.b)
+  y = model(xdata, fit_result.value(a), fit_result.value(b))
   
 To make life easier, there is a nice shorthand notation to immediately use a fit result::
 
@@ -110,7 +114,7 @@ Let's try our luck with a bivariate normal distribution::
 
     fit = Fit(model, x=xdata, y=ydata, p=pdata)
 
-By using the magic of named models, the flow of information is still very clear, even with such a complicated function.
+By using the magic of named models, the flow of information is still relatively clear, even with such a complicated function.
 
 This syntax also supports vector valued functions::
 
@@ -121,22 +125,26 @@ There is a preferred way to resolve this. If any kind of fitting object has been
 containing an instance of ``Model``. This can again be called::
 
     model = {y_1: a * x**2, y_2: 2 * x * b}
-    fit = Fit(model, x=xdata)
+    fit = Fit(model, x=xdata, y_1=y_data1, y_2=y_data2)
     fit_result = fit.execute()
 
     y_1, y_2 = fit.model(x=xdata, **fit_result.params)
 
-This returns a tuple with the components evaluated so through the magic of tuple unpacking``y_1`` and ``y_2`` contain the
-evaluated fit. Nice!
+This returns a named tuple with the components evaluated so through the magic of tuple unpackingi ``y_1`` and ``y_2`` contain the
+evaluated fit. Nice! It is usually beter to do the unpacking explicitely though.
 
 If for some reason no ``Fit`` is initiated you can make a Model object yourself::
 
     from symfit import Model
 
     model_dict = {y_1: a * x**2, y_2: 2 * x * b}
-    model = Model.from_dict(model_dict)
+    model = Model(model_dict)
 
-    y_1, y_2 = fit.model(x=xdata, a=2.4, b=0.1)
+    outcome = fit.model(x=xdata, a=2.4, b=0.1)
+    y_1 = outcome.y_1
+    y_2 = outcome.y_2
+
+.. examples above overwrites the variables y_1 and y_2. Plus, the parameters and variables are not defined anywhere...
 
 symfit exposes sympy.api
 ------------------------
