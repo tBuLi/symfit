@@ -41,22 +41,20 @@ The ``Parameter`` object can therefore be initiated with the following keywords:
 * ``max`` Maximal value for the parameter.
 * ``fixed`` Whether the parameter's ``value`` can vary during fitting.
 
-.. Why k, l and m? And the parameters names b and c?
-
 In the example above, we might change our ``Parameter``'s to the following after looking at a plot of the data::
 
   k = Parameter(value=4, min=3, max=6)
 
-  l, m = parameters('b, c')
-  l.value = 60
-  l.fixed = True
+  a, b = parameters('b, c')
+  a.value = 60
+  a.fixed = True
 
 Accessing the Results
 ---------------------
 A call to ``Fit.execute()`` returns a ``FitResults`` instance. 
 This object holds all information about the fit. 
 The fitting process does not modify the ``Parameter`` objects. 
-In the above example, ``k.value`` will still be ``4.0`` and not the value we obtain after fitting. To get the value of fit parameters we can do::
+In the above example, ``a.value`` will still be ``60`` and not the value we obtain after fitting. To get the value of fit parameters we can do::
 
   >>> print(fit_result.value(a))
   >>> 14.66946...
@@ -69,9 +67,8 @@ In the above example, ``k.value`` will still be ``4.0`` and not the value we obt
   >>> print(fit_result.r_squared)
   >>> 0.950890866472
 
-.. Link to API docs?
 
-For more FitResults, see the API docs.
+For more FitResults, see the :ref:`apidocs`.
 
 Evaluating the Model
 --------------------
@@ -96,7 +93,7 @@ To make life easier, there is a nice shorthand notation to immediately use a fit
 
   y = model(x=xdata, **fit_result.params)
   
-This unpacks the .params object as a dict. For more info view ParameterDict.
+This unpacks the ``.params`` object as a ``dict``. For more info view ``ParameterDict``.
 
 Named Models
 ------------
@@ -124,27 +121,26 @@ One thing to note about such models is that now ``model(x=xdata)`` obviously no 
 There is a preferred way to resolve this. If any kind of fitting object has been initiated, it will have a ``.model`` atribute
 containing an instance of ``Model``. This can again be called::
 
+    a, b = parameters('a, b')
+    y_1, y_2, x = variables('y_1, y_2, x')
+    
     model = {y_1: a * x**2, y_2: 2 * x * b}
     fit = Fit(model, x=xdata, y_1=y_data1, y_2=y_data2)
     fit_result = fit.execute()
 
-    y_1, y_2 = fit.model(x=xdata, **fit_result.params)
+    y_1_result, y_2_result = fit.model(x=xdata, **fit_result.params)
 
-This returns a named tuple with the components evaluated so through the magic of tuple unpackingi ``y_1`` and ``y_2`` contain the
-evaluated fit. Nice! It is usually beter to do the unpacking explicitely though.
+This returns a ``namedtuple`` with the components evaluated so through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the
+evaluated fit. The variables will be ordered alphabetically. Nice! It may sometimes be clearer to do the unpacking explicitly though.
 
-If for some reason no ``Fit`` is initiated you can make a Model object yourself::
+If for some reason no ``Fit`` is initiated you can make a ``Model`` object yourself::
 
-    from symfit import Model
-
-    model_dict = {y_1: a * x**2, y_2: 2 * x * b}
     model = Model(model_dict)
 
-    outcome = fit.model(x=xdata, a=2.4, b=0.1)
-    y_1 = outcome.y_1
-    y_2 = outcome.y_2
+    outcome = model(x=xdata, a=2.4, b=0.1)
+    y_1_result = outcome.y_1
+    y_2_result = outcome.y_2
 
-.. examples above overwrites the variables y_1 and y_2. Plus, the parameters and variables are not defined anywhere...
 
 symfit exposes sympy.api
 ------------------------

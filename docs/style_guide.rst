@@ -26,16 +26,15 @@ Best Practices
   and to make sure your code is transportable, always use named models. And the
   result is more readable anyway, right?
 
-* When evaluating vector valued models use the variable names to access the elements::
+* Evaluating a vector values model returns a ``namedtuple``. You can access the elements
+  by either tuple unpacking, or by using the variable names. Note that if you use tuple 
+  unpacking, the results will be ordered alphabetically::
 
     model = Model({y_1: x**2, y_2: x**3})
     solutions = model(x=xdata)
+    sol_1, sol_2 = model(x=xdata)
     sol_1 = solutions.y_1
     sol_2 = solutions.y_2
-
-  Normal tuple unpacking is also acceptable::
-
-    sol_1, sol_2 = model(x=xdata)
 
   Using numerical indexing (or something similar) is not recommended::
 

@@ -34,8 +34,6 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
 
     fit = Fit(model, x=xdata, y=ydata, sigma_y=sigma)
 
-.. Is this syntax still correct and preferred?
-
 ``symfit`` assumes these sigma to be from measurement errors by default, and not just as a relative weight.
 This means the standard deviations on parameters are calculated assuming the absolute size 
 of sigma is significant. This is the case for measurement errors and therefore for most use cases ``symfit`` was
@@ -198,7 +196,7 @@ That's it! An ``ODEModel`` behaves just like any other model object, so ``Fit``
 knows how to deal with it! Note that since we don't know the concentration of
 B, we explicitly set ``b=None`` when calling ``Fit`` so it will be ignored.
 
-.. warning:: Fitting to ODEs is extremely difficult from an algorithmic point of view, since these systems are usually very sensitive to the parameters. Using (very) good initial guesses for the parameters and values is critical!
+.. warning:: Fitting to ODEs is extremely difficult from an algorithmic point of view, since these systems are usually very sensitive to the parameters. Using (very) good initial guesses for the parameters and initial values is critical!
 
 Upon every iteration of performing the fit the ODEModel is integrated again from
 the initial point using the new guesses for the parameters.
@@ -355,61 +353,12 @@ Same parameters and same function, different (in)dependent variables::
             for x, y, z in zip(xs, ys, zs)
     }
 
-How Does ``Fit`` Work?
-----------------------
-.. Is this section relevant? 
-
-How does ``Fit`` get from a (named) model and some data to a fit? Consider the following example::
-
-    from symfit import parameters, variables, Fit
-
-    a, b = parameters('a, b')
-    x, y = variables('x, y')
-    model = {y: a * x + b}
-
-    fit = Fit(model, x=x_data, y=y_data, sigma_y=sigma_data)
-    fit_result = fit.execute()
-
-The first thing ``symfit`` does is build :math:`\chi^2` for your model::
-
-    chi_squared = sum((y - f)**2/sigmas[y]**2 for y, f in model.items())
-
-In this line ``sigmas`` is a dict which contains all vars that where given a value, or returns 1 otherwise.
-
-This :math:`\chi^2` is then transformed into a python function which can then be used to do the numerical calculations::
-
-    vars, params = seperate_symbols(chi_squared)
-    py_chi_squared = lambdify(vars + params, chi_squared)
-
-We are now almost there. Just two steps left. The first is to wrap all the data into the ``py_chi_squared`` function using ``partial`` into the function to be optimized::
-
-    from functools import partial
-
-    error = partial(py_chi_squared, **data_per_var)
-
-where ``data_per_var`` is a dict containing variable names: value pairs.
-
-.. All that is left is to do a minimization, not nescessarily using leastsqbound
-
-Now all that is left is to call ``leastsqbound`` and have it find the best fit parameters::
-
-    best_fit_parameters, covariance_matrix = leastsqbound(
-        error,
-        self.guesses,
-        self.eval_jacobian,
-        self.bounds,
-    )
-
-That's it! Finally there are some steps to generate a FitResult object, but these are not important for our current discussion.
-
 What if the model is unnamed?
 -----------------------------
 
 Then you'll have to use the ordering. Variables throughout ``symfit``'s objects are internally ordered in the following
 way: first independent variables, then dependent variables, then sigma variables, and lastly parameters when applicable.
 Within each group alphabetical ordering applies.
-
-.. Does this still work?
 
 It is therefore always possible to assign data to variables in an unambiguis way using this ordering. In the above example::
 
