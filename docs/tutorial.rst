@@ -93,7 +93,7 @@ To make life easier, there is a nice shorthand notation to immediately use a fit
 
   y = model(x=xdata, **fit_result.params)
   
-This unpacks the ``.params`` object as a ``dict``. For more info view ``ParameterDict``.
+This unpacks the ``.params`` object as a ``dict``. For more info view ``ParameterDict`` in the :ref:`apidocs`.
 
 Named Models
 ------------

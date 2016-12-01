@@ -292,7 +292,7 @@ More common examples, such as dampened harmonic oscillators also work as expecte
    :width: 300px
    :alt: Dampened harmonic oscillator
 
-.. note:: Evaluating the model above will produce a named tuple with values for both ``x`` and ``v``. Since we are only interested in the values for ``x``, we immediately select with with ``.x``.
+.. note:: Evaluating the model above will produce a named tuple with values for both ``x`` and ``v``. Since we are only interested in the values for ``x``, we immediately select it with ``.x``.
 
 Global FItting
 --------------
