@@ -34,14 +34,14 @@ Printing ``fit_result`` will give a full report on the values for every paramete
 Initial Guess
 -------------
 For fitting to work as desired you should always give a good initial guess for a parameter.
-The ``Parameter`` object can therefore be initiated with the following keywords:
+The :class:`~symfit.core.argument.Parameter` object can therefore be initiated with the following keywords:
 
 * ``value`` the initial guess value. Defaults to ``1``.
 * ``min`` Minimal value for the parameter.
 * ``max`` Maximal value for the parameter.
 * ``fixed`` Whether the parameter's ``value`` can vary during fitting.
 
-In the example above, we might change our ``Parameter``'s to the following after looking at a plot of the data::
+In the example above, we might change our :class:`~symfit.core.argument.Parameter`'s to the following after looking at a plot of the data::
 
   k = Parameter(value=4, min=3, max=6)
 
@@ -51,9 +51,9 @@ In the example above, we might change our ``Parameter``'s to the following after
 
 Accessing the Results
 ---------------------
-A call to ``Fit.execute()`` returns a ``FitResults`` instance. 
+A call to :meth:`Fit.execute <symfit.core.fit.Fit.execute>` returns a :class:`~symfit.core.fit.FitResults` instance. 
 This object holds all information about the fit. 
-The fitting process does not modify the ``Parameter`` objects. 
+The fitting process does not modify the :class:`~symfit.core.argument.Parameter` objects. 
 In the above example, ``a.value`` will still be ``60`` and not the value we obtain after fitting. To get the value of fit parameters we can do::
 
   >>> print(fit_result.value(a))
@@ -68,7 +68,7 @@ In the above example, ``a.value`` will still be ``60`` and not the value we obta
   >>> 0.950890866472
 
 
-For more FitResults, see the :ref:`apidocs`.
+For more :class:`~symfit.core.fit.FitResults`, see the :ref:`apidocs`.
 
 Evaluating the Model
 --------------------
@@ -93,7 +93,7 @@ To make life easier, there is a nice shorthand notation to immediately use a fit
 
   y = model(x=xdata, **fit_result.params)
   
-This unpacks the ``.params`` object as a ``dict``. For more info view ``ParameterDict`` in the :ref:`apidocs`.
+This unpacks the :attr:`~symfit.core.fit.FitResults.params` object as a :class:`dict`. For more info view :class:`~symfit.core.fit.ParameterDict` in the :ref:`apidocs`.
 
 Named Models
 ------------
@@ -118,8 +118,8 @@ This syntax also supports vector valued functions::
     model = {y_1: a * x**2, y_2: 2 * x * b}
 
 One thing to note about such models is that now ``model(x=xdata)`` obviously no longer works as ``type(model) == dict``.
-There is a preferred way to resolve this. If any kind of fitting object has been initiated, it will have a ``.model`` atribute
-containing an instance of ``Model``. This can again be called::
+There is a preferred way to resolve this. If any kind of fitting object has been initiated, it will have a :attr:`~symfit.core.fit.Fit.model` atribute
+containing an instance of :class:`~symfit.core.fit.Model`. This can again be called::
 
     a, b = parameters('a, b')
     y_1, y_2, x = variables('y_1, y_2, x')
@@ -130,10 +130,10 @@ containing an instance of ``Model``. This can again be called::
 
     y_1_result, y_2_result = fit.model(x=xdata, **fit_result.params)
 
-This returns a ``namedtuple`` with the components evaluated so through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the
+This returns a :class:`namedtuple` with the components evaluated so through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the
 evaluated fit. The variables will be ordered alphabetically. Nice! It may sometimes be clearer to do the unpacking explicitly though.
 
-If for some reason no ``Fit`` is initiated you can make a ``Model`` object yourself::
+If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a :class:`~symfit.core.fit.Model` object yourself::
 
     model = Model(model_dict)
 
@@ -145,6 +145,6 @@ If for some reason no ``Fit`` is initiated you can make a ``Model`` object yours
 symfit exposes sympy.api
 ------------------------
 
-``symfit`` exposes the sympy api as well, so mathematical expressions such as ``exp``, ``sin`` and ``pi`` are importable
-from ``symfit`` as well. For more, read the `sympy docs
+:mod:`symfit` exposes the :mod:`sympy` api as well, so mathematical expressions such as :func:`~sympy.exp`, :func:`~sympy.sin` and :func:`~sympy.pi` are importable
+from :mod:`symfit` as well. For more, read the `sympy docs
 <http://docs.sympy.org>`_.
