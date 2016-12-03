@@ -294,7 +294,9 @@ More common examples, such as dampened harmonic oscillators also work as expecte
 
 .. note:: Evaluating the model above will produce a named tuple with values for both ``x`` and ``v``. Since we are only interested in the values for ``x``, we immediately select it with ``.x``.
 
-Global FItting
+.. _global-fitting:
+
+Global Fitting
 --------------
 In a global fitting problem, we fit to multiple datasets where one or more
 parameters might be shared. The same syntax used for ODE fitting makes this
@@ -329,7 +331,7 @@ Note that ``y0`` is shared between the components. Fitting is then done in the n
 
 
 .. warning::
-    The regression coeeficient is not properly defined for vector-valued models, but it is still listed!
+    The regression coefficient is not properly defined for vector-valued models, but it is still listed!
     Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
     Do not cite the overall :math:`R^2` given by ``symfit``.
 
@@ -360,7 +362,7 @@ Then you'll have to use the ordering. Variables throughout ``symfit``'s objects 
 way: first independent variables, then dependent variables, then sigma variables, and lastly parameters when applicable.
 Within each group alphabetical ordering applies.
 
-It is therefore always possible to assign data to variables in an unambiguis way using this ordering. In the above example::
+It is therefore always possible to assign data to variables in an unambiguis way using this ordering. For example::
 
-    fit = Fit(model, x_data, y_data, sigma_data)
+    fit = Fit(model, x_data, y_data, sigma_y_data)
 
