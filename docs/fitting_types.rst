@@ -1,8 +1,8 @@
 Fitting Types
 =============
 
-Fit (LeastSquares)
-------------------
+Fit (Least Squares)
+-------------------
 The default fitting object does least-squares fitting::
 
     from symfit import parameters, variables, Fit
@@ -48,7 +48,41 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
   never changed so as not to loose backwards compatibility. Since this is a new
   project, we don't have that problem.
 
-``Fit`` is somewhat intelligent, and tries to pick the correct implementation depending on your problem.
+.. _constrained-leastsq:
+
+Constrained Least Squares Fit
+-----------------------------
+The :class:`Fit` takes a ``constraints`` keyword; a list of relationships between
+the parameters that has to be respected.
+As an example of fitting with constraints, we could imagine fitting the angles
+of a triangle::
+
+  a, b, c = parameters('a, b, c')
+  a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+  model = {a_i: a, b_i: b, c_i: c}
+
+  data = np.array([
+      [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
+      [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
+      [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
+  ])
+
+  fit = Fit(
+      model=model,
+      a_i=data[0],
+      b_i=data[1],
+      c_i=data[2],
+      constraints=[Equality(a + b + c, 180)]
+  )
+  fit_result = fit.execute()
+
+The line ``constraints=[Equality(a + b + c, 180)]`` ensures the our basic knowledge
+of geometry is respected despite my sloppy measurements.
+
+.. note:: Under the hood, :class:`~symfit.core.fit.ConstrainedNumericalLeastSquares` is used to
+  perform the fit. :class:`~symfit.core.fit.Fit` tries to select the right fitting object based
+  on the problem you present it with. See :class:`~symfit.core.fit.Fit` for more.
 
 (Non)LinearLeastSquares
 -----------------------
