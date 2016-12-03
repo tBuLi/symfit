@@ -34,16 +34,19 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
 
     fit = Fit(model, x=xdata, y=ydata, sigma_y=sigma)
 
-``symfit`` assumes these sigma to be from measurement errors by default, and not just as a relative weight.
-This means the standard deviations on parameters are calculated assuming the absolute size 
-of sigma is significant. This is the case for measurement errors and therefore for most use cases ``symfit`` was
-designed for. If you only want to use the sigma for relative weights, then you can use ``absolute_sigma=False`` as a
-keyword argument.
 
-Please note that this is the opposite of the convention used by scipy's ``curve_fit``.
-Looking through their mailing list this seems to have been implemented the 'wrong' way
-for historical reasons, and was understandably never changed so as not to loose backwards compatibility.
-Since this is a new project, we don't have that problem.
+.. warning:: ``symfit`` assumes these sigma to be from measurement errors by
+  default, and not just as a relative weight. This means the standard deviations
+  on parameters are calculated assuming the absolute size of sigma is significant.
+  This is the case for measurement errors and therefore for most use cases
+  ``symfit`` was designed for. If you only want to use the sigma for relative
+  weights, then you can use ``absolute_sigma=False`` as a keyword argument.
+
+  Please note that this is the opposite of the convention used by scipy's
+  ``curve_fit``. Looking through their mailing list this seems to have been
+  implemented the 'wrong' way for historical reasons, and was understandably
+  never changed so as not to loose backwards compatibility. Since this is a new
+  project, we don't have that problem.
 
 ``Fit`` is somewhat intelligent, and tries to pick the correct implementation depending on your problem.
 
