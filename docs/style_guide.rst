@@ -24,15 +24,18 @@ Best Practices
   using ordered arguments can become ambiguous and it even appears there is a
   difference in interpretation between py2 and py3. To prevent such ambiguity
   and to make sure your code is transportable, always use named models. And the
-  result is more readable anyway right?
+  result is more readable anyway, right?
 
-* When evaluating models use tuple-unpacking::
+* Evaluating a vector values model returns a ``namedtuple``. You can access the elements
+  by either tuple unpacking, or by using the variable names. Note that if you use tuple 
+  unpacking, the results will be ordered alphabetically::
 
-    model = {y_1: x**2, y_2: x**3}
+    model = Model({y_1: x**2, y_2: x**3})
+    solutions = model(x=xdata)
     sol_1, sol_2 = model(x=xdata)
+    sol_1 = solutions.y_1
+    sol_2 = solutions.y_2
 
-  and not::
+  Using numerical indexing (or something similar) is not recommended::
 
     sol_1 = model(x=xdata)[0]
-
-  or something similar.

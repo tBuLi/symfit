@@ -3,7 +3,7 @@ On Standard Deviations
 
 This essay is meant as a reflection on the implementation of Standard Deviations and/or measurement errors in
 ``symfit``. Although reading this essay in it's entirely will only be interesting to a select few, I urge anyone who
-uses ``symfit`` to read the following summarizing bullet points, as ``symfit`` is NOT backward-compatible with
+uses ``symfit`` to read the following summarizing bullet points, as ``symfit`` is **not** backward-compatible with
 ``scipy``.
 
 * standard deviations are assumed to be measurement errors by default, not relative weights. This is the opposite of the
@@ -14,7 +14,7 @@ Analytical Example
 ------------------
 
 The implementation of standard deviations should be in agreement with cases to which the analytical solution is known.
-``symfit`` was build such that this is true. Let's follow the example outlined by [taldcroft]. We'll be sampling from a
+``symfit`` was build such that this is true. Let's follow the example outlined by [taldcroft]_. We'll be sampling from a
 normal distribution with :math:`\mu = 0.0` and varying :math:`\sigma`. It can be shown that given a sample from such a
 distribution:
 
@@ -46,17 +46,17 @@ fitting to a constant. Therefore we will fit to samples generated from distribut
 
 This gives the following results:
 
-* a = 5.102056e-02 +- 1.000000e-01 when ``sigma_y`` is provided. This matches the analytical prediction.
-* a = 5.102056e-02 +- 9.897135e-02 without ``sigma_y`` provided. This is incorrect.
+* a = 5.102056e-02 |+-| 1.000000e-01 when ``sigma_y`` is provided. This matches the analytical prediction.
+* a = 5.102056e-02 |+-| 9.897135e-02 without ``sigma_y`` provided. This is incorrect.
 
 If we run the above code example with ``sigma = 1.0``, we get the following results:
 
-* a = 5.102056e-03 +- 9.897135e-03 when ``sigma_y`` is provided. This matches the analytical prediction.
-* a = 5.102056e-03 +- 9.897135e-03 without ``sigma_y`` provided. This is also correct, since providing no weights is the
+* a = 5.102056e-03 |+-| 9.897135e-03 when ``sigma_y`` is provided. This matches the analytical prediction.
+* a = 5.102056e-03 |+-| 9.897135e-03 without ``sigma_y`` provided. This is also correct, since providing no weights is the
   same as setting the weights to 1.
 
 To conclude, if ``symfit`` is provided with the standard deviations, it will give the expected result by default. As
-shown in [taldcroft] and ``symfit``'s ``tests.py``, ``scipy.optimize.curve_fit`` has to be provided with the
+shown in [taldcroft]_ and ``symfit``'s tests, ``scipy.optimize.curve_fit`` has to be provided with the
 ``absolute_sigma=True`` setting to do the same.
 
 .. important::
@@ -64,7 +64,7 @@ shown in [taldcroft] and ``symfit``'s ``tests.py``, ``scipy.optimize.curve_fit``
     result. ``scipy`` was build such that the opposite is true: if all datapoints have the same weight, the error in the
     parameters does not depend on the scale of the weight.
 
-    This difference is due to the fact that ``symfit`` is build for area's of science where one is dealing with
+    This difference is due to the fact that ``symfit`` is build for areas of science where one is dealing with
     measurement errors. And with measurement errors, the size of the errors obviously matters for the certainty of the
     fit parameters, even if the errors are the same for every measurement.
 
@@ -74,10 +74,11 @@ Comparison to Mathematica
 =========================
 
 In Mathematica, the default setting is also to use relative weights, which we just argued is not correct when dealing
-with measurement errors. In [mathematica] this problem is discussed very nicely, and it is shown how to solve this in
+with measurement errors. In [Mathematica]_ this problem is discussed very nicely, and it is shown how to solve this in
 Mathematica.
 
 Since ``symfit`` is a fitting tool for the practical man, measurement errors are assumed by default.
 
-.. [taldcroft] http://nbviewer.ipython.org/urls/gist.github.com/taldcroft/5014170/raw/31e29e235407e4913dc0ec403af7ed524372b612/curve_fit.ipynb
-.. [mathematica] http://reference.wolfram.com/language/howto/FitModelsWithMeasurementErrors.html
+.. [taldcroft] http://nbviewer.jupyter.org/urls/gist.github.com/taldcroft/5014170/raw/31e29e235407e4913dc0ec403af7ed524372b612/curve_fit.ipynb
+.. [Mathematica] http://reference.wolfram.com/language/howto/FitModelsWithMeasurementErrors.html
+.. |+-| unicode:: U+00B1 .. Plusminus sign

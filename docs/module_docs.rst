@@ -1,3 +1,5 @@
+.. _apidocs:
+
 Module Documentation
 ====================
 
