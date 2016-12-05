@@ -1607,7 +1607,7 @@ class HasCovarianceMatrix(object):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :return: covariance matrix.
         """
-        if None in self.sigma_data.values():
+        if any(element is None for element in self.sigma_data.values()):
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
