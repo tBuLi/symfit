@@ -45,7 +45,7 @@ In the example above, we might change our :class:`~symfit.core.argument.Paramete
 
   k = Parameter(value=4, min=3, max=6)
 
-  a, b = parameters('b, c')
+  a, b = parameters('a, b')
   a.value = 60
   a.fixed = True
 
@@ -130,7 +130,7 @@ containing an instance of :class:`~symfit.core.fit.Model`. This can again be cal
 
     y_1_result, y_2_result = fit.model(x=xdata, **fit_result.params)
 
-This returns a :class:`namedtuple` with the components evaluated so through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the
+This returns a :func:`~collections.namedtuple` with the components evaluated so through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the
 evaluated fit. The variables will be ordered alphabetically. Nice! It may sometimes be clearer to do the unpacking explicitly though.
 
 If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a :class:`~symfit.core.fit.Model` object yourself::
@@ -145,6 +145,5 @@ If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a 
 symfit exposes sympy.api
 ------------------------
 
-:mod:`symfit` exposes the :mod:`sympy` api as well, so mathematical expressions such as :func:`~sympy.exp`, :func:`~sympy.sin` and :func:`~sympy.pi` are importable
-from :mod:`symfit` as well. For more, read the `sympy docs
-<http://docs.sympy.org>`_.
+:mod:`symfit` exposes the `sympy <http://docs.sympy.org/latest/>`_ api as well, so mathematical expressions such as :class:`~sympy.functions.elementary.exponential.exp`, :class:`~sympy.functions.elementary.trigonometric.sin` and :class:`~sympy.core.numbers.Pi` are importable
+from :mod:`symfit` as well. For more, read the `sympy docs <http://docs.sympy.org>`_.

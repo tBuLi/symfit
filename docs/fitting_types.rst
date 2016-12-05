@@ -26,7 +26,7 @@ The default fitting object does least-squares fitting::
    :width: 300px
    :alt: Linear Model Fit Data
 
-The ``Fit`` object also supports standard deviations. In order to provide these, it's nicer to use a named model::
+The :class:`~symfit.core.fit.Fit` object also supports standard deviations. In order to provide these, it's nicer to use a named model::
 
     a, b = parameters('a, b')
     x, y = variables('x, y')
@@ -35,15 +35,15 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
     fit = Fit(model, x=xdata, y=ydata, sigma_y=sigma)
 
 
-.. warning:: ``symfit`` assumes these sigma to be from measurement errors by
+.. warning:: :mod:`symfit` assumes these sigma to be from measurement errors by
   default, and not just as a relative weight. This means the standard deviations
   on parameters are calculated assuming the absolute size of sigma is significant.
   This is the case for measurement errors and therefore for most use cases
-  ``symfit`` was designed for. If you only want to use the sigma for relative
+  :mod:`symfit` was designed for. If you only want to use the sigma for relative
   weights, then you can use ``absolute_sigma=False`` as a keyword argument.
 
   Please note that this is the opposite of the convention used by scipy's
-  ``curve_fit``. Looking through their mailing list this seems to have been
+  :func:`~scipy.optimize.curve_fit`. Looking through their mailing list this seems to have been
   implemented the 'wrong' way for historical reasons, and was understandably
   never changed so as not to loose backwards compatibility. Since this is a new
   project, we don't have that problem.
@@ -52,7 +52,7 @@ The ``Fit`` object also supports standard deviations. In order to provide these,
 
 Constrained Least Squares Fit
 -----------------------------
-The :class:`Fit` takes a ``constraints`` keyword; a list of relationships between
+The :class:`~symfit.core.fit.Fit` takes a ``constraints`` keyword; a list of relationships between
 the parameters that has to be respected.
 As an example of fitting with constraints, we could imagine fitting the angles
 of a triangle::
@@ -86,24 +86,24 @@ of geometry is respected despite my sloppy measurements.
 
 (Non)LinearLeastSquares
 -----------------------
-The ``LinearLeastSquares`` implements the analytical solution to Least Squares fitting.
+The :class:`~symfit.core.fit.LinearLeastSquares` implements the analytical solution to Least Squares fitting.
 When your model is linear in it's parameters, consider using this rather than the default
-``NumericalLeastSquares`` since this gives the exact solution in one step, no iteration and
+:class:`~symfit.core.fit.NumericalLeastSquares` since this gives the exact solution in one step, no iteration and
 no guesses needed.
 
-``NonLinearLeastSquares`` is the generalization to non-linear models. It works by approximating
+:class:`~symfit.core.fit.NonLinearLeastSquares` is the generalization to non-linear models. It works by approximating
 the model by a linear one around the value of your guesses and repeating that process iteratively.
 This process is therefore very sensitive to getting good initial guesses.
 
 Notes on these objects:
 
-- Use ``NonLinearLeastSquares`` instead of ``LinearLeastSquares`` unless you have a reason not to.
-  ``NonLinearLeastSquares`` will behave exactly the same as ``LinearLeastSquares`` when the model is linear.
+- Use :class:`~symfit.core.fit.NonLinearLeastSquares` instead of :class:`~symfit.core.fit.LinearLeastSquares` unless you have a reason not to.
+  :class:`~symfit.core.fit.NonLinearLeastSquares` will behave exactly the same as :class:`~symfit.core.fit.LinearLeastSquares` when the model is linear.
 - Bounds are currently ignored by both. This is because for linear models there can only be one solution.
   For non-linear models it simply hasn't been considered yet.
-- When performance matters, use ``NumericalLeastSquares`` instead of ``NonLinearLeastSquares``.
+- When performance matters, use :class:`~symfit.core.fit.NumericalLeastSquares` instead of :class:`~symfit.core.fit.NonLinearLeastSquares`.
   These analytical objects are implemented in pure python and are therefore massively outgunned by
-  ``NumericalLeastSquares`` which is ultimately a wrapper to MINPACK.
+  :class:`~symfit.core.fit.NumericalLeastSquares` which is ultimately a wrapper to MINPACK.
 
 Likelihood
 ----------
@@ -126,12 +126,12 @@ Example::
     fit = Likelihood(model, data)
     fit_result = fit.execute()
 
-Off-course ``fit_result`` is a normal ``FitResults`` object. Because ``scipy.optimize.minimize`` is used to do the actual work, bounds on parameters, and even constraints are supported. For more information on this subject, check out ``symfit``'s ``Minimize``.
+Off-course ``fit_result`` is a normal :class:`~symfit.core.fit.FitResults` object. Because :func:`scipy.optimize.minimize` is used to do the actual work, bounds on parameters, and even constraints are supported. For more information on this subject, check out :mod:`symfit`'s :class:`~symfit.core.fit.Minimize`.
 
 Minimize/Maximize
 -----------------
-Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapper to ``scipy.optimize.minimize``. As an
-example I present an example from the ``scipy`` `docs
+Minimize or Maximize a model subject to bounds and/or constraints. It is a wrapper to :func:`scipy.optimize.minimize`. As an
+example I present an example from the `scipy docs
 <https://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
 
 Suppose we want to maximize the following function:
@@ -171,7 +171,7 @@ In SciPy code the following lines are needed::
     res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                    constraints=cons, method='SLSQP', options={'disp': True})
 
-Takes a couple of read-throughs to make sense, doesn't it? Let's do the same problem in ``symfit``::
+Takes a couple of read-throughs to make sense, doesn't it? Let's do the same problem in :mod:`symfit`::
 
     from symfit import parameters, Maximize, Eq, Ge
 
@@ -185,16 +185,16 @@ Takes a couple of read-throughs to make sense, doesn't it? Let's do the same pro
     fit = Maximize(model, constraints=constraints)
     fit_result = fit.execute()
 
-Done! ``symfit`` will determine all derivatives automatically, no need for you to think about it.
+Done! :mod:`symfit` will determine all derivatives automatically, no need for you to think about it.
 
-.. warning:: You might have noticed that ``x`` and ``y`` are ``Parameter``'s in the above problem, which may strike you as weird.
+.. warning:: You might have noticed that ``x`` and ``y`` are :class:`~symfit.core.argument.Parameter`'s in the above problem, which may strike you as weird.
   However, it makes perfect sense because in this problem they are parameters to be optimised, not independent variables.
-  Furthermore, this way of defining it is consistent with the treatment of ``Variable``'s and ``Parameter``'s in ``symfit``.
-  Be aware of this when using ``Minimize``, as the whole process won't work otherwise.
+  Furthermore, this way of defining it is consistent with the treatment of :class:`~symfit.core.argument.Variable`'s and :class:`~symfit.core.argument.Parameter`'s in :mod:`symfit`.
+  Be aware of this when using :class:`~symfit.core.fit.Minimize`, as the whole process won't work otherwise.
 
 ODE Fitting
 -----------
-Fitting to a system of ordinary differential equations (ODEs) is also remarkedly simple with ``symfit``. Let's do a
+Fitting to a system of ordinary differential equations (ODEs) is also remarkedly simple with :mod:`symfit`. Let's do a
 simple example from reaction kinetics. Suppose we have a reaction A + A -> B with rate constant :math:`k`.
 We then need the following system of rate equations:
 
@@ -204,14 +204,14 @@ We then need the following system of rate equations:
 
   \frac{dB}{dt} = k A^2
 
-In ``symfit``, this becomes::
+In :mod:`symfit`, this becomes::
 
     model_dict = {
         D(a, t): - k * a**2,
         D(b, t): k * a**2,
     }
 
-We see that the ``symfit`` code is already very readable. Let's do a fit to this::
+We see that the :mod:`symfit` code is already very readable. Let's do a fit to this::
 
     tdata = np.array([10, 26, 44, 70, 120])
     adata = 10e-4 * np.array([44, 34, 27, 20, 14])
@@ -229,9 +229,9 @@ We see that the ``symfit`` code is already very readable. Let's do a fit to this
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
     fit_result = fit.execute()
 
-That's it! An ``ODEModel`` behaves just like any other model object, so ``Fit``
+That's it! An :class:`~symfit.core.fit.ODEModel` behaves just like any other model object, so :class:`~symfit.core.fit.Fit`
 knows how to deal with it! Note that since we don't know the concentration of
-B, we explicitly set ``b=None`` when calling ``Fit`` so it will be ignored.
+B, we explicitly set ``b=None`` when calling :class:`~symfit.core.fit.Fit` so it will be ignored.
 
 .. warning:: Fitting to ODEs is extremely difficult from an algorithmic point of view, since these systems are usually very sensitive to the parameters. Using (very) good initial guesses for the parameters and initial values is critical!
 
@@ -254,10 +254,10 @@ We can plot it just like always::
    :width: 300px
    :alt: Linear Model Fit Data
 
-As an example of the power of ``symfit``'s ODE syntax, let's have a look at
+As an example of the power of :mod:`symfit`'s ODE syntax, let's have a look at
 a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> d.
 
-In ``symfit`` these can be implemented as::
+In :mod:`symfit` these can be implemented as::
 
     AA, B, AAB, BAAB, t = variables('AA, B, AAB, BAAB, t')
     k, p, l, m = parameters('k, p, l, m')
@@ -324,12 +324,11 @@ More common examples, such as dampened harmonic oscillators also work as expecte
     fit = Fit(ode_model, t=times, x=data)
     fit_result = fit.execute()
 
+.. note:: Evaluating the model above will produce a named tuple with values for both ``x`` and ``v``. Since we are only interested in the values for ``x``, we immediately select it with ``.x``.
 
 .. figure:: _static/ode_dampened_harmonic_oscillator.png
    :width: 300px
    :alt: Dampened harmonic oscillator
-
-.. note:: Evaluating the model above will produce a named tuple with values for both ``x`` and ``v``. Since we are only interested in the values for ``x``, we immediately select it with ``.x``.
 
 .. _global-fitting:
 
@@ -337,7 +336,7 @@ Global Fitting
 --------------
 In a global fitting problem, we fit to multiple datasets where one or more
 parameters might be shared. The same syntax used for ODE fitting makes this
-problem very easy to solve in ``symfit``.
+problem very easy to solve in :mod:`symfit`.
 
 As a simple example, suppose we have two datasets measuring exponential decay, with
 the same background, but different amplitude and decay rate.
@@ -370,7 +369,7 @@ Note that ``y0`` is shared between the components. Fitting is then done in the n
 .. warning::
     The regression coefficient is not properly defined for vector-valued models, but it is still listed!
     Until this is fixed, please recalculate it on your own for every component using the bestfit parameters.
-    Do not cite the overall :math:`R^2` given by ``symfit``.
+    Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
 Advanced usage
 ..............
@@ -395,7 +394,7 @@ Same parameters and same function, different (in)dependent variables::
 What if the model is unnamed?
 -----------------------------
 
-Then you'll have to use the ordering. Variables throughout ``symfit``'s objects are internally ordered in the following
+Then you'll have to use the ordering. Variables throughout :mod:`symfit`'s objects are internally ordered in the following
 way: first independent variables, then dependent variables, then sigma variables, and lastly parameters when applicable.
 Within each group alphabetical ordering applies.
 
