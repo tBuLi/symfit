@@ -3,7 +3,9 @@ Tutorial
 
 Simple Example
 --------------
-The example below shows how easy it is to define a model that we could fit to. ::
+The example below shows how easy it is to define a model that we could fit to.
+
+::
 
   from symfit import Parameter, Variable
   
@@ -29,19 +31,23 @@ Lets fit this model to some generated data. ::
    :width: 300px
    :alt: Linear Model Fit Data
 
-Printing ``fit_result`` will give a full report on the values for every parameter, including the uncertainty, and quality of the fit.
+Printing ``fit_result`` will give a full report on the values for every
+parameter, including the uncertainty, and quality of the fit.
 
 Initial Guess
 -------------
-For fitting to work as desired you should always give a good initial guess for a parameter.
-The :class:`~symfit.core.argument.Parameter` object can therefore be initiated with the following keywords:
+For fitting to work as desired you should always give a good initial guess for
+a parameter. The :class:`~symfit.core.argument.Parameter` object can therefore
+be initiated with the following keywords:
 
 * ``value`` the initial guess value. Defaults to ``1``.
 * ``min`` Minimal value for the parameter.
 * ``max`` Maximal value for the parameter.
 * ``fixed`` Whether the parameter's ``value`` can vary during fitting.
 
-In the example above, we might change our :class:`~symfit.core.argument.Parameter`'s to the following after looking at a plot of the data::
+In the example above, we might change our
+:class:`~symfit.core.argument.Parameter`'s to the following after looking at a
+plot of the data::
 
   k = Parameter(value=4, min=3, max=6)
 
@@ -51,10 +57,12 @@ In the example above, we might change our :class:`~symfit.core.argument.Paramete
 
 Accessing the Results
 ---------------------
-A call to :meth:`Fit.execute <symfit.core.fit.Fit.execute>` returns a :class:`~symfit.core.fit.FitResults` instance. 
-This object holds all information about the fit. 
-The fitting process does not modify the :class:`~symfit.core.argument.Parameter` objects. 
-In the above example, ``a.value`` will still be ``60`` and not the value we obtain after fitting. To get the value of fit parameters we can do::
+A call to :meth:`Fit.execute <symfit.core.fit.Fit.execute>` returns a
+:class:`~symfit.core.fit.FitResults` instance. This object holds all information
+about the fit. The fitting process does not modify the
+:class:`~symfit.core.argument.Parameter` objects. In the above example,
+``a.value`` will still be ``60`` and not the value we obtain after fitting. To
+get the value of fit parameters we can do::
 
   >>> print(fit_result.value(a))
   >>> 14.66946...
@@ -72,8 +80,9 @@ For more :class:`~symfit.core.fit.FitResults`, see the :ref:`apidocs`.
 
 Evaluating the Model
 --------------------
-With these parameters, we could now evaluate the model with these parameters so we can make a plot of it.
-In order to do this, we simply call the model with these values::
+With these parameters, we could now evaluate the model with these parameters so
+we can make a plot of it. In order to do this, we simply call the model with
+these values::
 
   import matplotlib.pyplot as plt
   
@@ -85,41 +94,51 @@ In order to do this, we simply call the model with these values::
    :width: 300px
    :alt: Linear Model Fit
   
-The model *has* to be called by keyword arguments to prevent any ambiguity. So the following does not work::
+The model *has* to be called by keyword arguments to prevent any ambiguity. So
+the following does not work::
 
   y = model(xdata, fit_result.value(a), fit_result.value(b))
   
-To make life easier, there is a nice shorthand notation to immediately use a fit result::
+To make life easier, there is a nice shorthand notation to immediately use a
+fit result::
 
   y = model(x=xdata, **fit_result.params)
   
-This unpacks the :attr:`~symfit.core.fit.FitResults.params` object as a :class:`dict`. For more info view :class:`~symfit.core.fit.ParameterDict` in the :ref:`apidocs`.
+This unpacks the :attr:`~symfit.core.fit.FitResults.params` object as a
+:class:`dict`. For more info view :class:`~symfit.core.fit.ParameterDict` in
+the :ref:`apidocs`.
 
 Named Models
 ------------
 
-More complicated models are also relatively easy to deal with by using named models.
-Let's try our luck with a bivariate normal distribution::
+More complicated models are also relatively easy to deal with by using named
+models. Let's try our luck with a bivariate normal distribution::
 
-    from symfit import parameters, variables, exp, pi, sqrt
+  from symfit import parameters, variables, exp, pi, sqrt
 
-    x, y, p = variables('x, y, p')
-    mu_x, mu_y, sig_x, sig_y, rho = parameters('mu_x, mu_y, sig_x, sig_y, rho')
+  x, y, p = variables('x, y, p')
+  mu_x, mu_y, sig_x, sig_y, rho = parameters('mu_x, mu_y, sig_x, sig_y, rho')
 
-    z = (x - mu_x)**2/sig_x**2 + (y - mu_y)**2/sig_y**2 - 2 * rho * (x - mu_x) * (y - mu_y)/(sig_x * sig_y)
-    model = {p: exp(- z / (2 * (1 - rho**2))) / (2 * pi * sig_x * sig_y * sqrt(1 - rho**2))}
+  z = (x - mu_x)**2/sig_x**2 +\
+      (y - mu_y)**2/sig_y**2 -\
+      2 * rho * (x - mu_x) * (y - mu_y)/(sig_x * sig_y)
+  model = {p: exp(- z / (2 * (1 - rho**2))) /\
+              (2 * pi * sig_x * sig_y * sqrt(1 - rho**2))}
 
-    fit = Fit(model, x=xdata, y=ydata, p=pdata)
+  fit = Fit(model, x=xdata, y=ydata, p=pdata)
 
-By using the magic of named models, the flow of information is still relatively clear, even with such a complicated function.
+By using the magic of named models, the flow of information is still relatively
+clear, even with such a complicated function.
 
 This syntax also supports vector valued functions::
 
     model = {y_1: a * x**2, y_2: 2 * x * b}
 
-One thing to note about such models is that now ``model(x=xdata)`` obviously no longer works as ``type(model) == dict``.
-There is a preferred way to resolve this. If any kind of fitting object has been initiated, it will have a :attr:`~symfit.core.fit.Fit.model` atribute
-containing an instance of :class:`~symfit.core.fit.Model`. This can again be called::
+One thing to note about such models is that now ``model(x=xdata)`` obviously no
+longer works as ``type(model) == dict``. There is a preferred way to resolve
+this. If any kind of fitting object has been initiated, it will have a
+:attr:`~symfit.core.fit.Fit.model` atribute containing an instance of
+:class:`~symfit.core.fit.Model`. This can again be called::
 
     a, b = parameters('a, b')
     y_1, y_2, x = variables('y_1, y_2, x')
@@ -130,10 +149,13 @@ containing an instance of :class:`~symfit.core.fit.Model`. This can again be cal
 
     y_1_result, y_2_result = fit.model(x=xdata, **fit_result.params)
 
-This returns a :func:`~collections.namedtuple` with the components evaluated so through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the
-evaluated fit. The variables will be ordered alphabetically. Nice! It may sometimes be clearer to do the unpacking explicitly though.
+This returns a :func:`~collections.namedtuple` with the components evaluated so
+through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the evaluated
+fit. The variables will be ordered alphabetically. Nice! It may sometimes be
+clearer to do the unpacking explicitly though.
 
-If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a :class:`~symfit.core.fit.Model` object yourself::
+If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a
+:class:`~symfit.core.fit.Model` object yourself::
 
     model = Model(model_dict)
 
@@ -145,5 +167,8 @@ If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a 
 symfit exposes sympy.api
 ------------------------
 
-:mod:`symfit` exposes the `sympy <http://docs.sympy.org/latest/>`_ api as well, so mathematical expressions such as :class:`~sympy.functions.elementary.exponential.exp`, :class:`~sympy.functions.elementary.trigonometric.sin` and :class:`~sympy.core.numbers.Pi` are importable
-from :mod:`symfit` as well. For more, read the `sympy docs <http://docs.sympy.org>`_.
+:mod:`symfit` exposes the `sympy <http://docs.sympy.org/latest/>`_ api as well,
+so mathematical expressions such as :class:`~sympy.functions.elementary.exponential.exp`,
+:class:`~sympy.functions.elementary.trigonometric.sin` and :class:`~sympy.core.numbers.Pi`
+are importable from :mod:`symfit` as well. For more, read the
+`sympy docs <http://docs.sympy.org>`_.
