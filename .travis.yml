@@ -1,29 +1,24 @@
 language: python
 python:
-- '2.7'
-- '3.4'
-- '3.5'
+  - "2.7"
+  - "3.4"
+  - "3.5"
+cache:
+  - pip
 before_install:
-- |
-  wget \
-    http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh \
-    -O miniconda.sh
-- chmod +x miniconda.sh
-- "./miniconda.sh -b -p $(pwd)/miniconda"
-- export PATH=$(pwd)/miniconda/bin:$PATH
-- conda update --yes conda
-- export DISPLAY=:99.0
-- sh -e /etc/init.d/xvfb start
+## Provide a X display for plotting
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+## Install the dependencies
 install:
-- |
-  conda create \
-    --yes -q -n pyenv \
-    python=$TRAVIS_PYTHON_VERSION \
-    numpy scipy sympy nose
-- source activate pyenv
-- pip install .[contrib]
-- pip install twine
-- echo $PATH
+  # Upgrade pip to enable the --only-binary flag
+  - pip install --upgrade pip setuptools
+  # TODO: There should be a version switch here. Actually, are these statements needed? Or does pip install . take care of it?
+  #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
+  #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
+  - pip install --upgrade nose
+  - pip install .
+  - echo $PATH
 # Run tests
 script: nosetests
 before_deploy:
