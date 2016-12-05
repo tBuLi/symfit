@@ -26,7 +26,7 @@ Best Practices
   and to make sure your code is transportable, always use named models. And the
   result is more readable anyway, right?
 
-* Evaluating a vector values model returns a ``namedtuple``. You can access the elements
+* Evaluating a vector values model returns a :func:`~collections.namedtuple`. You can access the elements
   by either tuple unpacking, or by using the variable names. Note that if you use tuple 
   unpacking, the results will be ordered alphabetically::
 

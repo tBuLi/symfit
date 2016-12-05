@@ -36,7 +36,11 @@ extensions = [
     'sphinx.ext.intersphinx',
 ]
 
-intersphinx_mapping = {'sympy': ('http://docs.sympy.org', None)}
+intersphinx_mapping = {
+                       'sympy': ('http://docs.sympy.org/latest', None),
+                       'python': ('https://docs.python.org/3', None),
+                       'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+                      }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
