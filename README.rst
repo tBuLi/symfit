@@ -1,3 +1,5 @@
+.. highlight:: python
+
 Documentation
 =============
 http://symfit.readthedocs.org
