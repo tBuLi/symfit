@@ -21,18 +21,25 @@ Best Practices
     fit = Fit(model, x=xdata, y=ydata)
 
   In this simple example the two are equivalent but for multidimentional data
-  using ordered arguments can become ambiguous and it even appears there is a
-  difference in interpretation between py2 and py3. To prevent such ambiguity
-  and to make sure your code is transportable, always use named models. And the
-  result is more readable anyway right?
+  using ordered arguments can become ambiguous and difficult to read. To
+  increase readability, it is therefore recommended to always use named models.
 
-* When evaluating models use tuple-unpacking::
+* Evaluating a (vector valued) model returns a :func:`~collections.namedtuple`.
+  You can access the elements by either tuple unpacking, or by using the
+  variable names. Note that if you use tuple unpacking, the results will be
+  ordered alphabetically. The following::
 
-    model = {y_1: x**2, y_2: x**3}
+    model = Model({y_1: x**2, y_2: x**3})
     sol_1, sol_2 = model(x=xdata)
 
-  and not::
+  is therefore equivalent to::
+
+    model = Model({y_1: x**2, y_2: x**3})
+    solutions = model(x=xdata)
+    sol_1 = solutions.y_1
+    sol_2 = solutions.y_2
+
+  Using numerical indexing (or something similar) is not recommended as it is
+  less readable than the options given above::
 
     sol_1 = model(x=xdata)[0]
-
-  or something similar.

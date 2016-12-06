@@ -30,8 +30,8 @@ class ModelError(Exception):
 class ParameterDict(object):
     """
     Container for all the parameters and their (co)variances.
-    Behaves mostly like an OrderedDict: can be **-ed, allowing the sexy syntax where a model is
-    called with values for the Variables and **params. However, under iteration
+    Behaves mostly like an OrderedDict: can be \*\*-ed, allowing the sexy syntax where a model is
+    called with values for the Variables and \*\*params. However, under iteration
     it behaves like a list! In other words, it preserves order in the params.
     """
     def __init__(self, params, popt, pcov, *args, **kwargs):
@@ -347,7 +347,7 @@ class BaseModel(Mapping):
         ``Model``'s are considered equal when they have the same dependent variables,
         and the same expressions for those dependent variables. The same is defined here
         as passing sympy == for the vars themselves, and as expr1 - expr2 == 0 for the
-        expressions. For more info check the `sympy docs<https://github.com/sympy/sympy/wiki/Faq>`_.
+        expressions. For more info check the `sympy docs <https://github.com/sympy/sympy/wiki/Faq>`_.
 
         :param other: Instance of ``Model``.
         :return: bool
@@ -512,8 +512,8 @@ class Model(CallableModel):
     def jacobian(self):
         """
         :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-        Partial derivatives are of the components of the function with respect to the Parameter's,
-        not the independent Variable's.
+          Partial derivatives are of the components of the function with respect to the Parameter's,
+          not the independent Variable's.
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
@@ -663,9 +663,9 @@ class TaylorModel(Model):
     def params(self):
         """
         params returns only the `free` parameters. Strictly speaking, the expression for a
-        ``TaylorModel`` contains both the parameters :math:`\vec{p}` and :math:`\vec{p_0}`
-        around which to expand, but params should only give :math:`\vec{p}`. To get a
-        mapping to the :math:`\vec{p_0}`, use ``.params_0``.
+        ``TaylorModel`` contains both the parameters :math:`\\vec{p}` and :math:`\\vec{p_0}`
+        around which to expand, but params should only give :math:`\\vec{p}`. To get a
+        mapping to the :math:`\\vec{p_0}`, use ``.params_0``.
         """
         return [p for p in self._params if p not in self.params_0.values()]
 
@@ -796,7 +796,7 @@ class TakesData(object):
         :param named_data: assign dependent, independent and sigma variables data by name.
 
         Standard deviation can be provided to any variable. They have to be prefixed
-        with sigma_. For example, let x be a Variable. Then sigma_x will give the
+        with sigma\_. For example, let x be a Variable. Then sigma_x will give the
         stdev in x.
         """
         absolute_sigma = named_data.pop('absolute_sigma')
@@ -1174,7 +1174,7 @@ class NonLinearLeastSquares(BaseFit):
 
     Sensitive to good initial guesses. Providing good initial guesses is a must.
 
-    .. [wiki] https://en.wikipedia.org/wiki/Non-linear_least_squares
+    .. [wiki_nllsq] https://en.wikipedia.org/wiki/Non-linear_least_squares
     """
     def __init__(self, *args, **kwargs):
         super(NonLinearLeastSquares, self).__init__(*args, **kwargs)
@@ -1246,8 +1246,8 @@ class Fit(object):
     If you need very specific control over how the problem is solved, please use
     one of the available fitting objects directly.
 
-    Currently `Fit` will select between `NumericalLeastSquares` and
-    `ConstrainedNumericalLeastSquares`.
+    Currently :class:`Fit` will select between :class:`NumericalLeastSquares`
+    and :class:`ConstrainedNumericalLeastSquares`.
     """
     def __init__(self, *args, **kwargs):
         if 'constraints' in kwargs:
@@ -1273,7 +1273,10 @@ class Fit(object):
 
     @property
     def model(self):
-        """ Property which returns self.fit.model """
+        """
+        Property which returns the :class:`Model` object, taken from
+        self.fit.model
+        """
         return self.fit.model
 
     @model.setter
@@ -1729,8 +1732,13 @@ class HasCovarianceMatrix(object):
 
 class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
     """
-    This object performs :math:`\chi^2` minimization, subject to constraints.
-    As an example, we could imagine fitting the angles of a triangle::
+    This object performs :math:`\chi^2` minimization, subject to constraints and
+    bounds. The flexibility of this object also makes it ideal for global
+    fitting problems; problems where multiple datasets have to be fitted using
+    shared parameters. For an example of this, see :ref:`Global Fitting <global-fitting>`.
+
+    The example in :ref:`Constrained Least Squares Fit <constrained-leastsq>`
+    is solved using this object::
 
         a, b, c = parameters('a, b, c')
         a_i, b_i, c_i = variables('a_i, b_i, c_i')
@@ -1752,12 +1760,12 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         )
         fit_result = fit.execute()
 
-    Unlike `NumericalLeastSquares`, it also supports vector components of unequal
-    length and is therefore preferred for Global Fitting problems.
+    Unlike :class:`NumericalLeastSquares`, it also supports vector components of
+    unequal length and is therefore preferred for Global Fitting problems.
 
-    In order to perform minimization, this object is a subclass of `Minimize`,
+    In order to perform minimization, this object is a subclass of :class:`Minimize`,
     and the output might therefore deviate slightly from the MINPACK result given
-    by the more traditional `NumericalLeastSquares` object.
+    by the more traditional :class:`NumericalLeastSquares` object.
     """
     def error_func(self, p, independent_data, dependent_data, sigma_data, flatten_components=True):
         """
@@ -1808,7 +1816,7 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
     @keywordonly(tol=1e-9)
     def execute(self, *args, **kwargs):
         """
-        This wraps the execute of 'Minimize' with the calculation of the
+        This wraps the execute of :class:'Minimize' with the calculation of the
         covariance matrix. Read `Minimize.execute` for a more general
         description.
         """
@@ -2165,6 +2173,15 @@ class ODEModel(CallableModel):
         # return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
 
     def eval_components(self, *args, **kwargs):
+        """
+        Numerically integrate the system of ODEs.
+
+        :param args: Ordered arguments for the parameters and independent
+          variables
+        :param kwargs:  Keyword arguments for the parameters and independent
+          variables
+        :return:
+        """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
 
@@ -2210,8 +2227,10 @@ class ODEModel(CallableModel):
         Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
         Alphabetical order within each group.
 
-        :param args:
-        :param kwargs:
+        :param args: Ordered arguments for the parameters and independent
+          variables
+        :param kwargs:  Keyword arguments for the parameters and independent
+          variables
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
