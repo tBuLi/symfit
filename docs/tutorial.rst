@@ -119,11 +119,17 @@ models. Let's try our luck with a bivariate normal distribution::
   x, y, p = variables('x, y, p')
   mu_x, mu_y, sig_x, sig_y, rho = parameters('mu_x, mu_y, sig_x, sig_y, rho')
 
-  z = (x - mu_x)**2/sig_x**2 +\
-      (y - mu_y)**2/sig_y**2 -\
-      2 * rho * (x - mu_x) * (y - mu_y)/(sig_x * sig_y)
-  model = {p: exp(- z / (2 * (1 - rho**2))) /\
-              (2 * pi * sig_x * sig_y * sqrt(1 - rho**2))}
+  z = (
+      (x - mu_x)**2/sig_x**2
+      + (y - mu_y)**2/sig_y**2
+      - 2 * rho * (x - mu_x) * (y - mu_y)/(sig_x * sig_y)
+  )
+  model = {
+      p: exp(
+          - z / (2 * (1 - rho**2)))
+          / (2 * pi * sig_x * sig_y * sqrt(1 - rho**2)
+      )
+  }
 
   fit = Fit(model, x=xdata, y=ydata, p=pdata)
 
