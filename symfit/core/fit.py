@@ -1174,7 +1174,7 @@ class NonLinearLeastSquares(BaseFit):
 
     Sensitive to good initial guesses. Providing good initial guesses is a must.
 
-    .. [wiki] https://en.wikipedia.org/wiki/Non-linear_least_squares
+    .. [wiki_nllsq] https://en.wikipedia.org/wiki/Non-linear_least_squares
     """
     def __init__(self, *args, **kwargs):
         super(NonLinearLeastSquares, self).__init__(*args, **kwargs)
