@@ -17,7 +17,7 @@ install:
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
   - pip install --upgrade nose
-  - pip install .
+  - pip install .[all]
   - echo $PATH
 # Run tests
 script: nosetests
