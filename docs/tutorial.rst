@@ -149,15 +149,19 @@ this. If any kind of fitting object has been initiated, it will have a
 
     y_1_result, y_2_result = fit.model(x=xdata, **fit_result.params)
 
-This returns a :func:`~collections.namedtuple` with the components evaluated so
-through the magic of tuple unpacking ``y_1`` and ``y_2`` contain the evaluated
-fit. The variables will be ordered alphabetically. Nice! It may sometimes be
-clearer to do the unpacking explicitly though.
+This returns a :func:`~collections.namedtuple`, with the components evaluated.
+So through the magic of tuple unpacking, ``y_1`` and ``y_2`` contain the
+evaluated fit. The dependent variables will be ordered alphabetically in the
+returned :func:`~collections.namedtuple`. Alternatively, the unpacking can be
+performed explicitly.
 
 If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a
 :class:`~symfit.core.fit.Model` object yourself::
 
     model = Model(model_dict)
+    y_1_result, y_2_result = model(x=xdata, a=2.4, b=0.1)
+
+  or equivalently::
 
     outcome = model(x=xdata, a=2.4, b=0.1)
     y_1_result = outcome.y_1
