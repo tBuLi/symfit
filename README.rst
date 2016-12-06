@@ -11,20 +11,20 @@ The goal of this project is simple: to make fitting in Python sexy and pythonic.
 Well, there's a simple test. 
 If I can give you pieces of example code and don't have to use any additional words to explain what it does, it's pythonic.
 
-::
+.. code-block:: python
 
-    from symfit import parameters, variables, Fit
-    
-    xdata = [1.0, 2.0, 3.0, 4.0, 5.0]
-    ydata = [2.3, 3.3, 4.1, 5.5, 6.7]
-    yerr = [0.1, 0.1, 0.1, 0.1, 0.1]
-    
-    a, b = parameters('a, b')
-    x, y = variables('x, y')
-    model = {y: a * x + b}
-    
-    fit = Fit(model, x=xdata, y=ydata, sigma_y=yerr)
-    fit_result = fit.execute()
+  from symfit import parameters, variables, Fit
+   
+  xdata = [1.0, 2.0, 3.0, 4.0, 5.0]
+  ydata = [2.3, 3.3, 4.1, 5.5, 6.7]
+  yerr = [0.1, 0.1, 0.1, 0.1, 0.1]
+  
+  a, b = parameters('a, b')
+  x, y = variables('x, y')
+  model = {y: a * x + b}
+  
+  fit = Fit(model, x=xdata, y=ydata, sigma_y=yerr)
+  fit_result = fit.execute()
 
 Cool right? So now that we have done a fit, how do can we use the results?
 
