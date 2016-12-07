@@ -20,7 +20,7 @@ The first thing :mod:`symfit` does is build :math:`\chi^2` for your model::
 
     chi_squared = sum((y - f)**2/sigmas[y]**2 for y, f in model.items())
 
-In this line ``sigmas`` is a dict which contains all vars that where given a
+In this line ``sigmas`` is a dict which contains all variables that where given a
 value, or returns 1 otherwise.
 
 This :math:`\chi^2` is then transformed into a python function which can then
@@ -30,7 +30,7 @@ be used to do the numerical calculations::
     py_chi_squared = lambdify(vars + params, chi_squared)
 
 We are now almost there. Just two steps left. The first is to wrap all the data
-into the ``py_chi_squared`` function using :func:`~functools.partial` into the
+into the ``py_chi_squared`` function using :func:`~functoolsiable.partial` into the
 function to be optimized::
 
     from functools import partial

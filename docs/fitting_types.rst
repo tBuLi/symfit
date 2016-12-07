@@ -230,8 +230,8 @@ We then need the following system of rate equations:
 In :mod:`symfit`, this becomes::
 
     model_dict = {
-        D(a, t): - k * a**2,
-        D(b, t): k * a**2,
+        D(A, t): - k * A**2,
+        D(B, t): k * A**2,
     }
 
 We see that the :mod:`symfit` code is already very readable. Let's do a fit to
@@ -239,16 +239,16 @@ this::
 
     tdata = np.array([10, 26, 44, 70, 120])
     adata = 10e-4 * np.array([44, 34, 27, 20, 14])
-    a, b, t = variables('a, b, t')
+    A, B, t = variables('A, B, t')
     k = Parameter(0.1)
-    a0 = 54 * 10e-4
+    A0 = 54 * 10e-4
 
     model_dict = {
-        D(a, t): - k * a**2,
-        D(b, t): k * a**2,
+        D(A, t): - k * A**2,
+        D(B, t): k * A**2,
     }
 
-    ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
+    ode_model = ODEModel(model_dict, initial={t: 0.0, A: A0, B: 0.0})
 
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
     fit_result = fit.execute()
@@ -283,7 +283,7 @@ We can plot it just like always::
    :alt: Linear Model Fit Data
 
 As an example of the power of :mod:`symfit`'s ODE syntax, let's have a look at
-a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> d.
+a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> BAAB.
 
 In :mod:`symfit` these can be implemented as::
 
