@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
-from ... import ODEModel, Derivative
+from ... import ODEModel, Derivative, latex
 from ...core.fit import TakesData
 from ...core.support import keywordonly, key2str
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.axes3d import Axes3D
+
 import itertools
-import sympy.printing.latex
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 plt.ioff()
 
@@ -106,9 +106,9 @@ class InteractiveGuess2D(TakesData):
             else:
                 title_format = '${dependant}({independant}) = {expression}$'
             plotlabel = title_format.format(
-                dependant=sympy.printing.latex(y, mode='plain'),
-                independant=x.name,
-                expression=sympy.printing.latex(self.model[y], mode='plain'))
+                dependant=latex(y, mode='plain'),
+                independant=latex(x, mode='plain'),
+                expression=latex(self.model[y], mode='plain'))
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
                                       label=plotlabel)
             ax.set_title(ax.get_label())
