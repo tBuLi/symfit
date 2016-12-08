@@ -141,9 +141,9 @@ def jacobian(expr, symbols):
 def key2str(target):
     """
     In ``symfit`` there are many dicts with symbol: value pairs.
-    These can not be used immediately as **kwargs, even though this would make
+    These can not be used immediately as \*\*kwargs, even though this would make
     a lot of sense from the context.
-    This function wraps such dict to make them usable as **kwargs immidiately.
+    This function wraps such dict to make them usable as \*\*kwargs immidiately.
 
     :param target: dict to be made save
     :return: dict of str(symbol): value pairs.
@@ -162,16 +162,17 @@ class keywordonly(object):
 
     Example::
 
-        @keywordonly(floor=True)
-        def f(x, **kwargs):
-            floor = kwargs.pop('floor')
-            return np.floor(x**2) if floor else x**2
+      @keywordonly(floor=True)
+      def f(x, **kwargs):
+          floor = kwargs.pop('floor')
+          return np.floor(x**2) if floor else x**2
 
     This decorator is not much more than::
 
-        floor = kwargs.pop('floor') if 'floor' in kwargs else True
+      floor = kwargs.pop('floor') if 'floor' in kwargs else True
 
-    However, I prefer it's usage because: 
+    However, I prefer it's usage because:
+ 
     - it's clear from reading the function declaration there is an option to provide this 
       argument. The information on possible keywords is where you'd expect it to be.
     - you're guaranteed that the pop works.

@@ -67,7 +67,7 @@ def call(self, *values, **named_values):
     :param values: Values for the Parameters and Variables of the Expr.
     :param named_values: Values for the vars and params by name. ``named_values`` is
         allowed to contain too many values, as this sometimes happens when using
-        **fit_result.params on a submodel. The irrelevant params are simply ignored.
+        \*\*fit_result.params on a submodel. The irrelevant params are simply ignored.
     :return: The function evaluated at ``values``. The type depends entirely on the input.
         Typically an array or a float but nothing is enforced.
     """
