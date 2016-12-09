@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
 from symfit.contrib import interactive_guess
-from symfit import Variable, Parameter, exp
+from symfit import Variable, Parameter, exp, latex
 from symfit.distributions import Gaussian
 import numpy as np
 import unittest
 import matplotlib.colors
 import matplotlib.pyplot as plt
-import sympy.printing.latex
 
 plt.ioff()
 def distr(x, k, x0):
     kbT = 4.11
     return exp(-k*(x-x0)**2/kbT)
+
+
+# Because sympy has issues with large-ish numpy arrays and broadcasting
+def np_distr(x, k, x0):
+    kbT = 4.11
+    return np.exp(-k*(x-x0)**2/kbT)
 
 
 class Gaussian2DInteractiveGuessTest(unittest.TestCase):
@@ -44,8 +49,8 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
 
     def test_slider_callback_parameter_values(self):
         new_val = np.random.random()
-        self.fit._sliders[self.fit.model.params[0]].set_val(new_val)
         other = self.fit.model.params[1].value
+        self.fit._sliders[self.fit.model.params[0]].set_val(new_val)
         try:
             self.assertEqual(self.fit.model.params[0].value, new_val)
             self.assertEqual(self.fit.model.params[1].value, other)
@@ -62,7 +67,7 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         self.fit._sliders[self.x0].set_val(new_x)
         try:
             kbT = 4.11
-            true_data = np.exp(-new_k*(x_points-new_x)**2/kbT)
+            true_data = np_distr(x_points, new_k, new_x)
             actual_data = self.fit._plots[self.fit._projections[0]].get_ydata()
             self.assertTrue(np.allclose(true_data, actual_data))
         finally:
@@ -76,7 +81,7 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         k = self.k.value
         x0 = self.x0.value
         kbT = 4.11
-        true_y = np.exp(-k*(x_points-x0)**2/kbT)
+        true_y = np_distr(x_points, k, x0)
         data = self.fit._get_data()
         actual_y = data.y
         actual_x = self.fit._x_points[x.name]
@@ -94,9 +99,9 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
             x, y = proj
             plot = self.fit._plots[proj]
             plotlabel = '${}({}) = {}$'.format(
-                sympy.printing.latex(y, mode='plain'),
-                x.name,
-                sympy.printing.latex(self.fit.model[y], mode='plain'))
+                latex(y, mode='plain'),
+                latex(x.name, mode='plain'),
+                latex(self.fit.model[y], mode='plain'))
             self.assertEqual(plot.axes.get_title(), plotlabel)
 
     def test_plot_colors(self):
@@ -133,9 +138,9 @@ class VectorValuedTest(unittest.TestCase):
             x, y = proj
             plot = self.fit._plots[proj]
             plotlabel = '${}({}) = {}$'.format(
-                sympy.printing.latex(y, mode='plain'),
-                x.name,
-                sympy.printing.latex(self.fit.model[y], mode='plain'))
+                latex(y, mode='plain'),
+                latex(x.name, mode='plain'),
+                latex(self.fit.model[y], mode='plain'))
             self.assertEqual(plot.axes.get_title(), plotlabel)
 
 

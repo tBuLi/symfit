@@ -24,6 +24,6 @@ print("Guessed values: ")
 for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
 
-fit = NumericalLeastSquares(model, A=concentration, t=tdata)
+fit = ConstrainedNumericalLeastSquares(model, A=concentration, t=tdata)
 fit_result = fit.execute()
 print(fit_result)
