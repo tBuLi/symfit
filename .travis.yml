@@ -17,7 +17,7 @@ install:
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
   - pip install --upgrade nose
-  - pip install sphinx
+  - pip install --upgrade sphinx
   - pip install .
   - echo $PATH
 # Run tests
