@@ -1044,7 +1044,9 @@ class GlobalLeastSquares(NumericalLeastSquares):
         """
         return np.sqrt(np.sum(super(GlobalLeastSquares, self).error_func(*args, **kwargs)**2))
 
-    def execute(self, *options, **kwoptions):
+    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.5, 1.0),
+            recombination=0.9, polish=True, init='latinhypercube')
+    def execute(self, **kwargs):
         """
         :param options: Any postional arguments to be passed to leastsqbound
         :param kwoptions: Any named arguments to be passed to leastsqbound
@@ -1056,22 +1058,13 @@ class GlobalLeastSquares(NumericalLeastSquares):
         # TODO: improve default DE metaparameters
         # TODO, optional: polish by a manual call to scipy minimize to get
         #                 errors in the parameters (and use the jacobian?)
-        kwargs = {
-                  'strategy': 'rand1bin', 
-                  'popsize': min(10*len(self.model.params), 40),
-                  'mutation': [0.5, 1],
-                  'recombination': 0.9,
-                  'polish': True,
-                  'init': 'latinhypercube',
-                 }
-        kwargs.update(kwoptions)
         if kwargs['popsize'] < 3:
             raise ValueError('popsize has to be at least 3')
         ans = differential_evolution(
                         self.error_func,
                         bounds=self.model.bounds,
                         args=(self.independent_data, self.dependent_data, self.sigma_data,),
-                        *options, **kwargs
+                        **kwargs
                         )
         infodic = {
             'fvec': ans.fun,
