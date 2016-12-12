@@ -521,69 +521,6 @@ class Tests(unittest.TestCase):
         model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
         self.assertEqual([[2, 3, 0], [0, 5, 0], [0, 0, 7]], model.jacobian)
 
-    # TODO: Should be 2 tests?
-    def test_minimize(self):
-        """
-        Tests maximizing a function with and without constraints, taken from the
-        scipy `minimize` tutorial. Compare the symfit result with the scipy
-        result.
-        https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
-        """
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
-        z = Variable()
-        model = {z: 2*x*y + 2*x - x**2 - 2*y**2}
-
-        constraints = [
-            Ge(y - 1, 0),  # y - 1 >= 0,
-            Eq(x**3 - y, 0),  # x**3 - y == 0,
-        ]
-
-        def func(x, sign=1.0):
-            """ Objective function """
-            return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
-
-        def func_deriv(x, sign=1.0):
-            """ Derivative of objective function """
-            dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
-            dfdx1 = sign*(2*x[0] - 4*x[1])
-            return np.array([ dfdx0, dfdx1 ])
-
-        cons = (
-            {'type': 'eq',
-             'fun' : lambda x: np.array([x[0]**3 - x[1]]),
-             'jac' : lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
-            {'type': 'ineq',
-             'fun' : lambda x: np.array([x[1] - 1]),
-             'jac' : lambda x: np.array([0.0, 1.0])})
-
-        # Unconstrained fit
-        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-               method='SLSQP', options={'disp': False})
-        fit = Maximize(model)
-        fit_result = fit.execute()
-
-        self.assertAlmostEqual(fit_result.value(x), res.x[0])
-        self.assertAlmostEqual(fit_result.value(y), res.x[1])
-
-        # Same test, but with constraints in place.
-        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-               constraints=cons, method='SLSQP', options={'disp': False})
-
-        fit = Maximize(model, constraints=constraints)
-        self.assertEqual(fit.constraints[0].constraint_type, Ge)
-        self.assertEqual(fit.constraints[1].constraint_type, Eq)
-        fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.value(x), res.x[0])
-        self.assertAlmostEqual(fit_result.value(y), res.x[1])
-
-    # TODO: Write test
-    def test_minimize_with_data(self):
-        """
-        Make up test case that tests a Minimize with data.
-        """
-        pass
-
     def test_likelihood_fitting_exponential(self):
         """
         Fit using the likelihood method.
