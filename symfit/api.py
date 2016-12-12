@@ -5,7 +5,7 @@ import symfit.core.operators
 from symfit.core.fit import (
     Fit, FitResults, Maximize, Minimize, Likelihood, Model,
     NumericalLeastSquares, LinearLeastSquares, NonLinearLeastSquares,
-    TaylorModel, ODEModel, ConstrainedNumericalLeastSquares
+    TaylorModel, ODEModel, ConstrainedNumericalLeastSquares, ModelError
 )
 from symfit.core.argument import Variable, Parameter
 from symfit.core.support import variables, parameters, D
