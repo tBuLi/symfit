@@ -5,7 +5,6 @@ designed for users.
 """
 from functools import wraps
 from collections import OrderedDict
-import inspect
 import sys
 import warnings
 
@@ -187,8 +186,12 @@ class keywordonly(object):
         self.optional_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is not RequiredKeyword}
 
     def __call__(self, func):
-        argspec = inspect.getargspec(func)
-        if not argspec.keywords:
+        sig = inspect_sig.signature(func)
+        # A var keyword has to be found for this to be correct.
+        for param in sig.parameters.values():
+            if param.kind == param.VAR_KEYWORD:
+                break
+        else:
             raise RequiredKeywordError(
                 'The keywordonly decorator requires the function to '
                 'accept a **kwargs argument.'
