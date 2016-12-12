@@ -17,10 +17,13 @@ install:
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
   - pip install --upgrade nose
+  - pip install sphinx
   - pip install .
   - echo $PATH
 # Run tests
-script: nosetests
+script:
+  - nosetests
+  - sphinx-build -nW -b html -d docs build
 before_deploy:
 - pwd
 - ls
