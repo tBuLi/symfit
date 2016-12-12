@@ -1372,7 +1372,24 @@ class Minimize(BaseFit):
                     self.constraints.append(constraint)
                 else:
                     self.constraints.append(Constraint(constraint, self.model))
-
+            # Check if the type of each constraint is allowed.
+            allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
+            for index in range(len(self.constraints)):
+                constraint = self.constraints[index]
+                if constraint.constraint_type not in allowed_types:
+                    raise ModelError(
+                        'Only constraints of the type {} are allowed. A constraint'
+                        ' of type {} was provided.'.format(allowed_types,
+                                                           constraint.constraint_type)
+                    )
+                elif constraint.constraint_type is sympy.Le:
+                    assert len(constraint) == 1
+                    for var in constraint:
+                        component = constraint[var]
+                        self.constraints[index] = Constraint(
+                            sympy.Ge(- component, 0),
+                            model=constraint.model
+                        )
 
     def error_func(self, p, independent_data, dependent_data, sigma_data):
         """
@@ -1447,7 +1464,7 @@ class Minimize(BaseFit):
         """
         cons = []
         types = { # scipy only distinguishes two types of constraint.
-            sympy.Eq: 'eq', sympy.Gt: 'ineq', sympy.Ge: 'ineq', sympy.Ne: 'ineq', sympy.Lt: 'ineq', sympy.Le: 'ineq'
+            sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
         for key, constraint in enumerate(self.constraints):
