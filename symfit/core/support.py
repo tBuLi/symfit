@@ -182,20 +182,38 @@ class keywordonly(object):
     """
     def __init__(self, **kwonly_arguments):
         self.kwonly_arguments = kwonly_arguments
-        self.required_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is RequiredKeyword}
-        self.optional_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is not RequiredKeyword}
+        # Mark which are required
+        self.required_keywords = {
+            kw for kw, value in kwonly_arguments.items() if value is RequiredKeyword
+        }
+        # Transform all into keywordonly inspect.Parameter objects.
+        self.keywordonly_parameters = OrderedDict(
+            (kw, inspect_sig.Parameter(kw,
+                                       kind=inspect_sig.Parameter.KEYWORD_ONLY,
+                                       default=value)
+             )
+            for kw, value in kwonly_arguments.items()
+        )
 
     def __call__(self, func):
         sig = inspect_sig.signature(func)
+        params = []
         # A var keyword has to be found for this to be correct.
-        for param in sig.parameters.values():
+        for name, param in sig.parameters.items():
             if param.kind == param.VAR_KEYWORD:
+                # Keyword only's go before the **kwargs parameter.
+                params.extend(self.keywordonly_parameters.values())
+                params.append(param)
                 break
+            params.append(param)
         else:
             raise RequiredKeywordError(
                 'The keywordonly decorator requires the function to '
                 'accept a **kwargs argument.'
             )
+        # Update signature
+        sig = sig.replace(parameters=params)
+        func.__signature__ = sig
 
         @wraps(func)
         def wrapped_func(*args, **kwargs):
@@ -205,18 +223,17 @@ class keywordonly(object):
             :return: Wrapped function which behaves like it has keyword-only arguments.
             :raises: ``RequiredKeywordError`` if not all required keywords were specified.
             """
-            for kw in self.required_keywords:
-                if kw not in kwargs:
-                    raise RequiredKeywordError(
-                        'Keyword `{}` is a required keyword. '
-                        'Please provide a value.'.format(kw)
-                    )
-            else:  # All required keywords were provided. Assign defaults.
-                for kw, default in self.optional_keywords.items():
-                    if kw not in kwargs:
-                        kwargs[kw] = default
-                else: # All defaults assigned where needed. Call func!
-                    return func(*args, **kwargs)
+            bound_args = func.__signature__.bind(*args, **kwargs)
+            # Apply defaults
+            for param in sig.parameters.values():
+                if param.name not in bound_args.arguments:
+                    if param.default is RequiredKeyword:
+                        raise RequiredKeywordError(
+                            'Keyword `{}` is a required keyword. '
+                            'Please provide a value.'.format(param.name)
+                        )
+                    bound_args.arguments[param.name] = param.default
+            return func(**bound_args.arguments)
         return wrapped_func
 
 class deprecated(object):
