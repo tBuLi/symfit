@@ -23,7 +23,8 @@ install:
 # Run tests
 script:
   - nosetests
-  - sphinx-build -nW -b html -d docs build
+  - mkdir docs_build
+  - sphinx-build -nW -b html -d docs docs_build
 before_deploy:
 - pwd
 - ls
