@@ -44,7 +44,8 @@ intersphinx_mapping = {
 
 nitpick_ignore = [
     ('py:mod', 'symfit'),
-    ('py:mod', 'scipy')
+    ('py:mod', 'scipy'),
+    ('py:func', 'symfit.core.leastsqbound.leastsqbound')
 ]
 
 # Add any paths that contain templates here, relative to this directory.
