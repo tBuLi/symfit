@@ -721,8 +721,6 @@ class Constraint(Model):
     model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
     not just those present in the constraint.
     """
-    constraint_type = sympy.Eq
-
     def __init__(self, constraint, model):
         """
         :param constraint: constraint that model should be subjected to.
