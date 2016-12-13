@@ -24,9 +24,9 @@ install:
 script:
   - nosetests
   - mkdir docs_build
-  - sphinx-build -nW -b html docs docs_build
-    on:
-      condition: $TRAVIS_PYTHON_VERSION = "3.5"
+  - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
+      sphinx-build -nW -b html docs docs_build;
+    fi
 before_deploy:
 - pwd
 - ls
