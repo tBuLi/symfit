@@ -42,10 +42,10 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
 }
 
-# nitpick_ignore = [
-#     ('py:mod', 'symfit'),
-#     ('py:mod', 'scipy')
-# ]
+nitpick_ignore = [
+    ('py:mod', 'symfit'),
+    ('py:mod', 'scipy')
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
