@@ -17,10 +17,16 @@ install:
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
   #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
   - pip install --upgrade nose
+  - pip install --upgrade sphinx
   - pip install .
   - echo $PATH
 # Run tests
-script: nosetests
+script:
+  - nosetests
+  - mkdir docs_build
+  - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
+      sphinx-build -nW -b html docs docs_build;
+    fi
 before_deploy:
 - pwd
 - ls
