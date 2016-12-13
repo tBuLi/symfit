@@ -3,6 +3,7 @@ This module contains support functions and convenience methods used
 throughout symfit. Some are used predominantly internally, others are
 designed for users.
 """
+from __future__ import print_function
 from functools import wraps
 from collections import OrderedDict
 import sys
@@ -196,9 +197,16 @@ class keywordonly(object):
         )
 
     def __call__(self, func):
+        """
+        Returns a decorated version of `func`, who's signature now includes the
+        keyword-only arguments.
+
+        :param func: the function to be decorated
+        :return: the decorated function
+        """
         sig = inspect_sig.signature(func)
         params = []
-        # A var keyword has to be found for this to be correct.
+        # A var keyword has to be found for this function to be decorated
         for name, param in sig.parameters.items():
             if param.kind == param.VAR_KEYWORD:
                 # Keyword only's go before the **kwargs parameter.
@@ -232,8 +240,13 @@ class keywordonly(object):
                             'Keyword `{}` is a required keyword. '
                             'Please provide a value.'.format(param.name)
                         )
-                    bound_args.arguments[param.name] = param.default
-            return func(**bound_args.arguments)
+                    elif param.kind == inspect_sig.Parameter.VAR_KEYWORD:
+                        bound_args.arguments[param.name] = {}
+                    elif param.kind == inspect_sig.Parameter.VAR_POSITIONAL:
+                        bound_args.arguments[param.name] = tuple()
+                    else:
+                        bound_args.arguments[param.name] = param.default
+            return func(*bound_args.args, **bound_args.kwargs)
         return wrapped_func
 
 class deprecated(object):
