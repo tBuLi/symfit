@@ -23,7 +23,20 @@ class TestSupport(unittest.TestCase):
             d = kwargs.pop('d')
             return a + b + c + d
 
+        class A(object):
+            @keywordonly(c=2, d=RequiredKeyword)
+            def __init__(self, a, b, **kwargs):
+                pass
+
+        class B(A):
+            @keywordonly(e=5)
+            def __init__(self, *args, **kwargs):
+                e = kwargs.pop('e')
+                super(B, self).__init__(*args, **kwargs)
+
         self._f = f
+        self._A = A
+        self._B = B
 
     def test_keywordonly_signature(self):
         """
@@ -68,6 +81,55 @@ class TestSupport(unittest.TestCase):
             @keywordonly(c=2, d=RequiredKeyword)
             def g(a, b, *args):
                 pass
+
+    def test_keywordonly_class(self):
+        """
+        Decorating a function with no **kwargs-like argument should not be
+        allowed.
+        """
+        kinds = {
+            'self': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'a': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'b': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'args': inspect_sig.Parameter.VAR_POSITIONAL,
+            'kwargs': inspect_sig.Parameter.VAR_KEYWORD,
+            'c': inspect_sig.Parameter.KEYWORD_ONLY,
+            'd': inspect_sig.Parameter.KEYWORD_ONLY,
+        }
+        sig = inspect_sig.signature(self._A.__init__)
+        for param in sig.parameters.values():
+            self.assertTrue(param.kind == kinds[param.name])
+
+    def test_keywordonly_inheritance(self):
+        """
+        Tests if the decorator deals with inheritance properly.
+        """
+        kinds_B = {
+            'self': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'args': inspect_sig.Parameter.VAR_POSITIONAL,
+            'kwargs': inspect_sig.Parameter.VAR_KEYWORD,
+            'e': inspect_sig.Parameter.KEYWORD_ONLY,
+        }
+        kinds_A = {
+            'self': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'a': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'b': inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+            'kwargs': inspect_sig.Parameter.VAR_KEYWORD,
+            'c': inspect_sig.Parameter.KEYWORD_ONLY,
+            'd': inspect_sig.Parameter.KEYWORD_ONLY,
+        }
+        sig_B = inspect_sig.signature(self._B.__init__)
+        for param in sig_B.parameters.values():
+            self.assertTrue(param.kind == kinds_B[param.name])
+        self.assertEqual(len(sig_B.parameters), len(kinds_B))
+
+        sig_A = inspect_sig.signature(self._A.__init__)
+        for param in sig_A.parameters.values():
+            self.assertTrue(param.kind == kinds_A[param.name])
+        self.assertEqual(len(sig_A.parameters), len(kinds_A))
+
+        with self.assertRaises(TypeError):
+            b = self._B(3, 5, 7, d=2, e=6)
 
 if __name__ == '__main__':
     try:
