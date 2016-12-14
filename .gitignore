@@ -1,5 +1,6 @@
 *.pyc
 .idea
+.cache
 build
 _build
 dist
