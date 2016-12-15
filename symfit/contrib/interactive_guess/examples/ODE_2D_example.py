@@ -17,8 +17,12 @@ concentration_B = np.max(concentration_A) - concentration_A
 # Define our ODE model
 A, B, t = variables('A, B, t')
 k = Parameter()
-model = ODEModel({D(A, t): - k * A, D(B, t): k * A},
-                 initial={t: tdata[0], A: concentration_A[0], B: 0})
+
+model_dict = {
+    D(A, t): - k * A,
+    D(B, t): k * A
+}
+model = ODEModel(model_dict, initial={t: tdata[0], A: concentration_A[0], B: 0})
 
 guess = InteractiveGuess2D(model, A=concentration_A, B=concentration_B, t=tdata, n_points=250)
 
