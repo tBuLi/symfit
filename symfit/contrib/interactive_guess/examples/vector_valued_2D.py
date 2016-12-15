@@ -11,16 +11,18 @@ k = Parameter(900)
 x0 = Parameter(1.5)
 
 model = {
-         y1: k * (x-x0)**2,
-         y2: x - x0
-        }
+    y1: k * (x-x0)**2,
+    y2: x - x0
+}
 model = Model(model)
+
+# Generate example data
 x_data = np.linspace(0, 2.5, 50)
 data = model(x=x_data, k=1000, x0=1)
 y1_data = data.y1
 y2_data = data.y2
-guess = InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
 
+guess = InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
 print("Guessed values: ")
 for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
