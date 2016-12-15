@@ -82,7 +82,7 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         x0 = self.x0.value
         kbT = 4.11
         true_y = np_distr(x_points, k, x0)
-        data = self.fit._get_data()
+        data = self.fit._eval_model()
         actual_y = data.y
         actual_x = self.fit._x_points[x.name]
         self.assertTrue(np.allclose(x_points, actual_x) and
