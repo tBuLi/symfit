@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from symfit import Variable, Parameter, NumericalLeastSquares, Model
+from symfit import Variable, Parameter, Fit, Model
 from symfit.contrib.interactive_guess import InteractiveGuess2D
 import numpy as np
 
@@ -25,6 +25,6 @@ print("Guessed values: ")
 for p in guess.model.params:
     print("{}: {}".format(p.name, p.value))
 
-fit = ConstrainedNumericalLeastSquares(model, x=x_data, y1=y1_data, y2=y2_data)
-fit_result = fit.execute(maxfev=50)
+fit = Fit(model, x=x_data, y1=y1_data, y2=y2_data)
+fit_result = fit.execute()
 print(fit_result)
