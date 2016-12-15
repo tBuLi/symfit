@@ -153,7 +153,7 @@ class InteractiveGuess2D(TakesData):
             i += 0.05
 
     def _update_plot(self, _):
-        """Callbak to redraw the plot to reflect the new parameter values."""
+        """Callback to redraw the plot to reflect the new parameter values."""
         # Since all sliders call this same callback without saying who they are
         # I need to update the values for all parameters. This can be
         # circumvented by creating a seperate callback function for each
