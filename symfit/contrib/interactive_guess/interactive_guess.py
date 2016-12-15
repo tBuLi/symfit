@@ -97,7 +97,7 @@ class InteractiveGuess2D(TakesData):
         # Make all the subplots: set the x and y limits, scatter the data, and
         # plot the putative function.
         self._plots = {}
-        data = self._get_data()
+        evaluated_model = self._eval_model()
 
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
@@ -118,7 +118,7 @@ class InteractiveGuess2D(TakesData):
             ax.scatter(self.independent_data[x.name],
                        self.dependent_data[y.name], c='b')
 
-            y_vals = getattr(data, y.name)
+            y_vals = getattr(evaluated_model, y.name)
             x_vals = self._x_points[x.name]
             plot, = ax.plot(x_vals, y_vals, c='red')
             self._plots[proj] = plot
@@ -160,16 +160,16 @@ class InteractiveGuess2D(TakesData):
         # parameter.
         for param in self.model.params:
             param.value = self._sliders[param].val
-        data = self._get_data()
+        evaluated_model = self._eval_model()
         for indep_var, dep_var in self._projections:
             plot = self._plots[(indep_var, dep_var)]
             # TODO: reduce dimensionality of self._x_points and vals for this projection
-            y_vals = getattr(data, dep_var.name)
+            y_vals = getattr(evaluated_model, dep_var.name)
             x_vals = self._x_points[indep_var.name]
             plot.set_data(x_vals, y_vals)
 #        self.fig.canvas.draw()  # Force redraw
 
-    def _get_data(self):
+    def _eval_model(self):
         """
         Convenience method for evaluating the model
 
