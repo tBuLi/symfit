@@ -19,8 +19,8 @@ A, B, t = variables('A, B, t')
 k = Parameter()
 
 model_dict = {
-    D(A, t): - k * A,
-    D(B, t): k * A
+    D(A, t): - k * A**2,
+    D(B, t): k * A**2
 }
 model = ODEModel(model_dict, initial={t: tdata[0], A: concentration_A[0], B: 0})
 
