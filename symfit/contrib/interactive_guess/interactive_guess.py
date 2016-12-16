@@ -37,12 +37,13 @@ class InteractiveGuess2D(TakesData):
 
         This will modify the values of the parameters present in model.
 
-        Parameters
-        ----------
-        n_points : int
-            The number of points used for drawing the fitted function.
-        no_show : bool
-            Whether or not to show the figure. Useful for testing.
+        :param n_points: The number of points used for drawing the
+            fitted function.
+        :type n_points: int
+        :param no_show: Whether or not to show the figure. Useful for testing.
+        :type no_show: bool
+        
+        :return: None
         """
         n_points = kwargs.pop('n_points')
         no_show = kwargs.pop('no_show')
@@ -55,14 +56,21 @@ class InteractiveGuess2D(TakesData):
                                                    self.model.dependent_vars))
         x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
+        
+        # Stretch the plot 10-20% in the X direction, since that is visually more
+        # appealing. We can't evaluate the model for x < x_initial, so don't.
         for x in self.model.independent_vars:
             plotrange_x = x_maxs[x.name] - x_mins[x.name]
             if not hasattr(self.model, 'initial'):
                 x_mins[x.name] -= 0.1 * plotrange_x
             x_maxs[x.name] += 0.1 * plotrange_x
+        # Generate the points at which to evaluate the model with the proposed
+        # parameters for plotting
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
                           for v in self.independent_data}
-
+        
+        # Stretch the plot 20% in the Y direction, since that is visually more
+        # appealing
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
         y_maxs = {v: np.max(data) for v, data in self.dependent_data.items()}
         for y in self.dependent_data:
@@ -101,7 +109,7 @@ class InteractiveGuess2D(TakesData):
 
         for plotnr, proj in enumerate(self._projections, 1):
             x, y = proj
-            if hasattr(self.model, 'dependent_derivatives') and Derivative(y, x) in self.model:
+            if Derivative(y, x) in self.model:
                 title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
             else:
                 title_format = '${dependant}({independant}) = {expression}$'
