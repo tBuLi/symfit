@@ -21,8 +21,8 @@ plt.ioff()
 
 
 class InteractiveGuess2D(TakesData):
-    """A class that provides a visual_guess method which provides
-    an graphical, interactive way of guessing initial fitting parameters."""
+    """A class that provides an graphical, interactive way of guessing initial
+    fitting parameters."""
 
     @keywordonly(n_points=100, no_show=False)
     def __init__(self, *args, **kwargs):
@@ -31,6 +31,7 @@ class InteractiveGuess2D(TakesData):
         parameters. n_points is the number of points drawn for the plot.
         Data points are plotted as blue points, the proposed model as
         a red line.
+        
         Slider extremes are taken from the parameters where possible. If
         these are not provided, the minimum is 0; and the maximum is value*2.
         If no initial value is provided, it defaults to 1.
@@ -42,8 +43,6 @@ class InteractiveGuess2D(TakesData):
         :type n_points: int
         :param no_show: Whether or not to show the figure. Useful for testing.
         :type no_show: bool
-
-        :return: None
         """
         n_points = kwargs.pop('n_points')
         no_show = kwargs.pop('no_show')
