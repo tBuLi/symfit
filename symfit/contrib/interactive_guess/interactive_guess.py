@@ -42,7 +42,7 @@ class InteractiveGuess2D(TakesData):
         :type n_points: int
         :param no_show: Whether or not to show the figure. Useful for testing.
         :type no_show: bool
-        
+
         :return: None
         """
         n_points = kwargs.pop('n_points')
@@ -56,7 +56,7 @@ class InteractiveGuess2D(TakesData):
                                                    self.model.dependent_vars))
         x_mins = {v: np.min(data) for v, data in self.independent_data.items()}
         x_maxs = {v: np.max(data) for v, data in self.independent_data.items()}
-        
+
         # Stretch the plot 10-20% in the X direction, since that is visually more
         # appealing. We can't evaluate the model for x < x_initial, so don't.
         for x in self.model.independent_vars:
@@ -68,7 +68,7 @@ class InteractiveGuess2D(TakesData):
         # parameters for plotting
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
                           for v in self.independent_data}
-        
+
         # Stretch the plot 20% in the Y direction, since that is visually more
         # appealing
         y_mins = {v: np.min(data) for v, data in self.dependent_data.items()}
