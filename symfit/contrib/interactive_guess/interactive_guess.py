@@ -187,3 +187,14 @@ class InteractiveGuess2D(TakesData):
         arguments = self._x_points.copy()
         arguments.update({param: param.value for param in self.model.params})
         return self.model(**key2str(arguments))
+
+    def __str__(self):
+        """
+        Represent the guesses in a human readable way.
+
+        :return: string with the guessed values.
+        """
+        msg = 'Guessed values:\n'
+        for param in self.model.params:
+            msg += '{}: {}\n'.format(param.name, param.value)
+        return msg

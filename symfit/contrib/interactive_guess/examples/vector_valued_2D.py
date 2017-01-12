@@ -23,9 +23,7 @@ y1_data = data.y1
 y2_data = data.y2
 
 guess = InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
-print("Guessed values: ")
-for p in guess.model.params:
-    print("{}: {}".format(p.name, p.value))
+print(guess)
 
 fit = Fit(model, x=x_data, y1=y1_data, y2=y2_data)
 fit_result = fit.execute()
