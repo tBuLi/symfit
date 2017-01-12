@@ -24,7 +24,7 @@ class InteractiveGuess2D(TakesData):
     """A class that provides an graphical, interactive way of guessing initial
     fitting parameters."""
 
-    @keywordonly(n_points=100, no_show=False)
+    @keywordonly(n_points=100)
     def __init__(self, *args, **kwargs):
         """Create a matplotlib window with sliders for all parameters
         in this model, so that you may graphically guess initial fitting
@@ -41,11 +41,8 @@ class InteractiveGuess2D(TakesData):
         :param n_points: The number of points used for drawing the
             fitted function.
         :type n_points: int
-        :param no_show: Whether or not to show the figure. Useful for testing.
-        :type no_show: bool
         """
         n_points = kwargs.pop('n_points')
-        no_show = kwargs.pop('no_show')
         super(InteractiveGuess2D, self).__init__(*args, **kwargs)
 
         if len(self.independent_data) != 1:
@@ -79,10 +76,22 @@ class InteractiveGuess2D(TakesData):
 
         self._set_up_figure(x_mins, x_maxs, y_mins, y_maxs)
         self._set_up_sliders()
-        if not no_show:
+
+    @keywordonly(show=True, block=True)
+    def execute(self, **kwargs):
+        """
+        Execute the interactive guessing procedure.
+
+        :param show: Whether or not to show the figure. Useful for testing.
+        :type show: bool
+        :param block: Blocking call to matplotlib
+        :type show: bool
+        """
+        show = kwargs.pop('show')
+        if show:
             # self.fig.show()  # Apparently this does something else,
             # see https://github.com/matplotlib/matplotlib/issues/6138
-            plt.show(block=True)
+            plt.show(**kwargs)
             plt.close(self.fig)
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
