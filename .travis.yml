@@ -15,10 +15,7 @@ install:
   - pip install --upgrade pip setuptools
   - pip install --upgrade pytest
   - pip install --upgrade sphinx
-  - pip install --only-binary numpy,scipy,matplotlib .[all]
-  - if [[ $TRAVIS_PYTHON_VERSION == "3.6" ]]; then
-      pip install matplotlib==2.0.0rc2;
-    fi
+  - pip install --only-binary numpy,scipy,matplotlib==2.0.0rc2 .[all]
   - echo $PATH
 # Run tests
 script:
