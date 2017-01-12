@@ -25,6 +25,7 @@ model_dict = {
 model = ODEModel(model_dict, initial={t: tdata[0], A: concentration_A[0], B: 0})
 
 guess = InteractiveGuess2D(model, A=concentration_A, B=concentration_B, t=tdata, n_points=250)
+guess.execute()
 print(guess)
 
 fit = NumericalLeastSquares(model, A=concentration_A, B=concentration_B, t=tdata)

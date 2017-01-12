@@ -19,6 +19,7 @@ k = Parameter()
 model = ODEModel({D(A, t): - k * A}, initial={t: tdata[0], A: concentration[0]})
 
 guess = InteractiveGuess2D(model, A=concentration, t=tdata, n_points=250)
+guess.execute()
 print(guess)
 
 fit = Fit(model, A=concentration, t=tdata)
