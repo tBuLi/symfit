@@ -12,18 +12,15 @@ before_install:
   - "sh -e /etc/init.d/xvfb start"
 ## Install the dependencies
 install:
-  # Upgrade pip to enable the --only-binary flag
+  # Upgrade pip to enable the --only-binary flag; setuptools for pbr.
   - pip install --upgrade pip setuptools
-  # TODO: There should be a version switch here. Actually, are these statements needed? Or does pip install . take care of it?
-  #- pip install --upgrade --only-binary numpy,scipy --requirement requirements.txt
-  #- pip install --upgrade --only-binary numpy,scipy --requirement requirements-py2.txt
-  - pip install --upgrade nose
+  - pip install --upgrade pytest
   - pip install --upgrade sphinx
-  - pip install .
+  - pip install --only-binary numpy,scipy,matplotlib==2.0.0rc2 .[all]
   - echo $PATH
 # Run tests
 script:
-  - nosetests
+  - pytest
   - mkdir docs_build
   - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
       sphinx-build -nW -b html docs docs_build;
