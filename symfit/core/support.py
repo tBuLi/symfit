@@ -3,9 +3,9 @@ This module contains support functions and convenience methods used
 throughout symfit. Some are used predominantly internally, others are
 designed for users.
 """
+from __future__ import print_function
 from functools import wraps
 from collections import OrderedDict
-import inspect
 import sys
 import warnings
 
@@ -183,16 +183,45 @@ class keywordonly(object):
     """
     def __init__(self, **kwonly_arguments):
         self.kwonly_arguments = kwonly_arguments
-        self.required_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is RequiredKeyword}
-        self.optional_keywords = {kw: value for kw, value in kwonly_arguments.items() if value is not RequiredKeyword}
+        # Mark which are required
+        self.required_keywords = {
+            kw for kw, value in kwonly_arguments.items() if value is RequiredKeyword
+        }
+        # Transform all into keywordonly inspect.Parameter objects.
+        self.keywordonly_parameters = OrderedDict(
+            (kw, inspect_sig.Parameter(kw,
+                                       kind=inspect_sig.Parameter.KEYWORD_ONLY,
+                                       default=value)
+             )
+            for kw, value in kwonly_arguments.items()
+        )
 
     def __call__(self, func):
-        argspec = inspect.getargspec(func)
-        if not argspec.keywords:
+        """
+        Returns a decorated version of `func`, who's signature now includes the
+        keyword-only arguments.
+
+        :param func: the function to be decorated
+        :return: the decorated function
+        """
+        sig = inspect_sig.signature(func)
+        params = []
+        # A var keyword has to be found for this function to be decorated
+        for name, param in sig.parameters.items():
+            if param.kind == param.VAR_KEYWORD:
+                # Keyword only's go before the **kwargs parameter.
+                params.extend(self.keywordonly_parameters.values())
+                params.append(param)
+                break
+            params.append(param)
+        else:
             raise RequiredKeywordError(
                 'The keywordonly decorator requires the function to '
                 'accept a **kwargs argument.'
             )
+        # Update signature
+        sig = sig.replace(parameters=params)
+        func.__signature__ = sig
 
         @wraps(func)
         def wrapped_func(*args, **kwargs):
@@ -202,18 +231,22 @@ class keywordonly(object):
             :return: Wrapped function which behaves like it has keyword-only arguments.
             :raises: ``RequiredKeywordError`` if not all required keywords were specified.
             """
-            for kw in self.required_keywords:
-                if kw not in kwargs:
-                    raise RequiredKeywordError(
-                        'Keyword `{}` is a required keyword. '
-                        'Please provide a value.'.format(kw)
-                    )
-            else:  # All required keywords were provided. Assign defaults.
-                for kw, default in self.optional_keywords.items():
-                    if kw not in kwargs:
-                        kwargs[kw] = default
-                else: # All defaults assigned where needed. Call func!
-                    return func(*args, **kwargs)
+            bound_args = func.__signature__.bind(*args, **kwargs)
+            # Apply defaults
+            for param in sig.parameters.values():
+                if param.name not in bound_args.arguments:
+                    if param.default is RequiredKeyword:
+                        raise RequiredKeywordError(
+                            'Keyword `{}` is a required keyword. '
+                            'Please provide a value.'.format(param.name)
+                        )
+                    elif param.kind == inspect_sig.Parameter.VAR_KEYWORD:
+                        bound_args.arguments[param.name] = {}
+                    elif param.kind == inspect_sig.Parameter.VAR_POSITIONAL:
+                        bound_args.arguments[param.name] = tuple()
+                    else:
+                        bound_args.arguments[param.name] = param.default
+            return func(*bound_args.args, **bound_args.kwargs)
         return wrapped_func
 
 class deprecated(object):

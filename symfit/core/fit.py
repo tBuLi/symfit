@@ -721,8 +721,6 @@ class Constraint(Model):
     model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
     not just those present in the constraint.
     """
-    constraint_type = sympy.Eq
-
     def __init__(self, constraint, model):
         """
         :param constraint: constraint that model should be subjected to.
@@ -784,7 +782,7 @@ class TakesData(object):
     def __init__(self, model, *ordered_data, **named_data):
         """
         :param model: (dict of) sympy expression or ``Model`` object.
-        :param absolute_sigma bool: True by default. If the sigma is only used
+        :param bool absolute_sigma: True by default. If the sigma is only used
             for relative weights in your problem, you could consider setting it to
             False, but if your sigma are measurement errors, keep it at True.
             Note that curve_fit has this set to False by default, which is wrong in
@@ -854,8 +852,9 @@ class TakesData(object):
         """
         Read-only Property
 
-        :return: Data belonging to each dependent variable.
-        :rtype: OrderedDict with variable names as key, data as value.
+        :return: Data belonging to each dependent variable as a dict with
+                 variable names as key, data as value.
+        :rtype: collections.OrderedDict
         """
         return OrderedDict((var.name, self.data[var.name]) for var in self.model)
 
@@ -865,8 +864,9 @@ class TakesData(object):
         """
         Read-only Property
 
-        :return: Data belonging to each independent variable.
-        :rtype: OrderedDict with variable names as key, data as value.
+        :return: Data belonging to each independent variable as a dict with
+                 variable names as key, data as value.
+        :rtype: collections.OrderedDict
         """
         return OrderedDict((var.name, self.data[var.name]) for var in self.model.independent_vars)
 
@@ -876,8 +876,9 @@ class TakesData(object):
         """
         Read-only Property
 
-        :return: Data belonging to each sigma variable.
-        :rtype: OrderedDict with variable names as key, data as value.
+        :return: Data belonging to each sigma variable as a dict with
+                 variable names as key, data as value.
+        :rtype: collections.OrderedDict
         """
         sigmas = self.model.sigmas
         return OrderedDict((sigmas[var].name, self.data[sigmas[var].name]) for var in self.model)
