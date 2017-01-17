@@ -721,8 +721,6 @@ class Constraint(Model):
     model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
     not just those present in the constraint.
     """
-    constraint_type = sympy.Eq
-
     def __init__(self, constraint, model):
         """
         :param constraint: constraint that model should be subjected to.
@@ -784,7 +782,7 @@ class TakesData(object):
     def __init__(self, model, *ordered_data, **named_data):
         """
         :param model: (dict of) sympy expression or ``Model`` object.
-        :param absolute_sigma bool: True by default. If the sigma is only used
+        :param bool absolute_sigma: True by default. If the sigma is only used
             for relative weights in your problem, you could consider setting it to
             False, but if your sigma are measurement errors, keep it at True.
             Note that curve_fit has this set to False by default, which is wrong in
@@ -854,8 +852,9 @@ class TakesData(object):
         """
         Read-only Property
 
-        :return: Data belonging to each dependent variable.
-        :rtype: OrderedDict with variable names as key, data as value.
+        :return: Data belonging to each dependent variable as a dict with
+                 variable names as key, data as value.
+        :rtype: collections.OrderedDict
         """
         return OrderedDict((var.name, self.data[var.name]) for var in self.model)
 
@@ -865,8 +864,9 @@ class TakesData(object):
         """
         Read-only Property
 
-        :return: Data belonging to each independent variable.
-        :rtype: OrderedDict with variable names as key, data as value.
+        :return: Data belonging to each independent variable as a dict with
+                 variable names as key, data as value.
+        :rtype: collections.OrderedDict
         """
         return OrderedDict((var.name, self.data[var.name]) for var in self.model.independent_vars)
 
@@ -876,8 +876,9 @@ class TakesData(object):
         """
         Read-only Property
 
-        :return: Data belonging to each sigma variable.
-        :rtype: OrderedDict with variable names as key, data as value.
+        :return: Data belonging to each sigma variable as a dict with
+                 variable names as key, data as value.
+        :rtype: collections.OrderedDict
         """
         sigmas = self.model.sigmas
         return OrderedDict((sigmas[var].name, self.data[sigmas[var].name]) for var in self.model)
@@ -1174,7 +1175,7 @@ class NonLinearLeastSquares(BaseFit):
 
     Sensitive to good initial guesses. Providing good initial guesses is a must.
 
-    .. [wiki] https://en.wikipedia.org/wiki/Non-linear_least_squares
+    .. [wiki_nllsq] https://en.wikipedia.org/wiki/Non-linear_least_squares
     """
     def __init__(self, *args, **kwargs):
         super(NonLinearLeastSquares, self).__init__(*args, **kwargs)
@@ -1310,7 +1311,24 @@ class Minimize(BaseFit):
                     self.constraints.append(constraint)
                 else:
                     self.constraints.append(Constraint(constraint, self.model))
-
+            # Check if the type of each constraint is allowed.
+            allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
+            for index in range(len(self.constraints)):
+                constraint = self.constraints[index]
+                if constraint.constraint_type not in allowed_types:
+                    raise ModelError(
+                        'Only constraints of the type {} are allowed. A constraint'
+                        ' of type {} was provided.'.format(allowed_types,
+                                                           constraint.constraint_type)
+                    )
+                elif constraint.constraint_type is sympy.Le:
+                    assert len(constraint) == 1
+                    for var in constraint:
+                        component = constraint[var]
+                        self.constraints[index] = Constraint(
+                            sympy.Ge(- component, 0),
+                            model=constraint.model
+                        )
 
     def error_func(self, p, independent_data, dependent_data, sigma_data):
         """
@@ -1385,7 +1403,7 @@ class Minimize(BaseFit):
         """
         cons = []
         types = { # scipy only distinguishes two types of constraint.
-            sympy.Eq: 'eq', sympy.Gt: 'ineq', sympy.Ge: 'ineq', sympy.Ne: 'ineq', sympy.Lt: 'ineq', sympy.Le: 'ineq'
+            sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
         for key, constraint in enumerate(self.constraints):
@@ -1610,7 +1628,7 @@ class HasCovarianceMatrix(object):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :return: covariance matrix.
         """
-        if None in self.sigma_data.values():
+        if any(element is None for element in self.sigma_data.values()):
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
