@@ -1377,7 +1377,7 @@ class Minimize(BaseFit):
         # s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
         # pcov = cov_x * s_sq if cov_x is not None else None
 
-        self.__fit_results = FitResults(
+        self._fit_results = FitResults(
             params=self.model.params,
             popt=ans.x,
             pcov=None,
@@ -1386,10 +1386,10 @@ class Minimize(BaseFit):
             ier=ans.nit,
         )
         try:
-            self.__fit_results.r_squared = r_squared(self.model, self.__fit_results, self.data)
+            self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
         except ValueError:
-            self.__fit_results.r_squared = float('nan')
-        return self.__fit_results
+            self._fit_results.r_squared = float('nan')
+        return self._fit_results
 
     @property
     def scipy_constraints(self):
