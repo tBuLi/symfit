@@ -13,6 +13,7 @@ class TestFitResults(unittest.TestCase):
     """
     Tests for the FitResults object.
     """
+
     def test_read_only_results(self):
         """
         Fit results should be read-only. Let's try to break this!
@@ -30,53 +31,9 @@ class TestFitResults(unittest.TestCase):
         # raise Exception(fit.model.chi_jacobian)
         fit_result = fit.execute()
 
-        # Break it!
-        try:
+        # Should be read-only, so unsetable.
+        with self.assertRaises(AttributeError):
             fit_result.params = 'hello'
-        except AttributeError:
-            self.assertTrue(True) # desired result
-        finally:
-            self.assertNotEqual(fit_result.params, 'hello')
-
-        try:
-            # Bypass the property getter. This will work, as it set's the instance value of __params.
-            fit_result.__params = 'hello'
-        except AttributeError:
-            self.assertTrue(False) # undesired result
-        finally:
-            self.assertNotEqual(fit_result.params, 'hello')
-            # The assginment will have succeeded on the instance because we set it from the outside.
-            # I must admit I don't fully understand why this is allowed and I don't like it.
-            # However, the tests below show that it did not influence the class method itself so
-            # fitting still works fine.
-            # assinging to __params makes *new* instance attribute, the "real"
-            # __params instance is called _FitResult__params. See dir(fit_results) and
-            # https://www.python.org/dev/peps/pep-0008/#designing-for-inheritance
-            self.assertEqual(fit_result.__params, 'hello')
-
-        # Do a second fit and dubble check that we do not overwrtie something crusial.
-        xdata = np.arange(-5, 5, 1)
-        ydata = np.arange(-5, 5, 1)
-        xx, yy = np.meshgrid(xdata, ydata, sparse=False)
-        xdata_coor = np.dstack((xx, yy))
-
-        zdata = 2.5*xx**2 + 3.0*yy**2
-
-        a = Parameter(1., max=2.75)
-        b = Parameter(5., min=2.75)
-        x = Variable()
-        y = Variable()
-        new = Variable()
-        new_model = Model({new: a*x**2 + b*y**2 })
-
-        fit_2 = Fit(new_model, x=xx, y=yy, new=zdata)
-        fit_result_2 = fit_2.execute()
-        self.assertNotAlmostEqual(fit_result.value(a), fit_result_2.value(a))
-        self.assertAlmostEqual(fit_result.value(a), 3.0)
-        self.assertAlmostEqual(fit_result_2.value(a), 2.5)
-        self.assertNotAlmostEqual(fit_result.value(b), fit_result_2.value(b))
-        self.assertAlmostEqual(fit_result.value(b), 2.0)
-        self.assertAlmostEqual(fit_result_2.value(b), 3.0)
 
     def test_fitting(self):
         xdata = np.linspace(1,10,10)

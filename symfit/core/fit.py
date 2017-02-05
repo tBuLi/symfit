@@ -151,19 +151,16 @@ class FitResults(object):
     Class to display the results of a fit in a nice and unambiguous way.
     All things related to the fit are available on this class, e.g.
     - parameters + stdev
-    - R squared (Regression coefficient.)
+    - R squared (Regression coefficient.) or other fit quality qualifiers.
     - fitting status message
-
-    This object is made to behave entirely read-only. This is a bit unnatural
-    to enforce in Python but I feel it is necessary to guarantee the integrity
-    of the results.
+    - covariance matrix
     """
-    __params = None  # Private property.
-    __infodict = None
-    __status_message = None
-    __iterations = None
-    __ydata = None
-    __sigma = None
+    # __params = None  # Private property.
+    # __infodict = None
+    # __status_message = None
+    # __iterations = None
+    # __ydata = None
+    # __sigma = None
 
     def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
         """
@@ -178,12 +175,12 @@ class FitResults(object):
         :param ydata:
         """
         # Validate the types in rough way
-        self.__infodict = infodic
-        self.__status_message = mesg
-        self.__iterations = ier
-        self.__ydata = ydata
-        self.__params = ParameterDict(params, popt, pcov)
-        self.__sigma = sigma
+        self._infodict = infodic
+        self._status_message = mesg
+        self._iterations = ier
+        self._ydata = ydata
+        self._params = ParameterDict(params, popt, pcov)
+        self._sigma = sigma
 
     def __str__(self):
         """
@@ -230,28 +227,28 @@ class FitResults(object):
         """
         Read-only Property.
         """
-        return self.__infodict
+        return self._infodict
 
     @property
     def status_message(self):
         """
         Read-only Property.
         """
-        return self.__status_message
+        return self._status_message
 
     @property
     def iterations(self):
         """
         Read-only Property.
         """
-        return self.__iterations
+        return self._iterations
 
     @property
     def params(self):
         """
         Read-only Property.
         """
-        return self.__params
+        return self._params
 
     def stdev(self, param):
         """
