@@ -27,141 +27,15 @@ class ModelError(Exception):
     pass
 
 
-class ParameterDict(object):
-    """
-    Container for all the parameters and their (co)variances.
-    Behaves mostly like an OrderedDict: can be \*\*-ed, allowing the sexy syntax where a model is
-    called with values for the Variables and \*\*params. However, under iteration
-    it behaves like a list! In other words, it preserves order in the params.
-    """
-    def __init__(self, params, popt, pcov, *args, **kwargs):
-        super(ParameterDict, self).__init__(*args, **kwargs)
-        self.__params = params  # list of Parameter instances
-        self.__params_dict = dict([(p.name, p) for p in params])
-        # popt and pstdev are dicts with parameter names: value pairs.
-        self.__popt = dict([(p.name, value) for p, value in zip(params, popt)])
-        if pcov is not None:
-            # Can be None.
-            stdevs = np.sqrt(np.diagonal(pcov))
-        else:
-            stdevs = [None for _ in params]
-        self.__pstdev = dict([(p.name, s) for p, s in zip(params, stdevs)])
-        # Covariance matrix
-        self.__pcov = pcov
-
-    def __len__(self):
-        """
-        Length gives the number of ``Parameter`` instances.
-
-        :return: len(self.__params)
-        """
-        return len(self.__params)
-
-    def __iter__(self):
-        """
-        Iteration over the ``Parameter`` instances.
-        :return: iterator
-        """
-        return iter(self.__params)
-
-    def __getitem__( self, param_name):
-        """
-        This method allows this object to be addressed as a dict. This allows for the ** unpacking.
-        Therefore return the value of the best fit parameter, as this is what the user expects.
-
-        :param param_name: Name of the ``Parameter`` whose value your interested in.
-        :return: the value of the best fit parameter with name 'key'.
-        """
-        return getattr(self, param_name)
-
-    def keys(self):
-        """
-        :return: All ``Parameter`` names.
-        """
-        return self.__params_dict.keys()
-
-    def __getattr__(self, name):
-        """
-        A user can access the value of a parameter directly through this object.
-
-        :param name: Name of a ``Parameter``.
-            Naming convention:
-            let a = Parameter(). Then:
-            .a gives the value of the parameter.
-            .a_stdev gives the standard deviation.
-        """
-        # If a parameter with this name exists, return it immediately
-        try:
-            return self.__popt[name]
-        except KeyError:
-            param_name = name
-            # Expand this if statement if in the future we allow more suffixes
-            if name.endswith('_stdev'):
-                param_name = name[:-len('_stdev')]  # everything but the suffix
-                try:
-                    return self.__pstdev[param_name]
-                except KeyError:
-                    pass
-        raise AttributeError('No Parameter by the name {}.'.format(param_name))
-
-    @deprecated(replacement='value')
-    def get_value(self, param):
-        """
-        Deprecated.
-        :param param: ``Parameter`` instance.
-        :return: returns the numerical value of param
-        :raises: DeprecationWarning
-        """
-        return self.value(param)
-
-    @deprecated(replacement='stdev')
-    def get_stdev(self, param):
-        """
-        Deprecated.
-        :param param: ``Parameter`` instance.
-        :return: returns the standard deviation of param
-        :raises: DeprecationWarning
-        """
-        return self.stdev(param)
-
-    def value(self, param):
-        """
-        :param param: ``Parameter`` instance.
-        :return: returns the numerical value of param
-        """
-        return self.__popt[param.name]
-
-    def stdev(self, param):
-        """
-        :param param: ``Parameter`` instance.
-        :return: returns the standard deviation of param
-        """
-        return self.__pstdev[param.name]
-
-    @property
-    def covariance_matrix(self):
-        """
-        Returns the covariance matrix.
-        """
-        return self.__pcov
-
-
 class FitResults(object):
     """
     Class to display the results of a fit in a nice and unambiguous way.
     All things related to the fit are available on this class, e.g.
-    - parameters + stdev
+    - parameter values + stdev
     - R squared (Regression coefficient.) or other fit quality qualifiers.
     - fitting status message
     - covariance matrix
     """
-    # __params = None  # Private property.
-    # __infodict = None
-    # __status_message = None
-    # __iterations = None
-    # __ydata = None
-    # __sigma = None
-
     def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
@@ -178,9 +52,12 @@ class FitResults(object):
         self.infodict = infodic
         self.status_message = mesg
         self.iterations = ier
+        self.parameters = params
         self._ydata = ydata
-        self.params = ParameterDict(params, popt, pcov)
         self._sigma = sigma
+
+        self.params = OrderedDict([(p.name, value) for p, value in zip(params, popt)])
+        self.covariance_matrix = pcov
 
     def __str__(self):
         """
@@ -188,9 +65,9 @@ class FitResults(object):
         """
         res = '\nParameter Value        Standard Deviation\n'
         for p in self.params:
-            value = self.params.value(p)
+            value = self.value(p)
             value_str = '{:e}'.format(value) if value is not None else 'None'
-            stdev = self.params.stdev(p)
+            stdev = self.stdev(p)
             stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
             res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
@@ -222,7 +99,7 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Standard deviation of ``param``.
         """
-        return self.params.stdev(param)
+        return np.sqrt(self.variance(param))
 
     def value(self, param):
         """
@@ -231,7 +108,7 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Value of ``param``.
         """
-        return self.params.value(param)
+        return self.params[param.name]
 
     def variance(self, param):
         """
@@ -240,8 +117,8 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Variance of ``param``.
         """
-        param_number = list(self.params).index(param)
-        return self.params.covariance_matrix[param_number, param_number]
+        param_number = self.parameters.index(param)
+        return self.covariance_matrix[param_number, param_number]
 
     def covariance(self, param_1, param_2):
         """
@@ -251,9 +128,9 @@ class FitResults(object):
         :param param_2: ``Parameter`` Instance.
         :return: Covariance of the two params.
         """
-        param_1_number = list(self.params).index(param_1)
-        param_2_number = list(self.params).index(param_2)
-        return self.params.covariance_matrix[param_1_number, param_2_number]
+        param_1_number = self.parameters.index(param_1)
+        param_2_number = self.parameters.index(param_2)
+        return self.covariance_matrix[param_1_number, param_2_number]
 
 class BaseModel(Mapping):
     """

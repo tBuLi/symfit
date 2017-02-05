@@ -92,9 +92,9 @@ class TestAutoFit(unittest.TestCase):
         self.assertIsInstance(bound_fit.fit, ConstrainedNumericalLeastSquares)
 
         fit_result = bound_fit.execute()
-        self.assertAlmostEqual(fit_result.params.a, np.mean(xdata[0]), 6)
-        self.assertAlmostEqual(fit_result.params.b, np.mean(xdata[1]), 6)
-        self.assertAlmostEqual(fit_result.params.c, np.mean(xdata[2]), 6)
+        self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 6)
+        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata[1]), 6)
+        self.assertAlmostEqual(fit_result.value(c), np.mean(xdata[2]), 6)
 
     def test_vector_fitting_bounds(self):
         """

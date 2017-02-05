@@ -3,6 +3,7 @@ import unittest
 import warnings
 import sympy
 import types
+from collections import OrderedDict
 
 import numpy as np
 from symfit import Variable, Parameter, Fit, FitResults, NumericalLeastSquares, Model
@@ -31,8 +32,10 @@ class TestFitResults(unittest.TestCase):
         # raise Exception(fit.model.chi_jacobian)
         fit_result = fit.execute()
 
+        self.assertTrue(isinstance(fit_result.params, OrderedDict))
         # Should no longer be read-only, so setable. Should not raise an error
         fit_result.params = 'hello'
+        self.assertTrue(isinstance(fit_result.params, str))
 
     def test_fitting(self):
         xdata = np.linspace(1,10,10)
@@ -111,27 +114,13 @@ class TestFitResults(unittest.TestCase):
         fit = Fit(model, xx, yy, ydata)
         fit_result = fit.execute()
 
-        for param in fit_result.params:
+        for param in fit.model.params:
             self.assertAlmostEqual(fit_result.stdev(param)**2, fit_result.variance(param))
-            self.assertEqual(fit_result.stdev(param), fit_result.params.stdev(param))
-            self.assertEqual(fit_result.value(param), fit_result.params.value(param))
 
         # Covariance matrix should be symmetric
-        for param_1 in fit_result.params:
-            for param_2 in fit_result.params:
+        for param_1 in fit.model.params:
+            for param_2 in fit.model.params:
                 self.assertAlmostEqual(fit_result.covariance(param_1, param_2), fit_result.covariance(param_2, param_1))
-#        print(fit_result.params.covariance_matrix)
-#        print(fit_result.covariance(x0_1, x0_2))
-
-        with warnings.catch_warnings(record=True) as w:
-            # Cause all warnings to always be triggered.
-            warnings.simplefilter("always")
-            # Trigger DeprecationWarning
-            fit_result.params.get_stdev(x0_1)
-            fit_result.params.get_value(x0_1)
-            self.assertTrue(len(w) == 2)
-            for warning in w:
-                self.assertTrue(issubclass(warning.category, DeprecationWarning))
 
 
 if __name__ == '__main__':
