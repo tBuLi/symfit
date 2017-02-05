@@ -31,9 +31,8 @@ class TestFitResults(unittest.TestCase):
         # raise Exception(fit.model.chi_jacobian)
         fit_result = fit.execute()
 
-        # Should be read-only, so unsetable.
-        with self.assertRaises(AttributeError):
-            fit_result.params = 'hello'
+        # Should no longer be read-only, so setable. Should not raise an error
+        fit_result.params = 'hello'
 
     def test_fitting(self):
         xdata = np.linspace(1,10,10)

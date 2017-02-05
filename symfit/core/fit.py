@@ -175,11 +175,11 @@ class FitResults(object):
         :param ydata:
         """
         # Validate the types in rough way
-        self._infodict = infodic
-        self._status_message = mesg
-        self._iterations = ier
+        self.infodict = infodic
+        self.status_message = mesg
+        self.iterations = ier
         self._ydata = ydata
-        self._params = ParameterDict(params, popt, pcov)
+        self.params = ParameterDict(params, popt, pcov)
         self._sigma = sigma
 
     def __str__(self):
@@ -214,41 +214,6 @@ class FitResults(object):
     @r_squared.setter
     def r_squared(self, value):
         self._r_squared = value
-
-    #
-    # READ-ONLY Properties
-    # What follows are all the read-only properties of this object.
-    # Their definitions are mostly trivial, but necessary to make sure that
-    # FitResults can't be changed.
-    #
-
-    @property
-    def infodict(self):
-        """
-        Read-only Property.
-        """
-        return self._infodict
-
-    @property
-    def status_message(self):
-        """
-        Read-only Property.
-        """
-        return self._status_message
-
-    @property
-    def iterations(self):
-        """
-        Read-only Property.
-        """
-        return self._iterations
-
-    @property
-    def params(self):
-        """
-        Read-only Property.
-        """
-        return self._params
 
     def stdev(self, param):
         """
