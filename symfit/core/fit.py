@@ -36,12 +36,12 @@ class FitResults(object):
     - fitting status message
     - covariance matrix
     """
-    def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
+    def __init__(self, model, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
-        :param params: list of ``Parameter``'s.
-        :param popt: best fit parameters, same ordering as in params.
+        :param model: :class:`Model` that was fit to.
+        :param popt: best fit parameters, same ordering as in model.params.
         :param pcov: covariance matrix.
         :param infodic: dict with fitting info.
         :param mesg: Status message.
@@ -52,11 +52,11 @@ class FitResults(object):
         self.infodict = infodic
         self.status_message = mesg
         self.iterations = ier
-        self.parameters = params
+        self.model = model
         self._ydata = ydata
         self._sigma = sigma
 
-        self.params = OrderedDict([(p.name, value) for p, value in zip(params, popt)])
+        self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
         self.covariance_matrix = pcov
 
     def __str__(self):
@@ -64,7 +64,7 @@ class FitResults(object):
         Pretty print the results as a table.
         """
         res = '\nParameter Value        Standard Deviation\n'
-        for p in self.params:
+        for p in self.model.params:
             value = self.value(p)
             value_str = '{:e}'.format(value) if value is not None else 'None'
             stdev = self.stdev(p)
@@ -117,7 +117,7 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Variance of ``param``.
         """
-        param_number = self.parameters.index(param)
+        param_number = self.model.params.index(param)
         return self.covariance_matrix[param_number, param_number]
 
     def covariance(self, param_1, param_2):
@@ -128,8 +128,8 @@ class FitResults(object):
         :param param_2: ``Parameter`` Instance.
         :return: Covariance of the two params.
         """
-        param_1_number = self.parameters.index(param_1)
-        param_2_number = self.parameters.index(param_2)
+        param_1_number = self.model.params.index(param_1)
+        param_2_number = self.model.params.index(param_2)
         return self.covariance_matrix[param_1_number, param_2_number]
 
 class BaseModel(Mapping):
@@ -811,7 +811,7 @@ class NumericalLeastSquares(BaseFit):
         pcov = cov_x * s_sq if cov_x is not None else None
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=popt,
             pcov=pcov,
             infodic=infodic,
@@ -992,7 +992,7 @@ class LinearLeastSquares(BaseFit):
         cov_matrix = self.covariance_matrix(best_fit_params=best_fit_params)
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=[best_fit_params[param] for param in self.model.params],
             pcov=cov_matrix,
             infodic={'nfev': 0},
@@ -1067,7 +1067,7 @@ class NonLinearLeastSquares(BaseFit):
         cov_matrix = fit.covariance_matrix(best_fit_params=fit_params)
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=[float(fit_params[param]) for param in self.model.params],
             pcov=cov_matrix,
             infodic={'nfev': i},
@@ -1220,7 +1220,7 @@ class Minimize(BaseFit):
         # pcov = cov_x * s_sq if cov_x is not None else None
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=ans.x,
             pcov=None,
             infodic=infodic,
@@ -1691,7 +1691,7 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
                 cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
 
             results = FitResults(
-                params=self.model.params,
+                model=self.model,
                 popt=popt,
                 pcov=cov_matrix,
                 infodic=fit_result.infodict,
