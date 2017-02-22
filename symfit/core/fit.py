@@ -36,7 +36,7 @@ class FitResults(object):
     - fitting status message
     - covariance matrix
     """
-    def __init__(self, model, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
+    def __init__(self, model, popt, pcov, infodic, mesg, ier, **gof_qualifiers):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
@@ -46,15 +46,15 @@ class FitResults(object):
         :param infodic: dict with fitting info.
         :param mesg: Status message.
         :param ier: Number of iterations.
-        :param ydata:
+        :param gof_qualifiers: Any remaining keyword arguments should be
+          Goodness of fit (g.o.f.) qualifiers.
         """
         # Validate the types in rough way
         self.infodict = infodic
         self.status_message = mesg
         self.iterations = ier
         self.model = model
-        self._ydata = ydata
-        self._sigma = sigma
+        self.gof_qualifiers = gof_qualifiers
 
         self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
         self.covariance_matrix = pcov
@@ -76,21 +76,16 @@ class FitResults(object):
         res += 'Regression Coefficient: {}\n'.format(self.r_squared)
         return res
 
-    @property
-    def r_squared(self):
+    def __getattr__(self, item):
         """
-        r_squared Property.
+        Return the requested `item` if it can be found in the gof_qualifiers
+        dict.
 
-        :return: Regression coefficient.
+        :param item: Name of Goodness of Fit qualifier.
+        :return: Goodness of Fit qualifier if present.
         """
-        if self._r_squared is not None:
-            return self._r_squared
-        else:
-            return float('nan')
-
-    @r_squared.setter
-    def r_squared(self, value):
-        self._r_squared = value
+        if item in self.gof_qualifiers:
+            return self.gof_qualifiers[item]
 
     def stdev(self, param):
         """
@@ -817,10 +812,9 @@ class NumericalLeastSquares(BaseFit):
             infodic=infodic,
             mesg=mesg,
             ier=ier,
-            # ydata=list(self.data.values())[0] if len(self.model.dependent_vars) == 1 else None,
-            # sigma=self.sigma,
         )
-        self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+        self._fit_results.gof_qualifiers['r_squared'] = \
+            r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
 
@@ -999,7 +993,8 @@ class LinearLeastSquares(BaseFit):
             mesg='',
             ier=0,
         )
-        self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+        self._fit_results.gof_qualifiers['r_squared'] = \
+            r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
 
@@ -1074,7 +1069,8 @@ class NonLinearLeastSquares(BaseFit):
             mesg='',
             ier=0,
         )
-        self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+        self._fit_results.gof_qualifiers['r_squared'] = \
+            r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
 
@@ -1228,9 +1224,9 @@ class Minimize(BaseFit):
             ier=ans.nit,
         )
         try:
-            self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+            self._fit_results.gof_qualifiers['r_squared'] = r_squared(self.model, self._fit_results, self.data)
         except ValueError:
-            self._fit_results.r_squared = float('nan')
+            self._fit_results.gof_qualifiers['r_squared'] = float('nan')
         return self._fit_results
 
     @property
@@ -1696,8 +1692,8 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
                 infodic=fit_result.infodict,
                 mesg=fit_result.status_message,
                 ier=fit_result.iterations,
+                r_squared=fit_result.r_squared
             )
-            results.r_squared = fit_result.r_squared
             return results
 
 # class LagrangeMultipliers:
