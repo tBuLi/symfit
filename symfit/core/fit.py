@@ -1678,8 +1678,7 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         description.
         """
         fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
-        # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
-        popt = [fit_result.value(p) for p in self.model.params]
+        popt = fit_result.params.values()
 
         try:
             cov_matrix = self.covariance_matrix(fit_result.params)
