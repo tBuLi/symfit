@@ -203,7 +203,7 @@ class TestAnalyticalFit(unittest.TestCase):
         the definition of absolute_sigma.
         """
         N = 1000
-        sigma = 31.4
+        sigma = 31.4 * np.ones(N)
         xn = np.arange(N, dtype=np.float)
         yn = np.zeros_like(xn)
         np.random.seed(10)
