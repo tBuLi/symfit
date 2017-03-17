@@ -642,7 +642,7 @@ class Tests(unittest.TestCase):
         # Same sigma everywere
         fit = Fit(t_model, y_data, t_data, 0.0031, absolute_sigma=False)
         fit_result = fit.execute()
-        popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031, absolute_sigma=False)
+        popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031*np.ones(len(y_data)), absolute_sigma=False)
         self.assertAlmostEqual(fit_result.value(g), popt_sameweights[0], 4)
         self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_sameweights[0, 0]), 4)
         # Same weight everywere should be the same as no weight when absolute_sigma=False
@@ -652,7 +652,7 @@ class Tests(unittest.TestCase):
         # Different sigma for every point
         fit = Fit(t_model, y_data, t_data, 0.1*sigma_t, absolute_sigma=False)
         fit_result = fit.execute()
-        popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t * np.ones(len(t_data)))
+        popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t)
 
         self.assertAlmostEqual(fit_result.value(g), popt[0])
         self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov[0, 0]))
