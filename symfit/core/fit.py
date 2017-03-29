@@ -2187,8 +2187,10 @@ class ODEModel(CallableModel):
     @property
     @cache
     def _njacobian(self):
-        return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
-        # return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
+        return [
+            [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var in self.dependent_vars]
+            for _, expr in self.items()
+        ]
 
     def eval_components(self, *args, **kwargs):
         """
@@ -2205,7 +2207,7 @@ class ODEModel(CallableModel):
 
         # System of functions to be integrated
         f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
-        Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
+        Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
