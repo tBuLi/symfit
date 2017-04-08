@@ -49,3 +49,17 @@ Distributions
    :special-members:
    :exclude-members: __weakref__
    :show-inheritance:
+
+
+Contrib
+-------
+Contrib modules are modules and extensions to symfit provided by other people.
+This usually means the code is of slightly less quality, and may not survive
+future versions.
+
+.. automodule:: symfit.contrib.interactive_guess.interactive_guess
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+

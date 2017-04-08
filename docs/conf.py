@@ -37,10 +37,16 @@ extensions = [
 ]
 
 intersphinx_mapping = {
-                       'sympy': ('http://docs.sympy.org/latest', None),
-                       'python': ('https://docs.python.org/3', None),
-                       'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
-                      }
+    'sympy': ('http://docs.sympy.org/latest', None),
+    'python': ('https://docs.python.org/3', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+}
+
+nitpick_ignore = [
+    ('py:mod', 'symfit'),
+    ('py:mod', 'scipy'),
+    ('py:func', 'symfit.core.leastsqbound.leastsqbound')
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -79,7 +85,7 @@ release = '0.3.5'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = ['docs_build']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
