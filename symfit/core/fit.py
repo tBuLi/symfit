@@ -1843,6 +1843,9 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
         popt = [fit_result.value(p) for p in self.model.params]
 
+        if not hasattr(self.model, 'numerical_jacobian'):
+            return fit_result
+
         try:
             cov_matrix = self.covariance_matrix(fit_result.params)
         except np.linalg.linalg.LinAlgError:
@@ -2259,4 +2262,3 @@ class ODEModel(CallableModel):
         Ans = namedtuple('Ans', [var.name for var in self])
         ans = Ans(*self.eval_components(**bound_arguments.arguments))
         return ans
-
