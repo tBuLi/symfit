@@ -1628,11 +1628,13 @@ class HasCovarianceMatrix(object):
         :return: covariance matrix.
         """
         if any(element is None for element in self.sigma_data.values()):
+            # If one of the sigma's was explicitly set to None, we are unable
+            # to determine the covariances.
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
         if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
-            # All shapes identical
+            # Shapes of all sigma data identical
             return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
         else:
             return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
