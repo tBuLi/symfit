@@ -15,6 +15,7 @@ x0 = Parameter(name='x0', value=15.0, min=0.0)
 model = A*exp(-((x - x0)**2/(2 * sig**2)))
 
 # Sample 10000 points from a N(15.0, 1.5) distrubution
+np.random.seed(seed=123456789)
 sample = np.random.normal(loc=15.0, scale=1.5, size=(10000,))
 ydata, bin_edges = np.histogram(sample, 100)
 xdata = (bin_edges[1:] + bin_edges[:-1])/2
