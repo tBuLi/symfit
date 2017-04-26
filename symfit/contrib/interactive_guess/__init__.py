@@ -1,1 +1,1 @@
-from .interactive_guess import InteractiveGuess2D
+from .interactive_guess_nD import InteractiveGuess2D
