@@ -998,15 +998,11 @@ class NumericalLeastSquares(BaseFit):
         :param flatten: If True, summing is performed over the data indices (default).
         :return: :math:`\\sqrt(\\chi^2)`
         """
-        # import matplotlib.pyplot as plt
-
         result = []
         jac_args = list(independent_data.values()) + list(p)
 
         # zip together the dependent vars and evaluated component
         for y, ans in zip(self.model, self.model(*jac_args)):
-            # if 'd' in y.name:
-            #     plt.plot(jac_args[0], ans, label=str(p))
             if dependent_data[y.name] is not None:
                 result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
                 if flatten:
@@ -1020,7 +1016,11 @@ class NumericalLeastSquares(BaseFit):
         for ans, y, row in zip(self.model(*jac_args), self.model, self.model.numerical_jacobian):
             if dependent_data[y.name] is not None:
                 for index, component in enumerate(row):
-                    result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
+                    result[index] += component(*jac_args) * (
+                        (dependent_data[y.name] - ans) / sigma_data[self.model.sigmas[y].name] ** 2
+                    )
+        result *= (1 / chi)
+        result = np.nan_to_num(result)
         result = [item.flatten() for item in result]
         return - np.array(result).T
 
