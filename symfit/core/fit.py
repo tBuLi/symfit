@@ -1016,7 +1016,11 @@ class NumericalLeastSquares(BaseFit):
         for ans, y, row in zip(self.model(*jac_args), self.model, self.model.numerical_jacobian):
             if dependent_data[y.name] is not None:
                 for index, component in enumerate(row):
-                    result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
+                    result[index] += component(*jac_args) * (
+                        (dependent_data[y.name] - ans) / sigma_data[self.model.sigmas[y].name] ** 2
+                    )
+        result *= (1 / chi)
+        result = np.nan_to_num(result)
         result = [item.flatten() for item in result]
         return - np.array(result).T
 
