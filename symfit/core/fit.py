@@ -819,7 +819,14 @@ class TakesData(object):
                 bound_arguments.arguments[param.name] = param.default
 
         self.data = copy.copy(bound_arguments.arguments)   # ordereddict of the data. Only copy the dict, not the data.
-        # self.sigmas = {name: self.data.pop(name) for name in var_names if name.startswith('sigma_')}
+        # Change the type to array if no array operations are supported.
+        # We don't want to break duck-typing, hence the try-except.
+        for name, dataset in self.data.items():
+            try:
+                dataset**2
+            except TypeError:
+                if dataset is not None:
+                    self.data[name] = np.array(dataset)
         self.sigmas = {name: self.data[name] for name in var_names if name.startswith('sigma_')}
 
         # Replace sigmas that are constant by an array of that constant
