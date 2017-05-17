@@ -1174,7 +1174,7 @@ class LinearLeastSquares(BaseFit):
 class NonLinearLeastSquares(BaseFit):
     """
     Experimental.
-    Implements non-linear least squares. Works by a two step process:
+    Implements non-linear least squares[wiki_nllsq]_. Works by a two step process:
     First the model is linearised by doing a first order taylor expansion
     around the guesses for the parameters.
     Then a LinearLeastSquares fit is performed. This is iterated until
