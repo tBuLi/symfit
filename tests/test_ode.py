@@ -2,7 +2,8 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit, D, NumericalLeastSquares
+from symfit import (parameters, variables, ODEModel, exp, Fit, D,
+                    NumericalLeastSquares, cos, sqrt, Model, Parameter)
 from symfit.distributions import Gaussian
 
 
@@ -211,6 +212,42 @@ class TestODE(unittest.TestCase):
         # plt.scatter(X, Y)
         # plt.show()
 
+    @unittest.skip('Fails, because ode fit execute does not yet use the correct\
+                    Jacobian. Passes in the PyPi version')
+    def test_harmonic_oscillator(self):
+        """
+        Make sure that fitting an ODE produces the exact same result as
+        fitting the analytical solution. This uses an harmonic oscillator as
+        example.
+        Note that the result (of both) fit(s) is incorrect, but that's not
+        relevant here.
+        """
+        k, m = parameters('k, m')
+        k.value = 1  # This guess is wide off, so the fit result will be bad
+        m.value = 1  # This guess is exact
+        m.fixed = True
+
+        x, v, a, t = variables('x, v, a, t')
+
+        a = (-k*x)/m
+        ode_model = ODEModel({
+                             D(x, t): v,
+                             D(v, t): a,
+                             },
+                             initial={t: 0, v: 0, x: 1})
+
+        times = np.linspace(0, 15, 1500)
+        data = ode_model(times, k=11, m=m.value).x
+
+        fit_ode = Fit(ode_model, t=times, x=data)
+        fit_ode_result = fit_ode.execute()
+
+        model = Model({x: cos(sqrt(k/m)*t)})
+        fit_normal = Fit(model, t=times, x=data)
+        fit_normal_result = fit_normal.execute()
+        print(fit_normal_result.value(k), fit_ode_result.value(k))
+        print(fit_normal_result.value(m), fit_ode_result.value(m))
+        self.assertAlmostEqual(fit_ode_result.value(k), fit_normal_result.value(k), 5)
 
 if __name__ == '__main__':
     unittest.main()
