@@ -729,7 +729,7 @@ class Constraint(Model):
         # raise Exception(model)
         if isinstance(constraint, Relational):
             self.constraint_type = type(constraint)
-            if isinstance(model, Model):
+            if isinstance(model, BaseModel):
                 self.model = model
             else:
                 raise TypeError('The model argument must be of type Model.')
