@@ -366,9 +366,9 @@ class StrategynD:
         y_plot_data = np.array(y_plot_data)
         y_plot_error = np.array(y_plot_error)
 
-        xs = np.stack((x_plot_data, x_plot_data), axis=-1)
+        xs = np.column_stack((x_plot_data, x_plot_data))
         yerr = y_plot_error + y_plot_data[:, np.newaxis]
-        y_segments = np.stack((xs, yerr), axis=-1)
+        y_segments = np.dstack((xs, yerr))
         plot_line, caps, error_lines = self.ig._plots[(indep_var, dep_var)]
         plot_line.set_data(x_plot_data, y_plot_data)
         error_lines[1].set_segments(y_segments)
