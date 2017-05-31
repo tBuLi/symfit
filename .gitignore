@@ -4,5 +4,6 @@
 .pytest_cache
 docs_build
 build
-_build
+docs/_build
+docs_build
 dist
