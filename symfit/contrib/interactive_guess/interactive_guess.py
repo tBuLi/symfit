@@ -52,8 +52,8 @@ class InteractiveGuess(TakesData):
         :param percentile: Controls the errorbars on the proposed model, such
             that the lower errorbar will cover percentile[0]% of the data, and
             the upper will cover percentile[1]%. Defaults to [5, 95], with
-            corresponds to a 90% percentile.
-        :type percentile: list of number of length 2
+            corresponds to a 90% percentile. Should be a list of 2 numbers.
+        :type percentile: list
         """
         self.log_contour = kwargs.pop('log_contour')
         n_points = kwargs.pop('n_points')
