@@ -57,7 +57,7 @@ class TestMinimize(unittest.TestCase):
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                method='SLSQP', options={'disp': False})
         fit = Maximize(model)
-        fit_result = fit.execute()
+        fit_result = fit.execute(method='SLSQP')
 
         self.assertAlmostEqual(fit_result.value(x), res.x[0])
         self.assertAlmostEqual(fit_result.value(y), res.x[1])
@@ -69,7 +69,7 @@ class TestMinimize(unittest.TestCase):
         fit = Maximize(model, constraints=constraints)
         self.assertEqual(fit.constraints[0].constraint_type, Ge)
         self.assertEqual(fit.constraints[1].constraint_type, Eq)
-        fit_result = fit.execute()
+        fit_result = fit.execute(method='SLSQP')
         self.assertAlmostEqual(fit_result.value(x), res.x[0])
         self.assertAlmostEqual(fit_result.value(y), res.x[1])
 
