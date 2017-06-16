@@ -405,7 +405,16 @@ class BaseModel(Mapping):
         """
         :return: List of tuples of all bounds on parameters.
         """
-        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
+        bounds = []
+        for p in self.params:
+            if p.fixed:
+                if p.value >= 0.0:
+                    bounds.append([np.nextafter(p.value, 0), p.value])
+                else:
+                    bounds.append([p.value, np.nextafter(p.value, 0)])
+            else:
+                bounds.append([p.min, p.max])
+        return bounds
 
     @property
     def shared_parameters(self):
@@ -1365,11 +1374,10 @@ class Minimize(BaseFit):
         else:
             return np.array(ans)
 
-    def execute(self, method='SLSQP', *args, **kwargs):
+    def execute(self, *args, **kwargs):
         ans = minimize(
             self.error_func,
             self.initial_guesses,
-            method=method,
             args=(self.independent_data, self.dependent_data, self.sigma_data,),
             bounds=self.model.bounds,
             constraints=self.scipy_constraints,

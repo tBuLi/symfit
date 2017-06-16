@@ -8,7 +8,7 @@ import sympy
 import numpy as np
 from scipy.optimize import curve_fit
 
-from symfit import Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters, variables, NumericalLeastSquares, NonLinearLeastSquares, Model, TaylorModel
+from symfit import Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters, variables, NumericalLeastSquares, NonLinearLeastSquares, Model, TaylorModel, exp
 from symfit.core.support import seperate_symbols, sympy_to_py
 from symfit.distributions import Gaussian
 
@@ -45,6 +45,30 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(model.dependent_vars, list(model.keys()))
 
+    def test_bounds(self):
+        """
+        The bounds of an object should always be such that lower < upper.
+        :return:
+        """
+        a = Parameter(value= - 2.482092e-01, fixed=True)
+        # a = Parameter()
+        try:
+            b = Parameter(value=5.0, min=6.0, max=4.0)
+        except ValueError:
+            b = Parameter(value=5.0, min=4.0, max=6.0)
+        c = Parameter(value=2.219756e+02, fixed=True)
+        x = Variable()
+
+        # build the model
+        model = Model(a + b * (1 - exp(-c / x)))
+        print(model.bounds)
+        for bounds in model.bounds:
+            if None in bounds:
+                pass
+            else:
+                # Both are set
+                min, max = bounds
+                self.assertGreaterEqual(max, min)
 
 if __name__ == '__main__':
     unittest.main()
