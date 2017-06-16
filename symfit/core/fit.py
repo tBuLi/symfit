@@ -57,7 +57,10 @@ class FitResults(object):
         self.gof_qualifiers = gof_qualifiers
 
         self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
+        if pcov is None:
+            pcov = np.array([[None for _ in range(len(self.params))] for _ in range(len(self.params))])
         self.covariance_matrix = pcov
+
 
     def __str__(self):
         """
@@ -94,7 +97,11 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Standard deviation of ``param``.
         """
-        return np.sqrt(self.variance(param))
+        try:
+            return np.sqrt(self.variance(param))
+        except AttributeError:
+            # This happens when variance returns None.
+            return None
 
     def value(self, param):
         """
