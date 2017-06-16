@@ -1365,11 +1365,10 @@ class Minimize(BaseFit):
         else:
             return np.array(ans)
 
-    def execute(self, method='SLSQP', *args, **kwargs):
+    def execute(self, *args, **kwargs):
         ans = minimize(
             self.error_func,
             self.initial_guesses,
-            method=method,
             args=(self.independent_data, self.dependent_data, self.sigma_data,),
             bounds=self.model.bounds,
             constraints=self.scipy_constraints,
