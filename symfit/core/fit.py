@@ -35,6 +35,11 @@ class FitResults(object):
     - R squared (Regression coefficient.) or other fit quality qualifiers.
     - fitting status message
     - covariance matrix
+
+    Contains the attribute `params`, which is an
+    :class:`~collections.OrderedDict` containing all the parameter names and
+    their optimized values. Can be `**` unpacked when evaluating
+    :class:`~symfit.core.fit.Model`'s.
     """
     def __init__(self, model, popt, pcov, infodic, mesg, ier, **gof_qualifiers):
         """
