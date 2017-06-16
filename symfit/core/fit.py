@@ -405,7 +405,16 @@ class BaseModel(Mapping):
         """
         :return: List of tuples of all bounds on parameters.
         """
-        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
+        bounds = []
+        for p in self.params:
+            if p.fixed:
+                if p.value >= 0.0:
+                    bounds.append([np.nextafter(p.value, 0), p.value])
+                else:
+                    bounds.append([p.value, np.nextafter(p.value, 0)])
+            else:
+                bounds.append([p.min, p.max])
+        return bounds
 
     @property
     def shared_parameters(self):
