@@ -12,7 +12,7 @@ explain what it does, it's pythonic.
 
 .. code-block:: python
 
-  from symfit import parameters, variables, Fit
+  from symfit import parameters, variables, Fit, Model
    
   xdata = [1.0, 2.0, 3.0, 4.0, 5.0]
   ydata = [2.3, 3.3, 4.1, 5.5, 6.7]
@@ -20,12 +20,12 @@ explain what it does, it's pythonic.
   
   a, b = parameters('a, b')
   x, y = variables('x, y')
-  model = {y: a * x + b}
+  model = Model({y: a * x + b})
   
   fit = Fit(model, x=xdata, y=ydata, sigma_y=yerr)
   fit_result = fit.execute()
 
-Cool right? So now that we have done a fit, how do can we use the results?
+Cool right? So now that we have done a fit, how do we use the results?
 
 .. code-block:: python
 
@@ -55,7 +55,7 @@ Need I say more? How about I let another code example do the talking?
   fit = Maximize(model, constraints=constraints)
   fit_result = fit.execute()
 
-"But what if I need to fit to an ODE?"
+I know what you are thinking. "What if I need to fit to a system of Ordinary Differential Equations?"
 
 .. code-block:: python
 

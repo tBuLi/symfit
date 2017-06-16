@@ -563,7 +563,7 @@ class Constraint(Model):
         # raise Exception(model)
         if isinstance(constraint, Relational):
             self.constraint_type = type(constraint)
-            if isinstance(model, Model):
+            if isinstance(model, BaseModel):
                 self.model = model
             else:
                 raise TypeError('The model argument must be of type Model.')
@@ -653,7 +653,14 @@ class TakesData(object):
                 bound_arguments.arguments[param.name] = param.default
 
         self.data = copy.copy(bound_arguments.arguments)   # ordereddict of the data. Only copy the dict, not the data.
-        # self.sigmas = {name: self.data.pop(name) for name in var_names if name.startswith('sigma_')}
+        # Change the type to array if no array operations are supported.
+        # We don't want to break duck-typing, hence the try-except.
+        for name, dataset in self.data.items():
+            try:
+                dataset**2
+            except TypeError:
+                if dataset is not None:
+                    self.data[name] = np.array(dataset)
         self.sigmas = {name: self.data[name] for name in var_names if name.startswith('sigma_')}
 
         # Replace sigmas that are constant by an array of that constant
@@ -831,15 +838,11 @@ class NumericalLeastSquares(BaseFit):
         :param flatten: If True, summing is performed over the data indices (default).
         :return: :math:`\\sqrt(\\chi^2)`
         """
-        # import matplotlib.pyplot as plt
-
         result = []
         jac_args = list(independent_data.values()) + list(p)
 
         # zip together the dependent vars and evaluated component
         for y, ans in zip(self.model, self.model(*jac_args)):
-            # if 'd' in y.name:
-            #     plt.plot(jac_args[0], ans, label=str(p))
             if dependent_data[y.name] is not None:
                 result.append(((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name])**2)
                 if flatten:
@@ -853,7 +856,11 @@ class NumericalLeastSquares(BaseFit):
         for ans, y, row in zip(self.model(*jac_args), self.model, self.model.numerical_jacobian):
             if dependent_data[y.name] is not None:
                 for index, component in enumerate(row):
-                    result[index] += (1/chi) * component(*jac_args) * ((dependent_data[y.name] - ans)/sigma_data[self.model.sigmas[y].name]**2)
+                    result[index] += component(*jac_args) * (
+                        (dependent_data[y.name] - ans) / sigma_data[self.model.sigmas[y].name] ** 2
+                    )
+        result *= (1 / chi)
+        result = np.nan_to_num(result)
         result = [item.flatten() for item in result]
         return - np.array(result).T
 
@@ -1001,7 +1008,7 @@ class LinearLeastSquares(BaseFit):
 class NonLinearLeastSquares(BaseFit):
     """
     Experimental.
-    Implements non-linear least squares. Works by a two step process:
+    Implements non-linear least squares [wiki_nllsq]_. Works by a two step process:
     First the model is linearised by doing a first order taylor expansion
     around the guesses for the parameters.
     Then a LinearLeastSquares fit is performed. This is iterated until
@@ -1464,11 +1471,13 @@ class HasCovarianceMatrix(object):
         :return: covariance matrix.
         """
         if any(element is None for element in self.sigma_data.values()):
+            # If one of the sigma's was explicitly set to None, we are unable
+            # to determine the covariances.
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
         if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
-            # All shapes identical
+            # Shapes of all sigma data identical
             return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
         else:
             return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
@@ -1675,6 +1684,9 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         """
         fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
         popt = fit_result.params.values()
+
+        if not hasattr(self.model, 'numerical_jacobian'):
+            return fit_result
 
         try:
             cov_matrix = self.covariance_matrix(fit_result.params)
@@ -2021,8 +2033,10 @@ class ODEModel(CallableModel):
     @property
     @cache
     def _njacobian(self):
-        return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
-        # return [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var, expr in self.items()]
+        return [
+            [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var in self.dependent_vars]
+            for _, expr in self.items()
+        ]
 
     def eval_components(self, *args, **kwargs):
         """
@@ -2039,7 +2053,7 @@ class ODEModel(CallableModel):
 
         # System of functions to be integrated
         f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
-        Dfun = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._njacobian]
+        Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
@@ -2090,4 +2104,3 @@ class ODEModel(CallableModel):
         Ans = namedtuple('Ans', [var.name for var in self])
         ans = Ans(*self.eval_components(**bound_arguments.arguments))
         return ans
-

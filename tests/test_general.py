@@ -642,7 +642,7 @@ class Tests(unittest.TestCase):
         # Same sigma everywere
         fit = Fit(t_model, y_data, t_data, 0.0031, absolute_sigma=False)
         fit_result = fit.execute()
-        popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031, absolute_sigma=False)
+        popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031*np.ones(len(y_data)), absolute_sigma=False)
         self.assertAlmostEqual(fit_result.value(g), popt_sameweights[0], 4)
         self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_sameweights[0, 0]), 4)
         # Same weight everywere should be the same as no weight when absolute_sigma=False
@@ -740,7 +740,7 @@ class Tests(unittest.TestCase):
         http://nbviewer.ipython.org/urls/gist.github.com/taldcroft/5014170/raw/31e29e235407e4913dc0ec403af7ed524372b612/curve_fit.ipynb
         """
         N = 10000
-        sigma = 10.0
+        sigma = 10.0 * np.ones(N)
         xn = np.arange(N, dtype=np.float)
         # yn = np.zeros_like(xn)
         np.random.seed(10)
@@ -771,7 +771,7 @@ class Tests(unittest.TestCase):
 
         # Analytical answer for mean of N(0,1):
         mu = 0.0
-        sigma_mu = sigma/N**0.5
+        sigma_mu = sigma[0]/N**0.5
 
         self.assertAlmostEqual(fit_result.stdev(a), sigma_mu, 5)
 
