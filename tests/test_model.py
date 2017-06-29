@@ -8,7 +8,11 @@ import sympy
 import numpy as np
 from scipy.optimize import curve_fit
 
-from symfit import Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters, variables, NumericalLeastSquares, NonLinearLeastSquares, Model, TaylorModel
+from symfit import (
+    Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters,
+    variables, NonLinearLeastSquares, Model, TaylorModel
+)
+from symfit.core.minimizers import MINPACK
 from symfit.core.support import seperate_symbols, sympy_to_py
 from symfit.distributions import Gaussian
 
@@ -45,6 +49,11 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(model.dependent_vars, list(model.keys()))
 
+    def test_neg(self):
+        """
+        Test negation of all model types
+        """
+        raise NotImplementedError('')
 
 if __name__ == '__main__':
     unittest.main()
