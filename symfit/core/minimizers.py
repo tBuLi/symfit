@@ -2,7 +2,7 @@ import abc
 from collections import namedtuple
 from functools import partial
 
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 import sympy
 import numpy as np
 
@@ -39,6 +39,13 @@ class BaseMinimizer(object):
     @property
     def initial_guesses(self):
         return [p.value for p in self.params]
+
+    @initial_guesses.setter
+    def initial_guesses(self, vals):
+        if len(vals) != len(self.params):
+            raise IndexError
+        for p, val in zip(self.params, vals):
+            p.value = val
 
 class BoundedMinimizer(BaseMinimizer):
     """
@@ -92,6 +99,41 @@ class GradientMinimizer(BaseMinimizer):
                     jac.append(val)
             return jac
         return wrapped
+
+
+class GlobalMinimizer(BaseMinimizer):
+    def __init__(self, *args, **kwargs):
+        super(GlobalMinimizer, self).__init__(*args, **kwargs)
+
+
+def ChainedMinimizer(specific_minimizers):
+    class SpecificChainedMinimizer(BaseMinimizer):
+        minimizers = list(specific_minimizers)
+
+        def __init__(self, *args, **kwargs):
+            super(SpecificChainedMinimizer, self).__init__(*args, **kwargs)
+            for idx, minimizer in enumerate(self.minimizers):
+                if not isinstance(minimizer, BaseMinimizer):
+                    self.minimizers[idx] = minimizer(*args, **kwargs)
+
+        def execute(self, minimizer_kwargs=None):
+            if minimizer_kwargs is None:
+                minimizer_kwargs = [{} for _ in self.minimizers]
+            answers = []
+            next_guess = self.initial_guesses
+            for minimizer, kwargs in zip(self.minimizers, minimizer_kwargs):
+                minimizer.initial_guesses = next_guess
+                ans = minimizer.execute(**kwargs)
+                next_guess = ans['popt']
+                answers.append(ans)
+            final = answers[-1].copy()
+            # TODO: Compile all previous results in one, instead of just the
+            # number of function evaluations. But there's some code down the
+            # line that expects scalars.
+            final['infodic']['nfev'] = sum(ans['infodic']['nfev'] for ans in answers)
+            return final
+    return SpecificChainedMinimizer
+
 
 class ScipyMinimize(object):
     """
@@ -200,6 +242,37 @@ class BFGS(ScipyGradientMinimize):
     def execute(self, **minimize_options):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
+class DifferentialEvolution(GlobalMinimizer, BoundedMinimizer):
+    def wrap_func(self, func):
+        # parameters = {param.name: value for param, value in zip(self.params, values)}
+        if func is None:
+            return None
+        def wrapped_func(values):
+            parameters = key2str(dict(zip(self.params, values)))
+            return func(**parameters)
+        return wrapped_func
+
+    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
+                 recombination=0.95, polish=False, init='latinhypercube')
+    def execute(self, **de_options):
+        ans = differential_evolution(self.wrap_func(self.objective),
+                                     self.bounds,
+                                     **de_options)
+        # Build infodic
+        infodic = {
+            'nfev': ans.nfev,
+        }
+
+        fit_results = dict(
+            popt=ans.x,
+            pcov=None,
+            infodic=infodic,
+            mesg=ans.message,
+            ier=ans.nit,
+            value=ans.fun,
+        )
+
+        return fit_results
 
 class SLSQP(ScipyGradientMinimize, ConstrainedMinimizer, BoundedMinimizer):
     def execute(self, **minimize_options):
