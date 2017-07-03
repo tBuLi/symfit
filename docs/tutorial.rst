@@ -104,9 +104,8 @@ fit result::
 
   y = model(x=xdata, **fit_result.params)
   
-This unpacks the :attr:`~symfit.core.fit.FitResults.params` object as a
-:class:`dict`. For more info view :class:`~symfit.core.fit.ParameterDict` in
-the :ref:`apidocs`.
+This immediately unpacks an :class:`~collections.OrderedDict` containing the optimized fit
+parameters.
 
 Named Models
 ------------

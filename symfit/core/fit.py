@@ -27,173 +27,55 @@ class ModelError(Exception):
     pass
 
 
-class ParameterDict(object):
-    """
-    Container for all the parameters and their (co)variances.
-    Behaves mostly like an OrderedDict: can be \*\*-ed, allowing the sexy syntax where a model is
-    called with values for the Variables and \*\*params. However, under iteration
-    it behaves like a list! In other words, it preserves order in the params.
-    """
-    def __init__(self, params, popt, pcov, *args, **kwargs):
-        super(ParameterDict, self).__init__(*args, **kwargs)
-        self.__params = params  # list of Parameter instances
-        self.__params_dict = dict([(p.name, p) for p in params])
-        # popt and pstdev are dicts with parameter names: value pairs.
-        self.__popt = dict([(p.name, value) for p, value in zip(params, popt)])
-        if pcov is not None:
-            # Can be None.
-            stdevs = np.sqrt(np.diagonal(pcov))
-        else:
-            stdevs = [None for _ in params]
-        self.__pstdev = dict([(p.name, s) for p, s in zip(params, stdevs)])
-        # Covariance matrix
-        self.__pcov = pcov
-
-    def __len__(self):
-        """
-        Length gives the number of ``Parameter`` instances.
-
-        :return: len(self.__params)
-        """
-        return len(self.__params)
-
-    def __iter__(self):
-        """
-        Iteration over the ``Parameter`` instances.
-        :return: iterator
-        """
-        return iter(self.__params)
-
-    def __getitem__( self, param_name):
-        """
-        This method allows this object to be addressed as a dict. This allows for the ** unpacking.
-        Therefore return the value of the best fit parameter, as this is what the user expects.
-
-        :param param_name: Name of the ``Parameter`` whose value your interested in.
-        :return: the value of the best fit parameter with name 'key'.
-        """
-        return getattr(self, param_name)
-
-    def keys(self):
-        """
-        :return: All ``Parameter`` names.
-        """
-        return self.__params_dict.keys()
-
-    def __getattr__(self, name):
-        """
-        A user can access the value of a parameter directly through this object.
-
-        :param name: Name of a ``Parameter``.
-            Naming convention:
-            let a = Parameter(). Then:
-            .a gives the value of the parameter.
-            .a_stdev gives the standard deviation.
-        """
-        # If a parameter with this name exists, return it immediately
-        try:
-            return self.__popt[name]
-        except KeyError:
-            param_name = name
-            # Expand this if statement if in the future we allow more suffixes
-            if name.endswith('_stdev'):
-                param_name = name[:-len('_stdev')]  # everything but the suffix
-                try:
-                    return self.__pstdev[param_name]
-                except KeyError:
-                    pass
-        raise AttributeError('No Parameter by the name {}.'.format(param_name))
-
-    @deprecated(replacement='value')
-    def get_value(self, param):
-        """
-        Deprecated.
-        :param param: ``Parameter`` instance.
-        :return: returns the numerical value of param
-        :raises: DeprecationWarning
-        """
-        return self.value(param)
-
-    @deprecated(replacement='stdev')
-    def get_stdev(self, param):
-        """
-        Deprecated.
-        :param param: ``Parameter`` instance.
-        :return: returns the standard deviation of param
-        :raises: DeprecationWarning
-        """
-        return self.stdev(param)
-
-    def value(self, param):
-        """
-        :param param: ``Parameter`` instance.
-        :return: returns the numerical value of param
-        """
-        return self.__popt[param.name]
-
-    def stdev(self, param):
-        """
-        :param param: ``Parameter`` instance.
-        :return: returns the standard deviation of param
-        """
-        return self.__pstdev[param.name]
-
-    @property
-    def covariance_matrix(self):
-        """
-        Returns the covariance matrix.
-        """
-        return self.__pcov
-
-
 class FitResults(object):
     """
     Class to display the results of a fit in a nice and unambiguous way.
     All things related to the fit are available on this class, e.g.
-    - parameters + stdev
-    - R squared (Regression coefficient.)
+    - parameter values + stdev
+    - R squared (Regression coefficient.) or other fit quality qualifiers.
     - fitting status message
+    - covariance matrix
 
-    This object is made to behave entirely read-only. This is a bit unnatural
-    to enforce in Python but I feel it is necessary to guarantee the integrity
-    of the results.
+    Contains the attribute `params`, which is an
+    :class:`~collections.OrderedDict` containing all the parameter names and
+    their optimized values. Can be `**` unpacked when evaluating
+    :class:`~symfit.core.fit.Model`'s.
     """
-    __params = None  # Private property.
-    __infodict = None
-    __status_message = None
-    __iterations = None
-    __ydata = None
-    __sigma = None
-
-    def __init__(self, params, popt, pcov, infodic, mesg, ier, ydata=None, sigma=None):
+    def __init__(self, model, popt, pcov, infodic, mesg, ier, **gof_qualifiers):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
-        :param params: list of ``Parameter``'s.
-        :param popt: best fit parameters, same ordering as in params.
+        :param model: :class:`Model` that was fit to.
+        :param popt: best fit parameters, same ordering as in model.params.
         :param pcov: covariance matrix.
         :param infodic: dict with fitting info.
         :param mesg: Status message.
         :param ier: Number of iterations.
-        :param ydata:
+        :param gof_qualifiers: Any remaining keyword arguments should be
+          Goodness of fit (g.o.f.) qualifiers.
         """
         # Validate the types in rough way
-        self.__infodict = infodic
-        self.__status_message = mesg
-        self.__iterations = ier
-        self.__ydata = ydata
-        self.__params = ParameterDict(params, popt, pcov)
-        self.__sigma = sigma
+        self.infodict = infodic
+        self.status_message = mesg
+        self.iterations = ier
+        self.model = model
+        self.gof_qualifiers = gof_qualifiers
+
+        self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
+        if pcov is None:
+            pcov = np.array([[None for _ in range(len(self.params))] for _ in range(len(self.params))])
+        self.covariance_matrix = pcov
+
 
     def __str__(self):
         """
         Pretty print the results as a table.
         """
         res = '\nParameter Value        Standard Deviation\n'
-        for p in self.params:
-            value = self.params.value(p)
+        for p in self.model.params:
+            value = self.value(p)
             value_str = '{:e}'.format(value) if value is not None else 'None'
-            stdev = self.params.stdev(p)
+            stdev = self.stdev(p)
             stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
             res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
@@ -202,56 +84,16 @@ class FitResults(object):
         res += 'Regression Coefficient: {}\n'.format(self.r_squared)
         return res
 
-    @property
-    def r_squared(self):
+    def __getattr__(self, item):
         """
-        r_squared Property.
+        Return the requested `item` if it can be found in the gof_qualifiers
+        dict.
 
-        :return: Regression coefficient.
+        :param item: Name of Goodness of Fit qualifier.
+        :return: Goodness of Fit qualifier if present.
         """
-        if self._r_squared is not None:
-            return self._r_squared
-        else:
-            return float('nan')
-
-    @r_squared.setter
-    def r_squared(self, value):
-        self._r_squared = value
-
-    #
-    # READ-ONLY Properties
-    # What follows are all the read-only properties of this object.
-    # Their definitions are mostly trivial, but necessary to make sure that
-    # FitResults can't be changed.
-    #
-
-    @property
-    def infodict(self):
-        """
-        Read-only Property.
-        """
-        return self.__infodict
-
-    @property
-    def status_message(self):
-        """
-        Read-only Property.
-        """
-        return self.__status_message
-
-    @property
-    def iterations(self):
-        """
-        Read-only Property.
-        """
-        return self.__iterations
-
-    @property
-    def params(self):
-        """
-        Read-only Property.
-        """
-        return self.__params
+        if item in self.gof_qualifiers:
+            return self.gof_qualifiers[item]
 
     def stdev(self, param):
         """
@@ -260,7 +102,11 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Standard deviation of ``param``.
         """
-        return self.params.stdev(param)
+        try:
+            return np.sqrt(self.variance(param))
+        except AttributeError:
+            # This happens when variance returns None.
+            return None
 
     def value(self, param):
         """
@@ -269,7 +115,7 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Value of ``param``.
         """
-        return self.params.value(param)
+        return self.params[param.name]
 
     def variance(self, param):
         """
@@ -278,8 +124,8 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Variance of ``param``.
         """
-        param_number = list(self.params).index(param)
-        return self.params.covariance_matrix[param_number, param_number]
+        param_number = self.model.params.index(param)
+        return self.covariance_matrix[param_number, param_number]
 
     def covariance(self, param_1, param_2):
         """
@@ -289,9 +135,9 @@ class FitResults(object):
         :param param_2: ``Parameter`` Instance.
         :return: Covariance of the two params.
         """
-        param_1_number = list(self.params).index(param_1)
-        param_2_number = list(self.params).index(param_2)
-        return self.params.covariance_matrix[param_1_number, param_2_number]
+        param_1_number = self.model.params.index(param_1)
+        param_2_number = self.model.params.index(param_2)
+        return self.covariance_matrix[param_1_number, param_2_number]
 
 class BaseModel(Mapping):
     """
@@ -988,16 +834,15 @@ class NumericalLeastSquares(BaseFit):
         pcov = cov_x * s_sq if cov_x is not None else None
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=popt,
             pcov=pcov,
             infodic=infodic,
             mesg=mesg,
             ier=ier,
-            # ydata=list(self.data.values())[0] if len(self.model.dependent_vars) == 1 else None,
-            # sigma=self.sigma,
         )
-        self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+        self._fit_results.gof_qualifiers['r_squared'] = \
+            r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
 
@@ -1169,14 +1014,15 @@ class LinearLeastSquares(BaseFit):
         cov_matrix = self.covariance_matrix(best_fit_params=best_fit_params)
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=[best_fit_params[param] for param in self.model.params],
             pcov=cov_matrix,
             infodic={'nfev': 0},
             mesg='',
             ier=0,
         )
-        self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+        self._fit_results.gof_qualifiers['r_squared'] = \
+            r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
 
@@ -1244,14 +1090,15 @@ class NonLinearLeastSquares(BaseFit):
         cov_matrix = fit.covariance_matrix(best_fit_params=fit_params)
 
         self._fit_results = FitResults(
-            params=self.model.params,
+            model=self.model,
             popt=[float(fit_params[param]) for param in self.model.params],
             pcov=cov_matrix,
             infodic={'nfev': i},
             mesg='',
             ier=0,
         )
-        self._fit_results.r_squared = r_squared(self.model, self._fit_results, self.data)
+        self._fit_results.gof_qualifiers['r_squared'] = \
+            r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
 
@@ -1395,8 +1242,8 @@ class Minimize(BaseFit):
         # s_sq = (infodic['fvec'] ** 2).sum() / (len(self.ydata) - len(popt))
         # pcov = cov_x * s_sq if cov_x is not None else None
 
-        self.__fit_results = FitResults(
-            params=self.model.params,
+        self._fit_results = FitResults(
+            model=self.model,
             popt=ans.x,
             pcov=None,
             infodic=infodic,
@@ -1404,10 +1251,10 @@ class Minimize(BaseFit):
             ier=ans.nit,
         )
         try:
-            self.__fit_results.r_squared = r_squared(self.model, self.__fit_results, self.data)
+            self._fit_results.gof_qualifiers['r_squared'] = r_squared(self.model, self._fit_results, self.data)
         except ValueError:
-            self.__fit_results.r_squared = float('nan')
-        return self.__fit_results
+            self._fit_results.gof_qualifiers['r_squared'] = float('nan')
+        return self._fit_results
 
     @property
     def scipy_constraints(self):
@@ -1856,8 +1703,7 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
         description.
         """
         fit_result = super(ConstrainedNumericalLeastSquares, self).execute(*args, **kwargs)
-        # Extract the best fit parameters. Replace by fit_result.params.values() if #45 is fixed.
-        popt = [fit_result.value(p) for p in self.model.params]
+        popt = fit_result.params.values()
 
         if not hasattr(self.model, 'numerical_jacobian'):
             return fit_result
@@ -1872,14 +1718,14 @@ class ConstrainedNumericalLeastSquares(Minimize, HasCovarianceMatrix):
                 cov_matrix[~np.eye(*cov_matrix.shape, dtype=bool)] = float('nan')
 
             results = FitResults(
-                params=self.model.params,
+                model=self.model,
                 popt=popt,
                 pcov=cov_matrix,
                 infodic=fit_result.infodict,
                 mesg=fit_result.status_message,
                 ier=fit_result.iterations,
+                r_squared=fit_result.r_squared
             )
-            results.r_squared = fit_result.r_squared
             return results
 
 # class LagrangeMultipliers:

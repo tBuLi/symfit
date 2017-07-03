@@ -118,7 +118,7 @@ class TestAnalyticalFit(unittest.TestCase):
         self.assertAlmostEqual(var_b_exact, fit_result.variance(b), 6)
 
         # Lets also make sure the entire covariance matrix is the same
-        for cov1, cov2 in zip(fit_result.params.covariance_matrix.flatten(), pcov.flatten()):
+        for cov1, cov2 in zip(fit_result.covariance_matrix.flatten(), pcov.flatten()):
             self.assertAlmostEqual(cov1, cov2)
 
     def test_is_linear(self):
@@ -174,7 +174,7 @@ class TestAnalyticalFit(unittest.TestCase):
         num_result = fit.execute()
 
         # cov matrix should now be different
-        for cov1, cov2 in zip(num_result_rel.params.covariance_matrix.flatten(), num_result.params.covariance_matrix.flatten()):
+        for cov1, cov2 in zip(num_result_rel.covariance_matrix.flatten(), num_result.covariance_matrix.flatten()):
             # Make the absolute cov relative to see if it worked.
             ss_res = np.sum(num_result_rel.infodict['fvec']**2)
             degrees_of_freedom = len(fit.data[fit.model.dependent_vars[0].name]) - len(fit.model.params)
@@ -192,7 +192,7 @@ class TestAnalyticalFit(unittest.TestCase):
         #     self.assertAlmostEqual(cov1, cov2)
         #     print(cov1, cov2)
 
-        for cov1, cov2 in zip(num_result.params.covariance_matrix.flatten(), fit_result.params.covariance_matrix.flatten()):
+        for cov1, cov2 in zip(num_result.covariance_matrix.flatten(), fit_result.covariance_matrix.flatten()):
             self.assertAlmostEqual(cov1, cov2)
             # print(cov1, cov2)
 
@@ -275,7 +275,7 @@ class TestAnalyticalFit(unittest.TestCase):
 
         self.assertAlmostEqual(num_result.value(g), fit_result.value(g))
 
-        for cov1, cov2 in zip(num_result.params.covariance_matrix.flatten(), fit_result.params.covariance_matrix.flatten()):
+        for cov1, cov2 in zip(num_result.covariance_matrix.flatten(), fit_result.covariance_matrix.flatten()):
             self.assertAlmostEqual(cov1, cov2)
 
     def test_2D_fitting(self):
