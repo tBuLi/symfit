@@ -173,8 +173,8 @@ If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a
     y_2_result = outcome.y_2
 
 
-symfit exposes sympy.api
-------------------------
+symfit exposes sympy
+--------------------
 
 :mod:`symfit` exposes the `sympy <http://docs.sympy.org/latest/>`_ api as well,
 so mathematical expressions such as :class:`~sympy.functions.elementary.exponential.exp`,
