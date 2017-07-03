@@ -55,6 +55,9 @@ def ChainedMinimizer(specific_minimizers):
             super(SpecificChainedMinimizer, self).__init__(*args, **kwargs)
             for idx, minimizer in enumerate(self.minimizers):
                 if not isinstance(minimizer, BaseMinimizer):
+                    # TODO: figure out how to do the initialisation proper and
+                    # pass e.g. the jacobian the minimizers that can deal with 
+                    # it. See also Fit.
                     self.minimizers[idx] = minimizer(*args, **kwargs)
 
         def execute(self, minimizer_kwargs=None):

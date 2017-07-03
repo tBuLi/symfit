@@ -23,8 +23,9 @@ a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
 b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
 ydata = a_vec * xdata + b_vec # Point scattered around the line 5 * x + 105
 print(SLSQP.__mro__)
-fit = Fit(model, xdata, ydata, minimizer=MINPACK)
-fit_result = fit.execute()
+mini = ChainedMinimizer((DifferentialEvolution, LBFGSB))
+fit = Fit(model, xdata, ydata, minimizer=mini)
+fit_result = fit.execute(minimizer_kwargs=[{'popsize': 20}, {}])
 print(fit_result)
 
 y = model(x=xdata, **fit_result.params)
