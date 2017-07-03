@@ -7,7 +7,7 @@ from abc import abstractmethod
 import sympy
 from sympy.core.relational import Relational
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 from scipy.integrate import odeint
 
 from symfit.core.argument import Parameter, Variable
@@ -861,7 +861,6 @@ class NumericalLeastSquares(BaseFit):
         """
         result = []
         jac_args = list(independent_data.values()) + list(p)
-
         # zip together the dependent vars and evaluated component
         for y, ans in zip(self.model, self.model(*jac_args)):
             if dependent_data[y.name] is not None:
@@ -884,6 +883,69 @@ class NumericalLeastSquares(BaseFit):
         result = np.nan_to_num(result)
         result = [item.flatten() for item in result]
         return - np.array(result).T
+
+
+class GlobalLeastSquares(NumericalLeastSquares):
+    """
+    Finds a global solution to the least squares problem using Scipy's
+    differential evolution algorithm. Requires upper and lower bounds for all
+    parameters; incompatible with constraints.
+    Note that it may be highly inefficient to run with suboptimal metaparameters.
+    """
+    def error_func(self, *args, **kwargs):
+        """
+        Returns the value of the square root of :math:`\\chi^2`, summing over the components.
+
+        This function now supports setting variables to None. Needs mathematical rigor!
+
+        :param p: array of parameter values.
+        :param independent_data: Data to provide to the independent variables.
+        :param dependent_data:
+        :param sigma_data:
+        :return: :math:`\\sqrt(\\chi^2)`
+        """
+        return np.sqrt(np.sum(super(GlobalLeastSquares, self).error_func(*args, **kwargs)**2))
+
+    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.5, 1.0),
+            recombination=0.9, polish=True, init='latinhypercube')
+    def execute(self, **kwargs):
+        """
+        :param options: Any postional arguments to be passed to leastsqbound
+        :param kwoptions: Any named arguments to be passed to leastsqbound
+        """
+        # DE metaparameters come from http://www1.icsi.berkeley.edu/~storn/code.html
+        # Alternative sources are http://www.hvass-labs.org/people/magnus/thesis/pedersen08thesis.pdf
+        # and http://www.hvass-labs.org/people/magnus/publications/pedersen10good-de.pdf and
+        # http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7332852
+        # TODO: improve default DE metaparameters
+        # TODO, optional: polish by a manual call to scipy minimize to get
+        #                 errors in the parameters (and use the jacobian?)
+        if kwargs['popsize'] < 3:
+            raise ValueError('popsize has to be at least 3')
+        ans = differential_evolution(
+                        self.error_func,
+                        bounds=self.model.bounds,
+                        args=(self.independent_data, self.dependent_data, self.sigma_data,),
+                        **kwargs
+                        )
+        infodic = {
+            'fvec': ans.fun,
+            'nfev': ans.nfev,
+        }
+        self.__fit_results = FitResults(
+            params=self.model.params,
+            infodic=infodic,
+            popt=ans.x,
+            pcov=None,
+            mesg=ans.message,
+            ier=ans.nit,
+        )
+        try:
+            self.__fit_results.r_squared = r_squared(self.model, self.__fit_results, self.data)
+        except ValueError:
+            self.__fit_results.r_squared = float('nan')
+#        print(self.__fit_results)
+        return self.__fit_results
 
 
 class LinearLeastSquares(BaseFit):
@@ -1281,6 +1343,7 @@ class Minimize(BaseFit):
         cons = tuple(cons)
         return cons
 
+      
 # class Minimize(BaseFit):
 #     def __init__(self, model, xdata=None, ydata=None, constraints=None, *args, **kwargs):
 #         """
