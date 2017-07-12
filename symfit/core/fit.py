@@ -365,8 +365,9 @@ class CallableModel(BaseModel):
                 h[param_idx] = dx * order * param_vals[param_idx]
                 diff = f(param_vals + h) - f(param_vals - h)
                 param_grad.append(factor * diff/(2*h[param_idx]))
-
             param_grad = np.array(param_grad)
+            if param_grad.ndim == 2:
+                param_grad = param_grad[:, :, np.newaxis]
             param_grad = np.sum(param_grad, axis=0)
             out.append(param_grad)
         out = np.array(out)
