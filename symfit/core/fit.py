@@ -61,12 +61,10 @@ class FitResults(object):
         self.iterations = ier
         self.model = model
         self.gof_qualifiers = gof_qualifiers
-
         self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
         if pcov is None:
             pcov = np.array([[None for _ in range(len(self.params))] for _ in range(len(self.params))])
         self.covariance_matrix = pcov
-
 
     def __str__(self):
         """
@@ -894,7 +892,7 @@ class NumericalLeastSquares(BaseFit):
             s_sq = ss_res / degrees_of_freedom
 
         pcov = cov_x * s_sq if cov_x is not None else None
-        
+
         self._fit_results = FitResults(
             model=self.model,
             popt=popt,
@@ -1623,6 +1621,8 @@ class HasCovarianceMatrix(object):
         jac = self.model.eval_jacobian(**kwargs)
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac,0,1)
+        if not self.independent_data:
+            jac = jac * np.ones_like(W)
         # Dot away all but the parameter dimension!
         cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
         cov_matrix = np.linalg.inv(cov_matrix_inv)
@@ -1648,9 +1648,9 @@ class HasCovarianceMatrix(object):
         jac = self.model.eval_jacobian(**kwargs)
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac,0,1)
+        # TODO: Fix length of jac if there's no independent_data
         # Weigh each component with its respective weight.
         jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
-
         # Buil the inverse cov_matrix.
         cov_matrix_inv = []
         # iterate along the parameters first
