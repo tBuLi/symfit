@@ -102,8 +102,8 @@ class FitResults(object):
         :return: Standard deviation of ``param``.
         """
         try:
-            return np.sqrt(self.variance(param))
-        except AttributeError:
+            return np.sqrt(np.abs(self.variance(param)))
+        except (AttributeError, TypeError):
             # This happens when variance returns None.
             return None
 
@@ -350,8 +350,7 @@ class CallableModel(BaseModel):
 
         factors = np.array((3/2, -3/5, 1/10))
         orders = np.arange(1, len(factors) + 1)
-        f = lambda ps: np.array(partial(self, *var_vals)(*ps), dtype=float)
-
+        f = lambda ps: np.array(partial(self, *var_vals)(*ps))
         out = np.zeros((len(self.dependent_vars), len(self.params)), dtype=float)
         out = []
         # TODO: Dark numpy magic
@@ -360,7 +359,7 @@ class CallableModel(BaseModel):
             for order, factor in zip(orders, factors):
                 h = np.zeros(len(self.params))
                 # Note: stepsize (h) depends on the parameter values!
-                h[param_idx] = dx * order * param_vals[param_idx]
+                h[param_idx] = dx * order * param_vals[param_idx] if param_vals[param_idx] else dx * order
                 diff = f(param_vals + h) - f(param_vals - h)
                 param_grad.append(factor * diff/(2*h[param_idx]))
             param_grad = np.array(param_grad)
@@ -1615,7 +1614,6 @@ class HasCovarianceMatrix(object):
         else:
             s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
             W = 1/sigma**2/s_sq[:, np.newaxis]
-
         kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
         kwargs.update(self.independent_data)
         jac = self.model.eval_jacobian(**kwargs)
@@ -1646,21 +1644,25 @@ class HasCovarianceMatrix(object):
         kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
         kwargs.update(self.independent_data)
         jac = self.model.eval_jacobian(**kwargs)
-        # Order jacobian as param, component, datapoint
-        jac = np.swapaxes(jac,0,1)
-        # TODO: Fix length of jac if there's no independent_data
-        # Weigh each component with its respective weight.
-        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
-        # Buil the inverse cov_matrix.
-        cov_matrix_inv = []
-        # iterate along the parameters first
-        for index, jac_w_p in enumerate(jac_weighed):
-            cov_matrix_inv.append([])
-            for jac_p in jac:
-                # Now we have to dot product these guys properly.
-                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
-                cov_matrix_inv[index].append(dot)
 
+        # We are going to zero-pad W and jac depending on the longest bit of
+        # data we have. We can do this because we're going to do a tensordot,
+        # and x + 0*y = x.
+        data_len = max(j.shape[1] for j in jac)
+        data_len = max(data_len, max(len(w) for w in W))
+        W_full = np.zeros((len(W), data_len), dtype=float)
+        jac_full = np.zeros((len(jac), jac[0].shape[0], data_len), dtype=float)
+        for idx, (j, w) in enumerate(zip(jac, W)):
+            if not self.independent_data:
+                j = j * np.ones_like(w)
+            jac_full[idx, :, :j.shape[1]] = j
+            W_full[idx, :len(w)] = w
+        jac = jac_full
+        W = W_full
+        # Order jacobian as param, component, datapoint
+        jac = np.swapaxes(jac, 0, 1)
+        # Dot away all but the parameter dimension!
+        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
         cov_matrix = np.linalg.inv(cov_matrix_inv)
         return cov_matrix
 

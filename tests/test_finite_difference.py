@@ -25,11 +25,11 @@ class FiniteDifferenceTests(unittest.TestCase):
 
         exact = model.eval_jacobian(x=x_data, a=3.5)
         approx = model.finite_difference(x=x_data, a=3.5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx)
 
         exact = model.eval_jacobian(x=3, a=3.5)
         approx = model.finite_difference(x=3, a=3.5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx)
 
     def test_1_multi_model(self):
         '''Tests the case with 1 component and multiple parameters'''
@@ -40,11 +40,11 @@ class FiniteDifferenceTests(unittest.TestCase):
 
         exact = model.eval_jacobian(x=x_data, a=3.5, b=2)
         approx = model.finite_difference(x=x_data, a=3.5, b=2)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx)
 
         exact = model.eval_jacobian(x=3, a=3.5, b=2)
         approx = model.finite_difference(x=3, a=3.5, b=2)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx)
 
     def test_multi_1_model(self):
         '''Tests the case with multiple components and one parameter'''
@@ -56,11 +56,11 @@ class FiniteDifferenceTests(unittest.TestCase):
 
         exact = model.eval_jacobian(x=x_data, a=3.5)
         approx = model.finite_difference(x=x_data, a=3.5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx)
 
         exact = model.eval_jacobian(x=3, a=3.5)
         approx = model.finite_difference(x=3, a=3.5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx)
 
     def test_multi_multi_model(self):
         '''Tests the case with multiple components and multiple parameters'''
@@ -72,11 +72,11 @@ class FiniteDifferenceTests(unittest.TestCase):
 
         exact = model.eval_jacobian(x=x_data, a=3.5, b=2, c=5)
         approx = model.finite_difference(x=x_data, a=3.5, b=2, c=5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
         exact = model.eval_jacobian(x=3, a=3.5, b=2, c=5)
         approx = model.finite_difference(x=3, a=3.5, b=2, c=5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
     def test_multi_indep(self):
         '''Tests the case with multiple components, multiple parameters and
@@ -90,16 +90,16 @@ class FiniteDifferenceTests(unittest.TestCase):
 
         exact = model.eval_jacobian(x=x_data, w=w_data, a=3.5, b=2, c=5)
         approx = model.finite_difference(x=x_data, w=w_data, a=3.5, b=2, c=5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
         exact = model.eval_jacobian(x=0.3, w=w_data, a=3.5, b=2, c=5)
         approx = model.finite_difference(x=0.3, w=w_data, a=3.5, b=2, c=5)
-        self.assertTrue(np.allclose(exact, approx))
+        np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
         exact = model.eval_jacobian(x=0.3, w=5, a=3.5, b=2, c=5)
         approx = model.finite_difference(x=0.3, w=5, a=3.5, b=2, c=5)
-        self.assertTrue(np.allclose(exact, approx))
-
+        np.testing.assert_allclose(exact, approx, rtol=1e-5)
+        
     def test_ODE_stdev(self):
         """Make sure that parameters from ODEModels get standard deviations.
         """
@@ -122,6 +122,7 @@ class FiniteDifferenceTests(unittest.TestCase):
         fit = sf.Fit(model, t=t_data, x=x_data, v=v_data)
         result = fit.execute()
         self.assertTrue(result.stdev(k) is not None)
+        self.assertTrue(np.isfinite(result.stdev(k)))
 
 if __name__ == '__main__':
     try:
