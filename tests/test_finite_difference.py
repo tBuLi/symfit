@@ -79,8 +79,10 @@ class FiniteDifferenceTests(unittest.TestCase):
         np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
     def test_multi_indep(self):
-        '''Tests the case with multiple components, multiple parameters and
-            multiple independent variables'''
+        '''
+        Tests the case with multiple components, multiple parameters and
+        multiple independent variables
+        '''
         w, x, y, z = sf.variables('w, x, y, z')
         a, b, c = sf.parameters('a, b, c')
         model = sf.Model({y: 3 * a * x**2 + b * x * w - c,
@@ -99,9 +101,10 @@ class FiniteDifferenceTests(unittest.TestCase):
         exact = model.eval_jacobian(x=0.3, w=5, a=3.5, b=2, c=5)
         approx = model.finite_difference(x=0.3, w=5, a=3.5, b=2, c=5)
         np.testing.assert_allclose(exact, approx, rtol=1e-5)
-        
+
     def test_ODE_stdev(self):
-        """Make sure that parameters from ODEModels get standard deviations.
+        """
+        Make sure that parameters from ODEModels get standard deviations.
         """
         x, v, t = sf.variables('x, v, t')
         k = sf.Parameter(name='k')
@@ -123,6 +126,51 @@ class FiniteDifferenceTests(unittest.TestCase):
         result = fit.execute()
         self.assertTrue(result.stdev(k) is not None)
         self.assertTrue(np.isfinite(result.stdev(k)))
+
+    def test_unequal_data(self):
+        """
+        Test to make sure finite differences work with data of unequal length.
+        """
+        x_1, x_2, y_1, y_2 = sf.variables('x_1, x_2, y_1, y_2')
+        y0, a_1, a_2, b_1, b_2 = sf.parameters('y0, a_1, a_2, b_1, b_2')
+
+        model = sf.Model({
+            y_1: a_1 * x_1**2 + b_1 * x_1 + y0,
+            y_2: a_2 * x_2**2 + b_2 * x_2 + y0,
+        })
+
+        # Generate data from this model
+        xdata1 = np.linspace(0, 10)
+        xdata2 = xdata1[::2]  # Only every other point.
+
+        exact = model.eval_jacobian(x_1=xdata1, x_2=xdata2,
+                                    a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
+        approx = model.finite_difference(x_1=xdata1, x_2=xdata2,
+                                         a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
+        self._assert_equal(exact, approx, rtol=1e-4)
+
+        model = sf.Model({
+            y_1: a_1 * x_1**2 + b_1 * x_1,
+            y_2: a_2 * x_2**2 + b_2 * x_2,
+        })
+
+        exact = model.eval_jacobian(x_1=xdata1, x_2=xdata2,
+                                    a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
+        approx = model.finite_difference(x_1=xdata1, x_2=xdata2,
+                                         a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
+        self._assert_equal(exact, approx, rtol=1e-4)
+
+        model = sf.Model({
+            y_1: a_1 * x_1**2 + b_1 * x_1,
+        })
+        exact = model.eval_jacobian(x_1=xdata1, a_1=101.3, b_1=0.5)
+        approx = model.finite_difference(x_1=xdata1, a_1=101.3, b_1=0.5)
+        self._assert_equal(exact, approx, rtol=1e-4)
+
+    def _assert_equal(self, exact, approx, **kwargs):
+        self.assertEqual(len(exact), len(approx))
+        for exact_comp, approx_comp in zip(exact, approx):
+            np.testing.assert_allclose(exact_comp, approx_comp, **kwargs)
 
 if __name__ == '__main__':
     try:

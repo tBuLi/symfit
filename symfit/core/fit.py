@@ -339,9 +339,11 @@ class CallableModel(BaseModel):
         Calculates a numerical approximation of the Jacobian of the model using
         the sixth order central finite difference method. Accepts a `dx`
         keyword to tune the relative stepsize used.
+        Makes 6*n_params + 1 calls to the model.
 
         :return: A numerical approximation of the Jacobian of the model as a
-                 numpy array of shape [n_components, n_params, n_datapoints]
+                 list with length n_components containing numpy arrays of shape
+                 (n_params, n_datapoints)
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
@@ -350,26 +352,30 @@ class CallableModel(BaseModel):
 
         factors = np.array((3/2, -3/5, 1/10))
         orders = np.arange(1, len(factors) + 1)
-        f = lambda ps: np.array(partial(self, *var_vals)(*ps))
-        out = np.zeros((len(self.dependent_vars), len(self.params)), dtype=float)
+        f = lambda ps: partial(self, *var_vals)(*ps)
         out = []
-        # TODO: Dark numpy magic
+        # TODO: Dark numpy magic.
+        # TODO: Figure out a way to avoid this call.
+        output = f(param_vals)
+        for comp_idx in range(len(self)):
+            try:
+                data_len = len(output[comp_idx])
+            except TypeError:  # output[comp_idx] is a number
+                data_len = 1
+            param_grad = np.zeros((len(self.params), data_len), dtype=float)
+            out.append(param_grad)
+        # out is a list  of length Ncomponents with numpy arrays of shape
+        # (Nparams, Ndata)
         for param_idx in range(len(self.params)):
-            param_grad = []
             for order, factor in zip(orders, factors):
                 h = np.zeros(len(self.params))
                 # Note: stepsize (h) depends on the parameter values!
                 h[param_idx] = dx * order * param_vals[param_idx] if param_vals[param_idx] else dx * order
-                diff = f(param_vals + h) - f(param_vals - h)
-                param_grad.append(factor * diff/(2*h[param_idx]))
-            param_grad = np.array(param_grad)
-            if param_grad.ndim == 2:
-                param_grad = param_grad[:, :, np.newaxis]
-            param_grad = np.sum(param_grad, axis=0)
-            out.append(param_grad)
-        out = np.array(out)
-        # TODO: Do this in the right order immediately
-        out = np.swapaxes(out, 0, 1)
+                up = f(param_vals + h)
+                down = f(param_vals - h)
+                for comp_idx in range(len(self)):
+                    diff = up[comp_idx] - down[comp_idx]
+                    out[comp_idx][param_idx, :] += factor * diff/(2*h[param_idx])
         return out
 
     def eval_jacobian(self, *args, **kwargs):
@@ -521,21 +527,22 @@ class Model(CallableModel):
         jac = [
             [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
         ]
-        # Find out the component/parameter combination with the most datapoints
-        longest = 1
-        for row in jac:
-            for col in row:
-                try:
-                    collen = len(col)
-                except:
-                    collen = 1
-                longest = max(collen, longest)
-        # And make everything as long
         for idx, comp in enumerate(jac):
+            # Find out how many datapoints this component has. We need to do
+            # this with a try/except, since par can be a number or a sequence.
+            data_len = 1
+            for par in comp:
+                try: l = len(par)
+                except: l = 1
+                data_len = max(l, data_len)
+            # And make everything in this component as long, since some are
+            # numbers.
             for jdx, par in enumerate(comp):
                 # This is a no-op for elements of lenght `longest`.
-                jac[idx][jdx] = np.ones(longest) * par
-        jac = np.array(jac)
+                jac[idx][jdx] = np.ones(data_len) * par
+            # And lastly, turn jac into a list of 2D numpy arrays of shape
+            # (Nparams, Ndata)
+            jac[idx] = np.array(jac[idx], dtype=float)
         return jac
 
     
