@@ -352,7 +352,7 @@ class CallableModel(BaseModel):
         param_vals = [bound_arguments.arguments[param.name] for param in self.params]
         param_vals = np.array(param_vals, dtype=float)
 
-        factors = np.array((3/2, -3/5, 1/10))
+        factors = np.array((3/2., -3/5., 1/10.))
         orders = np.arange(1, len(factors) + 1)
         f = lambda ps: partial(self, *var_vals)(*ps)
         out = []
