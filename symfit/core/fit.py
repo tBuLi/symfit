@@ -334,7 +334,8 @@ class CallableModel(BaseModel):
         """
         return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
-    def finite_difference(self, *args, dx=1e-8, **kwargs):
+    @keywordonly(dx=1e-8)
+    def finite_difference(self, *args, **kwargs):
         """
         Calculates a numerical approximation of the Jacobian of the model using
         the sixth order central finite difference method. Accepts a `dx`
@@ -345,6 +346,7 @@ class CallableModel(BaseModel):
                  list with length n_components containing numpy arrays of shape
                  (n_params, n_datapoints)
         """
+        dx = kwargs.pop('dx')
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
         param_vals = [bound_arguments.arguments[param.name] for param in self.params]
