@@ -167,10 +167,40 @@ class FiniteDifferenceTests(unittest.TestCase):
         approx = model.finite_difference(x_1=xdata1, a_1=101.3, b_1=0.5)
         self._assert_equal(exact, approx, rtol=1e-4)
 
+    def test_harmonic_oscillator_errors(self):
+        """
+        Make sure the errors produced by fitting ODE's are the same as when
+        fitting an exact solution.
+        """
+        x, v, t = sf.variables('x, v, t')
+        k = sf.Parameter(name='k', value=100)
+        m = 1
+        a = -k/m * x
+        ode_model = sf.ODEModel({sf.D(v, t): a,
+                                 sf.D(x, t): v},
+                                initial={t: 0, v: 0, x: 1})
+
+        t_data = np.linspace(0, 10, 250)
+        noise = np.random.normal(1, 0.05, size=t_data.shape)
+        x_data = ode_model(t=t_data, k=100).x * noise
+
+        ode_fit = sf.Fit(ode_model, t=t_data, x=x_data)
+        ode_result = ode_fit.execute()
+
+        phi = 0
+        A = 1
+        model = sf.Model({x: A * sf.cos(sf.sqrt(k/m) * t + phi)})
+        fit = sf.Fit(model, t=t_data, x=x_data)
+        result = fit.execute()
+
+        self.assertAlmostEqual(result.value(k), ode_result.value(k), places=4)
+        self.assertAlmostEqual(result.stdev(k), ode_result.stdev(k))
+
     def _assert_equal(self, exact, approx, **kwargs):
         self.assertEqual(len(exact), len(approx))
         for exact_comp, approx_comp in zip(exact, approx):
             np.testing.assert_allclose(exact_comp, approx_comp, **kwargs)
+
 
 if __name__ == '__main__':
     try:
