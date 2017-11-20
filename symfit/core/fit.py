@@ -340,41 +340,58 @@ class CallableModel(BaseModel):
         Calculates a numerical approximation of the Jacobian of the model using
         the sixth order central finite difference method. Accepts a `dx`
         keyword to tune the relative stepsize used.
-        Makes 6*n_params + 1 calls to the model.
+        Makes 6*n_params calls to the model.
 
         :return: A numerical approximation of the Jacobian of the model as a
                  list with length n_components containing numpy arrays of shape
                  (n_params, n_datapoints)
         """
+        # See also: scipy.misc.derivative. It might be convinced to work, but
+        # it will make way too many function evaluations
         dx = kwargs.pop('dx')
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
         param_vals = [bound_arguments.arguments[param.name] for param in self.params]
         param_vals = np.array(param_vals, dtype=float)
-
+        f = partial(self, *var_vals)
+        # See also: scipy.misc.central_diff_weights
         factors = np.array((3/2., -3/5., 1/10.))
         orders = np.arange(1, len(factors) + 1)
-        f = lambda ps: partial(self, *var_vals)(*ps)
         out = []
-        # TODO: Dark numpy magic.
-        # TODO: Figure out a way to avoid this call.
-        output = f(param_vals)
-        for comp_idx in range(len(self)):
-            try:
-                data_len = len(output[comp_idx])
-            except TypeError:  # output[comp_idx] is a number
-                data_len = 1
-            param_grad = np.zeros((len(self.params), data_len), dtype=float)
-            out.append(param_grad)
-        # out is a list  of length Ncomponents with numpy arrays of shape
-        # (Nparams, Ndata)
-        for param_idx in range(len(self.params)):
+        # TODO: Dark numpy magic. Needs an extra dimension in out, and a sum
+        #       over the right axis at the end.
+
+        # We can't make the output arrays yet, since we don't know the size of
+        # the components. So put a sentinel value.
+        out = None
+
+        for param_idx, param_val in enumerate(param_vals):
             for order, factor in zip(orders, factors):
                 h = np.zeros(len(self.params))
-                # Note: stepsize (h) depends on the parameter values!
-                h[param_idx] = dx * order * param_vals[param_idx] if param_vals[param_idx] else dx * order
-                up = f(param_vals + h)
-                down = f(param_vals - h)
+                # Note: stepsize (h) depends on the parameter values...
+                h[param_idx] = dx * order
+                if abs(param_val) >= 1e-7:
+                    # ...but it'd better not be (too close to) 0.
+                    h[param_idx] *= param_val
+                up = f(*(param_vals + h))
+                down = f(*(param_vals - h))
+                if out is None:
+                    # Initialize output arrays. Now that we evaluated f, we
+                    # know the size of our data.
+                    out = []
+                    # out is a list  of length Ncomponents with numpy arrays of
+                    # shape (Nparams, Ndata). Part of our misery comes from the
+                    # fact that the length of the data may be different for all
+                    # the components. Numpy doesn't like ragged arrays, so make
+                    # a list of arrays.
+                    for comp_idx in range(len(self)):
+                        try:
+                            data_len = len(up[comp_idx])
+                        except TypeError:  # output[comp_idx] is a number
+                            data_len = 1
+                        # Initialize at 0 so we can += all the contributions
+                        param_grad = np.zeros((len(self.params), data_len), dtype=float)
+                        out.append(param_grad)
                 for comp_idx in range(len(self)):
                     diff = up[comp_idx] - down[comp_idx]
                     out[comp_idx][param_idx, :] += factor * diff/(2*h[param_idx])
