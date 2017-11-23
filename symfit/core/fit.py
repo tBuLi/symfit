@@ -1208,20 +1208,25 @@ class Fit(TakesData, HasCovarianceMatrix):
         if objective is None:
             # Param only scalar Model -> the model is the objective.
             if len(self.model.independent_vars) == 0 and len(self.model) == 1:
+                # No data provided means a simple minimization of the Model parameters
+                # is requested, not a fit.
                 if all(value is None for value in self.data.values()):
                     objective = MinimizeModel
             elif minimizer is MINPACK:
+                # MINPACK is considered a special snowflake, as its API has to be
+                # considered seperately and has its own non standard objective function.
                 objective = VectorLeastSquares
 
         if objective is None:
             objective = LeastSquares
 
-        # Initialise the objective
+        # Initialise the objective if it's not initialised already
         if isinstance(objective, BaseObjective):
             self.objective = objective
         else:
             self.objective = objective(self.model, self.data)
 
+        # Select the minimizer on the basis of the provided information.
         if minimizer is None:
             if self.constraints:
                 minimizer = SLSQP

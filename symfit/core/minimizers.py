@@ -8,13 +8,28 @@ from .support import key2str, keywordonly
 from .leastsqbound import leastsqbound
 
 class BaseMinimizer:
+    """
+    ABC for all Minimizers.
+    """
     def __init__(self, objective, parameters, absolute_sigma=True):
+        """
+        :param objective: Objective function to be used.
+        :param parameters: List of :class:`~symfit.core.argument.Parameter` instances
+        :param absolute_sigma: Wether or not the standard deviations should be
+            interpreted as relative or absolute weights.
+        """
         self.objective = objective
         self.params = parameters
         self.absolute_sigma = absolute_sigma
 
     @abc.abstractmethod
     def execute(self, **options):
+        """
+        The execute method should implement the actual minimization procedure,
+        and should return a :class:`~symfit.core.fit.FitResults` instance.
+        :param options: options to be used by the minimization procedure.
+        :return:  an instance of :class:`~symfit.core.fit.FitResults`.
+        """
         pass
 
     @property
@@ -22,29 +37,48 @@ class BaseMinimizer:
         return [p.value for p in self.params]
 
 class BoundedMinimizer(BaseMinimizer):
+    """
+    ABC for Minimizers that support bounds.
+    """
     @property
     def bounds(self):
         return [(p.min, p.max) for p in self.params]
 
 class ConstrainedMinimizer(BaseMinimizer):
+    """
+    ABC for Minimizers that support constraints
+    """
     def __init__(self, *args, constraints=None, **kwargs):
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
         self.constraints = constraints
 
 class GradientMinimizer(BaseMinimizer):
+    """
+    ABC for Minizers that support the use of a jacobian
+    """
     def __init__(self, *args, jacobian=None, **kwargs):
         super(GradientMinimizer, self).__init__(*args, **kwargs)
         self.jacobian = jacobian
 
 
 class ScipyMinimize(object):
+    """
+    Handles the execute calls to scipy.optimize.minimize.
+    """
     def __init__(self, *args, **kwargs):
         self.constraints = []
         self.jacobian = None
+        self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
         self.wrapped_objective = self.wrap_func(self.objective)
 
     def wrap_func(self, func):
+        """
+        Given an objective function `func`, make sure it is always called via
+        keyword arguments with the relevant parameter names.
+        :param func:
+        :return:
+        """
         # parameters = {param.name: value for param, value in zip(self.params, values)}
         if func is None:
             return None
