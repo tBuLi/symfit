@@ -9,6 +9,8 @@ from scipy.optimize import minimize
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit, Model
 )
+from symfit.core.objectives import MinimizeModel
+from symfit.core.minimizers import BFGS
 
 
 class TestMinimize(unittest.TestCase):
@@ -55,8 +57,10 @@ class TestMinimize(unittest.TestCase):
         # Unconstrained fit
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                method='BFGS', options={'disp': False})
-        fit = Fit(- model)
-        print(fit.objective)
+        fit = Fit(model=- model)
+        self.assertIsInstance(fit.objective, MinimizeModel)
+        self.assertIsInstance(fit.minimizer, BFGS)
+
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(x) / res.x[0], 1.0, 6)

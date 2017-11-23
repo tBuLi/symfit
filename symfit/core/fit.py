@@ -217,7 +217,8 @@ class BaseModel(Mapping):
 
     def __neg__(self):
         """
-        :return: new model with opposite sign
+        :return: new model with opposite sign. Does not change the model in-place,
+            but returns a new copy.
         """
         new_model_dict = self.model_dict.copy()
         for key in new_model_dict:
@@ -586,7 +587,6 @@ class Constraint(Model):
         :param constraint: constraint that model should be subjected to.
         :param model: A constraint is always tied to a model.
         """
-        # raise Exception(model)
         if isinstance(constraint, Relational):
             self.constraint_type = type(constraint)
             if isinstance(model, BaseModel):
@@ -596,6 +596,14 @@ class Constraint(Model):
             super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
         else:
             raise TypeError('Constraints have to be initiated with a subclass of sympy.Relational')
+
+    def __neg__(self):
+        """
+        :return: new model with opposite sign. Does not change the model in-place,
+            but returns a new copy.
+        """
+        new_constraint = self.constraint_type( - self.model_dict[self.dependent_vars[0]])
+        return self.__class__(new_constraint, self.model)
 
     @property
     # @cache
@@ -1621,6 +1629,16 @@ class ODEModel(CallableModel):
         :return: iterable over self.model_dict
         """
         return iter(self.dependent_vars)
+
+    def __neg__(self):
+        """
+        :return: new model with opposite sign. Does not change the model in-place,
+            but returns a new copy.
+        """
+        new_model_dict = self.model_dict.copy()
+        for key in new_model_dict:
+            new_model_dict[key] *= -1
+        return self.__class__(new_model_dict, initial=self.initial)
 
     @property
     @cache
