@@ -94,7 +94,7 @@ class ScipyMinimize(object):
             self.initial_guesses,
             bounds=bounds,
             constraints=self.constraints,
-            jac=jacobian,
+            jac=self.wrapped_jacobian,
             **minimize_options
         )
         # Build infodic
