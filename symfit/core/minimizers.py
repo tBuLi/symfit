@@ -6,6 +6,7 @@ import numpy as np
 
 from .support import key2str, keywordonly
 from .leastsqbound import leastsqbound
+from .fit_results import FitResults
 
 class BaseMinimizer:
     """
