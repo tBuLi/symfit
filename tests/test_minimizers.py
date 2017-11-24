@@ -18,104 +18,56 @@ class TestMinimize(unittest.TestCase):
     def setUpClass(cls):
         np.random.seed(0)
 
-    # TODO: Should be 2 tests?
-    def test_minimize(self):
+    def test_custom_objective(self):
         """
-        Tests maximizing a function with and without constraints, taken from the
-        scipy `minimize` tutorial. Compare the symfit result with the scipy
-        result.
-        https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
+        Compare the result of a custom objective with the symbolic result.
+        :return:
         """
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
-        z = Variable()
-        model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
+        # Create test data
+        xdata = np.linspace(0, 100, 25)  # From 0 to 100 in 100 steps
+        a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
+        b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
+        ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
 
-        constraints = [
-            Ge(y - 1, 0),  # y - 1 >= 0,
-            Eq(x**3 - y, 0),  # x**3 - y == 0,
-        ]
+        # Normal symbolic fit
+        a = Parameter(value=0, min=0.0, max=1000)
+        b = Parameter(value=0, min=0.0, max=1000)
+        x = Variable()
+        model = a * x + b
 
-        def func(x, sign=1.0):
-            """ Objective function """
-            return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
-
-        def func_deriv(x, sign=1.0):
-            """ Derivative of objective function """
-            dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
-            dfdx1 = sign*(2*x[0] - 4*x[1])
-            return np.array([ dfdx0, dfdx1 ])
-
-        cons = (
-            {'type': 'eq',
-             'fun' : lambda x: np.array([x[0]**3 - x[1]]),
-             'jac' : lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
-            {'type': 'ineq',
-             'fun' : lambda x: np.array([x[1] - 1]),
-             'jac' : lambda x: np.array([0.0, 1.0])})
-
-        # Unconstrained fit
-        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-               method='BFGS', options={'disp': False})
-        fit = Fit(model=- model)
-        self.assertIsInstance(fit.objective, MinimizeModel)
-        self.assertIsInstance(fit.minimizer, BFGS)
-
+        fit = Fit(model, xdata, ydata, minimizer=BFGS)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(x) / res.x[0], 1.0, 6)
-        self.assertAlmostEqual(fit_result.value(y) / res.x[1], 1.0, 6)
+        def f(x, a, b):
+            return a * x + b
 
-        # Same test, but with constraints in place.
-        res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-               constraints=cons, method='SLSQP', options={'disp': False})
+        def chi_squared(a, b):
+            return np.sum((ydata - f(xdata, a, b))**2)
 
-        from symfit.core.minimizers import SLSQP
-        fit = Fit(- model, constraints=constraints)
-        self.assertEqual(fit.constraints[0].constraint_type, Ge)
-        self.assertEqual(fit.constraints[1].constraint_type, Eq)
-        fit_result = fit.execute()
-        print(fit_result)
-        self.assertAlmostEqual(fit_result.value(x), res.x[0], 6)
-        self.assertAlmostEqual(fit_result.value(y), res.x[1], 6)
+        fit_custom = BFGS(chi_squared, [a, b])
+        fit_custom_result = fit_custom.execute()
 
-    def test_constraint_types(self):
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
-        z = Variable()
-        model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
+        self.assertIsInstance(fit_custom_result, FitResults)
+        self.assertAlmostEqual(fit_custom_result.value(a) / fit_result.value(a), 1.0, 5)
+        self.assertAlmostEqual(fit_custom_result.value(b) / fit_result.value(b), 1.0, 4)
 
-        # These types are not allowed constraints.
-        for relation in [Lt, Gt, Ne]:
-            with self.assertRaises(ModelError):
-                Fit(model, constraints=[relation(x, y)])
+    def test_custom_parameter_names(self):
+        """
+        For cusom objective functions you still have to provide a list of Parameter
+        objects to use with the same name as the keyword arguments to your function.
+        """
+        a = Parameter()
+        c = Parameter()
 
-        # Should execute without problems.
-        for relation in [Eq, Ge, Le]:
-            Fit(model, constraints=[relation(x, y)])
+        def chi_squared(a, b):
+            """
+            Dummy function with different keyword argument names
+            """
+            pass
 
-        fit = Fit(model, constraints=[Le(x, y)])
-        # Le should be transformed to Ge
-        self.assertIs(fit.constraints[0].constraint_type, Ge)
-
-        # Redo the standard test as a Le
-        constraints = [
-            Le(- y + 1, 0),  # y - 1 >= 0,
-            Eq(x**3 - y, 0),  # x**3 - y == 0,
-        ]
-        std_constraints = [
-            Ge(y - 1, 0),  # y - 1 >= 0,
-            Eq(x**3 - y, 0),  # x**3 - y == 0,
-        ]
-
-        fit = Fit(- model, constraints=constraints)
-        std_fit = Fit(- model, constraints=std_constraints)
-        self.assertEqual(fit.constraints[0].constraint_type, Ge)
-        self.assertEqual(fit.constraints[1].constraint_type, Eq)
-        fit_result = fit.execute()
-        std_result = std_fit.execute()
-        self.assertAlmostEqual(fit_result.value(x), std_result.value(x))
-        self.assertAlmostEqual(fit_result.value(y), std_result.value(y))
+        fit_custom = BFGS(chi_squared, [a, c])
+        with self.assertRaises(TypeError):
+            fit_custom.execute()
 
 
 
