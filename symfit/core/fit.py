@@ -700,7 +700,7 @@ class HasCovarianceMatrix(object):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :return: covariance matrix.
         """
-        if not hasattr(self.model, 'numerical_jacobian'):
+        if not hasattr(self.model, 'eval_jacobian'):
             return None
         if any(element is None for element in self.sigma_data.values()):
             # If one of the sigma's was explicitly set to None, we are unable
@@ -1193,17 +1193,19 @@ class Fit(TakesData, HasCovarianceMatrix):
         """
         minimizer_ans = self.minimizer.execute(**minimize_options)
         try: # to build covariance matrix
-            cov_matrix = minimizer_ans['pcov']
-        except KeyError:
-            cov_matrix = self.covariance_matrix(dict(zip(self.model.params, minimizer_ans['popt'])))
+            cov_matrix = minimizer_ans.covariance_matrix
+            print(minimizer_ans.covariance_matrix)
+        except AttributeError:
+            cov_matrix = self.covariance_matrix(dict(zip(self.model.params, minimizer_ans._popt)))
         else:
             if cov_matrix is None:
-                cov_matrix = self.covariance_matrix(dict(zip(self.model.params, minimizer_ans['popt'])))
+                cov_matrix = self.covariance_matrix(dict(zip(self.model.params, minimizer_ans._popt)))
         finally:
-            minimizer_ans['pcov'] = cov_matrix
-        fit_results = FitResults(model=self.model, **minimizer_ans)
-        fit_results.gof_qualifiers['r_squared'] = r_squared(self.model, fit_results, self.data)
-        return fit_results
+            minimizer_ans.covariance_matrix = cov_matrix
+        # Overwrite the DummyModel with the current model
+        minimizer_ans.model = self.model
+        minimizer_ans.gof_qualifiers['r_squared'] = r_squared(self.model, minimizer_ans, self.data)
+        return minimizer_ans
 
 
 # class LagrangeMultipliers:

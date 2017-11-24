@@ -38,8 +38,6 @@ class FitResults(object):
 
         self._popt = popt
         self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
-        if pcov is None:
-            pcov = np.array([[None for _ in range(len(self.params))] for _ in range(len(self.params))])
         self.covariance_matrix = pcov
 
 
@@ -101,7 +99,11 @@ class FitResults(object):
         :return: Variance of ``param``.
         """
         param_number = self.model.params.index(param)
-        return self.covariance_matrix[param_number, param_number]
+        try:
+            return self.covariance_matrix[param_number, param_number]
+        except TypeError:
+            # covariance_matrix can be None
+            return None
 
     def covariance(self, param_1, param_2):
         """

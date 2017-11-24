@@ -7,7 +7,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from symfit import (
-    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit, Model
+    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit, Model, FitResults
 )
 from symfit.core.objectives import MinimizeModel
 from symfit.core.minimizers import BFGS

@@ -1,4 +1,5 @@
 import abc
+from collections import namedtuple
 
 from scipy.optimize import minimize
 import sympy
@@ -7,6 +8,8 @@ import numpy as np
 from .support import key2str, keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
+
+DummyModel = namedtuple('DummyModel', 'params')
 
 class BaseMinimizer:
     """
@@ -104,6 +107,7 @@ class ScipyMinimize(object):
         }
 
         fit_results = dict(
+            model=DummyModel(params=self.params),
             popt=ans.x,
             pcov=None,
             infodic=infodic,
@@ -111,8 +115,7 @@ class ScipyMinimize(object):
             ier=ans.nit,
             value=ans.fun,
         )
-
-        return fit_results
+        return FitResults(**fit_results)
 
     @staticmethod
     def scipy_constraints(constraints, data):
@@ -188,16 +191,6 @@ class MINPACK(GradientMinimizer, BoundedMinimizer):
         super(MINPACK, self).__init__(*args, **kwargs)
         self.wrapped_objective = ScipyMinimize.wrap_func(self, self.objective)
 
-    # def wrap_func(self, func):
-    #     # parameters = {param.name: value for param, value in zip(self.params, values)}
-    #     if func is None:
-    #         return None
-    #     def wrapped_func(values):
-    #         # raise Exception(values)
-    #         parameters = key2str(dict(zip(self.params, values)))
-    #         return np.repeat(np.sqrt(func(**parameters)), len(values) + 1)
-    #     return wrapped_func
-
     def execute(self, **minpack_options):
         """
         :param minpack_options: Any named arguments to be passed to leastsqbound
@@ -211,27 +204,14 @@ class MINPACK(GradientMinimizer, BoundedMinimizer):
             **minpack_options
         )
 
-        # if self.absolute_sigma:
-        #     s_sq = 1
-        # else:
-        #     # Rescale the covariance matrix with the residual variance
-        #     ss_res = np.sum(infodic['fvec']**2)
-        #     for data in self.dependent_data.values():
-        #         if data is not None:
-        #             degrees_of_freedom = np.product(data.shape) - len(popt)
-        #             break
-        #
-        #     s_sq = ss_res / degrees_of_freedom
-        #
-        # pcov = cov_x * s_sq if cov_x is not None else None
-
         fit_results = dict(
+            model=DummyModel(params=self.params),
             popt=popt,
-            # pcov=pcov,
+            pcov=None,
             infodic=infodic,
             mesg=mesg,
             ier=ier,
+            chi_squared=np.sum(infodic['fvec']**2),
         )
-        # self._fit_results.gof_qualifiers['r_squared'] = \
-        #     r_squared(self.model, self._fit_results, self.data)
-        return fit_results
+
+        return FitResults(**fit_results)
