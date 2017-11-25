@@ -1194,7 +1194,6 @@ class Fit(TakesData, HasCovarianceMatrix):
         minimizer_ans = self.minimizer.execute(**minimize_options)
         try: # to build covariance matrix
             cov_matrix = minimizer_ans.covariance_matrix
-            print(minimizer_ans.covariance_matrix)
         except AttributeError:
             cov_matrix = self.covariance_matrix(dict(zip(self.model.params, minimizer_ans._popt)))
         else:

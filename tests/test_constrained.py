@@ -339,10 +339,6 @@ class TestConstrained(unittest.TestCase):
         )
         fit_new_result = fit.execute()
         std_result = fit_std.execute()
-        print(fit_new_result)
-        print(std_result)
-        # import sys
-        # sys.exit()
 
         # When no errors are given, we default to `absolute_sigma=False`, since
         # that is the best we can do.

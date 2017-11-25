@@ -759,8 +759,6 @@ class Tests(unittest.TestCase):
 
         fit = Fit(model, y=yn, sigma_y=sigma)
         fit_result = fit.execute()
-        print(fit_result)
-        print(fit.absolute_sigma)
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
         self.assertAlmostEqual(fit_result.value(a), popt[0], 5)

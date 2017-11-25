@@ -75,7 +75,6 @@ class TestMinimize(unittest.TestCase):
         self.assertEqual(fit.constraints[0].constraint_type, Ge)
         self.assertEqual(fit.constraints[1].constraint_type, Eq)
         fit_result = fit.execute()
-        print(fit_result)
         self.assertAlmostEqual(fit_result.value(x), res.x[0], 6)
         self.assertAlmostEqual(fit_result.value(y), res.x[1], 6)
 
