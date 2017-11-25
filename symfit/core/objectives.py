@@ -105,11 +105,6 @@ class VectorLeastSquares(GradientObjective):
         return np.sqrt(sum(result))
 
     def eval_jacobian(self, **parameters):
-        # jac_args = list(independent_data.values()) + list(p)
-        evaluated_func = self.model(**self.independent_data, **parameters)
-        result = [0.0 for _ in self.model.params]
-
-    def eval_jacobian(self, **parameters):
         chi = self(flatten=False, **parameters)
         jac_kwargs = dict(**self.independent_data, **parameters)
         evaluated_func = self.model(**self.independent_data, **parameters)

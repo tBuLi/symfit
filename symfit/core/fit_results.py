@@ -68,6 +68,8 @@ class FitResults(object):
         """
         if item in self.gof_qualifiers:
             return self.gof_qualifiers[item]
+        else:
+            raise AttributeError
 
     def stdev(self, param):
         """

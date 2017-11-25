@@ -11,8 +11,8 @@ from scipy.optimize import minimize
 from scipy.integrate import odeint
 
 from symfit.core.argument import Parameter, Variable
-from .support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str, deprecated
-from symfit.core.leastsqbound import leastsqbound
+from .support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str
+
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
     ScipyMinimize, MINPACK
@@ -805,7 +805,7 @@ class HasCovarianceMatrix(object):
         ]
 
         # Order jacobian as param, component, datapoint
-        jac = np.swapaxes(jac,0,1)
+        jac = np.swapaxes(jac, 0, 1)
         # Weigh each component with its respective weight.
         jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
 
@@ -1130,8 +1130,10 @@ class Fit(TakesData, HasCovarianceMatrix):
         else:
             minimizer_options = {}
             if issubclass(minimizer, GradientMinimizer):
-                # if isinstance(self.model, ODEModel):
-                #     raise Exception(self.model.numerical_jacobian)
+                # If an analytical version of the Jacobian exists we should use
+                # that, otherwise we let the minimizer estimate it itself.
+                # Hence the check of numerical_jacobian, as this is the
+                # py function version of the analytical jacobian.
                 if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
                     minimizer_options['jacobian'] = self.objective.eval_jacobian
 

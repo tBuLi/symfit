@@ -15,16 +15,13 @@ class BaseMinimizer:
     """
     ABC for all Minimizers.
     """
-    def __init__(self, objective, parameters, absolute_sigma=True):
+    def __init__(self, objective, parameters):
         """
         :param objective: Objective function to be used.
         :param parameters: List of :class:`~symfit.core.argument.Parameter` instances
-        :param absolute_sigma: Wether or not the standard deviations should be
-            interpreted as relative or absolute weights.
         """
         self.objective = objective
         self.params = parameters
-        self.absolute_sigma = absolute_sigma
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -113,7 +110,7 @@ class ScipyMinimize(object):
             infodic=infodic,
             mesg=ans.message,
             ier=ans.nit,
-            value=ans.fun,
+            objective_value=ans.fun,
         )
         return FitResults(**fit_results)
 
