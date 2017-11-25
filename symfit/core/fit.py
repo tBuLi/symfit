@@ -765,9 +765,8 @@ class HasCovarianceMatrix(object):
             s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
             W = 1/sigma**2/s_sq[:, np.newaxis]
 
-        # kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
-        # kwargs.update(self.independent_data)
-        kwargs = dict(**self.independent_data, **key2str(best_fit_params))
+        kwargs = key2str(best_fit_params)
+        kwargs.update(self.independent_data)
         jac = np.atleast_2d([
             [
                 np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
