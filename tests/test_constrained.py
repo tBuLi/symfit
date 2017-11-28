@@ -2,14 +2,16 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import (variables, Variable, parameters, Parameter, ODEModel,
-                    ConstrainedNumericalLeastSquares, NumericalLeastSquares,
-                    Equality, D, Model, log, FitResults)
+from symfit import (
+    variables, Variable, parameters, Parameter, ODEModel,
+    Fit, Equality, D, Model, log, FitResults
+)
 from symfit.distributions import Gaussian
+from symfit.core.minimizers import SLSQP, MINPACK
 
 class TestConstrained(unittest.TestCase):
     """
-    Tests for the `ConstrainedNumericalLeastSquares` object. This object does
+    Tests for the `Fit` object. This object does
     everything the normal `NumericalLeastSquares` does and more. Tests should
     therefore cover the full range of scenarios `symfit` currently handles.
     """
@@ -32,16 +34,16 @@ class TestConstrained(unittest.TestCase):
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
 
-        fit = ConstrainedNumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
+        fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute(tol=1e-9)
 
         self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertTrue(fit_result.stdev(k) is None)
+        self.assertTrue(fit_result.stdev(k) is None or np.isnan(fit_result.stdev(k)))
 
         # These lines should be possible, but dont currently for ODEModels.
         # It allows the user to force uncertainty estimation by giving sigma
         # argument arrays of the right size.
-        # fit = ConstrainedNumericalLeastSquares(
+        # fit = Fit(
         #     ode_model, t=tdata, a=adata, b=None,
         #     sigma_a=np.ones(adata.shape), sigma_b=np.ones(adata.shape)
         # )
@@ -99,7 +101,7 @@ class TestConstrained(unittest.TestCase):
 
         sigma_y = np.concatenate((np.ones(20), [2., 4., 5, 7, 3]))
 
-        fit = ConstrainedNumericalLeastSquares(model, x_1=xdata[0], x_2=xdata[1],
+        fit = Fit(model, x_1=xdata[0], x_2=xdata[1],
                                                y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
         fit_result = fit.execute()
 
@@ -119,7 +121,7 @@ class TestConstrained(unittest.TestCase):
         x, y = variables('x, y')
         model = {y: a*x**b}
 
-        fit = ConstrainedNumericalLeastSquares(model, x=xdata, y=ydata)
+        fit = Fit(model, x=xdata, y=ydata)
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.value(a), 3.0, 3)
@@ -128,7 +130,7 @@ class TestConstrained(unittest.TestCase):
     def test_param_error_analytical(self):
         """
         Take an example in which the parameter errors are known and see if
-        `ConstrainedNumericalLeastSquares` reproduces them.
+        `Fit` reproduces them.
 
         It also needs to support the absolute_sigma argument.
         """
@@ -142,10 +144,10 @@ class TestConstrained(unittest.TestCase):
         y = Variable()
         model = {y: a}
 
-        constr_fit = ConstrainedNumericalLeastSquares(model, y=yn, sigma_y=sigma)
+        constr_fit = Fit(model, y=yn, sigma_y=sigma)
         constr_result = constr_fit.execute()
 
-        fit = NumericalLeastSquares(model, y=yn, sigma_y=sigma)
+        fit = Fit(model, y=yn, sigma_y=sigma, minimizer=MINPACK)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(a), constr_result.value(a), 5)
@@ -159,10 +161,10 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_result.stdev(a), sigma_mu, 5)
 
         # Compare for absolute_sigma = False.
-        constr_fit = ConstrainedNumericalLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
+        constr_fit = Fit(model, y=yn, sigma_y=sigma, absolute_sigma=False)
         constr_result = constr_fit.execute()
 
-        fit = NumericalLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
+        fit = Fit(model, y=yn, sigma_y=sigma, minimizer=MINPACK, absolute_sigma=False)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(a), constr_result.value(a), 5)
@@ -182,14 +184,14 @@ class TestConstrained(unittest.TestCase):
         z = Variable()
         new = {z: a*x**2 + b*y**2}
 
-        fit = ConstrainedNumericalLeastSquares(new, x=xx, y=yy, z=zdata)
+        fit = Fit(new, x=xx, y=yy, z=zdata)
         # results = fit.execute(options={'maxiter': 10})
         results = fit.execute()
 
         self.assertAlmostEqual(results.value(a), 2.5, 4)
         self.assertAlmostEqual(results.value(b), 3.0, 4)
 
-    @unittest.skip('ConstrainedNumericalLeastSquares fails to compute the '
+    @unittest.skip('Fit fails to compute the '
                    'covariance matrix for a sparse grid.')
     def test_grid_fitting_sparse(self):
         xdata = np.arange(-5, 5, 1)
@@ -205,7 +207,7 @@ class TestConstrained(unittest.TestCase):
         z = Variable()
         new = {z: a*x**2 + b*y**2}
 
-        fit = ConstrainedNumericalLeastSquares(new, x=xx, y=yy, z=zdata)
+        fit = Fit(new, x=xx, y=yy, z=zdata)
         results = fit.execute()
 
         self.assertAlmostEqual(results.value(a), 2.5, 4)
@@ -213,7 +215,7 @@ class TestConstrained(unittest.TestCase):
 
     def test_vector_constrained_fitting(self):
         """
-        Tests `ConstrainedNumericalLeastSquares` with vector models. The
+        Tests `Fit` with vector models. The
         classical example of fitting measurements of the angles of a triangle is
         taken. In this case we know they should add up to 180 degrees, so this
         can be added as a constraint. Additionally, not even all three angles
@@ -231,25 +233,26 @@ class TestConstrained(unittest.TestCase):
             [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
         ])
 
-        fit_none = ConstrainedNumericalLeastSquares(
+        fit_none = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=None,
         )
-        fit = ConstrainedNumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
         )
-        fit_std = NumericalLeastSquares(
+        fit_std = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            minimizer = MINPACK
         )
-        fit_constrained = ConstrainedNumericalLeastSquares(
+        fit_constrained = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
@@ -264,10 +267,11 @@ class TestConstrained(unittest.TestCase):
         # The total of averages should equal the total of the params by definition
         mean_total = np.mean(np.sum(xdata, axis=0))
         params_tot = std_result.value(a) + std_result.value(b) + std_result.value(c)
-        self.assertAlmostEqual(mean_total, params_tot, 4)
+        self.assertAlmostEqual(mean_total / params_tot, 1.0, 4)
 
         # The total after constraining to 180 should be exactly 180.
         params_tot = constr_result.value(a) + constr_result.value(b) + constr_result.value(c)
+        self.assertIsInstance(fit_constrained.minimizer, SLSQP)
         self.assertAlmostEqual(180.0, params_tot, 4)
 
         # The standard method and the Constrained object called without constraints
@@ -282,7 +286,7 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_none_result.value(b), std_result.value(b), 4)
         self.assertAlmostEqual(fit_none_result.value(c), c.value)
 
-        fit_none_constr = ConstrainedNumericalLeastSquares(
+        fit_none_constr = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
@@ -295,11 +299,11 @@ class TestConstrained(unittest.TestCase):
 
     def test_vector_parameter_error(self):
         """
-        Tests `ConstrainedNumericalLeastSquares` parameter error estimation with
+        Tests `Fit` parameter error estimation with
         vector models. This is done by using the typical angles of a triangle
         example. For completeness, we throw in covariance between the angles.
 
-        As it stands now, `ConstrainedNumericalLeastSquares` is able to correctly
+        As it stands now, `Fit` is able to correctly
         predict the values of the parameters an their standard deviations, but
         it is not able to give the covariances. Those are therefore returned as
         nan, to prevent people from citing them as 0.0.
@@ -315,24 +319,31 @@ class TestConstrained(unittest.TestCase):
         pcov = np.array([[0.4, 0.3, 0.5], [0.3, 0.8, 0.4], [0.5, 0.4, 1.2]])
         xdata = np.random.multivariate_normal([10, 100, 70], pcov, N).T
 
-        fit = ConstrainedNumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            # absolute_sigma=False
         )
-        fit_std = NumericalLeastSquares(
+        fit_std = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            minimizer = MINPACK
+            # sigma_a_i=np.ones_like(xdata[0]),
+            # sigma_b_i=np.ones_like(xdata[0]),
+            # sigma_c_i=np.ones_like(xdata[0]),
+            # absolute_sigma=False
         )
-        fit_new_result = fit.execute(tol=1e-9)
+        fit_new_result = fit.execute()
         std_result = fit_std.execute()
 
         # When no errors are given, we default to `absolute_sigma=False`, since
         # that is the best we can do.
         self.assertFalse(fit.absolute_sigma)
+        self.assertFalse(fit_std.absolute_sigma)
 
         # The standard method and the Constrained object called without constraints
         # should give roughly the same parameter values.
@@ -359,7 +370,7 @@ class TestConstrained(unittest.TestCase):
         # stdev, because its method for computing them apperantly does not allow
         # for vector valued functions.
         # So actually, for vector valued functions its better to use
-        # ConstrainedNumericalLeastSquares, though this does not give covariances.
+        # Fit, though this does not give covariances.
 
         # With the correct values of sigma, absolute_sigma=True should be in
         # agreement with analytical.
@@ -368,7 +379,7 @@ class TestConstrained(unittest.TestCase):
             np.sqrt(pcov[1, 1]),
             np.sqrt(pcov[2, 2])
         ])
-        fit = ConstrainedNumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
@@ -378,7 +389,7 @@ class TestConstrained(unittest.TestCase):
             sigma_c_i=sigmadata[2],
         )
         self.assertTrue(fit.absolute_sigma)
-        fit_result = fit.execute(tol=1e-9)
+        fit_result = fit.execute()
         # The standard deviation in the mean is stdev/sqrt(N),
         # see test_param_error_analytical
         self.assertAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0, 0]/N), 1.0, 4)
@@ -390,7 +401,7 @@ class TestConstrained(unittest.TestCase):
         # absolute_sigma=True, we are no longer in agreement with the analytical result
         # Let's take everything to be 1 to point out the dangers of doing so.
         sigmadata = np.array([1, 1, 1])
-        fit2 = ConstrainedNumericalLeastSquares(
+        fit2 = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
@@ -400,7 +411,7 @@ class TestConstrained(unittest.TestCase):
             sigma_c_i=sigmadata[2],
             absolute_sigma=True
         )
-        fit_result = fit2.execute(tol=1e-9)
+        fit_result = fit2.execute()
         # Should be off bigly
         self.assertNotAlmostEqual(fit_result.stdev(a)/np.sqrt(pcov[0, 0]/N), 1.0, 1)
         self.assertNotAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1, 1]/N), 1.0, 1)
@@ -425,7 +436,7 @@ class TestConstrained(unittest.TestCase):
         pcov = 1e-1 * np.array([[0.4, 0.3, 0.5], [0.3, 0.8, 0.4], [0.5, 0.4, 1.2]])
         xdata = np.random.multivariate_normal([10, 100, 70], pcov, N).T
 
-        fit = ConstrainedNumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
@@ -439,7 +450,7 @@ class TestConstrained(unittest.TestCase):
         np.testing.assert_array_almost_equal(cov_equal, cov_unequal)
 
         # Try with absolute_sigma=True
-        fit = ConstrainedNumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
@@ -457,7 +468,7 @@ class TestConstrained(unittest.TestCase):
 
     def test_error_advanced(self):
         """
-        Compare the error propagation of ConstrainedNumericalLeastSquares against
+        Compare the error propagation of Fit against
         NumericalLeastSquares.
         Models an example from the mathematica docs and try's to replicate it:
         http://reference.wolfram.com/language/howto/FitModelsWithMeasurementErrors.html
@@ -479,9 +490,9 @@ class TestConstrained(unittest.TestCase):
         z = Variable()
         model = {z: a * log(b * x + c * y)}
 
-        const_fit = ConstrainedNumericalLeastSquares(model, xdata, ydata, zdata, absolute_sigma=False)
+        const_fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False)
         const_result = const_fit.execute()
-        fit = NumericalLeastSquares(model, xdata, ydata, zdata, absolute_sigma=False)
+        fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False, minimizer=MINPACK)
         std_result = fit.execute()
 
         self.assertEqual(const_fit.absolute_sigma, fit.absolute_sigma)
@@ -498,7 +509,7 @@ class TestConstrained(unittest.TestCase):
         """
         Tests fitting to a scalar gaussian function with 2 independent
         variables. Very sensitive to initial guesses, and if they are chosen too
-        restrictive ConstrainedNumericalLeastSquares actually throws a tantrum.
+        restrictive Fit actually throws a tantrum.
         It therefore appears to be more sensitive than NumericalLeastSquares.
         """
         mean = (0.6, 0.4)  # x, y mean 0.6, 0.4
@@ -525,7 +536,7 @@ class TestConstrained(unittest.TestCase):
         y = Variable()
         g = Variable()
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
-        fit = ConstrainedNumericalLeastSquares(model, x=xx, y=yy, g=ydata)
+        fit = Fit(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(x0), np.mean(data[:, 0]), 3)
@@ -535,7 +546,7 @@ class TestConstrained(unittest.TestCase):
         self.assertGreaterEqual(fit_result.r_squared, 0.96)
 
         # Compare with industry standard MINPACK
-        fit_std = NumericalLeastSquares(model, x=xx, y=yy, g=ydata)
+        fit_std = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
         fit_std_result = fit_std.execute()
 
         self.assertAlmostEqual(fit_std_result.value(x0), fit_result.value(x0), 4)

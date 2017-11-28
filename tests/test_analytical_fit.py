@@ -7,7 +7,8 @@ import sympy
 import numpy as np
 from scipy.optimize import curve_fit
 
-from symfit import Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters, variables, NumericalLeastSquares, NonLinearLeastSquares, Model, TaylorModel
+from symfit import Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters, variables, NonLinearLeastSquares, Model, TaylorModel
+from symfit.core.minimizers import MINPACK
 from symfit.core.support import seperate_symbols, sympy_to_py
 from symfit.distributions import Gaussian
 
@@ -90,7 +91,7 @@ class TestAnalyticalFit(unittest.TestCase):
         a, b = parameters('a, b')
         x, y = variables('x, y')
         model = {y: a*x + b}
-        fit = NumericalLeastSquares(model, x=xdata, y=ydata)#, absolute_sigma=False)
+        fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)#, absolute_sigma=False)
         fit_result = fit.execute()
 
         popt, pcov = curve_fit(lambda z, c, d: c * z + d, xdata, ydata,
@@ -167,10 +168,10 @@ class TestAnalyticalFit(unittest.TestCase):
         t_model = {t: 2 * y**0.5 * sqrt_g_inv + b}
 
         # Different sigma for every point
-        fit = NumericalLeastSquares(t_model, y=y_data, t=t_data, sigma_t=sigma_t, absolute_sigma=False)
+        fit = Fit(t_model, y=y_data, t=t_data, sigma_t=sigma_t, absolute_sigma=False, minimizer=MINPACK)
         num_result_rel = fit.execute()
 
-        fit = NumericalLeastSquares(t_model, y=y_data, t=t_data, sigma_t=sigma_t, absolute_sigma=True)
+        fit = Fit(t_model, y=y_data, t=t_data, sigma_t=sigma_t, absolute_sigma=True, minimizer=MINPACK)
         num_result = fit.execute()
 
         # cov matrix should now be different
@@ -187,13 +188,13 @@ class TestAnalyticalFit(unittest.TestCase):
         fit_result = fit.execute()
 
         self.assertAlmostEqual(num_result.value(sqrt_g_inv), fit_result.value(sqrt_g_inv))
-        self.assertAlmostEqual(num_result.value(b), fit_result.value(b))
+        self.assertAlmostEqual(num_result.value(b) / fit_result.value(b), 1.0, 5)
         # for cov1, cov2 in zip(num_result.params.covariance_matrix.flatten(), fit_result.params.covariance_matrix.flatten()):
         #     self.assertAlmostEqual(cov1, cov2)
         #     print(cov1, cov2)
 
         for cov1, cov2 in zip(num_result.covariance_matrix.flatten(), fit_result.covariance_matrix.flatten()):
-            self.assertAlmostEqual(cov1, cov2)
+            self.assertAlmostEqual(cov1 / cov2, 1.0, 5)
             # print(cov1, cov2)
 
     def test_backwards_compatibility(self):
@@ -216,14 +217,14 @@ class TestAnalyticalFit(unittest.TestCase):
         fit = LinearLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
         fit_result = fit.execute()
 
-        fit = NumericalLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
+        fit = Fit(model, y=yn, sigma_y=sigma, absolute_sigma=False, minimizer=MINPACK)
         num_result = fit.execute()
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=False)
 
 
-        self.assertAlmostEqual(fit_result.value(a), num_result.value(a))
-        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a))
+        self.assertAlmostEqual(fit_result.value(a), num_result.value(a), 5)
+        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a), 5)
 
         self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
         self.assertAlmostEqual(fit_result.stdev(a), pcov[0, 0]**0.5, 5)
@@ -231,13 +232,13 @@ class TestAnalyticalFit(unittest.TestCase):
         fit = LinearLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=True)
         fit_result = fit.execute()
 
-        fit = NumericalLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=True)
+        fit = Fit(model, y=yn, sigma_y=sigma, absolute_sigma=True, minimizer=MINPACK)
         num_result = fit.execute()
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
 
-        self.assertAlmostEqual(fit_result.value(a), num_result.value(a))
-        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a))
+        self.assertAlmostEqual(fit_result.value(a), num_result.value(a), 5)
+        self.assertAlmostEqual(fit_result.stdev(a), num_result.stdev(a), 5)
 
         self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
         self.assertAlmostEqual(fit_result.stdev(a), pcov[0, 0]**0.5, 5)
@@ -268,7 +269,7 @@ class TestAnalyticalFit(unittest.TestCase):
         fit_result = fit.execute()
 #        print(time.time() - tick)
 
-        fit = NumericalLeastSquares(t_model, y=y_data, t=t_data, sigma_t=sigma_t)
+        fit = Fit(t_model, y=y_data, t=t_data, sigma_t=sigma_t, minimizer=MINPACK)
         tick = time.time()
         num_result = fit.execute()
 #        print(time.time() - tick)

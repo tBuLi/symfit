@@ -7,9 +7,10 @@ import numpy as np
 from scipy.optimize import minimize
 
 from symfit import (
-    Variable, Parameter, Maximize, Eq, Ge, Le, Lt, Gt, Ne, parameters,
-    ModelError
+    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit, Model
 )
+from symfit.core.objectives import MinimizeModel
+from symfit.core.minimizers import BFGS
 
 
 class TestMinimize(unittest.TestCase):
@@ -28,7 +29,7 @@ class TestMinimize(unittest.TestCase):
         x = Parameter(-1.0)
         y = Parameter(1.0)
         z = Variable()
-        model = {z: 2*x*y + 2*x - x**2 - 2*y**2}
+        model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 
         constraints = [
             Ge(y - 1, 0),  # y - 1 >= 0,
@@ -55,40 +56,44 @@ class TestMinimize(unittest.TestCase):
 
         # Unconstrained fit
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-               method='SLSQP', options={'disp': False})
-        fit = Maximize(model)
-        fit_result = fit.execute(method='SLSQP')
+               method='BFGS', options={'disp': False})
+        fit = Fit(model=- model)
+        self.assertIsInstance(fit.objective, MinimizeModel)
+        self.assertIsInstance(fit.minimizer, BFGS)
 
-        self.assertAlmostEqual(fit_result.value(x), res.x[0])
-        self.assertAlmostEqual(fit_result.value(y), res.x[1])
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.value(x) / res.x[0], 1.0, 6)
+        self.assertAlmostEqual(fit_result.value(y) / res.x[1], 1.0, 6)
 
         # Same test, but with constraints in place.
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                constraints=cons, method='SLSQP', options={'disp': False})
 
-        fit = Maximize(model, constraints=constraints)
+        from symfit.core.minimizers import SLSQP
+        fit = Fit(- model, constraints=constraints)
         self.assertEqual(fit.constraints[0].constraint_type, Ge)
         self.assertEqual(fit.constraints[1].constraint_type, Eq)
-        fit_result = fit.execute(method='SLSQP')
-        self.assertAlmostEqual(fit_result.value(x), res.x[0])
-        self.assertAlmostEqual(fit_result.value(y), res.x[1])
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.value(x), res.x[0], 6)
+        self.assertAlmostEqual(fit_result.value(y), res.x[1], 6)
 
     def test_constraint_types(self):
         x = Parameter(-1.0)
         y = Parameter(1.0)
         z = Variable()
-        model = {z: 2*x*y + 2*x - x**2 - 2*y**2}
+        model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 
         # These types are not allowed constraints.
         for relation in [Lt, Gt, Ne]:
             with self.assertRaises(ModelError):
-                Maximize(model, constraints=[relation(x, y)])
+                Fit(model, constraints=[relation(x, y)])
 
         # Should execute without problems.
         for relation in [Eq, Ge, Le]:
-            Maximize(model, constraints=[relation(x, y)])
+            Fit(model, constraints=[relation(x, y)])
 
-        fit = Maximize(model, constraints=[Le(x, y)])
+        fit = Fit(model, constraints=[Le(x, y)])
         # Le should be transformed to Ge
         self.assertIs(fit.constraints[0].constraint_type, Ge)
 
@@ -102,8 +107,8 @@ class TestMinimize(unittest.TestCase):
             Eq(x**3 - y, 0),  # x**3 - y == 0,
         ]
 
-        fit = Maximize(model, constraints=constraints)
-        std_fit = Maximize(model, constraints=std_constraints)
+        fit = Fit(- model, constraints=constraints)
+        std_fit = Fit(- model, constraints=std_constraints)
         self.assertEqual(fit.constraints[0].constraint_type, Ge)
         self.assertEqual(fit.constraints[1].constraint_type, Eq)
         fit_result = fit.execute()
