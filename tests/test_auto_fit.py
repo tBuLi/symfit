@@ -4,9 +4,10 @@ import unittest
 import numpy as np
 
 from symfit import (
-    variables, parameters, NumericalLeastSquares, Fit, Parameter, Variable,
-    ConstrainedNumericalLeastSquares, Equality, Model
+    variables, parameters, Fit, Parameter, Variable,
+    Equality, Model
 )
+from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
 from symfit.distributions import Gaussian
 
 class TestAutoFit(unittest.TestCase):
@@ -21,10 +22,8 @@ class TestAutoFit(unittest.TestCase):
         provided, or for vector models in general. For scalar models, use
         `NumericalLeastSquares`.
         """
-        a, b, c = parameters('a, b, c')
-        a_i, b_i, c_i = variables('a_i, b_i, c_i')
-
-        model = {a_i: a, b_i: b, c_i: c}
+        a, b = parameters('a, b')
+        a_i, = variables('a_i')
 
         xdata = np.array([
             [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
@@ -37,15 +36,16 @@ class TestAutoFit(unittest.TestCase):
         simple_fit = Fit(
             model=scalar_model,
             a_i=xdata[0],
+            minimizer=MINPACK
         )
-        self.assertIsInstance(simple_fit.fit, NumericalLeastSquares)
+        self.assertIsInstance(simple_fit.minimizer, MINPACK)
 
         constrained_fit = Fit(
             model=scalar_model,
             a_i=xdata[0],
             constraints=[Equality(a + b, 110)]
         )
-        self.assertIsInstance(constrained_fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(constrained_fit.minimizer, SLSQP)
 
         a.min = 0
         a.max = 25
@@ -57,16 +57,21 @@ class TestAutoFit(unittest.TestCase):
             model=scalar_model,
             a_i=xdata[0],
         )
-        self.assertIsInstance(bound_fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(bound_fit.minimizer, LBFGSB)
 
         # Repeat all of the above for the Vector model
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = {a_i: a, b_i: b, c_i: c}
+
         simple_fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
         )
-        self.assertIsInstance(simple_fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(simple_fit.minimizer, BFGS)
 
         constrained_fit = Fit(
             model=model,
@@ -75,7 +80,7 @@ class TestAutoFit(unittest.TestCase):
             c_i=xdata[2],
             constraints=[Equality(a + b + c, 180)]
         )
-        self.assertIsInstance(constrained_fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(constrained_fit.minimizer, SLSQP)
 
         a.min = 0
         a.max = 25
@@ -89,7 +94,7 @@ class TestAutoFit(unittest.TestCase):
             b_i=xdata[1],
             c_i=xdata[2],
         )
-        self.assertIsInstance(bound_fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(bound_fit.minimizer, LBFGSB)
 
         fit_result = bound_fit.execute()
         self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 6)
@@ -196,7 +201,7 @@ class TestAutoFit(unittest.TestCase):
         fit = Fit(
             model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1]
         )
-        self.assertIsInstance(fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(fit.minimizer, BFGS)
 
         # The next model does not share parameters, but is still a vector
         model = Model({
@@ -207,15 +212,15 @@ class TestAutoFit(unittest.TestCase):
             model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1]
         )
         self.assertFalse(model.shared_parameters)
-        self.assertIsInstance(fit.fit, NumericalLeastSquares)
+        self.assertIsInstance(fit.minimizer, BFGS)
 
-        # Scalar model, so it should use NumericalLeastSquares.
+        # Scalar model, still use bfgs.
         model = Model({
             y_1: a_1 * x_1**2 + b_1 * x_1,
         })
         fit = Fit(model, x_1=xdata[0], y_1=ydata[0])
         self.assertFalse(model.shared_parameters)
-        self.assertIsInstance(fit.fit, NumericalLeastSquares)
+        self.assertIsInstance(fit.minimizer, BFGS)
 
     def test_gaussian_2d_fitting(self):
         """

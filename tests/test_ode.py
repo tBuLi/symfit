@@ -2,7 +2,8 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit, D, NumericalLeastSquares
+from symfit import parameters, variables, ODEModel, exp, Fit, D
+from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
 
 
@@ -32,7 +33,7 @@ class TestODE(unittest.TestCase):
         fit_result = fit.execute()
         y_sol, = ode_model(tdata, **fit_result.params)
 
-        self.assertAlmostEqual(3.22, fit_result.value(p))
+        self.assertAlmostEqual(3.22, fit_result.value(p), 2)
 
     def test_van_der_pol(self):
         """
@@ -106,7 +107,7 @@ class TestODE(unittest.TestCase):
         # Generate some data
         tvec = np.linspace(0, 500, 1000)
 
-        fit = NumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
+        fit = Fit(ode_model, t=tdata, a=adata, b=None, minimizer=MINPACK)
         fit_result = fit.execute()
         # print(fit_result)
         self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)

@@ -6,9 +6,9 @@ import types
 from collections import OrderedDict
 
 import numpy as np
-from symfit import Variable, Parameter, Fit, FitResults, NumericalLeastSquares, Model
+from symfit import Variable, Parameter, Fit, FitResults, Model
 from symfit.distributions import Gaussian
-
+from symfit.core.minimizers import MINPACK
 
 class TestFitResults(unittest.TestCase):
     """
@@ -46,7 +46,7 @@ class TestFitResults(unittest.TestCase):
         x = Variable()
         new = a*x**b
 
-        fit = NumericalLeastSquares(new, xdata, ydata)
+        fit = Fit(new, xdata, ydata, minimizer=MINPACK)
 
         self.assertTrue(issubclass(fit.model.chi_squared.__class__, sympy.Expr))
         self.assertTrue(issubclass(fit.model.chi.__class__, sympy.Expr))
@@ -122,6 +122,13 @@ class TestFitResults(unittest.TestCase):
             for param_2 in fit.model.params:
                 self.assertAlmostEqual(fit_result.covariance(param_1, param_2), fit_result.covariance(param_2, param_1))
 
+    def test_minimizer_included(self):
+        """"The minimizer used should be included in the results."""
+        return NotImplementedError()
+
+    def test_objective_included(self):
+        """"The objective used should be included in the results."""
+        return NotImplementedError()
 
 if __name__ == '__main__':
     unittest.main()
