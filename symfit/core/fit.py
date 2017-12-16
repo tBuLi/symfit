@@ -685,8 +685,12 @@ class TakesData(object):
             try:
                 iter(self.data[sigma.name])
             except TypeError:
-                # if self.data[var.name] is None and self.data[sigma.name] is None:
-                #     pass # This is the way it's supposed to be.
+                if self.data[var.name] is None and self.data[sigma.name] is None:
+                    if len(self.data_shapes[1]) == 1:
+                        # The shape of the dependent vars is unique across dependent vars.
+                        # This means we can just assume this shape.
+                        self.data[sigma.name] = np.ones(self.data_shapes[1][0])
+                    else: pass # No stdevs can be calculated
                 if self.data[var.name] is not None and self.data[sigma.name] is None:
                     self.data[sigma.name] = np.ones(self.data[var.name].shape)
                 elif self.data[var.name] is not None:
@@ -740,6 +744,30 @@ class TakesData(object):
         """
         sigmas = self.model.sigmas
         return OrderedDict((sigmas[var].name, self.data[sigmas[var].name]) for var in self.model)
+
+    @property
+    @cache
+    def data_shapes(self):
+        """
+        Returns the shape of the data. In most cases this will be the same for
+        all variables of the same type, if not this raises an Exception.
+
+        Ignores variables which are set to None by design so we know that those
+        None variables can be assumed to have the same shape as the other in
+        calculations where this is needed, such as the covariance matrix.
+        :return: Tuple of all independent var shapes, dependent var shapes.
+        """
+        independent_shapes = []
+        for var_name, data in self.independent_data.items():
+            if data is not None:
+                independent_shapes.append(data.shape)
+
+        dependent_shapes = []
+        for var_name, data in self.dependent_data.items():
+            if data is not None:
+                dependent_shapes.append(data.shape)
+
+        return list(set(independent_shapes)), list(set(independent_shapes))
 
     @property
     def initial_guesses(self):
@@ -851,6 +879,7 @@ class HasCovarianceMatrix(object):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         """
         sigma = np.vstack(list(self.sigma_data.values()))
+
         # Weight matrix. Since it should be a diagonal matrix, we just remember
         # this and multiply it elementwise for efficiency.
         # It is also rescaled by the reduced residual ss in case of absolute_sigma==False
@@ -867,7 +896,12 @@ class HasCovarianceMatrix(object):
 #                np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
 #            ] for row in self.model.numerical_jacobian
 #        ])
-        jac = self.model.eval_jacobian(**kwargs)
+        jac = np.array(self.model.eval_jacobian(**kwargs))
+        # Drop the axis which correspond to dependent vars which have been
+        # set to None
+        mask = [data is not None for data in self.dependent_data.values()]
+        jac = jac[mask]
+        W = W[mask]
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
         if not self.independent_data:
