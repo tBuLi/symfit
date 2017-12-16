@@ -161,10 +161,10 @@ class LeastSquares(GradientObjective):
 class LogLikelihood(GradientObjective):
     def __call__(self, **parameters):
         """
-        Error function to be maximised(!) in the case of log-likelihood fitting.
+        Error function to be minimized by a minimizer in order to *maximize*
+        the log-likelihood.
 
-        :param p: guess params
-        :param data: xdata
+        :param parameters: values for the fit parameters.
         :return: scalar value of log-likelihood
         """
         jac_kwargs = dict(**parameters, **self.independent_data)
@@ -175,8 +175,7 @@ class LogLikelihood(GradientObjective):
         """
         Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
-        :param p: guess params
-        :param data: data for the variables.
+        :param parameters: values for the fit parameters.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
         jac_kwargs = dict(**parameters, **self.independent_data)
@@ -193,6 +192,10 @@ class LogLikelihood(GradientObjective):
 
 
 class MinimizeModel(BaseObjective):
+    """
+    Objective to use when the model itself is the quantity that should be
+    minimized. This is only supported for scalar models.
+    """
     def __init__(self, model, *args, **kwargs):
         if len(model) > 1:
             raise TypeError('Only scalar functions are supported by {}'.format(self.__class__))
