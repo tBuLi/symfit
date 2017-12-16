@@ -1,5 +1,6 @@
 from collections import namedtuple, Mapping, OrderedDict
 import copy
+from functools import partial
 import sys
 import warnings
 from abc import abstractmethod
@@ -154,7 +155,16 @@ class BaseModel(Mapping):
         """
         :return: List of tuples of all bounds on parameters.
         """
-        return [(np.nextafter(p.value, 0), p.value) if p.fixed else (p.min, p.max) for p in self.params]
+        bounds = []
+        for p in self.params:
+            if p.fixed:
+                if p.value >= 0.0:
+                    bounds.append([np.nextafter(p.value, 0), p.value])
+                else:
+                    bounds.append([p.value, np.nextafter(p.value, 0)])
+            else:
+                bounds.append([p.min, p.max])
+        return bounds
 
     @property
     def shared_parameters(self):
@@ -220,6 +230,83 @@ class CallableModel(BaseModel):
         Ans = namedtuple('Ans', [var.name for var in self])
         # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
         return Ans(*self.eval_components(**bound_arguments.arguments))
+
+    @property
+    # @cache
+    def numerical_components(self):
+        """
+        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
+        """
+        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
+
+    @keywordonly(dx=1e-8)
+    def finite_difference(self, *args, **kwargs):
+        """
+        Calculates a numerical approximation of the Jacobian of the model using
+        the sixth order central finite difference method. Accepts a `dx`
+        keyword to tune the relative stepsize used.
+        Makes 6*n_params calls to the model.
+
+        :return: A numerical approximation of the Jacobian of the model as a
+                 list with length n_components containing numpy arrays of shape
+                 (n_params, n_datapoints)
+        """
+        # See also: scipy.misc.derivative. It might be convinced to work, but
+        # it will make way too many function evaluations
+        dx = kwargs.pop('dx')
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
+        param_vals = [bound_arguments.arguments[param.name] for param in self.params]
+        param_vals = np.array(param_vals, dtype=float)
+        f = partial(self, *var_vals)
+        # See also: scipy.misc.central_diff_weights
+        factors = np.array((3/2., -3/5., 1/10.))
+        orders = np.arange(1, len(factors) + 1)
+        out = []
+        # TODO: Dark numpy magic. Needs an extra dimension in out, and a sum
+        #       over the right axis at the end.
+
+        # We can't make the output arrays yet, since we don't know the size of
+        # the components. So put a sentinel value.
+        out = None
+
+        for param_idx, param_val in enumerate(param_vals):
+            for order, factor in zip(orders, factors):
+                h = np.zeros(len(self.params))
+                # Note: stepsize (h) depends on the parameter values...
+                h[param_idx] = dx * order
+                if abs(param_val) >= 1e-7:
+                    # ...but it'd better not be (too close to) 0.
+                    h[param_idx] *= param_val
+                up = f(*(param_vals + h))
+                down = f(*(param_vals - h))
+                if out is None:
+                    # Initialize output arrays. Now that we evaluated f, we
+                    # know the size of our data.
+                    out = []
+                    # out is a list  of length Ncomponents with numpy arrays of
+                    # shape (Nparams, Ndata). Part of our misery comes from the
+                    # fact that the length of the data may be different for all
+                    # the components. Numpy doesn't like ragged arrays, so make
+                    # a list of arrays.
+                    for comp_idx in range(len(self)):
+                        try:
+                            data_len = len(up[comp_idx])
+                        except TypeError:  # output[comp_idx] is a number
+                            data_len = 1
+                        # Initialize at 0 so we can += all the contributions
+                        param_grad = np.zeros((len(self.params), data_len), dtype=float)
+                        out.append(param_grad)
+                for comp_idx in range(len(self)):
+                    diff = up[comp_idx] - down[comp_idx]
+                    out[comp_idx][param_idx, :] += factor * diff/(2*h[param_idx])
+        return out
+
+    def eval_jacobian(self, *args, **kwargs):
+        """
+        :return: The jacobian matrix of the function.
+        """
+        return self.finite_difference(*args, **kwargs)
 
 
 class Model(CallableModel):
@@ -318,13 +405,6 @@ class Model(CallableModel):
     #     """
     #     return sum((y - f)**2 for y, f in self.items())
 
-    @property
-    # @cache
-    def numerical_components(self):
-        """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
-        """
-        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
     @property
     # @cache
@@ -366,6 +446,29 @@ class Model(CallableModel):
         """
         return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
 
+    def eval_jacobian(self, *args, **kwargs):
+        # Evaluate the jacobian at specified points
+        jac = [
+            [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
+        ]
+        for idx, comp in enumerate(jac):
+            # Find out how many datapoints this component has. We need to do
+            # this with a try/except, since par can be a number or a sequence.
+            data_len = 1
+            for par in comp:
+                try: l = len(par)
+                except: l = 1
+                data_len = max(l, data_len)
+            # And make everything in this component as long, since some are
+            # numbers.
+            for jdx, par in enumerate(comp):
+                # This is a no-op for elements of lenght `longest`.
+                jac[idx][jdx] = np.ones(data_len) * par
+            # And lastly, turn jac into a list of 2D numpy arrays of shape
+            # (Nparams, Ndata)
+            jac[idx] = np.array(jac[idx], dtype=float)
+        return jac
+
     def eval_components(self, *args, **kwargs):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
@@ -373,14 +476,6 @@ class Model(CallableModel):
         return [expr(*args, **kwargs) for expr in self.numerical_components]
         # return [sympy_to_py(expr, self.independent_vars, self.params)(*args, **kwargs) for expr in self.values()]
 
-    def eval_jacobian(self, *args, **kwargs):
-        """
-        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
-        """
-        return [
-            [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
-        ]
-        # return [[partial(*args, **kwargs) for partial in row] for row in self.jacobian]
 
 
 class TaylorModel(Model):
@@ -767,13 +862,16 @@ class HasCovarianceMatrix(object):
 
         kwargs = key2str(best_fit_params)
         kwargs.update(self.independent_data)
-        jac = np.atleast_2d([
-            [
-                np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
-            ] for row in self.model.numerical_jacobian
-        ])
+#        jac = np.atleast_2d([
+#            [
+#                np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
+#            ] for row in self.model.numerical_jacobian
+#        ])
+        jac = self.model.eval_jacobian(**kwargs)
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
+        if not self.independent_data:
+            jac = jac * np.ones_like(W)
         # Dot away all but the parameter dimension!
         cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
         cov_matrix = np.linalg.inv(cov_matrix_inv)
@@ -797,28 +895,41 @@ class HasCovarianceMatrix(object):
         # kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
         # kwargs.update(self.independent_data)
         kwargs = dict(**self.independent_data, **key2str(best_fit_params))
-        jac = [
-            [
-                np.ones(s.shape) * comp(**kwargs) for comp in row
-            ] for row, s in zip(self.model.numerical_jacobian, sigma)
-        ]
-
+#        jac = [
+#            [
+#                np.ones(s.shape) * comp(**kwargs) for comp in row
+#            ] for row, s in zip(self.model.numerical_jacobian, sigma)
+#        ]
+        jac = self.model.eval_jacobian(**kwargs)
+        data_len = max(j.shape[1] for j in jac)
+        data_len = max(data_len, max(len(w) for w in W))
+        W_full = np.zeros((len(W), data_len), dtype=float)
+        jac_full = np.zeros((len(jac), jac[0].shape[0], data_len), dtype=float)
+        for idx, (j, w) in enumerate(zip(jac, W)):
+            if not self.independent_data:
+                j = j * np.ones_like(w)
+            jac_full[idx, :, :j.shape[1]] = j
+            W_full[idx, :len(w)] = w
+        jac = jac_full
+        W = W_full
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
         # Weigh each component with its respective weight.
-        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
+#        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
 
         # Buil the inverse cov_matrix.
         cov_matrix_inv = []
-        # iterate along the parameters first
-        for index, jac_w_p in enumerate(jac_weighed):
-            cov_matrix_inv.append([])
-            for jac_p in jac:
-                # Now we have to dot product these guys properly.
-                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
-                cov_matrix_inv[index].append(dot)
-
+        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
         cov_matrix = np.linalg.inv(cov_matrix_inv)
+#        # iterate along the parameters first
+#        for index, jac_w_p in enumerate(jac_weighed):
+#            cov_matrix_inv.append([])
+#            for jac_p in jac:
+#                # Now we have to dot product these guys properly.
+#                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
+#                cov_matrix_inv[index].append(dot)
+#
+#        cov_matrix = np.linalg.inv(cov_matrix_inv)
         return cov_matrix
 
 
@@ -1207,7 +1318,6 @@ class Fit(TakesData, HasCovarianceMatrix):
         minimizer_ans.gof_qualifiers['r_squared'] = r_squared(self.model, minimizer_ans, self.data)
         return minimizer_ans
 
-
 # class LagrangeMultipliers:
 #     """
 #     Class to analytically solve a function subject to constraints using Karush Kuhn Tucker.
@@ -1435,11 +1545,10 @@ def r_squared(model, fit_result, data):
     # First filter out the dependent vars
     y_is = [data[var.name] for var in model if var.name in data]
     x_is = [value for key, value in data.items() if key in model.__signature__.parameters]
-    y_bars = [np.mean(y_i) for y_i in y_is if y_i is not None]
+    y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
     f_is = model(*x_is, **fit_result.params)
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
-
     return 1 - SS_res/SS_tot
 
 class ODEModel(CallableModel):
@@ -1584,7 +1693,6 @@ class ODEModel(CallableModel):
             assert len(t_like.shape) == 1
             t_like = np.hstack((np.array([initial_independent]), t_like))
             start = 1
-
         ans = odeint(
             f,
             initial_dependent,

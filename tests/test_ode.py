@@ -116,8 +116,9 @@ class TestODE(unittest.TestCase):
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute()
         # print(fit_result)
+        print(fit_result.stdev(k))
         self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertTrue(fit_result.stdev(k) is None)
+        self.assertTrue(fit_result.stdev(k) is None or np.isnan(fit_result.stdev(k)))
 
         # A, B = ode_model(t=tvec, **fit_result.params)
         # plt.plot()

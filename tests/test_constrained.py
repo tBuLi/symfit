@@ -38,7 +38,7 @@ class TestConstrained(unittest.TestCase):
         fit_result = fit.execute(tol=1e-9)
 
         self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertTrue(fit_result.stdev(k) is None)
+        self.assertTrue(fit_result.stdev(k) is None or np.isnan(fit_result.stdev(k)))
 
         # These lines should be possible, but dont currently for ODEModels.
         # It allows the user to force uncertainty estimation by giving sigma

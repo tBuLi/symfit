@@ -88,8 +88,13 @@ class Parameter(Argument):
         self.value = value
         self.fixed = fixed
         if not self.fixed:
-            self.min = min
-            self.max = max
+            if min is not None and max is not None and min > max:
+                print(min, max)
+                raise ValueError(
+                    'The value of `min` should be less than or equal to the value of `max`.')
+            else:
+                self.min = min
+                self.max = max
 
 
 class Variable(Argument):
