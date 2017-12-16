@@ -18,7 +18,9 @@ from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
     ScipyMinimize, MINPACK
 )
-from .objectives import LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares
+from .objectives import (
+    LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
+)
 from .fit_results import FitResults
 
 if sys.version_info >= (3,0):
@@ -831,13 +833,17 @@ class HasCovarianceMatrix(object):
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
-        if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
+        if isinstance(self.objective, LogLikelihood):
+            # Loglikelihood is a special case that needs to be considered
+            # separately, see #138
+            return None
+        elif len(set(arr.shape for arr in self.sigma_data.values())) == 1:
             # Shapes of all sigma data identical
             return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
         else:
             return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
 
-    def _reduced_residual_ss(self, best_fit_params, flatten=True):
+    def _reduced_residual_ss(self, best_fit_params, flatten=False):
         """
         Calculate the residual Sum of Squares divided by the d.o.f..
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
@@ -847,9 +853,13 @@ class HasCovarianceMatrix(object):
         """
         # popt = [best_fit_params[p.name] for p in self.model.params]
         # Rescale the covariance matrix with the residual variance
-        ss_res = self.objective(flatten_components=flatten, **key2str(best_fit_params))
-        if isinstance(self.objective, VectorLeastSquares):
+        if isinstance(self.objective, (VectorLeastSquares, LeastSquares)):
+            ss_res = self.objective(flatten_components=flatten,
+                                    **key2str(best_fit_params))
+        else:
+            ss_res = self.objective(**key2str(best_fit_params))
 
+        if isinstance(self.objective, VectorLeastSquares):
             ss_res = np.sum(ss_res**2)
 
         degrees_of_freedom = 0 if flatten else []

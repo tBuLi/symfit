@@ -37,30 +37,8 @@ class TestConstrained(unittest.TestCase):
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute(tol=1e-9)
 
-        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertTrue(fit_result.stdev(k) is None or np.isnan(fit_result.stdev(k)))
-
-        # These lines should be possible, but dont currently for ODEModels.
-        # It allows the user to force uncertainty estimation by giving sigma
-        # argument arrays of the right size.
-        # fit = Fit(
-        #     ode_model, t=tdata, a=adata, b=None,
-        #     sigma_a=np.ones(adata.shape), sigma_b=np.ones(adata.shape)
-        # )
-        # fit_result = fit.execute(tol=1e-9)
-        # print(fit_result)
-        #
-        # self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        # self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
-        # Generate some data
-        # tvec = np.linspace(0, 500, 1000)
-        # A, B = ode_model(t=tvec, **fit_result.params)
-        # plt.plot()
-        # plt.plot(tvec, A, label='[A]')
-        # plt.plot(tvec, B, label='[B]')
-        # plt.scatter(tdata, adata)
-        # plt.legend()
-        # plt.show()
+        self.assertAlmostEqual(fit_result.value(k) / 4.302875e-01, 1.0, 5)
+        self.assertAlmostEqual(fit_result.stdev(k) / 6.447068e-03, 1.0, 5)
 
     def test_global_fitting(self):
         """
