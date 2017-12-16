@@ -49,7 +49,9 @@ class ConstrainedMinimizer(BaseMinimizer):
     """
     ABC for Minimizers that support constraints
     """
-    def __init__(self, *args, constraints=None, **kwargs):
+    @keywordonly(constraints=None)
+    def __init__(self, *args, **kwargs):
+        constraints = kwargs.pop('constraints')
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
         self.constraints = constraints
 
@@ -57,7 +59,10 @@ class GradientMinimizer(BaseMinimizer):
     """
     ABC for Minizers that support the use of a jacobian
     """
-    def __init__(self, *args, jacobian=None, **kwargs):
+
+    @keywordonly(jacobian=None)
+    def __init__(self, *args, **kwargs):
+        jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
         self.jacobian = jacobian
 
