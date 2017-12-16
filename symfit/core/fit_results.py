@@ -55,7 +55,10 @@ class FitResults(object):
 
         res += 'Fitting status message: {}\n'.format(self.status_message)
         res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
-        res += 'Regression Coefficient: {}\n'.format(self.r_squared)
+        try:
+            res += 'Regression Coefficient: {}\n'.format(self.r_squared)
+        except AttributeError:
+            pass
         return res
 
     def __getattr__(self, item):
