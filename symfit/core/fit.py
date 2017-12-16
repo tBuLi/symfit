@@ -901,11 +901,7 @@ class HasCovarianceMatrix(object):
 
         kwargs = key2str(best_fit_params)
         kwargs.update(self.independent_data)
-#        jac = np.atleast_2d([
-#            [
-#                np.ones(sigma.shape[1]) * comp(**kwargs) for comp in row
-#            ] for row in self.model.numerical_jacobian
-#        ])
+
         jac = np.array(self.model.eval_jacobian(**kwargs))
         # Drop the axis which correspond to dependent vars which have been
         # set to None
@@ -936,14 +932,9 @@ class HasCovarianceMatrix(object):
             # W = 1/sigma**2/s_sq[:, np.newaxis]
             W = [1/s**2/res for s, res in zip(sigma, s_sq)]
 
-        # kwargs = {p.name: best_fit_params[p.name] for p in self.model.params}
-        # kwargs.update(self.independent_data)
-        kwargs = dict(**self.independent_data, **key2str(best_fit_params))
-#        jac = [
-#            [
-#                np.ones(s.shape) * comp(**kwargs) for comp in row
-#            ] for row, s in zip(self.model.numerical_jacobian, sigma)
-#        ]
+        kwargs = key2str(best_fit_params)
+        kwargs.update(self.independent_data)
+
         jac = self.model.eval_jacobian(**kwargs)
         data_len = max(j.shape[1] for j in jac)
         data_len = max(data_len, max(len(w) for w in W))
