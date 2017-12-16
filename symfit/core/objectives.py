@@ -4,7 +4,7 @@ from six import add_metaclass
 
 import numpy as np
 
-from .support import cache, keywordonly
+from .support import cache, keywordonly, key2str
 
 @add_metaclass(abc.ABCMeta)
 class BaseObjective:
@@ -92,7 +92,8 @@ class VectorLeastSquares(GradientObjective):
         :return: :math:`\\sqrt(\\chi^2)`
         """
         flatten_components = parameters.pop('flatten_components')
-        jac_kwargs = dict(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
         evaluated_func = self.model(**jac_kwargs)
         result = []
 
@@ -106,7 +107,8 @@ class VectorLeastSquares(GradientObjective):
 
     def eval_jacobian(self, **parameters):
         chi = self(flatten=False, **parameters)
-        jac_kwargs = dict(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
         evaluated_func = self.model(**self.independent_data, **parameters)
 
         result = len(self.model.params) * [0.0]
@@ -126,7 +128,8 @@ class LeastSquares(GradientObjective):
     @keywordonly(flatten_components=True)
     def __call__(self, **parameters):
         flatten_components = parameters.pop('flatten_components')
-        jac_kwargs = dict(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
         evaluated_func = self.model(**jac_kwargs)
 
         chi2 = [0 for _ in evaluated_func]
@@ -141,7 +144,6 @@ class LeastSquares(GradientObjective):
         return chi2
 
     def eval_jacobian(self, **parameters):
-        # jac_args = list(independent_data.values()) + list(p)
         evaluated_func = self.model(**self.independent_data, **parameters)
         result = [0.0 for _ in self.model.params]
 
@@ -167,7 +169,9 @@ class LogLikelihood(GradientObjective):
         :param parameters: values for the fit parameters.
         :return: scalar value of log-likelihood
         """
-        jac_kwargs = dict(**parameters, **self.independent_data)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+
         ans = - np.nansum(np.log(self.model(**jac_kwargs)))
         return ans
 
@@ -178,7 +182,9 @@ class LogLikelihood(GradientObjective):
         :param parameters: values for the fit parameters.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
-        jac_kwargs = dict(**parameters, **self.independent_data)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+
         ans = []
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
