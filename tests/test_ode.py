@@ -2,7 +2,7 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit, D
+from symfit import parameters, variables, ODEModel, exp, Fit, D, Model
 from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
 
@@ -11,8 +11,12 @@ class TestODE(unittest.TestCase):
     """
     Tests for the FitResults object.
     """
+    @classmethod
+    def setUpClass(cls):
+        np.random.seed(6)
+
     def test_known_solution(self):
-        p, c1, c2 = parameters('p, c1, c2')
+        p, c1 = parameters('p, c1')
         y, t = variables('y, t')
         p.value = 3.0
 
@@ -21,19 +25,24 @@ class TestODE(unittest.TestCase):
         }
 
         # Lets say we know the exact solution to this problem
-        sol = c1 * exp(- p * t)
+        sol = Model({y: c1 * exp(- p * t)})
 
         # Generate some data
-        tdata = np.linspace(0, 3, 101)
-        ydata = sol(t=tdata, c1=1.0, p=3.22)
+        tdata = np.linspace(0, 3, 10001)
+        ydata = sol(t=tdata, c1=1.0, p=3.22)[0]
+        ydata = ydata + np.random.normal(0, 0.01, ydata.shape)
 
-
-        ode_model = ODEModel(model_dict, initial={t: 0.0, y: 1.0})
+        ode_model = ODEModel(model_dict, initial={t: 0.0, y: ydata[0]})
         fit = Fit(ode_model, t=tdata, y=ydata)
-        fit_result = fit.execute()
-        y_sol, = ode_model(tdata, **fit_result.params)
+        ode_result = fit.execute()
 
-        self.assertAlmostEqual(3.22, fit_result.value(p), 2)
+        c1.value = ydata[0]
+        fit = Fit(sol, t=tdata, y=ydata)
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(ode_result.value(p) / fit_result.value(p), 1, 2)
+        self.assertAlmostEqual(ode_result.r_squared / fit_result.r_squared, 1, 4)
+        self.assertAlmostEqual(ode_result.stdev(p) / fit_result.stdev(p), 1, 2)
 
     def test_van_der_pol(self):
         """
