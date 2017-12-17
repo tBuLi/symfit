@@ -82,8 +82,9 @@ class ScipyMinimize(object):
         """
         Given an objective function `func`, make sure it is always called via
         keyword arguments with the relevant parameter names.
-        :param func:
-        :return:
+
+        :param func: Function to be wrapped to keyword only calls.
+        :return: wrapped function
         """
         # parameters = {param.name: value for param, value in zip(self.params, values)}
         if func is None:
@@ -185,8 +186,8 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
 
 class MINPACK(GradientMinimizer, BoundedMinimizer):
     """
-    Wrapper to scipy's implementation of MINPACK. Since it is the industry
-    standard
+    Wrapper to scipy's implementation of MINPACK, since it is the industry
+    standard.
     """
     def __init__(self, *args, **kwargs):
         self.jacobian = None

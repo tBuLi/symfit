@@ -176,7 +176,9 @@ class keywordonly(object):
     - it's clear from reading the function declaration there is an option to provide this 
       argument. The information on possible keywords is where you'd expect it to be.
     - you're guaranteed that the pop works.
-    - Perhaps in the future I will make this inspect-compatible so then we come full circle.
+    - It is fully inspect compatible such that sphynx is able to index these
+      properly as keyword only arguments just like it would for native py3
+      keyword only arguments.
 
     Please note that this decorator needs a ** argument on the wrapped function
     in order to work.

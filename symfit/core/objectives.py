@@ -8,7 +8,14 @@ from .support import cache, keywordonly, key2str
 
 @add_metaclass(abc.ABCMeta)
 class BaseObjective(object):
+    """
+    ABC for objective functions. Implements basic data handling.
+    """
     def __init__(self, model, data):
+        """
+        :param model: `symfit` style model.
+        :param data: data for all the variables of the model.
+        """
         self.model = model
         self.data = data
 
@@ -65,6 +72,9 @@ class BaseObjective(object):
 
 @add_metaclass(abc.ABCMeta)
 class GradientObjective(BaseObjective):
+    """
+    ABC for objectives that support gradient methods.
+    """
     @abc.abstractmethod
     def eval_jacobian(self, **parameters):
         """
@@ -125,8 +135,20 @@ class VectorLeastSquares(GradientObjective):
 
 
 class LeastSquares(GradientObjective):
+    """
+    Objective representing the :math:`\chi^2` of a model.
+    """
     @keywordonly(flatten_components=True)
     def __call__(self, **parameters):
+        """
+
+        :param parameters: values of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\chi^2` at.
+        :param flatten_components: if `True`, return the total :math:`\chi^2`. If
+            `False`, return the :math:`\chi^2` per component of the
+            :class:`~symfit.core.fit.BaseModel`.
+        :return: scalar or list of scalars depending on the value of `flatten_components`.
+        """
         flatten_components = parameters.pop('flatten_components')
         jac_kwargs = key2str(parameters)
         jac_kwargs.update(self.independent_data)
@@ -144,6 +166,14 @@ class LeastSquares(GradientObjective):
         return chi2
 
     def eval_jacobian(self, **parameters):
+        """
+        Jacobian of :math:`\\chi^2` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} \\chi^2`).
+
+        :param parameters: values of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
+        :return: `np.array` of length equal to the number of parameters..
+        """
         jac_kwargs = key2str(parameters)
         jac_kwargs.update(self.independent_data)
         evaluated_func = self.model(**jac_kwargs)
@@ -163,11 +193,12 @@ class LeastSquares(GradientObjective):
 
 
 class LogLikelihood(GradientObjective):
+    """
+    Error function to be minimized by a minimizer in order to *maximize*
+    the log-likelihood.
+    """
     def __call__(self, **parameters):
         """
-        Error function to be minimized by a minimizer in order to *maximize*
-        the log-likelihood.
-
         :param parameters: values for the fit parameters.
         :return: scalar value of log-likelihood
         """

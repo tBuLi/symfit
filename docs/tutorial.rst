@@ -166,7 +166,7 @@ If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a
     model = Model(model_dict)
     y_1_result, y_2_result = model(x=xdata, a=2.4, b=0.1)
 
-  or equivalently::
+or equivalently::
 
     outcome = model(x=xdata, a=2.4, b=0.1)
     y_1_result = outcome.y_1

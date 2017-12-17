@@ -757,6 +757,7 @@ class TakesData(object):
         Ignores variables which are set to None by design so we know that those
         None variables can be assumed to have the same shape as the other in
         calculations where this is needed, such as the covariance matrix.
+
         :return: Tuple of all independent var shapes, dependent var shapes.
         """
         independent_shapes = []
@@ -1223,9 +1224,9 @@ class Fit(TakesData, HasCovarianceMatrix):
             Note that curve_fit has this set to False by default, which is wrong in
             experimental science.
         :param objective: Have Fit use your specified objective. Can be one of
-            the predifined `symfit` objectives or any callable which accepts fit
+            the predefined `symfit` objectives or any callable which accepts fit
             parameters and returns a scalar.
-        :param minimizer: Have Fit use your specified minimizer.
+        :param minimizer: Have Fit use your specified :class:`symfit.core.minimizers.BaseMinimizer`.
         :param ordered_data: data for dependent, independent and sigma variables. Assigned in
             the following order: independent vars are assigned first, then dependent
             vars, then sigma's in dependent vars. Within each group they are assigned in

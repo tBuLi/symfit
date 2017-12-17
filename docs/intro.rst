@@ -53,7 +53,8 @@ And constrained maximization has never been this easy::
         Ge(y - 1, 0),       # Ge: >=
     ]
 
-    fit = Maximize(model, constraints=constraints)
+    fit = Fit(- model, constraints=constraints)
+    fit_result = fit.execute()
 
 Technical Reasons
 -----------------
