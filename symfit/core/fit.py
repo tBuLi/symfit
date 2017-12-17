@@ -1336,6 +1336,7 @@ class Fit(TakesData, HasCovarianceMatrix):
     def execute(self, **minimize_options):
         """
         Execute the fit.
+
         :param minimize_options: keyword arguments to be passed to the specified
             minimizer.
         :return: FitResults instance
