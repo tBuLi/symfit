@@ -109,7 +109,7 @@ class VectorLeastSquares(GradientObjective):
         chi = self(flatten=False, **parameters)
         jac_kwargs = key2str(parameters)
         jac_kwargs.update(self.independent_data)
-        evaluated_func = self.model(**self.independent_data, **parameters)
+        evaluated_func = self.model(**jac_kwargs)
 
         result = len(self.model.params) * [0.0]
         for ans, y, row in zip(evaluated_func, self.model, self.model.numerical_jacobian):
@@ -144,7 +144,9 @@ class LeastSquares(GradientObjective):
         return chi2
 
     def eval_jacobian(self, **parameters):
-        evaluated_func = self.model(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+        evaluated_func = self.model(**jac_kwargs)
         result = [0.0 for _ in self.model.params]
 
         for ans, var, row in zip(evaluated_func, self.model,
@@ -155,7 +157,7 @@ class LeastSquares(GradientObjective):
                 sigma = self.sigma_data[sigma_var.name]  # Should be changed with #41
                 for index, component in enumerate(row):
                     result[index] += np.sum(
-                        component(**self.independent_data, **parameters) * ((dep_data - ans) / sigma ** 2)
+                        component(**jac_kwargs) * ((dep_data - ans) / sigma ** 2)
                     )
         return - np.array(result).T
 
