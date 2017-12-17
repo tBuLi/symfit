@@ -11,7 +11,7 @@ from .fit_results import FitResults
 
 DummyModel = namedtuple('DummyModel', 'params')
 
-class BaseMinimizer:
+class BaseMinimizer(object):
     """
     ABC for all Minimizers.
     """

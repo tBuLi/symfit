@@ -7,7 +7,7 @@ import numpy as np
 from .support import cache, keywordonly, key2str
 
 @add_metaclass(abc.ABCMeta)
-class BaseObjective:
+class BaseObjective(object):
     def __init__(self, model, data):
         self.model = model
         self.data = data
