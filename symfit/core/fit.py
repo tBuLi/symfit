@@ -888,7 +888,8 @@ class HasCovarianceMatrix(object):
 
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         """
-        sigma = np.vstack(list(self.sigma_data.values()))
+        # Stack in a new dimension, and make this the first dim upon indexing.
+        sigma = np.concatenate([arr[np.newaxis, ...] for arr in self.sigma_data.values()], axis=0)
 
         # Weight matrix. Since it should be a diagonal matrix, we just remember
         # this and multiply it elementwise for efficiency.
@@ -908,6 +909,7 @@ class HasCovarianceMatrix(object):
         mask = [data is not None for data in self.dependent_data.values()]
         jac = jac[mask]
         W = W[mask]
+
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
         if not self.independent_data:
