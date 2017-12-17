@@ -449,6 +449,9 @@ class Model(CallableModel):
         return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
 
     def eval_jacobian(self, *args, **kwargs):
+        """
+        :return: Jacobian evaluated at the specified point.
+        """
         # Evaluate the jacobian at specified points
         jac = [
             [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
