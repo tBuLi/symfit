@@ -20,7 +20,7 @@ class FitResults(object):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
-        :param model: :class:`Model` that was fit to.
+        :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param pcov: covariance matrix.
         :param infodic: dict with fitting info.

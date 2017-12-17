@@ -58,7 +58,7 @@ plot of the data::
 Accessing the Results
 ---------------------
 A call to :meth:`Fit.execute <symfit.core.fit.Fit.execute>` returns a
-:class:`~symfit.core.fit.FitResults` instance. This object holds all information
+:class:`~symfit.core.fit_results.FitResults` instance. This object holds all information
 about the fit. The fitting process does not modify the
 :class:`~symfit.core.argument.Parameter` objects. In the above example,
 ``a.value`` will still be ``60`` and not the value we obtain after fitting. To
@@ -76,7 +76,7 @@ get the value of fit parameters we can do::
   >>> 0.950890866472
 
 
-For more :class:`~symfit.core.fit.FitResults`, see the :ref:`apidocs`.
+For more :class:`~symfit.core.fit_results.FitResults`, see the :ref:`apidocs`.
 
 Evaluating the Model
 --------------------
@@ -142,7 +142,7 @@ This syntax also supports vector valued functions::
 One thing to note about such models is that now ``model(x=xdata)`` obviously no
 longer works as ``type(model) == dict``. There is a preferred way to resolve
 this. If any kind of fitting object has been initiated, it will have a
-:attr:`~symfit.core.fit.Fit.model` atribute containing an instance of
+`.model` atribute containing an instance of
 :class:`~symfit.core.fit.Model`. This can again be called::
 
     a, b = parameters('a, b')
