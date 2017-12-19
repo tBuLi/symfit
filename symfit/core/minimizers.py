@@ -76,13 +76,15 @@ class ScipyMinimize(object):
         self.jacobian = None
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_objective = self.wrap_func(self.objective)
+        self.wrapped_objective = self.wrap_func(self, self.objective)
 
-    def wrap_func(self, func):
+    @staticmethod
+    def wrap_func(minimizer, func):
         """
         Given an objective function `func`, make sure it is always called via
         keyword arguments with the relevant parameter names.
 
+        :param minimizer: The minimizer whose parameters are used.
         :param func: Function to be wrapped to keyword only calls.
         :return: wrapped function
         """
@@ -90,7 +92,7 @@ class ScipyMinimize(object):
         if func is None:
             return None
         def wrapped_func(values):
-            parameters = key2str(dict(zip(self.params, values)))
+            parameters = key2str(dict(zip(minimizer.params, values)))
             return func(**parameters)
         return wrapped_func
 
@@ -150,7 +152,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.jacobian)
+        self.wrapped_jacobian = self.wrap_func(self, self.jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
