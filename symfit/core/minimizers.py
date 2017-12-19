@@ -27,9 +27,9 @@ class BaseMinimizer(object):
     def execute(self, **options):
         """
         The execute method should implement the actual minimization procedure,
-        and should return a :class:`~symfit.core.fit.FitResults` instance.
+        and should return a :class:`~symfit.core.fit_results.FitResults` instance.
         :param options: options to be used by the minimization procedure.
-        :return:  an instance of :class:`~symfit.core.fit.FitResults`.
+        :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
         pass
 
