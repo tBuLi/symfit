@@ -4,11 +4,18 @@ from six import add_metaclass
 
 import numpy as np
 
-from .support import cache, keywordonly
+from .support import cache, keywordonly, key2str
 
 @add_metaclass(abc.ABCMeta)
-class BaseObjective:
+class BaseObjective(object):
+    """
+    ABC for objective functions. Implements basic data handling.
+    """
     def __init__(self, model, data):
+        """
+        :param model: `symfit` style model.
+        :param data: data for all the variables of the model.
+        """
         self.model = model
         self.data = data
 
@@ -65,6 +72,9 @@ class BaseObjective:
 
 @add_metaclass(abc.ABCMeta)
 class GradientObjective(BaseObjective):
+    """
+    ABC for objectives that support gradient methods.
+    """
     @abc.abstractmethod
     def eval_jacobian(self, **parameters):
         """
@@ -92,7 +102,8 @@ class VectorLeastSquares(GradientObjective):
         :return: :math:`\\sqrt(\\chi^2)`
         """
         flatten_components = parameters.pop('flatten_components')
-        jac_kwargs = dict(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
         evaluated_func = self.model(**jac_kwargs)
         result = []
 
@@ -106,8 +117,9 @@ class VectorLeastSquares(GradientObjective):
 
     def eval_jacobian(self, **parameters):
         chi = self(flatten=False, **parameters)
-        jac_kwargs = dict(**self.independent_data, **parameters)
-        evaluated_func = self.model(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+        evaluated_func = self.model(**jac_kwargs)
 
         result = len(self.model.params) * [0.0]
         for ans, y, row in zip(evaluated_func, self.model, self.model.numerical_jacobian):
@@ -123,10 +135,23 @@ class VectorLeastSquares(GradientObjective):
 
 
 class LeastSquares(GradientObjective):
+    """
+    Objective representing the :math:`\chi^2` of a model.
+    """
     @keywordonly(flatten_components=True)
     def __call__(self, **parameters):
+        """
+
+        :param parameters: values of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\chi^2` at.
+        :param flatten_components: if `True`, return the total :math:`\chi^2`. If
+            `False`, return the :math:`\chi^2` per component of the
+            :class:`~symfit.core.fit.BaseModel`.
+        :return: scalar or list of scalars depending on the value of `flatten_components`.
+        """
         flatten_components = parameters.pop('flatten_components')
-        jac_kwargs = dict(**self.independent_data, **parameters)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
         evaluated_func = self.model(**jac_kwargs)
 
         chi2 = [0 for _ in evaluated_func]
@@ -141,8 +166,17 @@ class LeastSquares(GradientObjective):
         return chi2
 
     def eval_jacobian(self, **parameters):
-        # jac_args = list(independent_data.values()) + list(p)
-        evaluated_func = self.model(**self.independent_data, **parameters)
+        """
+        Jacobian of :math:`\\chi^2` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} \\chi^2`).
+
+        :param parameters: values of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
+        :return: `np.array` of length equal to the number of parameters..
+        """
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+        evaluated_func = self.model(**jac_kwargs)
         result = [0.0 for _ in self.model.params]
 
         for ans, var, row in zip(evaluated_func, self.model,
@@ -153,21 +187,24 @@ class LeastSquares(GradientObjective):
                 sigma = self.sigma_data[sigma_var.name]  # Should be changed with #41
                 for index, component in enumerate(row):
                     result[index] += np.sum(
-                        component(**self.independent_data, **parameters) * ((dep_data - ans) / sigma ** 2)
+                        component(**jac_kwargs) * ((dep_data - ans) / sigma ** 2)
                     )
         return - np.array(result).T
 
 
 class LogLikelihood(GradientObjective):
+    """
+    Error function to be minimized by a minimizer in order to *maximize*
+    the log-likelihood.
+    """
     def __call__(self, **parameters):
         """
-        Error function to be maximised(!) in the case of log-likelihood fitting.
-
-        :param p: guess params
-        :param data: xdata
+        :param parameters: values for the fit parameters.
         :return: scalar value of log-likelihood
         """
-        jac_kwargs = dict(**parameters, **self.independent_data)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+
         ans = - np.nansum(np.log(self.model(**jac_kwargs)))
         return ans
 
@@ -175,11 +212,12 @@ class LogLikelihood(GradientObjective):
         """
         Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
-        :param p: guess params
-        :param data: data for the variables.
+        :param parameters: values for the fit parameters.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
-        jac_kwargs = dict(**parameters, **self.independent_data)
+        jac_kwargs = key2str(parameters)
+        jac_kwargs.update(self.independent_data)
+
         ans = []
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
@@ -193,6 +231,10 @@ class LogLikelihood(GradientObjective):
 
 
 class MinimizeModel(BaseObjective):
+    """
+    Objective to use when the model itself is the quantity that should be
+    minimized. This is only supported for scalar models.
+    """
     def __init__(self, model, *args, **kwargs):
         if len(model) > 1:
             raise TypeError('Only scalar functions are supported by {}'.format(self.__class__))

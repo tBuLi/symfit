@@ -11,7 +11,7 @@ from .fit_results import FitResults
 
 DummyModel = namedtuple('DummyModel', 'params')
 
-class BaseMinimizer:
+class BaseMinimizer(object):
     """
     ABC for all Minimizers.
     """
@@ -27,9 +27,9 @@ class BaseMinimizer:
     def execute(self, **options):
         """
         The execute method should implement the actual minimization procedure,
-        and should return a :class:`~symfit.core.fit.FitResults` instance.
+        and should return a :class:`~symfit.core.fit_results.FitResults` instance.
         :param options: options to be used by the minimization procedure.
-        :return:  an instance of :class:`~symfit.core.fit.FitResults`.
+        :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
         pass
 
@@ -49,7 +49,9 @@ class ConstrainedMinimizer(BaseMinimizer):
     """
     ABC for Minimizers that support constraints
     """
-    def __init__(self, *args, constraints=None, **kwargs):
+    @keywordonly(constraints=None)
+    def __init__(self, *args, **kwargs):
+        constraints = kwargs.pop('constraints')
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
         self.constraints = constraints
 
@@ -57,7 +59,10 @@ class GradientMinimizer(BaseMinimizer):
     """
     ABC for Minizers that support the use of a jacobian
     """
-    def __init__(self, *args, jacobian=None, **kwargs):
+
+    @keywordonly(jacobian=None)
+    def __init__(self, *args, **kwargs):
+        jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
         self.jacobian = jacobian
 
@@ -71,20 +76,23 @@ class ScipyMinimize(object):
         self.jacobian = None
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_objective = self.wrap_func(self.objective)
+        self.wrapped_objective = self.wrap_func(self, self.objective)
 
-    def wrap_func(self, func):
+    @staticmethod
+    def wrap_func(minimizer, func):
         """
         Given an objective function `func`, make sure it is always called via
         keyword arguments with the relevant parameter names.
-        :param func:
-        :return:
+
+        :param minimizer: The minimizer whose parameters are used.
+        :param func: Function to be wrapped to keyword only calls.
+        :return: wrapped function
         """
         # parameters = {param.name: value for param, value in zip(self.params, values)}
         if func is None:
             return None
         def wrapped_func(values):
-            parameters = key2str(dict(zip(self.params, values)))
+            parameters = key2str(dict(zip(minimizer.params, values)))
             return func(**parameters)
         return wrapped_func
 
@@ -144,7 +152,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.jacobian)
+        self.wrapped_jacobian = self.wrap_func(self, self.jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
@@ -180,8 +188,8 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
 
 class MINPACK(GradientMinimizer, BoundedMinimizer):
     """
-    Wrapper to scipy's implementation of MINPACK. Since it is the industry
-    standard
+    Wrapper to scipy's implementation of MINPACK, since it is the industry
+    standard.
     """
     def __init__(self, *args, **kwargs):
         self.jacobian = None

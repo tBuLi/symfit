@@ -40,6 +40,7 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(model.dependent_vars, list(model.keys()))
 
+
     # @unittest.skip('This might not be wise. What do we expect happens when we negate a model?')
     def test_neg(self):
         """

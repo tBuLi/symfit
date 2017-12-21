@@ -20,7 +20,7 @@ class FitResults(object):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
-        :param model: :class:`Model` that was fit to.
+        :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param pcov: covariance matrix.
         :param infodic: dict with fitting info.
@@ -55,7 +55,10 @@ class FitResults(object):
 
         res += 'Fitting status message: {}\n'.format(self.status_message)
         res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
-        res += 'Regression Coefficient: {}\n'.format(self.r_squared)
+        try:
+            res += 'Regression Coefficient: {}\n'.format(self.r_squared)
+        except AttributeError:
+            pass
         return res
 
     def __getattr__(self, item):
