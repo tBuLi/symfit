@@ -215,7 +215,7 @@ class LogLikelihood(GradientObjective):
 
         :param parameters: values for the fit parameters.
         :param apply_func: Function to apply to each component before returning it.
-            The default is to sum away along the datapoint dimension using `np.nansum'.
+            The default is to sum away along the datapoint dimension using `np.nansum`.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
         apply_func = parameters.pop('apply_func')
