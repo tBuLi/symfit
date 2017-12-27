@@ -684,6 +684,7 @@ class TakesData(object):
                 if dataset is not None:
                     self.data[name] = np.array(dataset)
         self.sigmas = {name: self.data[name] for name in var_names if name.startswith('sigma_')}
+        self.sigmas_provided = any(s is not None for s in  self.sigmas.values())
 
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
@@ -1261,7 +1262,12 @@ class Fit(TakesData, HasCovarianceMatrix):
 
         if objective is None:
             objective = LeastSquares
-
+        elif objective == LogLikelihood or isinstance(objective, LogLikelihood):
+            if self.sigmas_provided:
+                raise NotImplementedError(
+                    'LogLikelihood fitting does not currently support data '
+                    'weights.'
+                )
         # Initialise the objective if it's not initialised already
         if isinstance(objective, BaseObjective):
             self.objective = objective

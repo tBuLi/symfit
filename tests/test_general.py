@@ -533,8 +533,8 @@ class Tests(unittest.TestCase):
         Fit using the likelihood method.
         """
         b = Parameter(4, min=3.0)
-        x = Variable()
-        pdf = Exp(x, 1/b)
+        x, y = variables('x, y')
+        pdf = {y: Exp(x, 1/b)}
 
         # Draw points from an Exp(5) exponential distribution.
         np.random.seed(100)
@@ -545,6 +545,8 @@ class Tests(unittest.TestCase):
         stdev = np.std(xdata)
         mean_stdev = stdev / np.sqrt(len(xdata))
 
+        with self.assertRaises(NotImplementedError):
+            fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
