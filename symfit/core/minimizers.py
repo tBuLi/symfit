@@ -69,22 +69,20 @@ class GradientMinimizer(BaseMinimizer):
 
 class ScipyMinimize(object):
     """
-    Handles the execute calls to scipy.optimize.minimize.
+    Mix-in class that handles the execute calls to scipy.optimize.minimize.
     """
     def __init__(self, *args, **kwargs):
         self.constraints = []
         self.jacobian = None
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_objective = self.wrap_func(self, self.objective)
+        self.wrapped_objective = self.wrap_func(self.objective)
 
-    @staticmethod
-    def wrap_func(minimizer, func):
+    def wrap_func(self, func):
         """
         Given an objective function `func`, make sure it is always called via
         keyword arguments with the relevant parameter names.
 
-        :param minimizer: The minimizer whose parameters are used.
         :param func: Function to be wrapped to keyword only calls.
         :return: wrapped function
         """
@@ -92,7 +90,7 @@ class ScipyMinimize(object):
         if func is None:
             return None
         def wrapped_func(values):
-            parameters = key2str(dict(zip(minimizer.params, values)))
+            parameters = key2str(dict(zip(self.params, values)))
             return func(**parameters)
         return wrapped_func
 
@@ -158,7 +156,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self, self.jacobian)
+        self.wrapped_jacobian = self.wrap_func(self.jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
@@ -192,7 +190,7 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
 
-class MINPACK(GradientMinimizer, BoundedMinimizer):
+class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
     """
     Wrapper to scipy's implementation of MINPACK, since it is the industry
     standard.
@@ -200,7 +198,6 @@ class MINPACK(GradientMinimizer, BoundedMinimizer):
     def __init__(self, *args, **kwargs):
         self.jacobian = None
         super(MINPACK, self).__init__(*args, **kwargs)
-        self.wrapped_objective = ScipyMinimize.wrap_func(self, self.objective)
 
     def execute(self, **minpack_options):
         """
