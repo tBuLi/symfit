@@ -1,3 +1,6 @@
+.. image:: https://zenodo.org/badge/24005390.svg
+   :target: https://zenodo.org/badge/latestdoi/24005390
+
 Documentation
 =============
 http://symfit.readthedocs.org
