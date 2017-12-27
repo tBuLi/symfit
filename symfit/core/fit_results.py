@@ -16,7 +16,7 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.fit.Model`'s.
     """
-    def __init__(self, model, popt, pcov, infodic, mesg, ier, **gof_qualifiers):
+    def __init__(self, model, popt, covariance_matrix, infodic, mesg, ier, **gof_qualifiers):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
@@ -38,7 +38,7 @@ class FitResults(object):
 
         self._popt = popt
         self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
-        self.covariance_matrix = pcov
+        self.covariance_matrix = covariance_matrix
 
 
     def __str__(self):

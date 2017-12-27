@@ -840,8 +840,11 @@ class HasCovarianceMatrix(object):
         if isinstance(self.objective, LogLikelihood):
             # Loglikelihood is a special case that needs to be considered
             # separately, see #138
-            return None
-        elif len(set(arr.shape for arr in self.sigma_data.values())) == 1:
+            jac = self.objective.eval_jacobian(apply_func=lambda x: x, **key2str(best_fit_params))
+            cov_matrix_inv = np.tensordot(jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
+            cov_mat = np.linalg.inv(cov_matrix_inv)
+            return cov_mat
+        if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
             # Shapes of all sigma data identical
             return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
         else:
@@ -1104,7 +1107,7 @@ class LinearLeastSquares(BaseFit):
         self._fit_results = FitResults(
             model=self.model,
             popt=[best_fit_params[param] for param in self.model.params],
-            pcov=cov_matrix,
+            covariance_matrix=cov_matrix,
             infodic={'nfev': 0},
             mesg='',
             ier=0,
@@ -1180,7 +1183,7 @@ class NonLinearLeastSquares(BaseFit):
         self._fit_results = FitResults(
             model=self.model,
             popt=[float(fit_params[param]) for param in self.model.params],
-            pcov=cov_matrix,
+            covariance_matrix=cov_matrix,
             infodic={'nfev': i},
             mesg='',
             ier=0,

@@ -208,13 +208,17 @@ class LogLikelihood(GradientObjective):
         ans = - np.nansum(np.log(self.model(**jac_kwargs)))
         return ans
 
+    @keywordonly(apply_func=np.nansum)
     def eval_jacobian(self, **parameters):
         """
         Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
         :param parameters: values for the fit parameters.
+        :param apply_func: Function to apply to each component before returning it.
+            The default is to sum away along the datapoint dimension using `np.nansum'.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
+        apply_func = parameters.pop('apply_func')
         jac_kwargs = key2str(parameters)
         jac_kwargs.update(self.independent_data)
 
@@ -222,7 +226,7 @@ class LogLikelihood(GradientObjective):
         for row in self.model.numerical_jacobian:
             for partial_derivative in row:
                 ans.append(
-                    - np.nansum(
+                    - apply_func(
                         partial_derivative(**jac_kwargs).flatten() / self.model(**jac_kwargs)
                     )
                 )

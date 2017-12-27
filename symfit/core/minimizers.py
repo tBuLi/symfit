@@ -114,12 +114,18 @@ class ScipyMinimize(object):
         fit_results = dict(
             model=DummyModel(params=self.params),
             popt=ans.x,
-            pcov=None,
+            covariance_matrix=None,
             infodic=infodic,
             mesg=ans.message,
             ier=ans.nit,
             objective_value=ans.fun,
         )
+
+        if 'hess_inv' in ans:
+            try:
+                fit_results['hessian_inv'] = ans.hess_inv.todense()
+            except AttributeError:
+                fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
 
     @staticmethod
@@ -212,7 +218,7 @@ class MINPACK(GradientMinimizer, BoundedMinimizer):
         fit_results = dict(
             model=DummyModel(params=self.params),
             popt=popt,
-            pcov=None,
+            covariance_matrix=None,
             infodic=infodic,
             mesg=mesg,
             ier=ier,

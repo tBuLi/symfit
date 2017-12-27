@@ -538,12 +538,19 @@ class Tests(unittest.TestCase):
 
         # Draw points from an Exp(5) exponential distribution.
         np.random.seed(100)
-        xdata = np.random.exponential(5, 100000)
+        xdata = np.random.exponential(5, 1000000)
+
+        # Expected parameter values
+        mean = np.mean(xdata)
+        stdev = np.std(xdata)
+        mean_stdev = stdev / np.sqrt(len(xdata))
 
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(b) / mean, 1, 3)
+        self.assertAlmostEqual(fit_result.value(b) / stdev, 1, 3)
+        self.assertAlmostEqual(fit_result.stdev(b) / mean_stdev, 1, 3)
 
     def test_likelihood_fitting_gaussian(self):
         """
@@ -555,16 +562,21 @@ class Tests(unittest.TestCase):
         mu.value = 50.
         x = Variable()
         pdf = Gaussian(x, mu, sig)
-        # pdf = sympy.exp(-(x - mu)**2/(2*sig**2))/sympy.sqrt(2*sympy.pi*sig**2)
 
         np.random.seed(10)
-        xdata = np.random.normal(51., 3.5, 100000)
+        xdata = np.random.normal(51., 3.5, 10000)
+
+        # Expected parameter values
+        mean = np.mean(xdata)
+        stdev = np.std(xdata)
+        mean_stdev = stdev/np.sqrt(len(xdata))
 
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(mu), np.mean(xdata), 1)
-        self.assertAlmostEqual(fit_result.value(sig), np.std(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
+        self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
+        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
 
     def test_parameter_add(self):
         """
