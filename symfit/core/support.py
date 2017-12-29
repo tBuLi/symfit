@@ -13,7 +13,7 @@ import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
 from sympy.tensor import IndexedBase
-from sympy import Symbol
+from sympy import Symbol, symbols
 
 from symfit.core.argument import Parameter, Variable
 
@@ -87,23 +87,27 @@ def sympy_to_scipy(func, vars, params):
 
     return f
 
-def variables(names):
+def variables(names, **kwargs):
     """
     Convenience function for the creation of multiple variables.
 
-    :param names: string of variable names. Should be comma seperated.
+    :param names: string of variable names.
         Example: x, y = variables('x, y')
+    :param kwargs: kwargs to be passed onto :meth:`sympy.symbols`
+    :return: iterable of :class:`symfit.core.Variable` objects
     """
-    return [Variable(name=name.strip()) for name in names.split(',')]
+    return symbols(names, cls=Variable, seq=True, **kwargs)
 
-def parameters(names):
+def parameters(names, **kwargs):
     """
     Convenience function for the creation of multiple parameters.
 
-    :param names: string of parameter names. Should be comma seperated.
+    :param names: string of parameter names.
         Example: a, b = parameters('a, b')
+    :param kwargs: kwargs to be passed onto :meth:`sympy.symbols`
+    :return: iterable of :class:`symfit.core.Parameter` objects
     """
-    return [Parameter(name=name.strip()) for name in names.split(',')]
+    return symbols(names, cls=Parameter, seq=True, **kwargs)
 
 def cache(func):
     """
