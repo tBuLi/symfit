@@ -242,13 +242,13 @@ class TestAutoFit(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
 
         x0 = Parameter(value=mean[0], min=0.0, max=1.0)
-        sig_x = Parameter(0.2, min=0.0, max=0.3)
+        sig_x = Parameter(value=0.2, min=0.0, max=0.3)
         y0 = Parameter(value=mean[1], min=0.0, max=1.0)
-        sig_y = Parameter(0.1, min=0.0, max=0.3)
+        sig_y = Parameter(value=0.1, min=0.0, max=0.3)
         A = Parameter(value=np.mean(ydata), min=0.0)
-        x = Variable()
-        y = Variable()
-        g = Variable()
+        x = Variable('x')
+        y = Variable('y')
+        g = Variable('g')
 
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
         fit = Fit(model, x=xx, y=yy, g=ydata)
