@@ -56,7 +56,7 @@ class Parameter(Argument):
         except TypeError as err:
             if isinstance(name, numbers.Number):
                 raise TypeError('In symfit >0.4.1 the value needs to be assigned '
-                                'as the second argument or by keyword argument.') from err
+                                'as the second argument or by keyword argument.')
             else: raise err
 
     def __init__(self, name=None, value=1.0, min=None, max=None, fixed=False, **assumptions):
