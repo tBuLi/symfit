@@ -845,11 +845,14 @@ class HasCovarianceMatrix(object):
             cov_matrix_inv = np.tensordot(jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
             cov_mat = np.linalg.inv(cov_matrix_inv)
             return cov_mat
-        if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
-            # Shapes of all sigma data identical
-            return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
-        else:
-            return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+        try:
+            if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
+                # Shapes of all sigma data identical
+                return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
+            else:
+                return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+        except np.linalg.LinAlgError:
+            return None
 
     def _reduced_residual_ss(self, best_fit_params, flatten=False):
         """
