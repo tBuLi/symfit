@@ -8,9 +8,12 @@ import numpy as np
 import scipy.stats
 from scipy.optimize import curve_fit, minimize
 
-from symfit import (Variable, Parameter, Fit, FitResults, Maximize, Likelihood,
-                    log, variables, parameters, Model, NumericalLeastSquares,
-                    ConstrainedNumericalLeastSquares, Eq, Ge)
+from symfit import (
+    Variable, Parameter, Fit, FitResults, log, variables,
+    parameters, Model, Eq, Ge
+)
+from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
+from symfit.core.objectives import LogLikelihood
 from symfit.distributions import Gaussian, Exp
 
 if sys.version_info >= (3, 0):
@@ -56,7 +59,7 @@ class Tests(unittest.TestCase):
 
         model = {y: a*x**b}
 
-        fit = NumericalLeastSquares(model, x=xdata, y=ydata)
+        fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.value(a), 3.0)
@@ -78,17 +81,18 @@ class Tests(unittest.TestCase):
             [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
         ])
 
-        fit = NumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            minimizer = MINPACK
         )
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(a), 9.985691, 6)
-        self.assertAlmostEqual(fit_result.value(b), 1.006143e+02, 4)
-        self.assertAlmostEqual(fit_result.value(c), 7.085713e+01, 5)
+        self.assertAlmostEqual(fit_result.value(a) / 9.985691, 1.0, 5)
+        self.assertAlmostEqual(fit_result.value(b) / 1.006143e+02, 1.0, 4)
+        self.assertAlmostEqual(fit_result.value(c) / 7.085713e+01, 1.0, 5)
 
     def test_vector_none_fitting(self):
         """
@@ -106,17 +110,19 @@ class Tests(unittest.TestCase):
             [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
         ])
 
-        fit_none = NumericalLeastSquares(
+        fit_none = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=None,
+            minimizer=MINPACK
         )
-        fit = NumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            minimizer=MINPACK
         )
         fit_none_result = fit_none.execute()
         fit_result = fit.execute()
@@ -212,11 +218,12 @@ class Tests(unittest.TestCase):
             [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
         ])
 
-        fit = NumericalLeastSquares(
+        fit = Fit(
             model=model,
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
+            minimizer = MINPACK
         )
         fit_result = fit.execute()
 
@@ -238,7 +245,7 @@ class Tests(unittest.TestCase):
         x = Variable()
         new = a*x**b
 
-        fit = NumericalLeastSquares(new, xdata, ydata)
+        fit = Fit(new, xdata, ydata, minimizer=MINPACK)
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)
@@ -306,7 +313,7 @@ class Tests(unittest.TestCase):
         fit = Fit(new, x=xx, y=yy, z=zdata)
         results = fit.execute()
 
-        self.assertIsInstance(fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(fit.minimizer, LBFGSB)
 
         self.assertAlmostEqual(results.value(a), 2.5)
         self.assertAlmostEqual(results.value(b), 3.)
@@ -459,7 +466,7 @@ class Tests(unittest.TestCase):
         fit = Fit(model, xx, yy, ydata)
         fit_result = fit.execute()
 
-        self.assertIsInstance(fit.fit, ConstrainedNumericalLeastSquares)
+        self.assertIsInstance(fit.minimizer, LBFGSB)
 
         img = model(x=xx, y=yy, **fit_result.params)
         img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
@@ -501,7 +508,7 @@ class Tests(unittest.TestCase):
         g = Variable()
 #        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
-        fit = NumericalLeastSquares(model, x=xx, y=yy, g=ydata)
+        fit = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(x0), np.mean(data[:, 0]), 1)
@@ -526,17 +533,26 @@ class Tests(unittest.TestCase):
         Fit using the likelihood method.
         """
         b = Parameter(4, min=3.0)
-        x = Variable()
-        pdf = Exp(x, 1/b)
+        x, y = variables('x, y')
+        pdf = {y: Exp(x, 1/b)}
 
         # Draw points from an Exp(5) exponential distribution.
         np.random.seed(100)
-        xdata = np.random.exponential(5, 100000)
+        xdata = np.random.exponential(5, 1000000)
 
-        fit = Likelihood(pdf, xdata)
+        # Expected parameter values
+        mean = np.mean(xdata)
+        stdev = np.std(xdata)
+        mean_stdev = stdev / np.sqrt(len(xdata))
+
+        with self.assertRaises(NotImplementedError):
+            fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
+        fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(b) / mean, 1, 3)
+        self.assertAlmostEqual(fit_result.value(b) / stdev, 1, 3)
+        self.assertAlmostEqual(fit_result.stdev(b) / mean_stdev, 1, 3)
 
     def test_likelihood_fitting_gaussian(self):
         """
@@ -548,16 +564,21 @@ class Tests(unittest.TestCase):
         mu.value = 50.
         x = Variable()
         pdf = Gaussian(x, mu, sig)
-        # pdf = sympy.exp(-(x - mu)**2/(2*sig**2))/sympy.sqrt(2*sympy.pi*sig**2)
 
         np.random.seed(10)
-        xdata = np.random.normal(51., 3.5, 100000)
+        xdata = np.random.normal(51., 3.5, 10000)
 
-        fit = Likelihood(pdf, xdata)
+        # Expected parameter values
+        mean = np.mean(xdata)
+        stdev = np.std(xdata)
+        mean_stdev = stdev/np.sqrt(len(xdata))
+
+        fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(mu), np.mean(xdata), 1)
-        self.assertAlmostEqual(fit_result.value(sig), np.std(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
+        self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
+        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
 
     def test_parameter_add(self):
         """
@@ -637,7 +658,7 @@ class Tests(unittest.TestCase):
         popt_noweights, pcov_noweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data)
 
         self.assertAlmostEqual(fit_result.value(g), popt_noweights[0])
-        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_noweights[0, 0]))
+        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov_noweights[0, 0]), 6)
 
         # Same sigma everywere
         fit = Fit(t_model, y_data, t_data, 0.0031, absolute_sigma=False)
@@ -655,7 +676,7 @@ class Tests(unittest.TestCase):
         popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t)
 
         self.assertAlmostEqual(fit_result.value(g), popt[0])
-        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov[0, 0]))
+        self.assertAlmostEqual(fit_result.stdev(g), np.sqrt(pcov[0, 0]), 6)
 
         # according to Mathematica
         self.assertAlmostEqual(fit_result.value(g), 9.095, 3)
@@ -752,7 +773,6 @@ class Tests(unittest.TestCase):
 
         fit = Fit(model, y=yn, sigma_y=sigma)
         fit_result = fit.execute()
-
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
         self.assertAlmostEqual(fit_result.value(a), popt[0], 5)

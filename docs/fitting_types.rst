@@ -47,7 +47,7 @@ order to provide these, it's nicer to use a named model::
 
   Please note that this is the opposite of the convention used by scipy's
   :func:`~scipy.optimize.curve_fit`. Looking through their mailing list this
-  seems to have been implemented the 'wrong' way for historical reasons, and
+  seems to have been implemented the opposite way for historical reasons, and
   was understandably never changed so as not to loose backwards compatibility.
   Since this is a new project, we don't have that problem.
 
@@ -82,9 +82,9 @@ fitting with constraints, we could imagine fitting the angles of a triangle::
 The line ``constraints=[Equality(a + b + c, 180)]`` ensures the our basic
 knowledge of geometry is respected despite my sloppy measurements.
 
-.. note:: Under the hood, :class:`~symfit.core.fit.ConstrainedNumericalLeastSquares`
-  is used to perform the fit. :class:`~symfit.core.fit.Fit` tries to select the
-  right fitting object based on the problem you present it with.
+.. note:: Under the hood, a different `Minimizer` is used to perform a
+  constrained fit. :class:`~symfit.core.fit.Fit` tries to select the
+  right `Minimizer` based on the problem you present it with.
   See :class:`~symfit.core.fit.Fit` for more.
 
 (Non)LinearLeastSquares
@@ -92,7 +92,7 @@ knowledge of geometry is respected despite my sloppy measurements.
 The :class:`~symfit.core.fit.LinearLeastSquares` implements the analytical
 solution to Least Squares fitting. When your model is linear in it's parameters,
 consider using this rather than the default
-:class:`~symfit.core.fit.NumericalLeastSquares` since this gives the exact
+:class:`~symfit.core.fit.Fit` since this gives the exact
 solution in one step, no iteration and no guesses needed.
 
 :class:`~symfit.core.fit.NonLinearLeastSquares` is the generalization to
@@ -109,11 +109,12 @@ Notes on these objects:
 - Bounds are currently ignored by both. This is because for linear models there
   can only be one solution.
   For non-linear models it simply hasn't been considered yet.
-- When performance matters, use :class:`~symfit.core.fit.NumericalLeastSquares`
+- When performance matters, use :class:`~symfit.core.fit.Fit`
   instead of :class:`~symfit.core.fit.NonLinearLeastSquares`.
   These analytical objects are implemented in pure python and are therefore
-  massively outgunned by :class:`~symfit.core.fit.NumericalLeastSquares` which
-  is ultimately a wrapper to MINPACK.
+  massively outgunned by :class:`~symfit.core.fit.Fit` which is ultimately a
+  wrapper to efficient numerical methods such as MINPACK of BFGS implemented in
+  Fortran.
 
 Likelihood
 ----------
@@ -123,7 +124,8 @@ and the question the Likelihood object can answer for you.
 
 Example::
 
-    from symfit import Parameter, Variable, Likelihood, exp
+    from symfit import Parameter, Variable, exp
+    from symfit.core.objectives import LogLikelihood
     import numpy as np
 
     # Define the model for an exponential distribution (numpy style)
@@ -135,19 +137,17 @@ Example::
     data = np.random.exponential(5.5, 100)
 
     # Do the fitting!
-    fit = Likelihood(model, data)
+    fit = Fit(model, data, objective=LogLikelihood)
     fit_result = fit.execute()
 
-Off-course ``fit_result`` is a normal :class:`~symfit.core.fit.FitResults`
-object. Because :func:`scipy.optimize.minimize` is used to do the actual work,
-bounds on parameters, and even constraints are supported. For more information
-on this subject, check out :mod:`symfit`'s :class:`~symfit.core.fit.Minimize`.
+``fit_result`` is a normal :class:`~symfit.core.fit_results.FitResults` object.
+As always, bounds on parameters and even constraints are supported.
 
 Minimize/Maximize
 -----------------
-Minimize or Maximize a model subject to bounds and/or constraints. It is a
-wrapper to :func:`scipy.optimize.minimize`. As an example I present an example
-from the `scipy docs <https://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
+Minimize or Maximize a model subject to bounds and/or constraints. As an example
+I present an example from the
+`scipy docs <https://docs.scipy.org/doc/scipy/reference/tutorial/optimize.html>`_.
 
 Suppose we want to maximize the following function:
 
@@ -198,11 +198,13 @@ problem in :mod:`symfit`::
         Ge(y - 1, 0),
     ]
 
-    fit = Maximize(model, constraints=constraints)
+    fit = Fit(- model, constraints=constraints)
     fit_result = fit.execute()
 
 Done! :mod:`symfit` will determine all derivatives automatically, no need for
-you to think about it.
+you to think about it. Notice the minus sign in the call to `Fit`. This is
+because `Fit` will always minimize, so in order to achieve maximization we should
+minimize `- model`.
 
 .. warning:: You might have noticed that ``x`` and ``y`` are
   :class:`~symfit.core.argument.Parameter`'s in the above problem, which may
@@ -211,8 +213,7 @@ you to think about it.
   this way of defining it is consistent with the treatment of
   :class:`~symfit.core.argument.Variable`'s and
   :class:`~symfit.core.argument.Parameter`'s in :mod:`symfit`. Be aware of this
-  when using :class:`~symfit.core.fit.Minimize`, as the whole process won't
-  work otherwise.
+  when minimizing such problems, as the whole process won't work otherwise.
 
 ODE Fitting
 -----------
@@ -261,7 +262,7 @@ when calling :class:`~symfit.core.fit.Fit` so it will be ignored.
 .. warning:: Fitting to ODEs is extremely difficult from an algorithmic point
   of view, since these systems are usually very sensitive to the parameters.
   Using (very) good initial guesses for the parameters and initial values is
-  critical!
+  critical.
 
 Upon every iteration of performing the fit the ODEModel is integrated again from
 the initial point using the new guesses for the parameters.
@@ -283,7 +284,7 @@ We can plot it just like always::
    :alt: Linear Model Fit Data
 
 As an example of the power of :mod:`symfit`'s ODE syntax, let's have a look at
-a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> d.
+a system with 2 equilibria: compound AA + B <-> AAB and AAB + B <-> BAAB.
 
 In :mod:`symfit` these can be implemented as::
 

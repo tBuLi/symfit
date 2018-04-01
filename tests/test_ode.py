@@ -2,7 +2,8 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit, D, NumericalLeastSquares
+from symfit import parameters, variables, ODEModel, exp, Fit, D, Model
+from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
 
 
@@ -10,8 +11,12 @@ class TestODE(unittest.TestCase):
     """
     Tests for the FitResults object.
     """
+    @classmethod
+    def setUpClass(cls):
+        np.random.seed(6)
+
     def test_known_solution(self):
-        p, c1, c2 = parameters('p, c1, c2')
+        p, c1 = parameters('p, c1')
         y, t = variables('y, t')
         p.value = 3.0
 
@@ -20,19 +25,24 @@ class TestODE(unittest.TestCase):
         }
 
         # Lets say we know the exact solution to this problem
-        sol = c1 * exp(- p * t)
+        sol = Model({y: exp(- p * t)})
 
         # Generate some data
-        tdata = np.linspace(0, 3, 101)
-        ydata = sol(t=tdata, c1=1.0, p=3.22)
+        tdata = np.linspace(0, 3, 10001)
+        ydata = sol(t=tdata, p=3.22)[0]
+        ydata += np.random.normal(0, 0.005, ydata.shape)
 
-
-        ode_model = ODEModel(model_dict, initial={t: 0.0, y: 1.0})
+        ode_model = ODEModel(model_dict, initial={t: 0.0, y: ydata[0]})
         fit = Fit(ode_model, t=tdata, y=ydata)
-        fit_result = fit.execute()
-        y_sol, = ode_model(tdata, **fit_result.params)
+        ode_result = fit.execute()
 
-        self.assertAlmostEqual(3.22, fit_result.value(p))
+        c1.value = ydata[0]
+        fit = Fit(sol, t=tdata, y=ydata)
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(ode_result.value(p) / fit_result.value(p), 1, 2)
+        self.assertAlmostEqual(ode_result.r_squared / fit_result.r_squared, 1, 4)
+        self.assertAlmostEqual(ode_result.stdev(p) / fit_result.stdev(p), 1, 3)
 
     def test_van_der_pol(self):
         """
@@ -103,28 +113,22 @@ class TestODE(unittest.TestCase):
 
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
 
-        # Generate some data
-        tvec = np.linspace(0, 500, 1000)
-
-        fit = NumericalLeastSquares(ode_model, t=tdata, a=adata, b=None)
+        # Analytical solution
+        model = Model({a: 1 / (k * t + 1 / a0)})
+        fit = Fit(model, t=tdata, a=adata)
         fit_result = fit.execute()
-        # print(fit_result)
-        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03, 4)
+
+        fit = Fit(ode_model, t=tdata, a=adata, b=None, minimizer=MINPACK)
+        ode_result = fit.execute()
+        self.assertAlmostEqual(ode_result.value(k) / fit_result.value(k), 1.0, 4)
+        self.assertAlmostEqual(ode_result.stdev(k) / fit_result.stdev(k), 1.0, 4)
+        self.assertAlmostEqual(ode_result.r_squared / fit_result.r_squared, 1, 4)
 
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
-        fit_result = fit.execute()
-        # print(fit_result)
-        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertTrue(fit_result.stdev(k) is None)
-
-        # A, B = ode_model(t=tvec, **fit_result.params)
-        # plt.plot()
-        # plt.plot(tvec, A, label='[A]')
-        # plt.plot(tvec, B, label='[B]')
-        # plt.scatter(tdata, adata)
-        # plt.legend()
-        # plt.show()
+        ode_result = fit.execute()
+        self.assertAlmostEqual(ode_result.value(k) / fit_result.value(k), 1.0, 4)
+        self.assertAlmostEqual(ode_result.stdev(k) / fit_result.stdev(k), 1.0, 4)
+        self.assertAlmostEqual(ode_result.r_squared / fit_result.r_squared, 1, 4)
 
     def test_single_eval(self):
         """
