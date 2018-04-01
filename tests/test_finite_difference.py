@@ -196,6 +196,26 @@ class FiniteDifferenceTests(unittest.TestCase):
         self.assertAlmostEqual(result.value(k), ode_result.value(k), places=4)
         self.assertAlmostEqual(result.stdev(k), ode_result.stdev(k))
 
+    def test_hessian(self):
+        """
+        Test whether the Hessian calculated by finite difference is the same
+        as the analytical one.
+        """
+        x, y = sf.variables('x, y')
+        a, b, c = sf.parameters('a, b, c')
+
+        model3 = sf.Model({y: a**2 * x**3 + b*c})
+        
+        params = {'x': np.arange(10), 
+                  'a': 2,
+                  'b': 3,
+                  'c': 4,
+                  }
+        h1 = model3.finite_difference_hessian(**params)
+        h2 = model3.eval_hessian(**params)
+        self._assert_equal(h1, h2, atol=1e-1)
+
+
     def _assert_equal(self, exact, approx, **kwargs):
         self.assertEqual(len(exact), len(approx))
         for exact_comp, approx_comp in zip(exact, approx):

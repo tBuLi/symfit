@@ -241,12 +241,88 @@ class CallableModel(BaseModel):
         """
         return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
-    @keywordonly(dx=1e-8)
+    @keywordonly(dx=np.finfo(float).eps**(1/3))
+    def finite_difference_hessian(self, *args, **kwargs):
+        """
+        Calculates a numerical approximation of the Hessian of the model using
+        the sixth order central finite difference method, sort of. Accepts a
+        `dx` keyword to tune the stepsize used. If you make it too small you
+        will make truncation errors. If you make it too large you'll make
+        mathematical errors. Defaults to `np.finfo(float).eps**(1/3)` which
+        supposedly balances the two.
+        Makes a lot of calls to the model.
+
+        :return: A numerical approximation of the Hessian of the model as a
+                 list with length n_components containing numpy arrays of shape
+                 (n_params, n_params, n_datapoints)
+        """
+        dx = kwargs.pop('dx')
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
+        param_vals = [bound_arguments.arguments[param.name] for param in self.params]
+        param_vals = np.array(param_vals, dtype=float)
+        f = partial(self, *var_vals)
+
+        # Note that these should only be used for the diagonal elements (?)
+        # See also: scipy.misc.central_diff_weights
+        # https://v8doc.sas.com/sashtml/ormp/chap5/sect28.htm
+        factors = np.array((1/90, -3/20, 3/2, -49/18, 3/2, -3/20, 1/90))
+        orders = np.arange(-3, 4)
+        out = None
+
+        for param_idx, param_val in enumerate(param_vals):
+            for param_jdx, param_val in enumerate(param_vals):
+                if param_idx == param_jdx:
+                    # This is a diagonal element
+                    for order, factor in zip(orders, factors):
+                        h = np.zeros(len(self.params))
+                        h[param_idx] = dx * order
+                        vals = f(*(param_vals + h))
+                        if out is None:
+                            out = []
+                            for comp_idx in range(len(self)):
+                                try:
+                                    data_len = len(vals[comp_idx])
+                                except TypeError:  # output[comp_idx] is a number
+                                    data_len = 1
+                                param_grid = np.zeros((len(self.params), len(self.params), data_len), dtype=float)
+                                out.append(param_grid)
+                        for comp_idx in range(len(self)):
+                            out[comp_idx][param_idx, param_jdx, :] += factor * vals[comp_idx] / dx**2
+                else:
+                    # Off diagonal element
+                    if param_idx > param_jdx:
+                        # The Hessian is symmetric.
+                        continue
+                    h1 = np.zeros(len(self.params))
+                    h2 = np.zeros(len(self.params))
+                    # Note: stepsize (h) depends on the parameter values...
+                    h1[param_idx] = dx * order
+                    h2[param_jdx] = dx * order
+                    vals = (f(*(param_vals + h1 + h2)), f(*(param_vals + h1 - h2)),
+                            f(*(param_vals - h1 + h2)), f(*(param_vals - h1 - h2)))
+                    for factor, val in zip((1/4, -1/4, -1/4, 1/4), vals):
+                        for comp_idx in range(len(self)):
+                            res = factor * val[comp_idx]/(h1[param_idx]*h2[param_jdx])
+                            out[comp_idx][param_idx, param_jdx, :] += res
+                            out[comp_idx][param_jdx, param_idx, :] += res
+        return out
+
+    def eval_hessian(self, *args, **kwargs):
+        """
+        :return: The Hessian matrix of the function.
+        """
+        return self.finite_difference_hessian(*args, **kwargs)
+
+    @keywordonly(dx=np.finfo(float).eps**(1/3))
     def finite_difference(self, *args, **kwargs):
         """
         Calculates a numerical approximation of the Jacobian of the model using
         the sixth order central finite difference method. Accepts a `dx`
-        keyword to tune the relative stepsize used.
+        keyword to tune the relative stepsize used.If you make it too
+        small you will make truncation errors. If you make it too large you'll
+        make mathematical errors. Defaults to `np.finfo(float).eps**(1/3)`
+        which supposedly balances the two.
         Makes 6*n_params calls to the model.
 
         :return: A numerical approximation of the Jacobian of the model as a
@@ -264,7 +340,6 @@ class CallableModel(BaseModel):
         # See also: scipy.misc.central_diff_weights
         factors = np.array((3/2., -3/5., 1/10.))
         orders = np.arange(1, len(factors) + 1)
-        out = []
         # TODO: Dark numpy magic. Needs an extra dimension in out, and a sum
         #       over the right axis at the end.
 
@@ -356,6 +431,23 @@ class Model(CallableModel):
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
     @property
+    def hessian(self):
+        """
+        :return: Hessian 'Matrix' filled with the symbolic expressions for all
+          the second order partial derivatives.
+        """
+        hess = []
+        for component in self.jacobian:
+            per_comp = []
+            for param1 in component:
+                per_param = []
+                for param2 in self.params:
+                    per_param.append(sympy.diff(param1, param2))
+                per_comp.append(per_param)
+            hess.append(per_comp)
+        return hess
+
+    @property
     # @cache
     def chi_squared(self):
         """
@@ -417,6 +509,13 @@ class Model(CallableModel):
         return [[sympy_to_py(partial, self.independent_vars, self.params) for partial in row] for row in self.jacobian]
 
     @property
+    def numerical_hessian(self):
+        """
+        :return: lambda functions of the Hessian matrix of the function, which can be used in numerical optimization.
+        """
+        return [[[sympy_to_py(param1, self.independent_vars, self.params) for param1 in param2] for param2 in component] for component in self.hessian]
+
+    @property
     # @cache
     def numerical_chi_squared(self):
         """
@@ -473,6 +572,33 @@ class Model(CallableModel):
             # (Nparams, Ndata)
             jac[idx] = np.array(jac[idx], dtype=float)
         return jac
+
+    def eval_hessian(self, *args, **kwargs):
+        """
+        :return: Hessian evaluated at the specified point.
+        """
+        hess = []
+        for comp in self.numerical_hessian:
+            comp_vals = []
+            for param1 in comp:
+                param1_vals = [param2(*args, **kwargs) for param2 in param1]
+                comp_vals.append(param1_vals)
+            hess.append(np.array(comp_vals))
+        for idx, comp in enumerate(hess):
+            # Find out how many datapoints this component has. We need to do
+            # this with a try/except, since par can be a number or a sequence.
+            lens = np.zeros((len(self.params), len(self.params)), dtype=int)
+            for p1, par1 in enumerate(comp):
+                for p2, par2 in enumerate(par1):
+                    try: l = len(par2)
+                    except: l = 1
+                    lens[p1, p2] = l
+            out = np.zeros((len(self.params), len(self.params), lens.max()))
+            mask = lens < lens.max()
+            out[~mask] = comp[~mask][0]
+            out[mask] = comp[mask, np.newaxis] * np.ones((np.count_nonzero(mask), lens.max()))
+            hess[idx] = out
+        return hess
 
     def eval_components(self, *args, **kwargs):
         """
@@ -845,11 +971,14 @@ class HasCovarianceMatrix(object):
             cov_matrix_inv = np.tensordot(jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
             cov_mat = np.linalg.inv(cov_matrix_inv)
             return cov_mat
-        if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
-            # Shapes of all sigma data identical
-            return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
-        else:
-            return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+        try:
+            if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
+                # Shapes of all sigma data identical
+                return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
+            else:
+                return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+        except np.linalg.LinAlgError:
+            return None
 
     def _reduced_residual_ss(self, best_fit_params, flatten=False):
         """
