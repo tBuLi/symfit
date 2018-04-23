@@ -458,17 +458,36 @@ class Model(CallableModel):
         ]
         for idx, comp in enumerate(jac):
             # Find out how many datapoints this component has. We need to do
-            # this with a try/except, since par can be a number or a sequence.
+            # this with a try/except, since partial_derivative can be a number or
+            # a sequence. We ultimately want to make sure every evey component
+            # has this size, so component of the jacobian can be contracted properly.
             data_len = 1
-            for par in comp:
-                try: l = len(par)
-                except: l = 1
-                data_len = max(l, data_len)
-            # And make everything in this component as long, since some are
+            for partial_derivative in comp:
+                if hasattr(partial_derivative, 'shape') and partial_derivative.shape:
+                    # Last line is to descriminate against numpy.float of shape (,)
+                    shape = partial_derivative.shape
+                else:
+                    try:
+                        shape = len(partial_derivative)
+                    except TypeError: # Not iterable, so assume number
+                        shape = 1
+                if isinstance(shape, tuple):
+                    if isinstance(data_len, tuple):
+                        if len(shape) > len(data_len):
+                            data_len = shape
+
+                    else:
+                        data_len = shape
+                elif isinstance(data_len, tuple):
+                    # data_len is a tuple, but shape isn't. Prefer the tuple.
+                    pass
+                else:
+                    data_len = max(shape, data_len)
+            # And make everything in this component the same size, since some are
             # numbers.
-            for jdx, par in enumerate(comp):
-                # This is a no-op for elements of lenght `longest`.
-                jac[idx][jdx] = np.ones(data_len) * par
+            for jdx, partial_derivative in enumerate(comp):
+                # This is a no-op for elements of size `longest`.
+                jac[idx][jdx] = np.ones(data_len) * partial_derivative
             # And lastly, turn jac into a list of 2D numpy arrays of shape
             # (Nparams, Ndata)
             jac[idx] = np.array(jac[idx], dtype=float)
