@@ -1,6 +1,5 @@
 import abc
 from collections import namedtuple
-from functools import partial
 
 from scipy.optimize import minimize
 import sympy
@@ -21,10 +20,8 @@ class BaseMinimizer(object):
         :param objective: Objective function to be used.
         :param parameters: List of :class:`~symfit.core.argument.Parameter` instances
         """
-        self._parameters = parameters
-        self._fixed_params = [p for p in parameters if p.fixed]
-        self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
-        self.params = [p for p in parameters if not p.fixed]
+        self.objective = objective
+        self.params = parameters
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -67,18 +64,8 @@ class GradientMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
-        def _jacobian(*args, **kwargs):
-            # Assume the order of what jacobian returns and parameters is the same
-            # We need to remove the values for the fixed parameters from what
-            # jacobian returns
-            fixed_vals = {p.name: p.value for p in self._fixed_params}
-            out = jacobian(*args, **kwargs, **fixed_vals)
-            jac = []
-            for param, val in zip(self._parameters, out):
-                if not param.fixed:
-                    jac.append(val)
-            return jac
-        self.jacobian = _jacobian
+        self.jacobian = jacobian
+
 
 class ScipyMinimize(object):
     """
@@ -104,7 +91,7 @@ class ScipyMinimize(object):
             return None
         def wrapped_func(values):
             parameters = key2str(dict(zip(self.params, values)))
-            return np.array(func(**parameters))
+            return func(**parameters)
         return wrapped_func
 
     @keywordonly(tol=1e-9)
@@ -122,17 +109,9 @@ class ScipyMinimize(object):
             'nfev': ans.nfev,
         }
 
-        best_vals = []
-        found = iter(ans.x)
-        for param in self._parameters:
-            if param.fixed:
-                best_vals.append(param.value)
-            else:
-                best_vals.append(next(found))
-
         fit_results = dict(
-            model=DummyModel(params=self._parameters),
-            popt=best_vals,
+            model=DummyModel(params=self.params),
+            popt=ans.x,
             covariance_matrix=None,
             infodic=infodic,
             mesg=ans.message,
