@@ -78,7 +78,10 @@ class GradientMinimizer(BaseMinimizer):
                 if not param.fixed:
                     jac.append(val)
             return jac
-        self.jacobian = _jacobian
+        if jacobian is not None:
+            self.jacobian = _jacobian
+        else:
+            self.jacobian = None
 
 class ScipyMinimize(object):
     """
