@@ -72,7 +72,7 @@ class GradientMinimizer(BaseMinimizer):
             # We need to remove the values for the fixed parameters from what
             # jacobian returns
             fixed_vals = {p.name: p.value for p in self._fixed_params}
-            kwargs = kwargs.update(fixed_vals)
+            kwargs.update(fixed_vals)
             out = jacobian(*args, **kwargs)
             jac = []
             for param, val in zip(self.parameters, out):
