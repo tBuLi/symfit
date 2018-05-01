@@ -21,7 +21,7 @@ class BaseMinimizer(object):
         :param objective: Objective function to be used.
         :param parameters: List of :class:`~symfit.core.argument.Parameter` instances
         """
-        self._parameters = parameters
+        self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
         self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
         self.params = [p for p in parameters if not p.fixed]
@@ -72,9 +72,10 @@ class GradientMinimizer(BaseMinimizer):
             # We need to remove the values for the fixed parameters from what
             # jacobian returns
             fixed_vals = {p.name: p.value for p in self._fixed_params}
-            out = jacobian(*args, **kwargs, **fixed_vals)
+            kwargs = kwargs.update(fixed_vals)
+            out = jacobian(*args, **kwargs)
             jac = []
-            for param, val in zip(self._parameters, out):
+            for param, val in zip(self.parameters, out):
                 if not param.fixed:
                     jac.append(val)
             return jac
@@ -127,14 +128,14 @@ class ScipyMinimize(object):
 
         best_vals = []
         found = iter(ans.x)
-        for param in self._parameters:
+        for param in self.parameters:
             if param.fixed:
                 best_vals.append(param.value)
             else:
                 best_vals.append(next(found))
 
         fit_results = dict(
-            model=DummyModel(params=self._parameters),
+            model=DummyModel(params=self.parameters),
             popt=best_vals,
             covariance_matrix=None,
             infodic=infodic,
