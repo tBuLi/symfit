@@ -13,7 +13,7 @@ import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
 from sympy.tensor import IndexedBase
-from sympy import Symbol
+from sympy import Symbol, symbols
 
 from symfit.core.argument import Parameter, Variable
 
@@ -21,6 +21,26 @@ if sys.version_info >= (3,0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
+
+class deprecated(object):
+    """
+    Decorator to raise a DeprecationWarning.
+    """
+    def __init__(self, replacement=None):
+        """
+        :param replacement: The function which should now be used instead.
+        """
+        self.replacement = replacement
+
+    def __call__(self, func):
+        @wraps(func)
+        def deprecated_func(*args, **kwargs):
+            warnings.warn(DeprecationWarning(
+                '`{}` has been deprecated.'.format(func.__name__)
+                + ' Use `{}` instead.'.format(self.replacement)) if self.replacement else ''
+            )
+            return func(*args, **kwargs)
+        return deprecated_func
 
 def seperate_symbols(func):
     """
@@ -87,23 +107,31 @@ def sympy_to_scipy(func, vars, params):
 
     return f
 
-def variables(names):
+@deprecated('symbols(names, cls=Variable)')
+def variables(names, **kwargs):
     """
-    Convenience function for the creation of multiple variables.
+    Convenience function for the creation of multiple variables. Deprecated:
+    use symbols(names, cls=Variable, **kwargs) instead.
 
-    :param names: string of variable names. Should be comma seperated.
+    :param names: string of variable names.
         Example: x, y = variables('x, y')
+    :param kwargs: kwargs to be passed onto :meth:`sympy.symbols`
+    :return: iterable of :class:`symfit.core.Variable` objects
     """
-    return [Variable(name=name.strip()) for name in names.split(',')]
+    return symbols(names, cls=Variable, seq=True, **kwargs)
 
-def parameters(names):
+@deprecated('symbols(names, cls=Parameter)')
+def parameters(names, **kwargs):
     """
-    Convenience function for the creation of multiple parameters.
+    Convenience function for the creation of multiple parameters. Deprecated:
+    use symbols(names, cls=Parameter, **kwargs) instead.
 
-    :param names: string of parameter names. Should be comma seperated.
+    :param names: string of parameter names.
         Example: a, b = parameters('a, b')
+    :param kwargs: kwargs to be passed onto :meth:`sympy.symbols`
+    :return: iterable of :class:`symfit.core.Parameter` objects
     """
-    return [Parameter(name=name.strip()) for name in names.split(',')]
+    return symbols(names, cls=Parameter, seq=True, **kwargs)
 
 def cache(func):
     """
@@ -251,25 +279,6 @@ class keywordonly(object):
             return func(*bound_args.args, **bound_args.kwargs)
         return wrapped_func
 
-class deprecated(object):
-    """
-    Decorator to raise a DeprecationWarning.
-    """
-    def __init__(self, replacement=None):
-        """
-        :param replacement: The function which should now be used instead.
-        """
-        self.replacement = replacement
-
-    def __call__(self, func):
-        @wraps(func)
-        def deprecated_func(*args, **kwargs):
-            warnings.warn(DeprecationWarning(
-                '`{}` has been deprecated.'.format(func.__name__)
-                + ' Use `{}` instead.'.format(self.replacement)) if self.replacement else ''
-            )
-            return func(*args, **kwargs)
-        return deprecated_func
 
 class D(sympy.Derivative):
     """
