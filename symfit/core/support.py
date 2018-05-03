@@ -12,6 +12,7 @@ import warnings
 import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
+
 from sympy.tensor import Idx
 from sympy import symbols
 from sympy.core.expr import Expr
