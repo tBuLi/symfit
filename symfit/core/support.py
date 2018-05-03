@@ -12,8 +12,9 @@ import warnings
 import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
-from sympy.tensor import IndexedBase
-from sympy import Symbol, symbols
+from sympy.tensor import Idx
+from sympy import symbols
+from sympy.core.expr import Expr
 
 from symfit.core.argument import Parameter, Variable
 
@@ -58,7 +59,10 @@ def seperate_symbols(func):
     for symbol in func.free_symbols:
         if isinstance(symbol, Parameter):
             params.append(symbol)
-        elif isinstance(symbol, (Variable, IndexedBase, Symbol)):
+        elif isinstance(symbol, Idx):
+            # Idx objects are not seen as parameters or vars.
+            pass
+        elif isinstance(symbol, Expr):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
