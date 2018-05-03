@@ -120,7 +120,7 @@ def variables(names, **kwargs):
 
     :param names: string of variable names.
         Example: x, y = variables('x, y')
-    :param kwargs: kwargs to be passed onto :meth:`sympy.symbols`
+    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
     :return: iterable of :class:`symfit.core.Variable` objects
     """
     return symbols(names, cls=Variable, seq=True, **kwargs)
@@ -133,7 +133,7 @@ def parameters(names, **kwargs):
 
     :param names: string of parameter names.
         Example: a, b = parameters('a, b')
-    :param kwargs: kwargs to be passed onto :meth:`sympy.symbols`
+    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
     :return: iterable of :class:`symfit.core.Parameter` objects
     """
     return symbols(names, cls=Parameter, seq=True, **kwargs)
