@@ -1,4 +1,5 @@
 import numbers
+import warnings
 
 from sympy.core.symbol import Symbol
 
@@ -22,8 +23,15 @@ class Argument(Symbol):
         assumptions['real'] = True
         # Generate a dummy name
         if not name:
-            generated_name = '{}_{}'.format(cls._argument_name, cls._argument_index)
-            instance = super(Argument, cls).__new__(cls, generated_name, **assumptions)
+            # Throw a warning that is is better to explicitly give names.
+            warnings.warn(DeprecationWarning(
+                'It is recommended to provide names to {} explicitly'
+                ' as automatic generation of names will be dropped in '
+                'future `symfit` versions.'.format(cls.__name__)
+            ))
+
+            name = '{}_{}'.format(cls._argument_name, cls._argument_index)
+            instance = super(Argument, cls).__new__(cls, name, **assumptions)
             instance._argument_index = cls._argument_index
             cls._argument_index += 1
             return instance
@@ -56,7 +64,7 @@ class Parameter(Argument):
         except TypeError as err:
             if isinstance(name, numbers.Number):
                 raise TypeError('In symfit >0.4.1 the value needs to be assigned '
-                                'as the second argument or by keyword argument.') from err
+                                'as the second argument or by keyword argument.')
             else: raise err
 
     def __init__(self, name=None, value=1.0, min=None, max=None, fixed=False, **assumptions):
