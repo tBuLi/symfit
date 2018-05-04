@@ -112,11 +112,10 @@ def sympy_to_scipy(func, vars, params):
 
     return f
 
-@deprecated('symbols(names, cls=Variable)')
 def variables(names, **kwargs):
     """
-    Convenience function for the creation of multiple variables. Deprecated:
-    use symbols(names, cls=Variable, **kwargs) instead.
+    Convenience function for the creation of multiple variables. For more
+    control, consider using symbols(names, cls=Variable, **kwargs) directly.
 
     :param names: string of variable names.
         Example: x, y = variables('x, y')
@@ -125,11 +124,10 @@ def variables(names, **kwargs):
     """
     return symbols(names, cls=Variable, seq=True, **kwargs)
 
-@deprecated('symbols(names, cls=Parameter)')
 def parameters(names, **kwargs):
     """
-    Convenience function for the creation of multiple parameters. Deprecated:
-    use symbols(names, cls=Parameter, **kwargs) instead.
+    Convenience function for the creation of multiple parameters. For more
+    control, consider using symbols(names, cls=Parameter, **kwargs) directly.
 
     :param names: string of parameter names.
         Example: a, b = parameters('a, b')
