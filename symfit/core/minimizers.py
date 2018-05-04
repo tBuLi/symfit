@@ -70,12 +70,12 @@ class GradientMinimizer(BaseMinimizer):
 
         if jacobian is not None:
             jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
-            self.wrapped_jacobian = self.wrap_jac(jac_with_fixed_params)
+            self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
         else:
             self.jacobian = None
             self.wrapped_jacobian = None
 
-    def wrap_jac(self, func):
+    def resize_jac(self, func):
         """
         Removes values with identical indices to fixed parameters from the
         output of func.
