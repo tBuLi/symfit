@@ -1,5 +1,6 @@
 import abc
 from collections import namedtuple
+from functools import partial
 
 from scipy.optimize import minimize
 import sympy
@@ -20,8 +21,10 @@ class BaseMinimizer(object):
         :param objective: Objective function to be used.
         :param parameters: List of :class:`~symfit.core.argument.Parameter` instances
         """
-        self.objective = objective
-        self.params = parameters
+        self.parameters = parameters
+        self._fixed_params = [p for p in parameters if p.fixed]
+        self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
+        self.params = [p for p in parameters if not p.fixed]
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -64,8 +67,31 @@ class GradientMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
-        self.jacobian = jacobian
 
+        if jacobian is not None:
+            jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
+            self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
+        else:
+            self.jacobian = None
+            self.wrapped_jacobian = None
+
+    def resize_jac(self, func):
+        """
+        Removes values with identical indices to fixed parameters from the
+        output of func.
+        :param func: Function to be wrapped
+        :return: wrapped function
+        """
+        if func is None:
+            return None
+        def wrapped(*args, **kwargs):
+            out = func(*args, **kwargs)
+            jac = []
+            for param, val in zip(self.parameters, out):
+                if not param.fixed:
+                    jac.append(val)
+            return jac
+        return wrapped
 
 class ScipyMinimize(object):
     """
@@ -91,7 +117,7 @@ class ScipyMinimize(object):
             return None
         def wrapped_func(values):
             parameters = key2str(dict(zip(self.params, values)))
-            return func(**parameters)
+            return np.array(func(**parameters))
         return wrapped_func
 
     @keywordonly(tol=1e-9)
@@ -101,7 +127,7 @@ class ScipyMinimize(object):
             self.initial_guesses,
             bounds=bounds,
             constraints=self.constraints,
-            jac=self.wrapped_jacobian,
+            jac=jacobian,
             **minimize_options
         )
         # Build infodic
@@ -109,9 +135,17 @@ class ScipyMinimize(object):
             'nfev': ans.nfev,
         }
 
+        best_vals = []
+        found = iter(ans.x)
+        for param in self.parameters:
+            if param.fixed:
+                best_vals.append(param.value)
+            else:
+                best_vals.append(next(found))
+
         fit_results = dict(
-            model=DummyModel(params=self.params),
-            popt=ans.x,
+            model=DummyModel(params=self.parameters),
+            popt=best_vals,
             covariance_matrix=None,
             infodic=infodic,
             mesg=ans.message,
@@ -156,7 +190,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.jacobian)
+        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
