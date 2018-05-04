@@ -67,9 +67,9 @@ class GradientMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
-        jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
 
         if jacobian is not None:
+            jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
             self.wrapped_jacobian = self.wrap_jac(jac_with_fixed_params)
         else:
             self.jacobian = None
