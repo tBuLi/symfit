@@ -67,22 +67,31 @@ class GradientMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
-        def _jacobian(*args, **kwargs):
-            # Assume the order of what jacobian returns and parameters is the same
-            # We need to remove the values for the fixed parameters from what
-            # jacobian returns
-            fixed_vals = {p.name: p.value for p in self._fixed_params}
-            kwargs.update(fixed_vals)
-            out = jacobian(*args, **kwargs)
+        jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
+
+        if jacobian is not None:
+            self.wrapped_jacobian = self.wrap_jac(jac_with_fixed_params)
+        else:
+            self.jacobian = None
+            self.wrapped_jacobian = None
+
+    def wrap_jac(self, func):
+        """
+        Removes values with identical indices to fixed parameters from the
+        output of func.
+        :param func: Function to be wrapped
+        :return: wrapped function
+        """
+        if func is None:
+            return None
+        def wrapped(*args, **kwargs):
+            out = func(*args, **kwargs)
             jac = []
             for param, val in zip(self.parameters, out):
                 if not param.fixed:
                     jac.append(val)
             return jac
-        if jacobian is not None:
-            self.jacobian = _jacobian
-        else:
-            self.jacobian = None
+        return wrapped
 
 class ScipyMinimize(object):
     """
@@ -118,7 +127,7 @@ class ScipyMinimize(object):
             self.initial_guesses,
             bounds=bounds,
             constraints=self.constraints,
-            jac=self.wrapped_jacobian,
+            jac=jacobian,
             **minimize_options
         )
         # Build infodic
@@ -181,7 +190,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.jacobian)
+        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
