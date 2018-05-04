@@ -120,7 +120,7 @@ class TestFitResults(unittest.TestCase):
         # Covariance matrix should be symmetric
         for param_1 in fit.model.params:
             for param_2 in fit.model.params:
-                self.assertAlmostEqual(fit_result.covariance(param_1, param_2), fit_result.covariance(param_2, param_1))
+                self.assertAlmostEqual(fit_result.covariance(param_1, param_2) / fit_result.covariance(param_2, param_1), 1.0, 6)
 
     def test_minimizer_included(self):
         """"The minimizer used should be included in the results."""

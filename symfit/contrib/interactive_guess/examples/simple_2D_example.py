@@ -28,5 +28,5 @@ guess.execute()
 print(guess)
 
 fit = Fit(model, x=x_data, y=y_data)
-fit_result = fit.execute(maxfev=1000)
+fit_result = fit.execute(maxiter=1000)
 print(fit_result)

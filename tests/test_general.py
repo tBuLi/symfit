@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit, minimize
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge
+    parameters, Model, Eq, Ge, exp
 )
 from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
 from symfit.core.objectives import LogLikelihood
@@ -803,6 +803,24 @@ class Tests(unittest.TestCase):
     #     self.assertAlmostEqual(b_exact, fit_result.params.b, 4)
     #     self.assertAlmostEqual(var_a_exact**0.5, fit_result.params.a_stdev, 6)
     #     self.assertAlmostEqual(var_b_exact**0.5, fit_result.params.b_stdev, 6)
+
+    def test_fixed_parameters(self):
+        """
+        Make sure fixed parameters don't change on fitting
+        """
+        xdata = np.arange(100)
+        ydata = np.arange(100)
+        
+        a, b, c, d = parameters('a, b, c, d')
+        x, y = variables('x, y')
+        
+        c.value = 4.0
+        c.fixed = True
+        
+        model_dict = {y: a * exp(-(x - b)**2 / (2 * c**2)) + d}
+        fit = Fit(model_dict, x=xdata, y=ydata)
+        fit_result = fit.execute()
+        self.assertEqual(4.0, fit_result.params['c'])
 
     def test_model_from_dict(self):
         """

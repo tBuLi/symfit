@@ -260,5 +260,49 @@ class TestAutoFit(unittest.TestCase):
         self.assertAlmostEqual(np.abs(fit_result.value(sig_y)), np.std(data[:, 1]), 2)
         self.assertGreaterEqual(fit_result.r_squared, 0.96)
 
+    def test_gaussian_2d_fitting_background(self):
+        """
+        Tests fitting to a scalar gaussian function with 2 independent
+        variables to data with a background. Added after #149.
+        """
+        mean = (0.6, 0.4)  # x, y mean 0.6, 0.4
+        cov = [[0.2**2, 0], [0, 0.1**2]]
+        background = 3.0
+
+        data = np.random.multivariate_normal(mean, cov, 500000)
+        # print(data.shape)
+        # Insert them as y,x here as np fucks up cartesian conventions.
+        ydata, xedges, yedges = np.histogram2d(data[:, 0], data[:, 1], bins=100,
+                                               range=[[0.0, 1.0], [0.0, 1.0]])
+        xcentres = (xedges[:-1] + xedges[1:]) / 2
+        ycentres = (yedges[:-1] + yedges[1:]) / 2
+        ydata += background # Background
+
+        # Make a valid grid to match ydata
+        xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
+
+        x0 = Parameter(value=1.1 * mean[0], min=0.0, max=1.0)
+        sig_x = Parameter(1.1 * 0.2, min=0.0, max=0.3)
+        y0 = Parameter(value=1.1 * mean[1], min=0.0, max=1.0)
+        sig_y = Parameter(1.1 * 0.1, min=0.0, max=0.3)
+        A = Parameter(value=1.1 * np.mean(ydata), min=0.0)
+        b = Parameter(value=1.2 * background, min=0.0)
+        x = Variable()
+        y = Variable()
+        g = Variable()
+
+        model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y) + b})
+
+        # ydata, = model(x=xx, y=yy, x0=mean[0], y0=mean[1], sig_x=np.sqrt(cov[0][0]), sig_y=np.sqrt(cov[1][1]), A=1, b=3.0)
+        fit = Fit(model, x=xx, y=yy, g=ydata)
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.value(x0) / np.mean(data[:, 0]), 1.0,  2)
+        self.assertAlmostEqual(fit_result.value(y0) / np.mean(data[:, 1]), 1.0, 2)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig_x)) / np.std(data[:, 0]), 1.0, 2)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig_y)) / np.std(data[:, 1]), 1.0, 2)
+        self.assertAlmostEqual(background / fit_result.value(b), 1.0, 1)
+        self.assertGreaterEqual(fit_result.r_squared / 0.96, 1.0)
+
 if __name__ == '__main__':
     unittest.main()
