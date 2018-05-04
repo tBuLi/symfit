@@ -102,7 +102,7 @@ class ScipyMinimize(object):
             bounds=bounds,
             constraints=self.constraints,
             jac=self.wrapped_jacobian,
-            options=minimize_options
+            **minimize_options
         )
         # Build infodic
         infodic = {
