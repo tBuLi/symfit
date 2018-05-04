@@ -152,7 +152,7 @@ class InteractiveGuess2D(TakesData):
                 axbg = 'red'
             # start-x, start-y, width, height
             ax = self.fig.add_axes((0.162, i, 0.68, 0.03),
-                                   axis_bgcolor=axbg, label=param.name)
+                                   facecolor=axbg, label=param.name)
             val = param.value
             if not hasattr(param, 'min') or param.min is None:
                 minimum = 0
