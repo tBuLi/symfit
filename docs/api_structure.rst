@@ -57,9 +57,9 @@ Let's say we have some data::
 
 And we want to fit it to some model::
 
-    a = Parameter(value=0, min=0, max=1000)
-    b = Parameter(value=0, min=0, max=1000)
-    x = Variable()
+    a = Parameter('a', value=0, min=0, max=1000)
+    b = Parameter('b', value=0, min=0, max=1000)
+    x = Variable('x')
     model = a * x + b
 
 If we want to fit this normally (but with a specified minimizer), we'd write

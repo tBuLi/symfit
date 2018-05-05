@@ -8,7 +8,7 @@ http://symfit.readthedocs.org
 Project Goals
 =============
 
-The goal of this project is simple: to make fitting in Python sexy and pythonic.
+The goal of this project is simple: to make fitting in Python pythonic.
 What does pythonic fitting look like? Well, there's a simple test. If I can
 give you pieces of example code and don't have to use any additional words to
 explain what it does, it's pythonic.
@@ -34,8 +34,8 @@ Cool right? So now that we have done a fit, how do we use the results?
 
   import matplotlib.pyplot as plt
   
-  y = model(x=xdata, **fit_result.params)
-  plt.plot(xdata, y)
+  yfit = model(x=xdata, **fit_result.params)[y]
+  plt.plot(xdata, yfit)
   plt.show()
 
 .. figure:: http://symfit.readthedocs.org/en/latest/_images/linear_model_fit.png
@@ -68,7 +68,7 @@ I know what you are thinking. "What if I need to fit to a system of Ordinary Dif
   adata = 10e-4 * np.array([44, 34, 27, 20, 14])
           
   a, b, t = variables('a, b, t')
-  k = Parameter(0.1)
+  k = Parameter('k', 0.1)
   
   model_dict = {
       D(a, t): - k * a**2,

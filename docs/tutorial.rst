@@ -9,9 +9,9 @@ The example below shows how easy it is to define a model that we could fit to.
 
   from symfit import Parameter, Variable
   
-  a = Parameter()
-  b = Parameter()
-  x = Variable()
+  a = Parameter('a')
+  b = Parameter('b')
+  x = Variable('x')
   model = a * x + b
 
 Lets fit this model to some generated data. ::
@@ -49,7 +49,7 @@ In the example above, we might change our
 :class:`~symfit.core.argument.Parameter`'s to the following after looking at a
 plot of the data::
 
-  k = Parameter(value=4, min=3, max=6)
+  k = Parameter('k', value=4, min=3, max=6)
 
   a, b = parameters('a, b')
   a.value = 60

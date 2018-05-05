@@ -129,8 +129,8 @@ Example::
     import numpy as np
 
     # Define the model for an exponential distribution (numpy style)
-    beta = Parameter()
-    x = Variable()
+    beta = Parameter('beta')
+    x = Variable('x')
     model = (1 / beta) * exp(-x / beta)
 
     # Draw 100 samples from an exponential distribution with beta=5.5
@@ -241,7 +241,7 @@ this::
     tdata = np.array([10, 26, 44, 70, 120])
     adata = 10e-4 * np.array([44, 34, 27, 20, 14])
     a, b, t = variables('a, b, t')
-    k = Parameter(0.1)
+    k = Parameter('k', 0.1)
     a0 = 54 * 10e-4
 
     model_dict = {
@@ -327,11 +327,11 @@ Let's plot the model for some kinetics constants::
 More common examples, such as dampened harmonic oscillators also work as expected::
 
     # Oscillator strength
-    k = Parameter()
+    k = Parameter('k')
     # Mass, just there for the physics
     m = 1
     # Dampening factor
-    gamma = Parameter()
+    gamma = Parameter('gamma')
 
     x, v, t = symfit.variables('x, v, t')
 
