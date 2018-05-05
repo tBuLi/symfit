@@ -43,12 +43,12 @@ class TestArgument(unittest.TestCase):
         y = Variable('y')
 
         self.assertEqual(str(a), '{}_{}'.format(a._argument_name, a._argument_index))
-        self.assertEqual(str(a), 'p_{}'.format(a._argument_index))
+        self.assertEqual(str(a), 'par_{}'.format(a._argument_index))
         self.assertNotEqual(str(b), '{}_{}'.format(b._argument_name, b._argument_index))
         self.assertEqual(str(c), '{}_{}'.format(c._argument_name, c._argument_index))
         self.assertEqual(c.value, 10)
         self.assertEqual(b.value, 10)
-        self.assertEqual(str(x), 'x_{}'.format(x._argument_index))
+        self.assertEqual(str(x), 'var_{}'.format(x._argument_index))
         self.assertEqual(str(y), 'y')
 
         with self.assertRaises(TypeError):
