@@ -56,7 +56,7 @@ class Parameter(Argument):
     """
     # Parameter index to be assigned to generated nameless parameters
     _argument_index = 0
-    _argument_name = 'p'
+    _argument_name = '_p'
 
     def __new__(cls, name=None, *args, **kwargs):
         try:
@@ -95,4 +95,4 @@ class Variable(Argument):
     """ Variable type."""
     # Variable index to be assigned to generated nameless variables
     _argument_index = 0
-    _argument_name = 'x'
+    _argument_name = '_x'
