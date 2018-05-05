@@ -115,7 +115,7 @@ def sympy_to_scipy(func, vars, params):
 def variables(names, **kwargs):
     """
     Convenience function for the creation of multiple variables. For more
-    control, consider using symbols(names, cls=Variable, **kwargs) directly.
+    control, consider using ``symbols(names, cls=Variable, **kwargs)`` directly.
 
     :param names: string of variable names.
         Example: x, y = variables('x, y')
@@ -127,7 +127,7 @@ def variables(names, **kwargs):
 def parameters(names, **kwargs):
     """
     Convenience function for the creation of multiple parameters. For more
-    control, consider using symbols(names, cls=Parameter, **kwargs) directly.
+    control, consider using ``symbols(names, cls=Parameter, **kwargs)`` directly.
 
     :param names: string of parameter names.
         Example: a, b = parameters('a, b')
