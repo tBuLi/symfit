@@ -65,6 +65,32 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(a), 3.0)
         self.assertAlmostEqual(fit_result.value(b), 2.0)
 
+    def test_backwards_compatible_fitting(self):
+        """
+        In 0.4.2 we replaced the usage of inspect by automatically generated
+        names. This can cause problems for users using named variables to call
+        fit.
+        """
+        xdata = np.linspace(1, 10, 10)
+        ydata = 3*xdata**2
+
+        a = Parameter(value=1.0)
+        b = Parameter(value=2.5)
+
+        y = Variable('y')
+
+        with warnings.catch_warnings(record=True) as w:
+            # Cause all warnings to always be triggered.
+            warnings.simplefilter("always")
+            x = Variable()
+            self.assertTrue(len(w) == 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+
+        model = {y: a*x**b}
+
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xdata, y=ydata)
+
     def test_vector_fitting(self):
         """
         Tests fitting to a 3 component vector valued function, without bounds
