@@ -22,8 +22,8 @@ class TestFitResults(unittest.TestCase):
         xdata = np.linspace(1,10,10)
         ydata = 3*xdata**2
 
-        a = Parameter(3.0, min=2.75)
-        b = Parameter(2.0, max=2.75)
+        a = Parameter(value=3.0, min=2.75)
+        b = Parameter(value=2.0, max=2.75)
         x = Variable('x')
         new = a*x**b
 
@@ -96,17 +96,17 @@ class TestFitResults(unittest.TestCase):
         x = Variable()
         y = Variable()
 
-        x0_1 = Parameter(0.7, min=0.6, max=0.8)
-        sig_x_1 = Parameter(0.1, min=0.0, max=0.2)
-        y0_1 = Parameter(0.7, min=0.6, max=0.8)
-        sig_y_1 = Parameter(0.1, min=0.0, max=0.2)
+        x0_1 = Parameter(value=0.7, min=0.6, max=0.8)
+        sig_x_1 = Parameter(value=0.1, min=0.0, max=0.2)
+        y0_1 = Parameter(value=0.7, min=0.6, max=0.8)
+        sig_y_1 = Parameter(value=0.1, min=0.0, max=0.2)
         A_1 = Parameter()
         g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
 
-        x0_2 = Parameter(0.3, min=0.2, max=0.4)
-        sig_x_2 = Parameter(0.1, min=0.0, max=0.2)
-        y0_2 = Parameter(0.3, min=0.2, max=0.4)
-        sig_y_2 = Parameter(0.1, min=0.0, max=0.2)
+        x0_2 = Parameter(value=0.3, min=0.2, max=0.4)
+        sig_x_2 = Parameter(value=0.1, min=0.0, max=0.2)
+        y0_2 = Parameter(value=0.3, min=0.2, max=0.4)
+        sig_y_2 = Parameter(value=0.1, min=0.0, max=0.2)
         A_2 = Parameter()
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
 

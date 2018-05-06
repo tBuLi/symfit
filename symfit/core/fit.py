@@ -687,7 +687,14 @@ class TakesData(object):
         ]
 
         signature = inspect_sig.Signature(parameters=parameters)
-        bound_arguments = signature.bind(*ordered_data, **named_data)
+        try:
+            bound_arguments = signature.bind(*ordered_data, **named_data)
+        except TypeError as err:
+            for var in self.model.vars:
+                if var.name.startswith(Variable._argument_name):
+                    raise type(err)(str(err) + '. Some of your Variable\'s are unnamed. That might be the cause of this Error: make sure you use e.g. x = Variable(\'x\')')
+            else:
+                raise err
         # Include default values in bound_argument object
         for param in signature.parameters.values():
             if param.name not in bound_arguments.arguments:

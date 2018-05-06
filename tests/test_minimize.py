@@ -26,8 +26,8 @@ class TestMinimize(unittest.TestCase):
         result.
         https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
         """
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
+        x = Parameter(value=-1.0)
+        y = Parameter(value=1.0)
         z = Variable()
         model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 
@@ -79,8 +79,8 @@ class TestMinimize(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(y), res.x[1], 6)
 
     def test_constraint_types(self):
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
+        x = Parameter(value=-1.0)
+        y = Parameter(value=1.0)
         z = Variable()
         model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 

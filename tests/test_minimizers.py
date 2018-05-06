@@ -30,8 +30,8 @@ class TestMinimize(unittest.TestCase):
         ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
 
         # Normal symbolic fit
-        a = Parameter(value=0, min=0.0, max=1000)
-        b = Parameter(value=0, min=0.0, max=1000)
+        a = Parameter('a', value=0, min=0.0, max=1000)
+        b = Parameter('b', value=0, min=0.0, max=1000)
         x = Variable()
         model = a * x + b
 
