@@ -523,15 +523,15 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(np.abs(fit_result.value(sig_y)), np.std(data[:, 1]), 2)
         self.assertGreaterEqual(fit_result.r_squared, 0.96)
 
-        # # Compare with industry standard MINPACK
-        # fit_std = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
-        # fit_std_result = fit_std.execute()
-        #
-        # self.assertAlmostEqual(fit_std_result.value(x0), fit_result.value(x0), 4)
-        # self.assertAlmostEqual(fit_std_result.value(y0), fit_result.value(y0), 4)
-        # self.assertAlmostEqual(fit_std_result.value(sig_x), fit_result.value(sig_x), 4)
-        # self.assertAlmostEqual(fit_std_result.value(sig_y), fit_result.value(sig_y), 4)
-        # self.assertAlmostEqual(fit_std_result.r_squared, fit_result.r_squared, 4)
+        # Compare with industry standard MINPACK
+        fit_std = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
+        fit_std_result = fit_std.execute()
+
+        self.assertAlmostEqual(fit_std_result.value(x0), fit_result.value(x0), 4)
+        self.assertAlmostEqual(fit_std_result.value(y0), fit_result.value(y0), 4)
+        self.assertAlmostEqual(fit_std_result.value(sig_x), fit_result.value(sig_x), 4)
+        self.assertAlmostEqual(fit_std_result.value(sig_y), fit_result.value(sig_y), 4)
+        self.assertAlmostEqual(fit_std_result.r_squared, fit_result.r_squared, 4)
 
 if __name__ == '__main__':
     unittest.main()
