@@ -24,11 +24,12 @@ class Argument(Symbol):
         # Generate a dummy name
         if not name:
             # Throw a warning that is is better to explicitly give names.
-            warnings.warn(DeprecationWarning(
+            warnings.warn(
                 'It is recommended to provide names to {} explicitly'
                 ' as automatic generation of names will be dropped in '
-                'future `symfit` versions.'.format(cls.__name__)
-            ))
+                'future `symfit` versions.'.format(cls.__name__),
+                DeprecationWarning, stacklevel=2
+            )
 
             name = '{}_{}'.format(cls._argument_name, cls._argument_index)
             instance = super(Argument, cls).__new__(cls, name, **assumptions)
@@ -49,7 +50,7 @@ class Argument(Symbol):
 class Parameter(Argument):
     """
     Parameter objects are used to facilitate bounds on function parameters.
-    Important change from `symfit>=0.4.1`: the name needs to be the first keyword,
+    Important change from `symfit>0.4.1`: the name needs to be the first keyword,
     followed by the guess value. If no name is provided, the initial value can
     be passed as a keyword argument, e.g.: `value=0.1`. A generic name will then
     be generated.
