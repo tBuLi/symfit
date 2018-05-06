@@ -178,7 +178,7 @@ class TestAnalyticalFit(unittest.TestCase):
         for cov1, cov2 in zip(num_result_rel.covariance_matrix.flatten(), num_result.covariance_matrix.flatten()):
             # Make the absolute cov relative to see if it worked.
             ss_res = np.sum(num_result_rel.infodict['fvec']**2)
-            degrees_of_freedom = len(fit.data[fit.model.dependent_vars[0].name]) - len(fit.model.params)
+            degrees_of_freedom = len(fit.data[fit.model.dependent_vars[0]]) - len(fit.model.params)
             s_sq = ss_res / degrees_of_freedom
             self.assertAlmostEqual(cov1, cov2 * s_sq)
 

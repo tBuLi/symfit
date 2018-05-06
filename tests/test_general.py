@@ -630,8 +630,8 @@ class Tests(unittest.TestCase):
         sigma_t = sigma / np.sqrt(n)
 
         # We now define our model
-        y = Variable()
-        g = Parameter()
+        y = Variable('x')
+        g = Parameter('g')
         t_model = (2 * y / g)**0.5
 
         fit = Fit(t_model, y_data, t_data)  # , sigma=sigma_t)
@@ -689,8 +689,8 @@ class Tests(unittest.TestCase):
         a = Parameter(value=3.0)
         b = Parameter(value=0.9)
         c = Parameter(value=5)
-        x = Variable()
-        y = Variable()
+        x = Variable('x')
+        y = Variable('y')
         z = Variable('z')
         model = {z: a * log(b * x + c * y)}
 
