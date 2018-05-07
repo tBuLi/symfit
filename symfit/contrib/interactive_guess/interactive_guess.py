@@ -56,10 +56,10 @@ class InteractiveGuess2D(TakesData):
         # Stretch the plot 10-20% in the X direction, since that is visually more
         # appealing. We can't evaluate the model for x < x_initial, so don't.
         for x in self.model.independent_vars:
-            plotrange_x = x_maxs[x.name] - x_mins[x.name]
+            plotrange_x = x_maxs[x] - x_mins[x]
             if not hasattr(self.model, 'initial'):
-                x_mins[x.name] -= 0.1 * plotrange_x
-            x_maxs[x.name] += 0.1 * plotrange_x
+                x_mins[x] -= 0.1 * plotrange_x
+            x_maxs[x] += 0.1 * plotrange_x
         # Generate the points at which to evaluate the model with the proposed
         # parameters for plotting
         self._x_points = {v: np.linspace(x_mins[v], x_maxs[v], n_points)
@@ -128,14 +128,14 @@ class InteractiveGuess2D(TakesData):
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
                                       label=plotlabel)
             ax.set_title(ax.get_label())
-            ax.set_ylim(y_mins[y.name], y_maxs[y.name])
-            ax.set_xlim(x_mins[x.name], x_maxs[x.name])
+            ax.set_ylim(y_mins[y], y_maxs[y])
+            ax.set_xlim(x_mins[x], x_maxs[x])
             # TODO reduce dimensionality.
-            ax.scatter(self.independent_data[x.name],
-                       self.dependent_data[y.name], c='b')
+            ax.scatter(self.independent_data[x],
+                       self.dependent_data[y], c='b')
 
             y_vals = getattr(evaluated_model, y.name)
-            x_vals = self._x_points[x.name]
+            x_vals = self._x_points[x]
             plot, = ax.plot(x_vals, y_vals, c='red')
             self._plots[proj] = plot
 
@@ -181,7 +181,7 @@ class InteractiveGuess2D(TakesData):
             plot = self._plots[(indep_var, dep_var)]
             # TODO: reduce dimensionality of self._x_points and vals for this projection
             y_vals = getattr(evaluated_model, dep_var.name)
-            x_vals = self._x_points[indep_var.name]
+            x_vals = self._x_points[indep_var]
             plot.set_data(x_vals, y_vals)
 #        self.fig.canvas.draw()  # Force redraw
 

@@ -29,8 +29,7 @@ class BaseObjective(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict(
-            (var.name, self.data[var.name]) for var in self.model)
+        return OrderedDict((var, self.data[var]) for var in self.model)
 
     @property
     @cache
@@ -42,7 +41,7 @@ class BaseObjective(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var.name, self.data[var.name]) for var in
+        return OrderedDict((var, self.data[var]) for var in
                            self.model.independent_vars)
 
     @property
@@ -57,7 +56,7 @@ class BaseObjective(object):
         """
         sigmas = self.model.sigmas
         return OrderedDict(
-            (sigmas[var].name, self.data[sigmas[var].name]) for var in
+            (sigmas[var], self.data[sigmas[var]]) for var in
             self.model)
 
     @abc.abstractmethod
@@ -103,14 +102,14 @@ class VectorLeastSquares(GradientObjective):
         """
         flatten_components = parameters.pop('flatten_components')
         jac_kwargs = key2str(parameters)
-        jac_kwargs.update(self.independent_data)
+        jac_kwargs.update(key2str(self.independent_data))
         evaluated_func = self.model(**jac_kwargs)
         result = []
 
         # zip together the dependent vars and evaluated component
         for y, ans in zip(self.model, evaluated_func):
-            if self.dependent_data[y.name] is not None:
-                result.append(((self.dependent_data[y.name] - ans) / self.sigma_data[self.model.sigmas[y].name]) ** 2)
+            if self.dependent_data[y] is not None:
+                result.append(((self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]]) ** 2)
                 if flatten_components: # Flattens *within* a component
                     result[-1] = result[-1].flatten()
         return np.sqrt(sum(result))
@@ -118,15 +117,15 @@ class VectorLeastSquares(GradientObjective):
     def eval_jacobian(self, **parameters):
         chi = self(flatten=False, **parameters)
         jac_kwargs = key2str(parameters)
-        jac_kwargs.update(self.independent_data)
+        jac_kwargs.update(key2str(self.independent_data))
         evaluated_func = self.model(**jac_kwargs)
 
         result = len(self.model.params) * [0.0]
         for ans, y, row in zip(evaluated_func, self.model, self.model.numerical_jacobian):
-            if self.dependent_data[y.name] is not None:
+            if self.dependent_data[y] is not None:
                 for index, component in enumerate(row):
                     result[index] += component(**jac_kwargs) * (
-                        (self.dependent_data[y.name] - ans) / self.sigma_data[self.model.sigmas[y].name] ** 2
+                        (self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]] ** 2
                     )
         result *= (1 / chi)
         result = np.nan_to_num(result)
@@ -151,14 +150,14 @@ class LeastSquares(GradientObjective):
         """
         flatten_components = parameters.pop('flatten_components')
         jac_kwargs = key2str(parameters)
-        jac_kwargs.update(self.independent_data)
+        jac_kwargs.update(key2str(self.independent_data))
         evaluated_func = self.model(**jac_kwargs)
 
         chi2 = [0 for _ in evaluated_func]
-        for index, (dep_var_name, dep_var_value) in enumerate(evaluated_func._asdict().items()):
-            dep_data = self.dependent_data[dep_var_name]
+        for index, (dep_var, dep_var_value) in enumerate(zip(self.model, evaluated_func)):
+            dep_data = self.dependent_data[dep_var]
             if dep_data is not None:
-                sigma = self.sigma_data['sigma_{}'.format(dep_var_name)]  # Should be changed with #41
+                sigma = self.sigma_data[self.model.sigmas[dep_var]]
                 chi2[index] += np.sum(
                     (dep_var_value - dep_data) ** 2 / sigma ** 2)
                 # chi2 += np.sum((dep_var_value - dep_data)**2/sigma**2)
@@ -175,16 +174,16 @@ class LeastSquares(GradientObjective):
         :return: `np.array` of length equal to the number of parameters..
         """
         jac_kwargs = key2str(parameters)
-        jac_kwargs.update(self.independent_data)
+        jac_kwargs.update(key2str(self.independent_data))
         evaluated_func = self.model(**jac_kwargs)
         result = [0.0 for _ in self.model.params]
 
         for ans, var, row in zip(evaluated_func, self.model,
                                self.model.numerical_jacobian):
-            dep_data = self.dependent_data[var.name]
+            dep_data = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if dep_data is not None:
-                sigma = self.sigma_data[sigma_var.name]  # Should be changed with #41
+                sigma = self.sigma_data[sigma_var]  # Should be changed with #41
                 for index, component in enumerate(row):
                     result[index] += np.sum(
                         component(**jac_kwargs) * ((dep_data - ans) / sigma ** 2)
@@ -203,7 +202,7 @@ class LogLikelihood(GradientObjective):
         :return: scalar value of log-likelihood
         """
         jac_kwargs = key2str(parameters)
-        jac_kwargs.update(self.independent_data)
+        jac_kwargs.update(key2str(self.independent_data))
 
         ans = - np.nansum(np.log(self.model(**jac_kwargs)))
         return ans
@@ -220,7 +219,7 @@ class LogLikelihood(GradientObjective):
         """
         apply_func = parameters.pop('apply_func')
         jac_kwargs = key2str(parameters)
-        jac_kwargs.update(self.independent_data)
+        jac_kwargs.update(key2str(self.independent_data))
 
         ans = []
         for row in self.model.numerical_jacobian:

@@ -700,48 +700,49 @@ class TakesData(object):
             if param.name not in bound_arguments.arguments:
                 bound_arguments.arguments[param.name] = param.default
 
-        self.data = copy.copy(bound_arguments.arguments)   # ordereddict of the data. Only copy the dict, not the data.
+        original_data = bound_arguments.arguments   # ordereddict of the data
+        self.data = OrderedDict((var, original_data[var.name]) for var in self.model.vars)
         # Change the type to array if no array operations are supported.
         # We don't want to break duck-typing, hence the try-except.
-        for name, dataset in self.data.items():
+        for var, dataset in self.data.items():
             try:
                 dataset**2
             except TypeError:
                 if dataset is not None:
-                    self.data[name] = np.array(dataset)
-        self.sigmas = {name: self.data[name] for name in var_names if name.startswith('sigma_')}
-        self.sigmas_provided = any(s is not None for s in  self.sigmas.values())
+                    self.data[var] = np.array(dataset)
+        self.sigmas_provided = any(value is not None for value in self.sigma_data.values())
 
         # Replace sigmas that are constant by an array of that constant
         for var, sigma in self.model.sigmas.items():
             try:
-                iter(self.data[sigma.name])
+                iter(self.data[sigma])
             except TypeError:
-                if self.data[var.name] is None and self.data[sigma.name] is None:
+                if self.data[var] is None and self.data[sigma] is None:
                     if len(self.data_shapes[1]) == 1:
                         # The shape of the dependent vars is unique across dependent vars.
                         # This means we can just assume this shape.
-                        self.data[sigma.name] = np.ones(self.data_shapes[1][0])
+                        self.data[sigma] = np.ones(self.data_shapes[1][0])
                     else: pass # No stdevs can be calculated
-                if self.data[var.name] is not None and self.data[sigma.name] is None:
-                    self.data[sigma.name] = np.ones(self.data[var.name].shape)
-                elif self.data[var.name] is not None:
-                    self.data[sigma.name] *= np.ones(self.data[var.name].shape)
+                if self.data[var] is not None and self.data[sigma] is None:
+                    self.data[sigma] = np.ones(self.data[var].shape)
+                elif self.data[var] is not None:
+                    self.data[sigma] *= np.ones(self.data[var].shape)
 
         # If user gives a preference, use that. Otherwise, use True if at least one sigma is
         # given, False if no sigma is given.
         if absolute_sigma is not None:
             self.absolute_sigma = absolute_sigma
         else:
-            for name, value in self.sigmas.items():
-                if value is not None:
+            for sigma in self.sigma_data:
+                # Check if the user provided sigmas in the original data.
+                # If so, interpret sigmas as measurement errors
+                if original_data[sigma.name] is not None:
                     self.absolute_sigma = True
                     break
             else:
                 self.absolute_sigma = False
 
     @property
-    @cache
     def dependent_data(self):
         """
         Read-only Property
@@ -750,10 +751,9 @@ class TakesData(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var.name, self.data[var.name]) for var in self.model)
+        return OrderedDict((var, self.data[var]) for var in self.model)
 
     @property
-    @cache
     def independent_data(self):
         """
         Read-only Property
@@ -762,10 +762,9 @@ class TakesData(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var.name, self.data[var.name]) for var in self.model.independent_vars)
+        return OrderedDict((var, self.data[var]) for var in self.model.independent_vars)
 
     @property
-    @cache
     def sigma_data(self):
         """
         Read-only Property
@@ -775,10 +774,9 @@ class TakesData(object):
         :rtype: collections.OrderedDict
         """
         sigmas = self.model.sigmas
-        return OrderedDict((sigmas[var].name, self.data[sigmas[var].name]) for var in self.model)
+        return OrderedDict((sigmas[var], self.data[sigmas[var]]) for var in self.model)
 
     @property
-    @cache
     def data_shapes(self):
         """
         Returns the shape of the data. In most cases this will be the same for
@@ -791,12 +789,12 @@ class TakesData(object):
         :return: Tuple of all independent var shapes, dependent var shapes.
         """
         independent_shapes = []
-        for var_name, data in self.independent_data.items():
+        for var, data in self.independent_data.items():
             if data is not None:
                 independent_shapes.append(data.shape)
 
         dependent_shapes = []
-        for var_name, data in self.dependent_data.items():
+        for var, data in self.dependent_data.items():
             if data is not None:
                 dependent_shapes.append(data.shape)
 
@@ -938,7 +936,7 @@ class HasCovarianceMatrix(object):
             W = 1/sigma**2/s_sq[:, np.newaxis]
 
         kwargs = key2str(best_fit_params)
-        kwargs.update(self.independent_data)
+        kwargs.update(key2str(self.independent_data))
 
         jac = np.array(self.model.eval_jacobian(**kwargs))
         # Drop the axis which correspond to dependent vars which have been
@@ -972,7 +970,7 @@ class HasCovarianceMatrix(object):
             W = [1/s**2/res for s, res in zip(sigma, s_sq)]
 
         kwargs = key2str(best_fit_params)
-        kwargs.update(self.independent_data)
+        kwargs.update(key2str(self.independent_data))
 
         jac = self.model.eval_jacobian(**kwargs)
         data_len = max(j.shape[1] for j in jac)
@@ -1069,7 +1067,7 @@ class LinearLeastSquares(BaseFit):
             # Evaluate every term separately and 'sum out' the variables. This results in
             # a system that is very easy to solve.
             for param in terms:
-                terms[param] = np.sum(terms[param](**self.data))
+                terms[param] = np.sum(terms[param](**key2str(self.data)))
 
             terms_per_component.append(terms)
 
@@ -1102,7 +1100,7 @@ class LinearLeastSquares(BaseFit):
         kwargs.update(self.independent_data)
         # kwargs.update(self.data)
         X = np.atleast_2d([
-            (np.ones(sigma.shape[0]) * comp(**kwargs)).flatten()
+            (np.ones(sigma.shape[0]) * comp(**key2str(kwargs))).flatten()
             for comp in self.model.numerical_jacobian[0]
         ])
 
@@ -1111,7 +1109,7 @@ class LinearLeastSquares(BaseFit):
             kwargs.update(self.data)
             # Sum of squared residuals. To be honest, I'm not sure why ss_res does not give the
             # right result but by using the chi_squared the results are compatible with curve_fit.
-            S = np.sum(self.model.chi_squared(**kwargs), dtype=float) / (len(W) - len(self.model.params))
+            S = np.sum(self.model.chi_squared(**key2str(kwargs)), dtype=float) / (len(W) - len(self.model.params))
             cov_matrix *= S
 
         return cov_matrix
@@ -1180,7 +1178,7 @@ class NonLinearLeastSquares(BaseFit):
         :param max_iter: Maximum number of iterations before giving up.
         :return: Instance of ``FitResults``.
         """
-        fit = LinearLeastSquares(self.model_appr, absolute_sigma=self.absolute_sigma, **self.data)
+        fit = LinearLeastSquares(self.model_appr, absolute_sigma=self.absolute_sigma, **key2str(self.data))
 
         # if fit.is_linear(self.model):
         #     return fit.execute()
@@ -1623,8 +1621,8 @@ def r_squared(model, fit_result, data):
     :param data: data with which the fit was performed.
     """
     # First filter out the dependent vars
-    y_is = [data[var.name] for var in model if var.name in data]
-    x_is = [value for key, value in data.items() if key in model.__signature__.parameters]
+    y_is = [data[var] for var in model if var in data]
+    x_is = [value for var, value in data.items() if var.name in model.__signature__.parameters]
     y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
     f_is = model(*x_is, **fit_result.params)
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
