@@ -1,20 +1,11 @@
 from __future__ import division, print_function
 import unittest
-import warnings
-import types
 from collections import OrderedDict
-
-import sympy
-import numpy as np
-from scipy.optimize import curve_fit
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters,
-    variables, NonLinearLeastSquares, Model, TaylorModel
+    variables, NonLinearLeastSquares, Model, TaylorModel, Constraint, ODEModel, D, Eq
 )
-from symfit.core.minimizers import MINPACK
-from symfit.core.support import seperate_symbols, sympy_to_py
-from symfit.distributions import Gaussian
 
 
 class TestModel(unittest.TestCase):
@@ -49,11 +40,43 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(model.dependent_vars, list(model.keys()))
 
+
+    # @unittest.skip('This might not be wise. What do we expect happens when we negate a model?')
     def test_neg(self):
         """
         Test negation of all model types
         """
-        raise NotImplementedError('')
+        x, y_1, y_2 = variables('x, y_1, y_2')
+        a, b = parameters('a, b')
+
+        model_dict = {y_2: a * x ** 2, y_1: 2 * x * b}
+        model = Model(model_dict)
+
+        model_neq  = - model
+        for key in model:
+            self.assertEqual(model[key], - model_neq[key])
+
+        # Constraints
+        constraint = Constraint(Eq(a * x, 2), model)
+
+        constraint_neq = - constraint
+        # for key in constraint:
+        self.assertEqual(constraint[constraint.dependent_vars[0]], - constraint_neq[constraint_neq.dependent_vars[0]])
+
+        # On a constraint we expect the model to stay unchanged, not negated
+        self.assertEqual(id(constraint.model), id(model))
+
+        # ODEModel
+        odemodel = ODEModel({D(y_1, x): a * x}, initial={a: 1.0})
+
+        odemodel_neq = - odemodel
+        for key in odemodel:
+            self.assertEqual(odemodel[key], - odemodel_neq[key])
+
+        # On a constraint we expect the model to stay unchanged, not negated
+        self.assertEqual(id(constraint.model), id(model))
+
+        # raise NotImplementedError('')
 
 if __name__ == '__main__':
     unittest.main()

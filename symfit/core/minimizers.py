@@ -1,4 +1,6 @@
 import abc
+from collections import namedtuple
+from functools import partial
 
 from scipy.optimize import minimize, differential_evolution
 import sympy
@@ -6,15 +8,32 @@ import numpy as np
 
 from .support import key2str, keywordonly
 from .leastsqbound import leastsqbound
+from .fit_results import FitResults
 
-class BaseMinimizer:
-    def __init__(self, objective, parameters, absolute_sigma=True):
-        self.objective = objective
-        self.params = parameters
-        self.absolute_sigma = absolute_sigma
+DummyModel = namedtuple('DummyModel', 'params')
+
+class BaseMinimizer(object):
+    """
+    ABC for all Minimizers.
+    """
+    def __init__(self, objective, parameters):
+        """
+        :param objective: Objective function to be used.
+        :param parameters: List of :class:`~symfit.core.argument.Parameter` instances
+        """
+        self.parameters = parameters
+        self._fixed_params = [p for p in parameters if p.fixed]
+        self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
+        self.params = [p for p in parameters if not p.fixed]
 
     @abc.abstractmethod
     def execute(self, **options):
+        """
+        The execute method should implement the actual minimization procedure,
+        and should return a :class:`~symfit.core.fit_results.FitResults` instance.
+        :param options: options to be used by the minimization procedure.
+        :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
+        """
         pass
 
     @property
@@ -29,23 +48,63 @@ class BaseMinimizer:
             p.value = val
 
 class BoundedMinimizer(BaseMinimizer):
+    """
+    ABC for Minimizers that support bounds.
+    """
     @property
     def bounds(self):
         return [(p.min, p.max) for p in self.params]
 
 class ConstrainedMinimizer(BaseMinimizer):
-    def __init__(self, *args, constraints=None, **kwargs):
+    """
+    ABC for Minimizers that support constraints
+    """
+    @keywordonly(constraints=None)
+    def __init__(self, *args, **kwargs):
+        constraints = kwargs.pop('constraints')
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
         self.constraints = constraints
 
 class GradientMinimizer(BaseMinimizer):
-    def __init__(self, *args, jacobian=None, **kwargs):
+    """
+    ABC for Minizers that support the use of a jacobian
+    """
+
+    @keywordonly(jacobian=None)
+    def __init__(self, *args, **kwargs):
+        jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
-        self.jacobian = jacobian
+
+        if jacobian is not None:
+            jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
+            self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
+        else:
+            self.jacobian = None
+            self.wrapped_jacobian = None
+
+    def resize_jac(self, func):
+        """
+        Removes values with identical indices to fixed parameters from the
+        output of func.
+        :param func: Function to be wrapped
+        :return: wrapped function
+        """
+        if func is None:
+            return None
+        def wrapped(*args, **kwargs):
+            out = func(*args, **kwargs)
+            jac = []
+            for param, val in zip(self.parameters, out):
+                if not param.fixed:
+                    jac.append(val)
+            return jac
+        return wrapped
+
 
 class GlobalMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         super(GlobalMinimizer, self).__init__(*args, **kwargs)
+
 
 def ChainedMinimizer(specific_minimizers):
     class SpecificChainedMinimizer(BaseMinimizer):
@@ -78,20 +137,32 @@ def ChainedMinimizer(specific_minimizers):
             return final
     return SpecificChainedMinimizer
 
+
 class ScipyMinimize(object):
+    """
+    Mix-in class that handles the execute calls to scipy.optimize.minimize.
+    """
     def __init__(self, *args, **kwargs):
         self.constraints = []
         self.jacobian = None
+        self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
         self.wrapped_objective = self.wrap_func(self.objective)
 
     def wrap_func(self, func):
+        """
+        Given an objective function `func`, make sure it is always called via
+        keyword arguments with the relevant parameter names.
+
+        :param func: Function to be wrapped to keyword only calls.
+        :return: wrapped function
+        """
         # parameters = {param.name: value for param, value in zip(self.params, values)}
         if func is None:
             return None
         def wrapped_func(values):
             parameters = key2str(dict(zip(self.params, values)))
-            return func(**parameters)
+            return np.array(func(**parameters))
         return wrapped_func
 
     @keywordonly(tol=1e-9)
@@ -109,16 +180,30 @@ class ScipyMinimize(object):
             'nfev': ans.nfev,
         }
 
+        best_vals = []
+        found = iter(ans.x)
+        for param in self.parameters:
+            if param.fixed:
+                best_vals.append(param.value)
+            else:
+                best_vals.append(next(found))
+
         fit_results = dict(
-            popt=ans.x,
-            pcov=None,
+            model=DummyModel(params=self.parameters),
+            popt=best_vals,
+            covariance_matrix=None,
             infodic=infodic,
             mesg=ans.message,
             ier=ans.nit,
-            value=ans.fun,
+            objective_value=ans.fun,
         )
 
-        return fit_results
+        if 'hess_inv' in ans:
+            try:
+                fit_results['hessian_inv'] = ans.hess_inv.todense()
+            except AttributeError:
+                fit_results['hessian_inv'] = ans.hess_inv
+        return FitResults(**fit_results)
 
     @staticmethod
     def scipy_constraints(constraints, data):
@@ -150,7 +235,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.jacobian)
+        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
@@ -215,25 +300,14 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
 
-class MINPACK(GradientMinimizer, BoundedMinimizer):
+class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
     """
-    Wrapper to scipy's implementation of MINPACK. Since it is the industry
-    standard
+    Wrapper to scipy's implementation of MINPACK, since it is the industry
+    standard.
     """
     def __init__(self, *args, **kwargs):
         self.jacobian = None
         super(MINPACK, self).__init__(*args, **kwargs)
-        self.wrapped_objective = ScipyMinimize.wrap_func(self, self.objective)
-
-    # def wrap_func(self, func):
-    #     # parameters = {param.name: value for param, value in zip(self.params, values)}
-    #     if func is None:
-    #         return None
-    #     def wrapped_func(values):
-    #         # raise Exception(values)
-    #         parameters = key2str(dict(zip(self.params, values)))
-    #         return np.repeat(np.sqrt(func(**parameters)), len(values) + 1)
-    #     return wrapped_func
 
     def execute(self, **minpack_options):
         """
@@ -248,27 +322,14 @@ class MINPACK(GradientMinimizer, BoundedMinimizer):
             **minpack_options
         )
 
-        # if self.absolute_sigma:
-        #     s_sq = 1
-        # else:
-        #     # Rescale the covariance matrix with the residual variance
-        #     ss_res = np.sum(infodic['fvec']**2)
-        #     for data in self.dependent_data.values():
-        #         if data is not None:
-        #             degrees_of_freedom = np.product(data.shape) - len(popt)
-        #             break
-        #
-        #     s_sq = ss_res / degrees_of_freedom
-        #
-        # pcov = cov_x * s_sq if cov_x is not None else None
-
         fit_results = dict(
+            model=DummyModel(params=self.params),
             popt=popt,
-            # pcov=pcov,
+            covariance_matrix=None,
             infodic=infodic,
             mesg=mesg,
             ier=ier,
+            chi_squared=np.sum(infodic['fvec']**2),
         )
-        # self._fit_results.gof_qualifiers['r_squared'] = \
-        #     r_squared(self.model, self._fit_results, self.data)
-        return fit_results
+
+        return FitResults(**fit_results)

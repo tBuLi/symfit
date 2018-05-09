@@ -37,30 +37,8 @@ class TestConstrained(unittest.TestCase):
         fit = Fit(ode_model, t=tdata, a=adata, b=None)
         fit_result = fit.execute(tol=1e-9)
 
-        self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        self.assertTrue(fit_result.stdev(k) is None)
-
-        # These lines should be possible, but dont currently for ODEModels.
-        # It allows the user to force uncertainty estimation by giving sigma
-        # argument arrays of the right size.
-        # fit = Fit(
-        #     ode_model, t=tdata, a=adata, b=None,
-        #     sigma_a=np.ones(adata.shape), sigma_b=np.ones(adata.shape)
-        # )
-        # fit_result = fit.execute(tol=1e-9)
-        # print(fit_result)
-        #
-        # self.assertAlmostEqual(fit_result.value(k), 4.302875e-01, 4)
-        # self.assertAlmostEqual(fit_result.stdev(k), 6.447068e-03)
-        # Generate some data
-        # tvec = np.linspace(0, 500, 1000)
-        # A, B = ode_model(t=tvec, **fit_result.params)
-        # plt.plot()
-        # plt.plot(tvec, A, label='[A]')
-        # plt.plot(tvec, B, label='[B]')
-        # plt.scatter(tdata, adata)
-        # plt.legend()
-        # plt.show()
+        self.assertAlmostEqual(fit_result.value(k) / 4.302875e-01, 1.0, 5)
+        self.assertAlmostEqual(fit_result.stdev(k) / 6.447068e-03, 1.0, 5)
 
     def test_global_fitting(self):
         """
@@ -116,8 +94,8 @@ class TestConstrained(unittest.TestCase):
         xdata = np.linspace(1, 10, 10)
         ydata = 3*xdata**2
 
-        a = Parameter(1.0)
-        b = Parameter(2.5)
+        a = Parameter('a', 1.0)
+        b = Parameter('b', 2.5)
         x, y = variables('x, y')
         model = {y: a*x**b}
 
@@ -141,7 +119,7 @@ class TestConstrained(unittest.TestCase):
         yn = np.random.normal(size=xn.shape, scale=sigma)
 
         a = Parameter()
-        y = Variable()
+        y = Variable('y')
         model = {y: a}
 
         constr_fit = Fit(model, y=yn, sigma_y=sigma)
@@ -177,11 +155,11 @@ class TestConstrained(unittest.TestCase):
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
-        a = Parameter(2.4, max=2.75)
-        b = Parameter(3.1, min=2.75)
-        x = Variable()
-        y = Variable()
-        z = Variable()
+        a = Parameter(value=2.4, max=2.75)
+        b = Parameter(value=3.1, min=2.75)
+        x = Variable('x')
+        y = Variable('y')
+        z = Variable('z')
         new = {z: a*x**2 + b*y**2}
 
         fit = Fit(new, x=xx, y=yy, z=zdata)
@@ -200,11 +178,11 @@ class TestConstrained(unittest.TestCase):
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
-        a = Parameter(2.4, max=2.75)
-        b = Parameter(3.1, min=2.75)
-        x = Variable()
-        y = Variable()
-        z = Variable()
+        a = Parameter(value=2.4, max=2.75)
+        b = Parameter(value=3.1, min=2.75)
+        x = Variable('x')
+        y = Variable('y')
+        z = Variable('z')
         new = {z: a*x**2 + b*y**2}
 
         fit = Fit(new, x=xx, y=yy, z=zdata)
@@ -339,10 +317,6 @@ class TestConstrained(unittest.TestCase):
         )
         fit_new_result = fit.execute()
         std_result = fit_std.execute()
-        print(fit_new_result)
-        print(std_result)
-        # import sys
-        # sys.exit()
 
         # When no errors are given, we default to `absolute_sigma=False`, since
         # that is the best we can do.
@@ -486,12 +460,12 @@ class TestConstrained(unittest.TestCase):
         xdata, ydata, zdata = [np.array(data) for data in zip(*data)]
         # errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
 
-        a = Parameter(3.0)
-        b = Parameter(0.9)
-        c = Parameter(5.0)
-        x = Variable()
-        y = Variable()
-        z = Variable()
+        a = Parameter('a', 3.0)
+        b = Parameter('b', 0.9)
+        c = Parameter('c', 5.0)
+        x = Variable('x')
+        y = Variable('y')
+        z = Variable('z')
         model = {z: a * log(b * x + c * y)}
 
         const_fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False)
@@ -532,13 +506,13 @@ class TestConstrained(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
 
         x0 = Parameter(value=mean[0], min=0.0, max=1.0)
-        sig_x = Parameter(0.2, min=0.0, max=0.3)
+        sig_x = Parameter(value=0.2, min=0.0, max=0.3)
         y0 = Parameter(value=mean[1], min=0.0, max=1.0)
-        sig_y = Parameter(0.1, min=0.0, max=0.3)
+        sig_y = Parameter(value=0.1, min=0.0, max=0.3)
         A = Parameter(value=np.mean(ydata), min=0.0)
-        x = Variable()
-        y = Variable()
-        g = Variable()
+        x = Variable('x')
+        y = Variable('y')
+        g = Variable('g')
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
         fit = Fit(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()

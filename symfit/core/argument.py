@@ -1,70 +1,45 @@
-import os
-import sys
-import inspect
+import numbers
+import warnings
 
 from sympy.core.symbol import Symbol
-
-try: # This defines the basestring in both py2/py3.
-    basestring
-except NameError:
-    basestring = str
 
 class Argument(Symbol):
     """
     Base class for ``symfit`` symbols. This helps make ``symfit`` symbols distinguishable from ``sympy`` symbols.
 
-    The ``Argument`` class also makes DRY possible in defining ``Argument``'s: it uses ``inspect`` to read the lhs of the
-    assignment and uses that as the name for the ``Argument`` is none is explicitly set.
+    If no name is explicitly provided a name will be generated.
 
     For example::
 
-        x = Variable()
-        print(x.name)
-        >> 'x'
+        y = Variable()
+        print(y.name)
+        >> 'x_0'
+
+        y = Variable('y')
+        print(y.name)
+        >> 'y'
     """
-    def __new__(cls, name=None, **assumptions):
+    def __new__(cls, name=None, *args, **assumptions):
         assumptions['real'] = True
-        # Super dirty way? to determine the variable name from the calling line.
-        if not name or not isinstance(name, basestring):
-            frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        # Generate a dummy name
+        if not name:
+            # Throw a warning that is is better to explicitly give names.
+            warnings.warn(
+                'It is recommended to provide names to {} explicitly'
+                ' as automatic generation of names will be dropped in '
+                'future `symfit` versions.'.format(cls.__name__),
+                DeprecationWarning, stacklevel=2
+            )
 
-            # Check if the script is running in an exe
-            # If this is the case, symfit cannot find the vaiable name from the calling line and it will search
-            # in the exe directory to find the source. Make sure to copy the required source files for this to work.
-            if getattr(sys, 'frozen', False):
-                basedir = sys._MEIPASS #  Find the exe base dir
-                fname = os.path.basename(filename)
-                # Find the source file in the pyinstaller directory
-                source_file = None
-                for root, dirs, files in os.walk(basedir):
-                    if fname in files:
-                        source_file = os.path.join(root, fname)
-                        break
+            name = '{}_{}'.format(cls._argument_name, cls._argument_index)
+            instance = super(Argument, cls).__new__(cls, name, **assumptions)
+            instance._argument_index = cls._argument_index
+            cls._argument_index += 1
+            return instance
+        else:
+            return super(Argument, cls).__new__(cls, name, **assumptions)
 
-                if source_file is None:
-                    raise IOError("Source code file not found")
-
-                # Get the correct line from the source code
-                l = 0
-                with open(source_file, 'r') as fid:
-                    for line in fid:
-                        l+=1
-                        if l == line_number:
-                            lines = line
-            caller = lines[0].strip()
-            if '==' in caller:
-                pass
-            else:
-                try:
-                    terms = caller.split('=')
-                except ValueError:
-                    generated_name = name
-                else:
-                    generated_name = terms[0].strip()  # lhs
-                return super(Argument, cls).__new__(cls, generated_name, **assumptions)
-        return super(Argument,cls).__new__(cls, name, **assumptions)
-
-    def __init__(self, name=None, **assumptions):
+    def __init__(self, name=None, *args, **assumptions):
         # TODO: A more careful look at Symbol.__init__ is needed! However, it
         # seems we don't have to pass anything on to it.
         if name is not None:
@@ -73,25 +48,52 @@ class Argument(Symbol):
 
 
 class Parameter(Argument):
-    """ Parameter objects are used to facilitate bounds on function parameters. """
-    def __init__(self, value=1.0, min=None, max=None, fixed=False, name=None, **assumptions):
+    """
+    Parameter objects are used to facilitate bounds on function parameters.
+    Important change from `symfit>0.4.1`: the name needs to be the first keyword,
+    followed by the guess value. If no name is provided, the initial value can
+    be passed as a keyword argument, e.g.: `value=0.1`. A generic name will then
+    be generated.
+    """
+    # Parameter index to be assigned to generated nameless parameters
+    _argument_index = 0
+    _argument_name = 'par'
+
+    def __new__(cls, name=None, *args, **kwargs):
+        try:
+            return super(Parameter, cls).__new__(cls, name, *args, **kwargs)
+        except TypeError as err:
+            if isinstance(name, numbers.Number):
+                raise TypeError('In symfit >0.4.1 the value needs to be assigned '
+                                'as the second argument or by keyword argument.')
+            else: raise err
+
+    def __init__(self, name=None, value=1.0, min=None, max=None, fixed=False, **assumptions):
         """
+        :param name: Name of the Parameter.
         :param value: Initial guess value.
         :param min: Lower bound on the parameter value.
         :param max: Upper bound on the parameter value.
         :param fixed: Fix the parameter to ``value`` during fitting.
         :type fixed: bool
-        :param name: Name of the Parameter.
         :param assumptions: assumptions to pass to ``sympy``.
         """
         super(Parameter, self).__init__(name, **assumptions)
         self.value = value
         self.fixed = fixed
-        if not self.fixed:
+
+        if min is not None and max is not None and min > max:
+            if not self.fixed:
+                print(min, max)
+                raise ValueError('The value of `min` should be less than or'
+                                 ' equal to the value of `max`.')
+        else:
             self.min = min
             self.max = max
 
 
 class Variable(Argument):
     """ Variable type."""
-    pass
+    # Variable index to be assigned to generated nameless variables
+    _argument_index = 0
+    _argument_name = 'var'

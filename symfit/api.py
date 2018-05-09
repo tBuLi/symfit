@@ -3,10 +3,11 @@ import symfit.core.operators
 
 # Expose useful objects.
 from symfit.core.fit import (
-    Fit, FitResults, Model,
+    Fit, Model, Constraint,
     LinearLeastSquares, NonLinearLeastSquares,
     TaylorModel, ODEModel, ModelError
 )
+from symfit.core.fit_results import FitResults
 from symfit.core.argument import Variable, Parameter
 from symfit.core.support import variables, parameters, D
 

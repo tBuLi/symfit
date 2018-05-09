@@ -9,14 +9,14 @@ readable and easy to use fitting package which works for projects of any scale.
 :mod:`symfit` makes it extremely easy to provide guesses for your parameters
 and to bound them to a certain range::
 
-	a = Parameter(1.0, min=0.0, max=5.0)
+	a = Parameter('a', 1.0, min=0.0, max=5.0)
 
 To define models to fit to::
 
-	x = Variable()
-	A = Parameter()
-	sig = Parameter(1.0, min=0.0, max=5.0)
-	x0 = Parameter(1.0, min=0.0)
+	x = Variable('x')
+	A = Parameter('A')
+	sig = Parameter('sig', 1.0, min=0.0, max=5.0)
+	x0 = Parameter('x0', 1.0, min=0.0)
 
 	# Gaussian distrubution
 	model = A * exp(-(x - x0)**2/(2 * sig**2))
@@ -53,7 +53,8 @@ And constrained maximization has never been this easy::
         Ge(y - 1, 0),       # Ge: >=
     ]
 
-    fit = Maximize(model, constraints=constraints)
+    fit = Fit(- model, constraints=constraints)
+    fit_result = fit.execute()
 
 Technical Reasons
 -----------------

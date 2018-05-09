@@ -178,7 +178,7 @@ class TestAnalyticalFit(unittest.TestCase):
         for cov1, cov2 in zip(num_result_rel.covariance_matrix.flatten(), num_result.covariance_matrix.flatten()):
             # Make the absolute cov relative to see if it worked.
             ss_res = np.sum(num_result_rel.infodict['fvec']**2)
-            degrees_of_freedom = len(fit.data[fit.model.dependent_vars[0].name]) - len(fit.model.params)
+            degrees_of_freedom = len(fit.data[fit.model.dependent_vars[0]]) - len(fit.model.params)
             s_sq = ss_res / degrees_of_freedom
             self.assertAlmostEqual(cov1, cov2 * s_sq)
 
@@ -210,8 +210,8 @@ class TestAnalyticalFit(unittest.TestCase):
         np.random.seed(10)
         yn = yn + np.random.normal(size=len(yn), scale=sigma)
 
-        a = Parameter()
-        y = Variable()
+        a = Parameter('a')
+        y = Variable('y')
         model = {y: a}
 
         fit = LinearLeastSquares(model, y=yn, sigma_y=sigma, absolute_sigma=False)
@@ -259,7 +259,7 @@ class TestAnalyticalFit(unittest.TestCase):
 
         # We now define our model
         t, y = variables('t, y')
-        g = Parameter(9.0)
+        g = Parameter('g', 9.0)
         t_model = {t: (2 * y / g)**0.5}
 
         # Different sigma for every point
@@ -284,11 +284,9 @@ class TestAnalyticalFit(unittest.TestCase):
         xdata = np.random.randint(-10, 11, size=(2, 100))
         zdata = 2.5*xdata[0]**2 + 7.0*xdata[1]**2
 
-        a = Parameter()
-        b = Parameter(10)
-        x = Variable()
-        y = Variable()
-        z = Variable()
+        a = Parameter('a')
+        b = Parameter(name='b', value=10)
+        x, y, z = variables('x, y, z')
         new = {z: a*x**2 + b*y**2}
 
         fit = NonLinearLeastSquares(new, x=xdata[0], y=xdata[1], z=zdata)

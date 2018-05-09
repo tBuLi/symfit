@@ -24,10 +24,10 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
     def setUpClass(cls):
         np.random.seed(0)
 
-        x = Variable()
-        y = Variable()
-        k = Parameter(900)
-        x0 = Parameter(1.5)
+        x = Variable('x')
+        y = Variable('y')
+        k = Parameter('k', 900)
+        x0 = Parameter('x0', 1.5)
 
         # You can NOT do this in one go. Blame Sympy. Not my fault.
         cls.k = k
@@ -58,7 +58,8 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
             self.guess._sliders[self.guess.model.params[0]].reset()
 
     def test_slider_callback_data(self):
-        x_points = self.guess._x_points['x']
+        x = self.guess.model.independent_vars[0]
+        x_points = self.guess._x_points[x]
         hi = np.max(x_points)
         lo = np.min(x_points)
         new_x = (hi - lo) * np.random.random() + lo
@@ -77,14 +78,14 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
     def test_get_data(self):
         y = self.guess.model.dependent_vars[0]
         x = self.guess.model.independent_vars[0]
-        x_points = self.guess._x_points['x']
+        x_points = self.guess._x_points[x]
         k = self.k.value
         x0 = self.x0.value
         kbT = 4.11
         true_y = np_distr(x_points, k, x0)
         data = self.guess._eval_model()
         actual_y = data.y
-        actual_x = self.guess._x_points[x.name]
+        actual_x = self.guess._x_points[x]
         self.assertTrue(np.allclose(x_points, actual_x) and
                         np.allclose(true_y, actual_y))
 
@@ -113,11 +114,11 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
 class VectorValuedTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        x = Variable()
-        y1 = Variable()
-        y2 = Variable()
-        k = Parameter(900)
-        x0 = Parameter(1.5)
+        x = Variable('x')
+        y1 = Variable('y1')
+        y2 = Variable('y2')
+        k = Parameter('k', 900)
+        x0 = Parameter('x0', 1.5)
 
         model = {y1: k * (x-x0)**2,
                  y2: x - x0}
@@ -161,11 +162,11 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
         xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
 
-        x0 = Parameter(0.6)
-        sig_x = Parameter(0.2, min=0.0)
+        x0 = Parameter(value=0.6)
+        sig_x = Parameter(value=0.2, min=0.0)
         x = Variable()
-        y0 = Parameter(0.4)
-        sig_y = Parameter(0.1, min=0.0)
+        y0 = Parameter(value=0.4)
+        sig_y = Parameter(value=0.1, min=0.0)
         A = Parameter()
         y = Variable()
         g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)

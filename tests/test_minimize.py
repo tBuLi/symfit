@@ -9,6 +9,8 @@ from scipy.optimize import minimize
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit, Model
 )
+from symfit.core.objectives import MinimizeModel
+from symfit.core.minimizers import BFGS
 
 
 class TestMinimize(unittest.TestCase):
@@ -24,8 +26,8 @@ class TestMinimize(unittest.TestCase):
         result.
         https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
         """
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
+        x = Parameter(value=-1.0)
+        y = Parameter(value=1.0)
         z = Variable()
         model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 
@@ -55,8 +57,10 @@ class TestMinimize(unittest.TestCase):
         # Unconstrained fit
         res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
                method='BFGS', options={'disp': False})
-        fit = Fit(- model)
-        print(fit.objective)
+        fit = Fit(model=- model)
+        self.assertIsInstance(fit.objective, MinimizeModel)
+        self.assertIsInstance(fit.minimizer, BFGS)
+
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(x) / res.x[0], 1.0, 6)
@@ -71,13 +75,12 @@ class TestMinimize(unittest.TestCase):
         self.assertEqual(fit.constraints[0].constraint_type, Ge)
         self.assertEqual(fit.constraints[1].constraint_type, Eq)
         fit_result = fit.execute()
-        print(fit_result)
         self.assertAlmostEqual(fit_result.value(x), res.x[0], 6)
         self.assertAlmostEqual(fit_result.value(y), res.x[1], 6)
 
     def test_constraint_types(self):
-        x = Parameter(-1.0)
-        y = Parameter(1.0)
+        x = Parameter(value=-1.0)
+        y = Parameter(value=1.0)
         z = Variable()
         model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 

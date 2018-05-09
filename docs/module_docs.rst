@@ -32,6 +32,33 @@ Operators
    :exclude-members: __weakref__
    :show-inheritance:
 
+Fit Results
+-----------
+
+.. automodule:: symfit.core.fit_results
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
+Minimizers
+----------
+
+.. automodule:: symfit.core.minimizers
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
+Objectives
+----------
+
+.. automodule:: symfit.core.objectives
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
 Support
 -------
 

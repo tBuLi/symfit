@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit, minimize
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge
+    parameters, Model, Eq, Ge, exp
 )
 from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
 from symfit.core.objectives import LogLikelihood
@@ -53,8 +53,8 @@ class Tests(unittest.TestCase):
         xdata = np.linspace(1, 10, 10)
         ydata = 3*xdata**2
 
-        a = Parameter(1.0)
-        b = Parameter(2.5)
+        a = Parameter(value=1.0)
+        b = Parameter(value=2.5)
         x, y = variables('x, y')
 
         model = {y: a*x**b}
@@ -64,6 +64,32 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.value(a), 3.0)
         self.assertAlmostEqual(fit_result.value(b), 2.0)
+
+    def test_backwards_compatible_fitting(self):
+        """
+        In 0.4.2 we replaced the usage of inspect by automatically generated
+        names. This can cause problems for users using named variables to call
+        fit.
+        """
+        xdata = np.linspace(1, 10, 10)
+        ydata = 3*xdata**2
+
+        a = Parameter(value=1.0)
+        b = Parameter(value=2.5)
+
+        y = Variable('y')
+
+        with warnings.catch_warnings(record=True) as w:
+            # Cause all warnings to always be triggered.
+            warnings.simplefilter("always")
+            x = Variable()
+            self.assertTrue(len(w) == 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+
+        model = {y: a*x**b}
+
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xdata, y=ydata)
 
     def test_vector_fitting(self):
         """
@@ -303,11 +329,11 @@ class Tests(unittest.TestCase):
 
         zdata = (2.5*xx**2 + 3.0*yy**2)
 
-        a = Parameter(2.5, max=2.75)
-        b = Parameter(3.0, min=2.75)
-        x = Variable()
-        y = Variable()
-        z = Variable()
+        a = Parameter(value=2.5, max=2.75)
+        b = Parameter(value=3.0, min=2.75)
+        x = Variable('x')
+        y = Variable('y')
+        z = Variable('z')
         new = {z: a*x**2 + b*y**2}
 
         fit = Fit(new, x=xx, y=yy, z=zdata)
@@ -376,10 +402,10 @@ class Tests(unittest.TestCase):
         xdata = np.random.randint(-10, 11, size=(2, 400))
         zdata = 2.5*xdata[0]**2 + 7.0*xdata[1]**2
 
-        a = Parameter()
-        b = Parameter()
-        x = Variable()
-        y = Variable()
+        a = Parameter('a')
+        b = Parameter('b')
+        x = Variable('x')
+        y = Variable('y')
         new = a*x**2 + b*y**2
 
         fit = Fit(new, xdata[0], xdata[1], zdata)
@@ -400,10 +426,10 @@ class Tests(unittest.TestCase):
         xdata = 2*np.random.rand(10000) - 1  # random betwen [-1, 1]
         ydata = 5.0 * scipy.stats.norm.pdf(xdata, loc=0.0, scale=1.0)
 
-        x0 = Parameter()
-        sig = Parameter()
-        A = Parameter()
-        x = Variable()
+        x0 = Parameter('x0')
+        sig = Parameter('sig')
+        A = Parameter('A')
+        x = Variable('x')
         g = A * Gaussian(x, x0, sig)
 
         fit = Fit(g, xdata, ydata)
@@ -445,20 +471,20 @@ class Tests(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
         # xdata = np.dstack((xx, yy)).T
 
-        x = Variable()
-        y = Variable()
+        x = Variable('x')
+        y = Variable('y')
 
-        x0_1 = Parameter(0.7, min=0.6, max=0.9)
-        sig_x_1 = Parameter(0.1, min=0.0, max=0.2)
-        y0_1 = Parameter(0.8, min=0.6, max=0.9)
-        sig_y_1 = Parameter(0.1, min=0.0, max=0.2)
+        x0_1 = Parameter(value=0.7, min=0.6, max=0.9)
+        sig_x_1 = Parameter(value=0.1, min=0.0, max=0.2)
+        y0_1 = Parameter(value=0.8, min=0.6, max=0.9)
+        sig_y_1 = Parameter(value=0.1, min=0.0, max=0.2)
         A_1 = Parameter()
         g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
 
-        x0_2 = Parameter(0.3, min=0.2, max=0.5)
-        sig_x_2 = Parameter(0.1, min=0.0, max=0.2)
-        y0_2 = Parameter(0.4, min=0.2, max=0.5)
-        sig_y_2 = Parameter(0.1, min=0.0, max=0.2)
+        x0_2 = Parameter(value=0.3, min=0.2, max=0.5)
+        sig_x_2 = Parameter(value=0.1, min=0.0, max=0.2)
+        y0_2 = Parameter(value=0.4, min=0.2, max=0.5)
+        sig_y_2 = Parameter(value=0.1, min=0.0, max=0.2)
         A_2 = Parameter()
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
 
@@ -500,12 +526,12 @@ class Tests(unittest.TestCase):
 
         x0 = Parameter(value=mean[0])
         sig_x = Parameter(min=0.0)
-        x = Variable()
+        x = Variable('x')
         y0 = Parameter(value=mean[1])
         sig_y = Parameter(min=0.0)
         A = Parameter(min=1, value=100)
-        y = Variable()
-        g = Variable()
+        y = Variable('y')
+        g = Variable('g')
 #        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
         model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
         fit = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
@@ -532,18 +558,27 @@ class Tests(unittest.TestCase):
         """
         Fit using the likelihood method.
         """
-        b = Parameter(4, min=3.0)
-        x = Variable()
-        pdf = Exp(x, 1/b)
+        b = Parameter(value=4, min=3.0)
+        x, y = variables('x, y')
+        pdf = {y: Exp(x, 1/b)}
 
         # Draw points from an Exp(5) exponential distribution.
         np.random.seed(100)
-        xdata = np.random.exponential(5, 100000)
+        xdata = np.random.exponential(5, 1000000)
 
+        # Expected parameter values
+        mean = np.mean(xdata)
+        stdev = np.std(xdata)
+        mean_stdev = stdev / np.sqrt(len(xdata))
+
+        with self.assertRaises(NotImplementedError):
+            fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata), 3)
+        self.assertAlmostEqual(fit_result.value(b) / mean, 1, 3)
+        self.assertAlmostEqual(fit_result.value(b) / stdev, 1, 3)
+        self.assertAlmostEqual(fit_result.stdev(b) / mean_stdev, 1, 3)
 
     def test_likelihood_fitting_gaussian(self):
         """
@@ -555,67 +590,32 @@ class Tests(unittest.TestCase):
         mu.value = 50.
         x = Variable()
         pdf = Gaussian(x, mu, sig)
-        # pdf = sympy.exp(-(x - mu)**2/(2*sig**2))/sympy.sqrt(2*sympy.pi*sig**2)
 
         np.random.seed(10)
-        xdata = np.random.normal(51., 3.5, 100000)
+        xdata = np.random.normal(51., 3.5, 10000)
+
+        # Expected parameter values
+        mean = np.mean(xdata)
+        stdev = np.std(xdata)
+        mean_stdev = stdev/np.sqrt(len(xdata))
 
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(mu), np.mean(xdata), 1)
-        self.assertAlmostEqual(fit_result.value(sig), np.std(xdata), 3)
-
-    def test_parameter_add(self):
-        """
-        Makes sure the __add__ method of Parameters behaves as expected.
-        """
-        a = Parameter(value=1.0, min=0.5, max=1.5)
-        b = Parameter(1.0, min=0.0)
-        new = a + b
-        self.assertIsInstance(new, sympy.Add)
-
-    def test_argument_name(self):
-        """
-        Make sure that Parameters have a name attribute with the expected
-        value.
-        """
-        a = Parameter()
-        b = Parameter(name='b')
-        c = Parameter(name='d')
-        self.assertEqual(a.name, 'a')
-        self.assertEqual(b.name, 'b')
-        self.assertEqual(c.name, 'd')
-
-    def test_symbol_add(self):
-        """
-        Makes sure the __add__ method of symbols behaves as expected.
-        """
-        x, y = sympy.symbols('x y')
-        new = x + y
-        self.assertIsInstance(new, sympy.Add)
+        self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
+        self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
+        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
 
     def test_evaluate_model(self):
         """
         Makes sure that models are callable and give the expected answer.
         """
-        A = Parameter()
-        x = Variable()
+        A = Parameter('A')
+        x = Variable('x')
         new = A * x ** 2
 
         self.assertEqual(new(x=2, A=2), 8)
         self.assertNotEqual(new(x=2, A=3), 8)
-
-    # TODO: Do we really need to test this?
-    def test_symbol_object_add(self):
-        """
-        Makes sure the __add__ method of sympy's Symbol behaves as expected.
-        """
-        from sympy.core.symbol import Symbol
-        x = Symbol('x')
-        y = Symbol('y')
-        new = x + y
-        self.assertIsInstance(new, sympy.Add)
 
     def test_simple_sigma(self):
         """
@@ -630,8 +630,8 @@ class Tests(unittest.TestCase):
         sigma_t = sigma / np.sqrt(n)
 
         # We now define our model
-        y = Variable()
-        g = Parameter()
+        y = Variable('x')
+        g = Parameter('g')
         t_model = (2 * y / g)**0.5
 
         fit = Fit(t_model, y_data, t_data)  # , sigma=sigma_t)
@@ -686,12 +686,12 @@ class Tests(unittest.TestCase):
         errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
 
         # raise Exception(xy, z)
-        a = Parameter(3.0)
-        b = Parameter(0.9)
-        c = Parameter(5)
-        x = Variable()
-        y = Variable()
-        z = Variable()
+        a = Parameter(value=3.0)
+        b = Parameter(value=0.9)
+        c = Parameter(value=5)
+        x = Variable('x')
+        y = Variable('y')
+        z = Variable('z')
         model = {z: a * log(b * x + c * y)}
 
         # fit = Fit(model, xy, z, absolute_sigma=False)
@@ -754,13 +754,11 @@ class Tests(unittest.TestCase):
         yn = np.random.normal(size=len(xn), scale=sigma)
 
         a = Parameter()
-        y = Variable()
+        y = Variable('y')
         model = {y: a}
 
         fit = Fit(model, y=yn, sigma_y=sigma)
         fit_result = fit.execute()
-        print(fit_result)
-        print(fit.absolute_sigma)
 
         popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
         self.assertAlmostEqual(fit_result.value(a), popt[0], 5)
@@ -831,6 +829,24 @@ class Tests(unittest.TestCase):
     #     self.assertAlmostEqual(b_exact, fit_result.params.b, 4)
     #     self.assertAlmostEqual(var_a_exact**0.5, fit_result.params.a_stdev, 6)
     #     self.assertAlmostEqual(var_b_exact**0.5, fit_result.params.b_stdev, 6)
+
+    def test_fixed_parameters(self):
+        """
+        Make sure fixed parameters don't change on fitting
+        """
+        xdata = np.arange(100)
+        ydata = np.arange(100)
+        
+        a, b, c, d = parameters('a, b, c, d')
+        x, y = variables('x, y')
+        
+        c.value = 4.0
+        c.fixed = True
+        
+        model_dict = {y: a * exp(-(x - b)**2 / (2 * c**2)) + d}
+        fit = Fit(model_dict, x=xdata, y=ydata)
+        fit_result = fit.execute()
+        self.assertEqual(4.0, fit_result.params['c'])
 
     def test_model_from_dict(self):
         """
