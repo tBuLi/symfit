@@ -1633,10 +1633,6 @@ class ODEModel(CallableModel):
     """
     Model build from a system of ODEs. When the model is called, the ODE is
     integrated using the LSODA package.
-
-    Currently the initial conditions are assumed to specify the
-    first point to begin the integration from. This is enforced. In future
-    versions one should be allowed to specify the initial value as a parameter.
     """
     def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
         """
