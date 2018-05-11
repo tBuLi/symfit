@@ -1760,6 +1760,7 @@ class ODEModel(CallableModel):
         # The strategy is to split the time axis in a part above and below the
         # initial value, and to integrate those seperately. At the end we rejoin them.
         # np.flip is needed because odeint wants the first point to be t_initial
+        # and so t_smaller is a declining series.
         if t_initial in t_like:
             t_bigger = t_like[t_like >= t_initial]
             t_smaller = np.flip(t_like[t_like <= t_initial], axis=-1)
@@ -1770,7 +1771,8 @@ class ODEModel(CallableModel):
             t_smaller = np.concatenate(
                 (np.array([t_initial]), np.flip(t_like[t_like < t_initial], axis=-1))
             )
-            t_total = np.concatenate((t_like[t_like < t_initial] ,t_bigger))
+        # Properly ordered time axis containing t_initial
+        t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
 
         ans_bigger = odeint(
             f,
@@ -1793,8 +1795,12 @@ class ODEModel(CallableModel):
 
         ans = np.concatenate((np.flip(ans_smaller[1:], axis=0), ans_bigger))
         if t_initial in t_like:
+            # The user also requested to know the value at t_initial, so keep it.
             return ans.T
         else:
+            # The user didn't ask for the value at t_initial, so exclude it.
+            # (t_total contains all the t-points used for the integration,
+            # and so is t_like with t_initial inserted at the right position).
             return ans[t_total != t_initial].T
 
     def __call__(self, *args, **kwargs):
