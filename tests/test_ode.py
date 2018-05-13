@@ -147,7 +147,7 @@ class TestODE(unittest.TestCase):
         # This also means harmonic_dict should NOT be a Model object.
         harmonic_model_array = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
         harmonic_model_points = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
-        tdata = np.linspace(0, 100, 101)
+        tdata = np.linspace(-100, 100, 101)
         X, Y = harmonic_model_array(t=tdata, k=0.1)
         # Shuffle the data to prevent using the result at time t to calculate
         # t+dt
@@ -160,60 +160,41 @@ class TestODE(unittest.TestCase):
             self.assertAlmostEqual(X_point[0], X_val)
             self.assertAlmostEqual(Y_point[0], Y_val)
 
-        # plt.plot(tdata, Y)
-        # plt.scatter(tdata[-1], Y_point)
-        # plt.show()
 
-    def test_mixed_model(self):
+    def test_full_eval_range(self):
         """
-        In principle some components of the model might be provided as ODEs
-        while others are not. This is a slightly fabricated scenario to test if
-        this is true.
+        Test if ODEModels can be evaluated at t < t_initial.
 
-        We take a harmonic oscilater as a system of first order ODEs and
-        partially solve it. This should be the same as the original ODE.
-
-        DISCLAIMER
-        I'm not even conviced this should be allowed, and since it doesn't work
-        out of the box I'm not going te break my head over it. If a usecase
-        presents itself I'll look into it again.
+        A bit of a no news is good news test.
         """
-        pass
+        tdata = np.array([0, 10, 26, 44, 70, 120])
+        adata = 10e-4 * np.array([54, 44, 34, 27, 20, 14])
+        a, b, t = variables('a, b, t')
+        k, a0 = parameters('k, a0')
+        k.value = 0.01
+        t0 = tdata[2]
+        a0 = adata[2]
+        b0 = 0.02729855 # Obtained from evaluating from t=0.
 
+        model_dict = {
+            D(a, t): - k * a**2,
+            D(b, t): k * a**2,
+        }
 
-        # x, t = variables('x, t')
-        # k, C = parameters('k, C') # C is the integration constant.
-        #
-        # # First order system, partially integrated
-        # y = k * x * t,
-        # mixed_dict = {
-        #     D(x, t): - k * y,
-        # }
-        # mixed_model = ODEModel(mixed_dict, initial={t: 0.0, x: 1.0})
-        #
-        # tdata = np.linspace(0, 31.6, 1000)
-        # # Eval
-        # X, = mixed_model(t=tdata, k=0.1)
-        #
-        # plt.plot(t, X)
-        # plt.show()
-        #
-        # x, y, t = variables('x, y, t')
-        # k, C = parameters('k, C') # C is the integration constant.
-        #
-        # # The harmonic oscillator as a system, >1st order is not supported yet.
-        # harmonic_dict = {
-        #     D(x, t): - k * y,
-        #     D(y, t): k * x,
-        # }
-        # harmonic_model = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
-        #
-        # tdata = np.linspace(0, 31.6, 1000)
-        # # Eval
-        # X, Y = harmonic_model(t=tdata, k=0.1)
-        #
-        # plt.scatter(X, Y)
-        # plt.show()
+        ode_model = ODEModel(model_dict, initial={t: t0, a: a0, b: b0})
+
+        fit = Fit(ode_model, t=tdata, a=adata, b=None)
+        ode_result = fit.execute()
+        self.assertGreater(ode_result.r_squared, 0.95, 4)
+
+        # Now start from a timepoint that is not in the t-array such that it
+        # triggers another pathway to be taken in integrating it.
+        # Again, no news is good news.
+        ode_model = ODEModel(model_dict, initial={t: t0 + 1e-5, a: a0, b: b0})
+
+        fit = Fit(ode_model, t=tdata, a=adata, b=None)
+        ode_result = fit.execute()
+        self.assertGreater(ode_result.r_squared, 0.95, 4)
 
 
 if __name__ == '__main__':

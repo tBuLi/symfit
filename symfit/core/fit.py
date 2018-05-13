@@ -1633,10 +1633,6 @@ class ODEModel(CallableModel):
     """
     Model build from a system of ODEs. When the model is called, the ODE is
     integrated using the LSODA package.
-
-    Currently the initial conditions are assumed to specify the
-    first point to begin the integration from. This is enforced. In future
-    versions one should be allowed to specify the initial value as a parameter.
     """
     def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
         """
@@ -1753,33 +1749,59 @@ class ODEModel(CallableModel):
         Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
-        initial_independent = self.initial[self.independent_vars[0]] # Assuming there's only one
+        t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
-        # For fitting to make sence, it should probably not be in there though. Needs mathematical backing.
         try:
             t_like[0]
         except (TypeError, IndexError): # Python scalar gives TypeError, numpy scalars IndexError
             t_like = np.array([t_like]) # Allow evaluation at one point.
 
-        if t_like[0] == initial_independent:
-            start = 0
-            warnings.warn("The initial point should probably not be included with your data points as this point will always be fitted perfectly.")
-        elif t_like[0] < initial_independent:
-            raise ModelError('ODEModel\'s can not be evaluated for values smaller than the initial value')
+        # The strategy is to split the time axis in a part above and below the
+        # initial value, and to integrate those seperately. At the end we rejoin them.
+        # np.flip is needed because odeint wants the first point to be t_initial
+        # and so t_smaller is a declining series.
+        if t_initial in t_like:
+            t_bigger = t_like[t_like >= t_initial]
+            t_smaller = t_like[t_like <= t_initial][::-1]
         else:
-            assert len(t_like.shape) == 1
-            t_like = np.hstack((np.array([initial_independent]), t_like))
-            start = 1
-        ans = odeint(
+            t_bigger = np.concatenate(
+                (np.array([t_initial]), t_like[t_like > t_initial])
+            )
+            t_smaller = np.concatenate(
+                (np.array([t_initial]), t_like[t_like < t_initial][::-1])
+            )
+        # Properly ordered time axis containing t_initial
+        t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
+
+        ans_bigger = odeint(
             f,
             initial_dependent,
-            t_like,
-            args=tuple(bound_arguments.arguments[param.name] for param in self.params),
+            t_bigger,
+            args=tuple(
+                bound_arguments.arguments[param.name] for param in self.params),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
-        return ans[start:].T
+        ans_smaller = odeint(
+            f,
+            initial_dependent,
+            t_smaller,
+            args=tuple(
+                bound_arguments.arguments[param.name] for param in self.params),
+            Dfun=Dfun,
+            *self.lsoda_args, **self.lsoda_kwargs
+        )
+
+        ans = np.concatenate((ans_smaller[1:][::-1], ans_bigger))
+        if t_initial in t_like:
+            # The user also requested to know the value at t_initial, so keep it.
+            return ans.T
+        else:
+            # The user didn't ask for the value at t_initial, so exclude it.
+            # (t_total contains all the t-points used for the integration,
+            # and so is t_like with t_initial inserted at the right position).
+            return ans[t_total != t_initial].T
 
     def __call__(self, *args, **kwargs):
         """
