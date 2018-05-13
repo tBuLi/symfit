@@ -1763,13 +1763,13 @@ class ODEModel(CallableModel):
         # and so t_smaller is a declining series.
         if t_initial in t_like:
             t_bigger = t_like[t_like >= t_initial]
-            t_smaller = np.flip(t_like[t_like <= t_initial], axis=-1)
+            t_smaller = t_like[t_like <= t_initial][::-1]
         else:
             t_bigger = np.concatenate(
                 (np.array([t_initial]), t_like[t_like > t_initial])
             )
             t_smaller = np.concatenate(
-                (np.array([t_initial]), np.flip(t_like[t_like < t_initial], axis=-1))
+                (np.array([t_initial]), t_like[t_like < t_initial][::-1])
             )
         # Properly ordered time axis containing t_initial
         t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
@@ -1793,7 +1793,7 @@ class ODEModel(CallableModel):
             *self.lsoda_args, **self.lsoda_kwargs
         )
 
-        ans = np.concatenate((np.flip(ans_smaller[1:], axis=0), ans_bigger))
+        ans = np.concatenate((ans_smaller[1:][::-1], ans_bigger))
         if t_initial in t_like:
             # The user also requested to know the value at t_initial, so keep it.
             return ans.T
