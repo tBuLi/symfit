@@ -25,6 +25,7 @@ class BaseMinimizer(object):
         self._fixed_params = [p for p in parameters if p.fixed]
         self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
         self.params = [p for p in parameters if not p.fixed]
+        self._initial_guesses = None
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -38,14 +39,15 @@ class BaseMinimizer(object):
 
     @property
     def initial_guesses(self):
-        return [p.value for p in self.params]
+        if self._initial_guesses:
+            return self._initial_guesses
+        else:
+            return [p.value for p in self.params]
 
     @initial_guesses.setter
     def initial_guesses(self, vals):
-        if len(vals) != len(self.params):
-            raise IndexError
-        for p, val in zip(self.params, vals):
-            p.value = val
+        self._initial_guesses = vals
+
 
 class BoundedMinimizer(BaseMinimizer):
     """
@@ -106,36 +108,29 @@ class GlobalMinimizer(BaseMinimizer):
         super(GlobalMinimizer, self).__init__(*args, **kwargs)
 
 
-def ChainedMinimizer(specific_minimizers):
-    class SpecificChainedMinimizer(BaseMinimizer):
-        minimizers = list(specific_minimizers)
+class ChainedMinimizer(BaseMinimizer):
+    @keywordonly(minimizers=None)
+    def __init__(self, *args, **kwargs):
+        minimizers = kwargs.pop('minimizers')
+        super(ChainedMinimizer, self).__init__(*args, **kwargs)
+        self.minimizers = minimizers
 
-        def __init__(self, *args, **kwargs):
-            super(SpecificChainedMinimizer, self).__init__(*args, **kwargs)
-            for idx, minimizer in enumerate(self.minimizers):
-                if not isinstance(minimizer, BaseMinimizer):
-                    # TODO: figure out how to do the initialisation proper and
-                    # pass e.g. the jacobian the minimizers that can deal with 
-                    # it. See also Fit.
-                    self.minimizers[idx] = minimizer(*args, **kwargs)
-
-        def execute(self, minimizer_kwargs=None):
-            if minimizer_kwargs is None:
-                minimizer_kwargs = [{} for _ in self.minimizers]
-            answers = []
-            next_guess = self.initial_guesses
-            for minimizer, kwargs in zip(self.minimizers, minimizer_kwargs):
-                minimizer.initial_guesses = next_guess
-                ans = minimizer.execute(**kwargs)
-                next_guess = ans.params.values()
-                answers.append(ans)
-            final = answers[-1]
-            # TODO: Compile all previous results in one, instead of just the
-            # number of function evaluations. But there's some code down the
-            # line that expects scalars.
-            final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
-            return final
-    return SpecificChainedMinimizer
+    def execute(self, minimizer_kwargs=None):
+        if minimizer_kwargs is None:
+            minimizer_kwargs = [{} for _ in self.minimizers]
+        answers = []
+        next_guess = self.initial_guesses
+        for minimizer, kwargs in zip(self.minimizers, minimizer_kwargs):
+            minimizer.initial_guesses = next_guess
+            ans = minimizer.execute(**kwargs)
+            next_guess = list(ans.params.values())
+            answers.append(ans)
+        final = answers[-1]
+        # TODO: Compile all previous results in one, instead of just the
+        # number of function evaluations. But there's some code down the
+        # line that expects scalars.
+        final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
+        return final
 
 
 class ScipyMinimize(object):
