@@ -1313,8 +1313,6 @@ class Fit(TakesData, HasCovarianceMatrix):
 
         # Initialise the minimizer
         if isinstance(minimizer, Sequence):
-            # Should we maybe instead pass the jacobian (etc) just to the
-            # ChainedMinimizer?
             minimizers = [self._init_minimizer(mini) for mini in minimizer]
             self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:

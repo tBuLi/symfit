@@ -113,7 +113,7 @@ class ChainedMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         minimizers = kwargs.pop('minimizers')
         super(ChainedMinimizer, self).__init__(*args, **kwargs)
-        self.minimizers = list(minimizers)
+        self.minimizers = minimizers
 
     def execute(self, minimizer_kwargs=None):
         if minimizer_kwargs is None:
