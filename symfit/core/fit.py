@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import namedtuple, Mapping, OrderedDict, Sequence
 import copy
 from functools import partial
 import sys
@@ -16,7 +16,7 @@ from .support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str
 
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
-    ScipyMinimize, MINPACK
+    ScipyMinimize, MINPACK, ChainedMinimizer
 )
 from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
@@ -1312,31 +1312,34 @@ class Fit(TakesData, HasCovarianceMatrix):
                 minimizer = BFGS
 
         # Initialise the minimizer
-        if isinstance(minimizer, BaseMinimizer):
-            self.minimizer = minimizer
+        if isinstance(minimizer, Sequence):
+            # Should we maybe instead pass the jacobian (etc) just to the
+            # ChainedMinimizer?
+            minimizers = [self._init_minimizer(mini) for mini in minimizer]
+            self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:
-            minimizer_options = {}
-            if issubclass(minimizer, GradientMinimizer):
-                # If an analytical version of the Jacobian exists we should use
-                # that, otherwise we let the minimizer estimate it itself.
-                # Hence the check of numerical_jacobian, as this is the
-                # py function version of the analytical jacobian.
-                if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
-                    minimizer_options['jacobian'] = self.objective.eval_jacobian
+            self.minimizer = self._init_minimizer(minimizer)
 
-            if issubclass(minimizer, ConstrainedMinimizer):
-                if issubclass(minimizer, ScipyMinimize):
-                    minimizer_options['constraints'] = minimizer.scipy_constraints(
-                        self.constraints,
-                        self.data
-                    )
-                else:
-                    minimizer_options['constraints'] = self.constraints
-            self.minimizer = minimizer(
-                self.objective,
-                self.model.params,
-                **minimizer_options
-            )
+    def _init_minimizer(self, minimizer, **minimizer_options):
+        if isinstance(minimizer, BaseMinimizer):
+            return minimizer
+        if issubclass(minimizer, GradientMinimizer):
+            # If an analytical version of the Jacobian exists we should use
+            # that, otherwise we let the minimizer estimate it itself.
+            # Hence the check of numerical_jacobian, as this is the
+            # py function version of the analytical jacobian.
+            if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
+                minimizer_options['jacobian'] = self.objective.eval_jacobian
+
+        if issubclass(minimizer, ConstrainedMinimizer):
+            if issubclass(minimizer, ScipyMinimize):
+                minimizer_options['constraints'] = minimizer.scipy_constraints(
+                    self.constraints,
+                    self.data
+                )
+            else:
+                minimizer_options['constraints'] = self.constraints
+        return minimizer(self.objective, self.model.params, **minimizer_options)
 
     def _init_constraints(self, constraints):
         """
