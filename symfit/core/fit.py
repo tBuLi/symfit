@@ -1286,7 +1286,7 @@ class Fit(HasCovarianceMatrix):
             parameters and returns a scalar.
         :param minimizer: Have Fit use your specified
             :class:`symfit.core.minimizers.BaseMinimizer`. Can be a
-            :class:`~collections.Sequence` of :class:`symfit.core.minimizers.BaseMinimizer`.
+            :class:`~collections.abc.Sequence` of :class:`symfit.core.minimizers.BaseMinimizer`.
         :param ordered_data: data for dependent, independent and sigma
             variables. Assigned in the following order: independent vars are
             assigned first, then dependent vars, then sigma's in dependent

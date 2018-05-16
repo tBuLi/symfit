@@ -116,7 +116,7 @@ class ChainedMinimizer(BaseMinimizer):
     A minimizer that consists of multiple other minimizers, each executed in
     order.
 
-    :param minimizers: a :class:`~collections.Sequence` of
+    :param minimizers: a :class:`~collections.abc.Sequence` of
         :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need to
         be run in order.
     """
