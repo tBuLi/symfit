@@ -104,11 +104,22 @@ class GradientMinimizer(BaseMinimizer):
 
 
 class GlobalMinimizer(BaseMinimizer):
+    """
+    A minimizer that looks for a global minimum, instead of a local one.
+    """
     def __init__(self, *args, **kwargs):
         super(GlobalMinimizer, self).__init__(*args, **kwargs)
 
 
 class ChainedMinimizer(BaseMinimizer):
+    """
+    A minimizer that consists of multiple other minimizers, each executed in
+    order.
+
+    :param minimizers: a :class:`~collections.Sequence` of
+        :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need to
+        be run in order.
+    """
     @keywordonly(minimizers=None)
     def __init__(self, *args, **kwargs):
         minimizers = kwargs.pop('minimizers')
@@ -161,6 +172,14 @@ class ScipyMinimize(object):
         return wrapped_func
 
     def _pack_output(self, ans):
+        """
+        Packs the output of a minimization in a
+        :class:`~symfit.core.fit_results.FitResults`.
+
+        :param ans: The output of a minimization as produced by 
+            :func:`scipy.optimize.minimize`
+        :returns: :class:`~symfit.core.fit_results.FitResults`
+        """
         # Build infodic
         infodic = {
             'nfev': ans.nfev,

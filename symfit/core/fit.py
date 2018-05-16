@@ -1277,19 +1277,22 @@ class Fit(HasCovarianceMatrix):
         :param constraints: iterable of ``Relation`` objects to be used as
             constraints.
         :param bool absolute_sigma: True by default. If the sigma is only used
-            for relative weights in your problem, you could consider setting it to
-            False, but if your sigma are measurement errors, keep it at True.
-            Note that curve_fit has this set to False by default, which is wrong in
-            experimental science.
+            for relative weights in your problem, you could consider setting it
+            to False, but if your sigma are measurement errors, keep it at True.
+            Note that curve_fit has this set to False by default, which is
+            wrong in experimental science.
         :param objective: Have Fit use your specified objective. Can be one of
             the predefined `symfit` objectives or any callable which accepts fit
             parameters and returns a scalar.
-        :param minimizer: Have Fit use your specified :class:`symfit.core.minimizers.BaseMinimizer`.
-        :param ordered_data: data for dependent, independent and sigma variables. Assigned in
-            the following order: independent vars are assigned first, then dependent
-            vars, then sigma's in dependent vars. Within each group they are assigned in
-            alphabetical order.
-        :param named_data: assign dependent, independent and sigma variables data by name.
+        :param minimizer: Have Fit use your specified
+            :class:`symfit.core.minimizers.BaseMinimizer`. Can be a
+            :class:`~collections.Sequence` of :class:`symfit.core.minimizers.BaseMinimizer`.
+        :param ordered_data: data for dependent, independent and sigma
+            variables. Assigned in the following order: independent vars are
+            assigned first, then dependent vars, then sigma's in dependent
+            vars. Within each group they are assigned in alphabetical order.
+        :param named_data: assign dependent, independent and sigma variables
+            data by name.
         """
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
@@ -1343,6 +1346,17 @@ class Fit(HasCovarianceMatrix):
             self.minimizer = self._init_minimizer(minimizer)
 
     def _init_minimizer(self, minimizer, **minimizer_options):
+        """
+        Takes a :class:`~symfit.core.minimizers.BaseMinimizer` and instantiates
+        it, passing the jacobian and constraints as appropriate for the
+        minimizer.
+
+        :param minimizer: :class:`~symfit.core.minimizers.BaseMinimizer` to
+            instantiate.
+        :param **minimizer_options: Further options to be passed to the
+            minimizer on instantiation.
+        :returns: instance of :class:`~symfit.core.minimizers.BaseMinimizer`.
+        """
         if isinstance(minimizer, BaseMinimizer):
             return minimizer
         if issubclass(minimizer, GradientMinimizer):
