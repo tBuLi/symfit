@@ -1,6 +1,8 @@
 *.pyc
 .idea
 .cache
+.pytest_cache
+docs_build
 build
 _build
 dist
