@@ -406,8 +406,48 @@ normal way::
 
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
+Finding the optimal solution
+----------------------------
+Very often, there are multiple solutions to a fitting (or minimisation)
+problem. These are local minima of the objective function. The best solution of
+course is the global minimum, but most minimization algorithms will only find a
+local minimum, and thus the answer you get will depend on the initial values of
+your parameters. This can be incredibly annoying if you have no further
+knowledge about your system.
+
+Luckily, global minimizers exist which are not influenced by the initial
+guesses for your parameters. In symfit the
+:func:`~scipy.optimize.differential_evolution` algorithm from :mod:`scipy` is
+wrapped as :class:`~symfit.core.minimizers.DifferentialEvolution`. To use it,
+just tell :class:`~symfit.core.fit.Fit`::
+
+    x = Parameter('x')
+    x.min, x.max = -100, 100
+    x.value = -2.5
+    y = Variable('y')
+
+    model = Model({y: x**4 - 10 * x**2 - x})  # Skewed Mexican hat
+    fit = Fit(model, minimizer=DifferentialEvolution)
+
+However, due to how the algorithm works, it's not great at finding the exact
+minimum (but it will find it if given enough time). You can work around this by
+"chaining" minimizers: first run a global minimization to (hopefully) get close
+to your answer, and then polish it off using a local minimizer::
+
+    fit = Fit(model, minimizer=[DifferentialEvolution, BFGS])
+
+.. note::
+  Differential evolution is rather sensitive to it's hyperparameters. You might
+  need to play with those to get appropriate results::
+  
+    fit.execute(minimizer_kwargs=[dict(popsize=20, recombination=0.9), {}])
+
+.. note::
+  There is no way to garuantee that the minimum found is actually the global
+  minimum. Unfortunately there is no way around this.
+
 Advanced usage
-..............
+--------------
 In general, the separate components of the model can be whatever you need them
 to be. You can mix and match which variables and parameters should be coupled
 and decoupled ad lib. Some examples are given below.

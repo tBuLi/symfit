@@ -114,13 +114,21 @@ class ChainedMinimizer(BaseMinimizer):
     """
     A minimizer that consists of multiple other minimizers, each executed in
     order.
+    This is valuable if you have minimizers that are not good at finding the
+    exact minimum such as :class:`~symfit.core.minimizers.NelderMead` or
+    :class:`~symfit.core.minimizers.DifferentialEvolution`.
 
-    :param minimizers: a :class:`~collections.abc.Sequence` of
-        :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need to
-        be run in order.
+    
     """
     @keywordonly(minimizers=None)
     def __init__(self, *args, **kwargs):
+        '''
+        :param minimizers: a :class:`~collections.abc.Sequence` of
+            :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need
+            to be run in order.
+        :param \*args: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
+        :param \*\*kwargs: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
+        '''
         minimizers = kwargs.pop('minimizers')
         super(ChainedMinimizer, self).__init__(*args, **kwargs)
         self.minimizers = minimizers

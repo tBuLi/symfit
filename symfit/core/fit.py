@@ -1243,6 +1243,9 @@ class Fit(TakesData, HasCovarianceMatrix):
         fit = Fit(model, x=xdata, y=ydata, minimizer=NelderMead)
         fit_result = fit.execute()
 
+        # Use Nelder-Mead to get close, and BFGS to polish it off
+        fit = Fit(model, x=xdata, y=ydata, minimizer=[NelderMead, BFGS])
+        fit_result = fit.execute(minimizer_kwargs=[dict(xatol=0.1), {}])
     """
 
     @keywordonly(objective=None, minimizer=None, constraints=None)
