@@ -11,7 +11,7 @@ from symfit import (
 from symfit.core.minimizers import BFGS, DifferentialEvolution
 from symfit.distributions import Gaussian
 
-class TestGlobalOpt(unittest.TestCase):
+class TestGlobalOptGaussian(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         np.random.seed(0)
@@ -79,6 +79,30 @@ class TestGlobalOpt(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(self.x0_1), 0.4, 4)
         self.assertAlmostEqual(fit_result.value(self.y0_1), 0.4, 4)
         self.assertEqual(curvals, [p.value for p in self.model.params])
+
+
+class TestGlobalOptMexican(unittest.TestCase):
+    def test_mexican_hat(self):
+        """
+        Test that global minimisation finds the global minima, and doesn't
+        affect the value of parameters.
+        """
+        x = Parameter('x')
+        x.min, x.max = -100, 100
+        x.value = -2.5
+        y = Variable('y')
+
+        model = Model({y: x**4 - 10 * x**2 - x})  # Skewed Mexican hat
+        fit = Fit(model, minimizer=[DifferentialEvolution, BFGS])
+        fit_result1 = fit.execute(minimizer_kwargs=[dict(seed=0), {}])
+
+        fit = Fit(model)
+        fit_result2 = fit.execute()
+
+        print(fit_result1)
+        self.assertGreater(fit_result1.value(x), 0)
+        print(fit_result2)
+        self.assertLess(fit_result2.value(x), 0)
 
 
 if __name__ == '__main__':

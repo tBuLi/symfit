@@ -25,7 +25,6 @@ class BaseMinimizer(object):
         self._fixed_params = [p for p in parameters if p.fixed]
         self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
         self.params = [p for p in parameters if not p.fixed]
-        self._initial_guesses = None
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -39,9 +38,9 @@ class BaseMinimizer(object):
 
     @property
     def initial_guesses(self):
-        if self._initial_guesses:
+        try:
             return self._initial_guesses
-        else:
+        except AttributeError:
             return [p.value for p in self.params]
 
     @initial_guesses.setter
