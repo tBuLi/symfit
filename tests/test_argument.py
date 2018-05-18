@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+import pickle
 import unittest
 import sys
 import sympy
@@ -74,6 +75,16 @@ class TestArgument(unittest.TestCase):
         x, y = sympy.symbols('x y')
         new = x + y
         self.assertIsInstance(new, sympy.Add)
+
+    def test_pickle(self):
+        """
+        Make sure attributes are preserved when pickling
+        """
+        A = Parameter('A', min=0., max=1e3, fixed=True)
+        new_A = pickle.loads(pickle.dumps(A))
+        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
+                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+
 
 if __name__ == '__main__':
     try:

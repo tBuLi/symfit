@@ -5,7 +5,8 @@ from sympy.core.symbol import Symbol
 
 class Argument(Symbol):
     """
-    Base class for ``symfit`` symbols. This helps make ``symfit`` symbols distinguishable from ``sympy`` symbols.
+    Base class for :mod:`symfit` symbols. This helps make :mod:`symfit` symbols
+    distinguishable from :mod:`sympy` symbols.
 
     If no name is explicitly provided a name will be generated.
 
@@ -46,6 +47,15 @@ class Argument(Symbol):
             self.name = name
         super(Argument, self).__init__()
 
+    def __getstate__(self):
+        state = super(Argument, self).__getstate__()
+        state.update(dict(
+            (slot, getattr(self, slot))
+            for slot in self.__slots__
+            if hasattr(self, slot)
+        ))
+        return state
+
 
 class Parameter(Argument):
     """
@@ -58,6 +68,7 @@ class Parameter(Argument):
     # Parameter index to be assigned to generated nameless parameters
     _argument_index = 0
     _argument_name = 'par'
+    __slots__ = ['min', 'max', 'fixed']
 
     def __new__(cls, name=None, *args, **kwargs):
         try:
