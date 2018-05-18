@@ -12,6 +12,7 @@ from .fit_results import FitResults
 
 DummyModel = namedtuple('DummyModel', 'params')
 
+
 class BaseMinimizer(object):
     """
     ABC for all Minimizers.
@@ -31,6 +32,7 @@ class BaseMinimizer(object):
         """
         The execute method should implement the actual minimization procedure,
         and should return a :class:`~symfit.core.fit_results.FitResults` instance.
+
         :param options: options to be used by the minimization procedure.
         :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
@@ -87,6 +89,7 @@ class GradientMinimizer(BaseMinimizer):
         """
         Removes values with identical indices to fixed parameters from the
         output of func.
+
         :param func: Function to be wrapped
         :return: wrapped function
         """
@@ -117,8 +120,6 @@ class ChainedMinimizer(BaseMinimizer):
     This is valuable if you have minimizers that are not good at finding the
     exact minimum such as :class:`~symfit.core.minimizers.NelderMead` or
     :class:`~symfit.core.minimizers.DifferentialEvolution`.
-
-    
     """
     @keywordonly(minimizers=None)
     def __init__(self, *args, **kwargs):
@@ -183,7 +184,7 @@ class ScipyMinimize(object):
         Packs the output of a minimization in a
         :class:`~symfit.core.fit_results.FitResults`.
 
-        :param ans: The output of a minimization as produced by 
+        :param ans: The output of a minimization as produced by
             :func:`scipy.optimize.minimize`
         :returns: :class:`~symfit.core.fit_results.FitResults`
         """
@@ -219,6 +220,17 @@ class ScipyMinimize(object):
 
     @keywordonly(tol=1e-9)
     def execute(self, bounds=None, jacobian=None, **minimize_options):
+        """
+        Calls the wrapped algorithm.
+
+        :param bounds: The bounds for the parameters. Usually filled by
+            :class:`~symfit.core.minimizers.BoundedMinimizer`.
+        :param jacobian: The Jacobian. Usually filled by
+            :class:`~symfit.core.minimizers.ScipyGradientMinimize`.
+        :param \*\*minimize_options: Further keywords to pass to
+            :func:`scipy.optimize.minimize`. Note that your `method` will
+            usually be filled by a specific subclass.
+        """
         ans = minimize(
             self.wrapped_objective,
             self.initial_guesses,
@@ -257,6 +269,9 @@ class ScipyMinimize(object):
         return cons
 
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
+    """
+    A base class for all :mod:`scipy` based minimizers that use a gradient.
+    """
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
         self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
@@ -266,10 +281,16 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
 
 
 class BFGS(ScipyGradientMinimize):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='BFGS'`.
+    """
     def execute(self, **minimize_options):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
 class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.differential_evolution`.
+    """
     @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
                  recombination=0.95, polish=False, init='latinhypercube')
     def execute(self, **de_options):
@@ -280,6 +301,9 @@ class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
 
 
 class SLSQP(ScipyGradientMinimize, ConstrainedMinimizer, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='SLSQP'`.
+    """
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             method='SLSQP',
@@ -289,6 +313,9 @@ class SLSQP(ScipyGradientMinimize, ConstrainedMinimizer, BoundedMinimizer):
 
 
 class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='L-BFGS-B'`.
+    """
     def execute(self, **minimize_options):
         return super(LBFGSB, self).execute(
             method='L-BFGS-B',
@@ -298,6 +325,9 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
 
 
 class NelderMead(ScipyMinimize, BaseMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='Nelder-Mead'`.
+    """
     def execute(self, **minimize_options):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
@@ -313,7 +343,7 @@ class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
 
     def execute(self, **minpack_options):
         """
-        :param minpack_options: Any named arguments to be passed to leastsqbound
+        :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
         popt, pcov, infodic, mesg, ier = leastsqbound(
             self.wrapped_objective,
