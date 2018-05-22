@@ -49,8 +49,11 @@ class Argument(Symbol):
 
     def __getstate__(self):
         state = super(Argument, self).__getstate__()
-        state.update({slot: getattr(self, slot) for slot in self.__slots__
-                      if hasattr(self, slot)})
+        state.update(dict(
+            (slot, getattr(self, slot))
+            for slot in self.__slots__
+            if hasattr(self, slot)
+        ))
         return state
 
 
