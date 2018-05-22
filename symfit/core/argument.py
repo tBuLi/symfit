@@ -1,13 +1,7 @@
-from collections import defaultdict
 import numbers
 import warnings
 
 from sympy.core.symbol import Symbol
-
-# This can not be a class attribute, since those become read only when they're
-# __slots__. Instead, make it a global dictionary of {class: count}.
-argument_indices = defaultdict(int)
-
 
 class Argument(Symbol):
     """
@@ -26,8 +20,6 @@ class Argument(Symbol):
         print(y.name)
         >> 'y'
     """
-    __slots__ = ['_argument_index', '_argument_name']
-
     def __new__(cls, name=None, *args, **assumptions):
         assumptions['real'] = True
         # Generate a dummy name
@@ -40,13 +32,13 @@ class Argument(Symbol):
                 DeprecationWarning, stacklevel=2
             )
 
-            name = '{}_{}'.format(cls._argument_name, argument_indices[cls])
+            name = '{}_{}'.format(cls._argument_name, cls._argument_index)
             instance = super(Argument, cls).__new__(cls, name, **assumptions)
+            instance._argument_index = cls._argument_index
+            cls._argument_index += 1
+            return instance
         else:
-            instance = super(Argument, cls).__new__(cls, name, **assumptions)
-        instance._argument_index = argument_indices[cls]
-        argument_indices[cls] += 1
-        return instance
+            return super(Argument, cls).__new__(cls, name, **assumptions)
 
     def __init__(self, name=None, *args, **assumptions):
         # TODO: A more careful look at Symbol.__init__ is needed! However, it
@@ -71,9 +63,9 @@ class Parameter(Argument):
     be generated.
     """
     # Parameter index to be assigned to generated nameless parameters
-    __slots__ = ['min', 'max', 'fixed', 'value']
-
+    _argument_index = 0
     _argument_name = 'par'
+    __slots__ = ['min', 'max', 'fixed']
 
     def __new__(cls, name=None, *args, **kwargs):
         try:
@@ -111,5 +103,5 @@ class Parameter(Argument):
 class Variable(Argument):
     """ Variable type."""
     # Variable index to be assigned to generated nameless variables
+    _argument_index = 0
     _argument_name = 'var'
-    __slots__ = ()

@@ -85,26 +85,6 @@ class TestArgument(unittest.TestCase):
         self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
                          (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
 
-    def test_slots(self):
-        """
-        Make sure Parameters and Variables don't have a __dict__
-        """
-        P = Parameter('P')
-        
-        print([x.__slots__ for x in Parameter.__mro__ if hasattr(x, '__slots__')])
-
-        try:
-            P.min = 0
-        except AttributeError:
-            self.fail()
-
-        with self.assertRaises(AttributeError):
-            P.foo = None
-
-        V = Variable('V')
-        with self.assertRaises(AttributeError):
-            V.bar = None
-
 
 if __name__ == '__main__':
     try:
