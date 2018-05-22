@@ -90,9 +90,9 @@ class TestArgument(unittest.TestCase):
         Make sure Parameters and Variables don't have a __dict__
         """
         P = Parameter('P')
-        
-        print([x.__slots__ for x in Parameter.__mro__ if hasattr(x, '__slots__')])
 
+        # If you only have __slots__ you can't set arbitrary attributes, but
+        # you *should* be able to set those that are in your __slots__
         try:
             P.min = 0
         except AttributeError:
