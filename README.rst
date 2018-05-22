@@ -46,7 +46,7 @@ Need I say more? How about I let another code example do the talking?
 
 .. code-block:: python
 
-  from symfit import parameters, Maximize, Equality, GreaterThan
+  from symfit import parameters, Fit, Equality, GreaterThan
   
   x, y = parameters('x, y')
   model = 2 * x * y + 2 * x - x**2 - 2 * y**2
@@ -55,7 +55,7 @@ Need I say more? How about I let another code example do the talking?
       GreaterThan(y, 1),
   ]
   
-  fit = Maximize(model, constraints=constraints)
+  fit = Fit(model, constraints=constraints)
   fit_result = fit.execute()
 
 I know what you are thinking. "What if I need to fit to a system of Ordinary Differential Equations?"
