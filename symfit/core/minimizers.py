@@ -2,7 +2,7 @@ import abc
 from collections import namedtuple
 from functools import partial
 
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 import sympy
 import numpy as np
 
@@ -11,6 +11,7 @@ from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 
 DummyModel = namedtuple('DummyModel', 'params')
+
 
 class BaseMinimizer(object):
     """
@@ -31,6 +32,7 @@ class BaseMinimizer(object):
         """
         The execute method should implement the actual minimization procedure,
         and should return a :class:`~symfit.core.fit_results.FitResults` instance.
+
         :param options: options to be used by the minimization procedure.
         :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
@@ -38,7 +40,15 @@ class BaseMinimizer(object):
 
     @property
     def initial_guesses(self):
-        return [p.value for p in self.params]
+        try:
+            return self._initial_guesses
+        except AttributeError:
+            return [p.value for p in self.params]
+
+    @initial_guesses.setter
+    def initial_guesses(self, vals):
+        self._initial_guesses = vals
+
 
 class BoundedMinimizer(BaseMinimizer):
     """
@@ -79,6 +89,7 @@ class GradientMinimizer(BaseMinimizer):
         """
         Removes values with identical indices to fixed parameters from the
         output of func.
+
         :param func: Function to be wrapped
         :return: wrapped function
         """
@@ -92,6 +103,54 @@ class GradientMinimizer(BaseMinimizer):
                     jac.append(val)
             return jac
         return wrapped
+
+
+class GlobalMinimizer(BaseMinimizer):
+    """
+    A minimizer that looks for a global minimum, instead of a local one.
+    """
+    def __init__(self, *args, **kwargs):
+        super(GlobalMinimizer, self).__init__(*args, **kwargs)
+
+
+class ChainedMinimizer(BaseMinimizer):
+    """
+    A minimizer that consists of multiple other minimizers, each executed in
+    order.
+    This is valuable if you have minimizers that are not good at finding the
+    exact minimum such as :class:`~symfit.core.minimizers.NelderMead` or
+    :class:`~symfit.core.minimizers.DifferentialEvolution`.
+    """
+    @keywordonly(minimizers=None)
+    def __init__(self, *args, **kwargs):
+        '''
+        :param minimizers: a :class:`~collections.abc.Sequence` of
+            :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need
+            to be run in order.
+        :param \*args: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
+        :param \*\*kwargs: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
+        '''
+        minimizers = kwargs.pop('minimizers')
+        super(ChainedMinimizer, self).__init__(*args, **kwargs)
+        self.minimizers = minimizers
+
+    def execute(self, minimizer_kwargs=None):
+        if minimizer_kwargs is None:
+            minimizer_kwargs = [{} for _ in self.minimizers]
+        answers = []
+        next_guess = self.initial_guesses
+        for minimizer, kwargs in zip(self.minimizers, minimizer_kwargs):
+            minimizer.initial_guesses = next_guess
+            ans = minimizer.execute(**kwargs)
+            next_guess = list(ans.params.values())
+            answers.append(ans)
+        final = answers[-1]
+        # TODO: Compile all previous results in one, instead of just the
+        # number of function evaluations. But there's some code down the
+        # line that expects scalars.
+        final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
+        return final
+
 
 class ScipyMinimize(object):
     """
@@ -120,16 +179,15 @@ class ScipyMinimize(object):
             return np.array(func(**parameters))
         return wrapped_func
 
-    @keywordonly(tol=1e-9)
-    def execute(self, bounds=None, jacobian=None, **minimize_options):
-        ans = minimize(
-            self.wrapped_objective,
-            self.initial_guesses,
-            bounds=bounds,
-            constraints=self.constraints,
-            jac=jacobian,
-            **minimize_options
-        )
+    def _pack_output(self, ans):
+        """
+        Packs the output of a minimization in a
+        :class:`~symfit.core.fit_results.FitResults`.
+
+        :param ans: The output of a minimization as produced by
+            :func:`scipy.optimize.minimize`
+        :returns: :class:`~symfit.core.fit_results.FitResults`
+        """
         # Build infodic
         infodic = {
             'nfev': ans.nfev,
@@ -160,6 +218,29 @@ class ScipyMinimize(object):
                 fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
 
+    @keywordonly(tol=1e-9)
+    def execute(self, bounds=None, jacobian=None, **minimize_options):
+        """
+        Calls the wrapped algorithm.
+
+        :param bounds: The bounds for the parameters. Usually filled by
+            :class:`~symfit.core.minimizers.BoundedMinimizer`.
+        :param jacobian: The Jacobian. Usually filled by
+            :class:`~symfit.core.minimizers.ScipyGradientMinimize`.
+        :param \*\*minimize_options: Further keywords to pass to
+            :func:`scipy.optimize.minimize`. Note that your `method` will
+            usually be filled by a specific subclass.
+        """
+        ans = minimize(
+            self.wrapped_objective,
+            self.initial_guesses,
+            bounds=bounds,
+            constraints=self.constraints,
+            jac=jacobian,
+            **minimize_options
+        )
+        return self._pack_output(ans)
+
     @staticmethod
     def scipy_constraints(constraints, data):
         """
@@ -188,6 +269,9 @@ class ScipyMinimize(object):
         return cons
 
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
+    """
+    A base class for all :mod:`scipy` based minimizers that use a gradient.
+    """
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
         self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
@@ -197,11 +281,29 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
 
 
 class BFGS(ScipyGradientMinimize):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='BFGS'`.
+    """
     def execute(self, **minimize_options):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
+class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.differential_evolution`.
+    """
+    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
+                 recombination=0.95, polish=False, init='latinhypercube')
+    def execute(self, **de_options):
+        ans = differential_evolution(self.wrap_func(self.objective),
+                                     self.bounds,
+                                     **de_options)
+        return self._pack_output(ans)
+
 
 class SLSQP(ScipyGradientMinimize, ConstrainedMinimizer, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='SLSQP'`.
+    """
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             method='SLSQP',
@@ -211,6 +313,9 @@ class SLSQP(ScipyGradientMinimize, ConstrainedMinimizer, BoundedMinimizer):
 
 
 class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='L-BFGS-B'`.
+    """
     def execute(self, **minimize_options):
         return super(LBFGSB, self).execute(
             method='L-BFGS-B',
@@ -220,6 +325,9 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
 
 
 class NelderMead(ScipyMinimize, BaseMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.minimize` using `method='Nelder-Mead'`.
+    """
     def execute(self, **minimize_options):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
@@ -235,7 +343,7 @@ class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
 
     def execute(self, **minpack_options):
         """
-        :param minpack_options: Any named arguments to be passed to leastsqbound
+        :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
         popt, pcov, infodic, mesg, ier = leastsqbound(
             self.wrapped_objective,
