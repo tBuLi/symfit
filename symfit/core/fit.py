@@ -187,6 +187,12 @@ class BaseModel(Mapping):
             else:
                 return False
 
+    @abstractmethod
+    def __str__(self):
+        """
+        A representation upon printing has to provided.
+        """
+
 
 class CallableModel(BaseModel):
     """
@@ -201,7 +207,7 @@ class CallableModel(BaseModel):
         Evaluate the components of the model with the given data.
         Used for numerical evaluation.
         """
-        pass
+
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
@@ -1689,6 +1695,23 @@ class ODEModel(CallableModel):
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
         self.__signature__ = self._make_signature()
+
+    def __str__(self):
+        """
+        Printable representation of this model.
+
+        :return: str
+        """
+        template = "{}; {}) = {}"
+        parts = []
+        for var, expr in self.model_dict.items():
+            parts.append(template.format(
+                    str(var)[:-1],
+                    ", ".join(arg.name for arg in self.params),
+                    expr
+                )
+            )
+        return "\n".join(parts)
 
     def __getitem__(self, dependent_var):
         """
