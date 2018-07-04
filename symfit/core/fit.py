@@ -842,7 +842,7 @@ class BaseFit(TakesData):
         raise NotImplementedError('Every subclass of BaseFit must have an eval_jacobian method.')
 
 
-class HasCovarianceMatrix(object):
+class HasCovarianceMatrix(TakesData):
     """
     Mixin class for calculating the covariance matrix for any model that has a
     well-defined Jacobian :math:`J`. The covariance is then approximated as
@@ -956,7 +956,20 @@ class HasCovarianceMatrix(object):
         if not self.independent_data:
             jac = jac * np.ones_like(W)
         # Dot away all but the parameter dimension!
-        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
+        try:
+            cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
+        except ValueError as err:
+            # If this fails because the shape of the jacobian could not be
+            # properly estimated, then we remedy this. If not, the error is reraised.
+            if jac.shape[-1] == 1:
+                # Take the shape of the dependent data
+                dependent_shape = self.data_shapes[1][0]
+                # repeat the object along the last axis to match the shape
+                new_jac = np.repeat(jac, np.product(dependent_shape), -1)
+                jac = new_jac.reshape((jac.shape[0], jac.shape[1]) + dependent_shape)
+                cov_matrix_inv = np.tensordot(W * jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
+            else:
+                raise err
         cov_matrix = np.linalg.inv(cov_matrix_inv)
         return cov_matrix
 
@@ -1226,7 +1239,7 @@ class NonLinearLeastSquares(BaseFit):
             r_squared(self.model, self._fit_results, self.data)
         return self._fit_results
 
-class Fit(TakesData, HasCovarianceMatrix):
+class Fit(HasCovarianceMatrix):
     """
     Your one stop fitting solution! Based on the nature of the input, this
     object will attempt to select the right fitting type for your problem.
