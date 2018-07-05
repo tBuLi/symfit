@@ -848,6 +848,31 @@ class Tests(unittest.TestCase):
         fit_result = fit.execute()
         self.assertEqual(4.0, fit_result.params['c'])
 
+    def test_single_param_model(self):
+        """
+        Added after #161, this tests if models with a single additive parameter
+        are fitted properly. The problem with these models is that their
+        jacobian is in principle just int 1, which is not the correct shape.
+
+        No news is good news.
+        :return:
+        """
+        T = Variable('T')
+        l = Variable('l')
+        s = Parameter('s', value=300)
+        a = Parameter('a', value=300)
+        model = {l: s + a + 1 / (1 + exp(- T))}
+
+        temp_data = [270, 280, 285, 290, 295, 300, 310, 320]
+        length_data = [8.33, 8.41, 8.45, 8.5, 8.54, 9.13, 9.27, 9.4]
+        fit = Fit(model, l=length_data, T=temp_data)
+        fit_result = fit.execute()
+
+        # Raise the stakes by increasing the dimensionality of the data
+        TT, LL = np.meshgrid(temp_data, length_data)
+        fit = Fit(model, l=LL, T=TT)
+        fit_result = fit.execute()
+
     def test_model_from_dict(self):
         """
         Tries to create a model from a dictionary.
