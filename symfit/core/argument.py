@@ -4,10 +4,6 @@ import warnings
 
 from sympy.core.symbol import Symbol
 
-# This can not be a class attribute, since those become read only when they're
-# __slots__. Instead, make it a global dictionary of {class: count}.
-argument_indices = defaultdict(int)
-
 
 class Argument(Symbol):
     """
@@ -27,6 +23,9 @@ class Argument(Symbol):
         >> 'y'
     """
     __slots__ = ['_argument_index', '_argument_name']
+    # TODO: Make sure this also survives a pickle/unpickle to a fresh(!)
+    #       interpreter.
+    _argument_indices = defaultdict(int)
 
     def __new__(cls, name=None, *args, **assumptions):
         assumptions['real'] = True
@@ -40,12 +39,12 @@ class Argument(Symbol):
                 DeprecationWarning, stacklevel=2
             )
 
-            name = '{}_{}'.format(cls._argument_name, argument_indices[cls])
+            name = '{}_{}'.format(cls._argument_name, cls._argument_indices[cls])
             instance = super(Argument, cls).__new__(cls, name, **assumptions)
         else:
             instance = super(Argument, cls).__new__(cls, name, **assumptions)
-        instance._argument_index = argument_indices[cls]
-        argument_indices[cls] += 1
+        instance._argument_index = cls._argument_indices[cls]
+        cls._argument_indices[cls] += 1
         return instance
 
     def __init__(self, name=None, *args, **assumptions):
