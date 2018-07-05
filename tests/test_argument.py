@@ -85,6 +85,11 @@ class TestArgument(unittest.TestCase):
         self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
                          (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
 
+        A = Parameter(min=0., max=1e3, fixed=True)
+        new_A = pickle.loads(pickle.dumps(A))
+        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
+                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+
     def test_slots(self):
         """
         Make sure Parameters and Variables don't have a __dict__
