@@ -1,11 +1,14 @@
+from collections import defaultdict
 import numbers
 import warnings
 
 from sympy.core.symbol import Symbol
 
+
 class Argument(Symbol):
     """
-    Base class for ``symfit`` symbols. This helps make ``symfit`` symbols distinguishable from ``sympy`` symbols.
+    Base class for :mod:`symfit` symbols. This helps make :mod:`symfit` symbols
+    distinguishable from :mod:`sympy` symbols.
 
     If no name is explicitly provided a name will be generated.
 
@@ -19,6 +22,11 @@ class Argument(Symbol):
         print(y.name)
         >> 'y'
     """
+    __slots__ = ['_argument_index', '_argument_name']
+    # TODO: Make sure this also survives a pickle/unpickle to a fresh(!)
+    #       interpreter.
+    _argument_indices = defaultdict(int)
+
     def __new__(cls, name=None, *args, **assumptions):
         assumptions['real'] = True
         # Generate a dummy name
@@ -31,13 +39,13 @@ class Argument(Symbol):
                 DeprecationWarning, stacklevel=2
             )
 
-            name = '{}_{}'.format(cls._argument_name, cls._argument_index)
+            name = '{}_{}'.format(cls._argument_name, cls._argument_indices[cls])
             instance = super(Argument, cls).__new__(cls, name, **assumptions)
-            instance._argument_index = cls._argument_index
-            cls._argument_index += 1
-            return instance
         else:
-            return super(Argument, cls).__new__(cls, name, **assumptions)
+            instance = super(Argument, cls).__new__(cls, name, **assumptions)
+        instance._argument_index = cls._argument_indices[cls]
+        cls._argument_indices[cls] += 1
+        return instance
 
     def __init__(self, name=None, *args, **assumptions):
         # TODO: A more careful look at Symbol.__init__ is needed! However, it
@@ -45,6 +53,12 @@ class Argument(Symbol):
         if name is not None:
             self.name = name
         super(Argument, self).__init__()
+
+    def __getstate__(self):
+        state = super(Argument, self).__getstate__()
+        state.update({slot: getattr(self, slot) for slot in self.__slots__
+                      if hasattr(self, slot)})
+        return state
 
 
 class Parameter(Argument):
@@ -56,7 +70,8 @@ class Parameter(Argument):
     be generated.
     """
     # Parameter index to be assigned to generated nameless parameters
-    _argument_index = 0
+    __slots__ = ['min', 'max', 'fixed', 'value']
+
     _argument_name = 'par'
 
     def __new__(cls, name=None, *args, **kwargs):
@@ -95,5 +110,5 @@ class Parameter(Argument):
 class Variable(Argument):
     """ Variable type."""
     # Variable index to be assigned to generated nameless variables
-    _argument_index = 0
     _argument_name = 'var'
+    __slots__ = ()

@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+import pickle
 import unittest
 import sys
 import sympy
@@ -74,6 +75,41 @@ class TestArgument(unittest.TestCase):
         x, y = sympy.symbols('x y')
         new = x + y
         self.assertIsInstance(new, sympy.Add)
+
+    def test_pickle(self):
+        """
+        Make sure attributes are preserved when pickling
+        """
+        A = Parameter('A', min=0., max=1e3, fixed=True)
+        new_A = pickle.loads(pickle.dumps(A))
+        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
+                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+
+        A = Parameter(min=0., max=1e3, fixed=True)
+        new_A = pickle.loads(pickle.dumps(A))
+        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
+                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+
+    def test_slots(self):
+        """
+        Make sure Parameters and Variables don't have a __dict__
+        """
+        P = Parameter('P')
+
+        # If you only have __slots__ you can't set arbitrary attributes, but
+        # you *should* be able to set those that are in your __slots__
+        try:
+            P.min = 0
+        except AttributeError:
+            self.fail()
+
+        with self.assertRaises(AttributeError):
+            P.foo = None
+
+        V = Variable('V')
+        with self.assertRaises(AttributeError):
+            V.bar = None
+
 
 if __name__ == '__main__':
     try:
