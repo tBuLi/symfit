@@ -60,7 +60,11 @@ class BaseModel(Mapping):
             # TODO: this will break upon deprecating the auto-generation of
             # names for Variables. At this time, a DummyVariable object
             # should be introduced to fulfill the same role.
-            model = {Variable(): expr for expr in model}
+            # Also, catching the warnings should then be removed, as this is
+            # just to prevent the DeprecationWarning from appearing.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                model = {Variable(): expr for expr in model}
         self._init_from_dict(model)
 
     def __len__(self):
