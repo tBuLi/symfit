@@ -28,8 +28,8 @@ class TestMinimize(unittest.TestCase):
         """
         x = Parameter(value=-1.0)
         y = Parameter(value=1.0)
-        z = Variable()
-        model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
+        # Use an  unnamed Variable on purpose to test the auto-generation of names.
+        model = Model(2 * x * y + 2 * x - x ** 2 - 2 * y ** 2)
 
         constraints = [
             Ge(y - 1, 0),  # y - 1 >= 0,

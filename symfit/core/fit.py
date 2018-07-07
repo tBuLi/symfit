@@ -55,10 +55,11 @@ class BaseModel(Mapping):
             try:
                 enum = enumerate(model)
             except TypeError:
-                enum = enumerate([model])
-
-            model = {sympy.Dummy('y_{}'.format(index + 1)): expr for index, expr in enum}
-            # model = {Variable('dummy_{}'.format(index + 1)): expr for index, expr in enumerate(model)}
+                # The model is of length 1.
+                # TODO: this will break upon deprecating the auto-generation of
+                # names for Variables. At this time, a DummyVariable object
+                # should be introduced to fulfill the same role.
+                model = {Variable(): model}
 
         self._init_from_dict(model)
 
