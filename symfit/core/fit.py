@@ -53,14 +53,14 @@ class BaseModel(Mapping):
         """
         if not isinstance(model, Mapping):
             try:
-                enum = enumerate(model)
+                iter(model)
             except TypeError:
-                # The model is of length 1.
-                # TODO: this will break upon deprecating the auto-generation of
-                # names for Variables. At this time, a DummyVariable object
-                # should be introduced to fulfill the same role.
-                model = {Variable(): model}
-
+                # Model is still a scalar model
+                model = [model]
+            # TODO: this will break upon deprecating the auto-generation of
+            # names for Variables. At this time, a DummyVariable object
+            # should be introduced to fulfill the same role.
+            model = {Variable(): expr for expr in model}
         self._init_from_dict(model)
 
     def __len__(self):
