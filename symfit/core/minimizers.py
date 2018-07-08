@@ -1,5 +1,6 @@
 import abc
-from collections import namedtuple
+import sys
+from collections import namedtuple, Counter
 from functools import partial
 
 from scipy.optimize import minimize, differential_evolution
@@ -9,6 +10,11 @@ import numpy as np
 from .support import key2str, keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
+
+if sys.version_info >= (3,0):
+    import inspect as inspect_sig
+else:
+    import funcsigs as inspect_sig
 
 DummyModel = namedtuple('DummyModel', 'params')
 
@@ -133,13 +139,39 @@ class ChainedMinimizer(BaseMinimizer):
         minimizers = kwargs.pop('minimizers')
         super(ChainedMinimizer, self).__init__(*args, **kwargs)
         self.minimizers = minimizers
+        self.__signature__ = self._make_signature()
 
-    def execute(self, minimizer_kwargs=None):
-        if minimizer_kwargs is None:
-            minimizer_kwargs = [{} for _ in self.minimizers]
+    def execute(self, **minimizer_kwargs):
+        """
+        Execute the chained-minimization. In order to pass options to the
+        seperate minimizers, they can  be passed by using the
+        names of the minimizers as keywords. For example::
+
+            fit = Fit(self.model, self.xx, self.yy, self.ydata,
+                      minimizer=[DifferentialEvolution, BFGS])
+            fit_result = fit.execute(
+                DifferentialEvolution={'seed': 0, 'tol': 1e-4, 'maxiter': 10},
+                BFGS={'tol': 1e-4}
+            )
+
+        In case of multiple identical minimizers an index is added to each
+        keyword argument to make them identifiable. For example, if::
+
+            minimizer=[BFGS, DifferentialEvolution, BFGS])
+
+        then the keyword arguments will be 'BFGS', 'DifferentialEvolution',
+        and 'BFGS_2'.
+
+        :param minimizer_kwargs: Minimizer options to be passed to the
+            minimzers by name
+        :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
+        """
+        bound_arguments = self.__signature__.bind(**minimizer_kwargs)
+        bound_arguments.apply_defaults()
+
         answers = []
         next_guess = self.initial_guesses
-        for minimizer, kwargs in zip(self.minimizers, minimizer_kwargs):
+        for minimizer, kwargs in zip(self.minimizers, bound_arguments.arguments.values()):
             minimizer.initial_guesses = next_guess
             ans = minimizer.execute(**kwargs)
             next_guess = list(ans.params.values())
@@ -150,6 +182,40 @@ class ChainedMinimizer(BaseMinimizer):
         # line that expects scalars.
         final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
         return final
+
+    def _make_signature(self):
+        """
+        Create a signature for `execute` based on the minimizers this
+        `ChainedMinimizer` was initiated with. For the format, see the docstring
+        of :meth:`ChainedMinimizer.execute`.
+
+        :return: :class:`inspect.Signature` instance.
+        """
+        # Create KEYWORD_ONLY arguments with the names of the minimizers.
+        name = lambda x: x.__class__.__name__
+        count = Counter(
+            [name(minimizer) for minimizer in self.minimizers]
+        ) # Count the number of each minimizer, they don't have to be unique
+
+        # Note that these are inspect_sig.Parameter's, not symfit parameters!
+        parameters = []
+        for minimizer in reversed(self.minimizers):
+            if count[name(minimizer)] == 1:
+                # No ambiguity, so use the name directly.
+                param_name = name(minimizer)
+            else:
+                # Ambiguity, so append the number of remaining minimizers
+                param_name = '{}_{}'.format(name(minimizer), count[name(minimizer)])
+            count[name(minimizer)] -= 1
+
+            parameters.append(
+                inspect_sig.Parameter(
+                    param_name,
+                    kind=inspect_sig.Parameter.KEYWORD_ONLY,
+                    default={}
+                )
+            )
+        return inspect_sig.Signature(parameters=reversed(parameters))
 
 
 class ScipyMinimize(object):

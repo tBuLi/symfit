@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import unittest
+import warnings
+import sys
 
 import numpy as np
 
@@ -11,6 +13,11 @@ from symfit import (
 from symfit.core.minimizers import BFGS, DifferentialEvolution
 from symfit.distributions import Gaussian
 
+if sys.version_info >= (3,0):
+    import inspect as inspect_sig
+else:
+    import funcsigs as inspect_sig
+
 class TestGlobalOptGaussian(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -18,7 +25,6 @@ class TestGlobalOptGaussian(unittest.TestCase):
         mean = (0.4, 0.4)  # x, y mean 0.6, 0.4
         cov = [[0.01**2, 0], [0, 0.01**2]]
         data = np.random.multivariate_normal(mean, cov, 2500000)
-        print(np.mean(data, axis=0))
 
         # Insert them as y,x here as np fucks up cartesian conventions.
         cls.ydata, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=200,
@@ -63,7 +69,6 @@ class TestGlobalOptGaussian(unittest.TestCase):
         fit = Fit(self.model, self.xx, self.yy, self.ydata,
                   minimizer=DifferentialEvolution)
         fit_result = fit.execute(polish=True, seed=0, tol=1e-4, maxiter=50)
-        print(fit_result)
         # Global minimizers are really bad at finding local minima though, so
         # roughly equal is good enough.
         self.assertAlmostEqual(fit_result.value(self.x0_1), 0.4, 1)
@@ -74,12 +79,35 @@ class TestGlobalOptGaussian(unittest.TestCase):
         curvals = [p.value for p in self.model.params]
         fit = Fit(self.model, self.xx, self.yy, self.ydata,
                   minimizer=[DifferentialEvolution, BFGS])
-        fit_result = fit.execute(minimizer_kwargs=[dict(seed=0, tol=1e-4, maxiter=10), {}])
-        print(fit_result)
+        fit_result = fit.execute(
+            DifferentialEvolution={'seed': 0, 'tol': 1e-4, 'maxiter': 10}
+        )
         self.assertAlmostEqual(fit_result.value(self.x0_1), 0.4, 4)
         self.assertAlmostEqual(fit_result.value(self.y0_1), 0.4, 4)
         self.assertEqual(curvals, [p.value for p in self.model.params])
 
+    def test_chained_min_signature(self):
+        """
+        Test the automatic generation of the signature for ChainedMinimizer
+        """
+        minimizers = [
+            DifferentialEvolution, BFGS, BFGS, DifferentialEvolution, BFGS
+        ]
+
+        fit = Fit(self.model, self.xx, self.yy, self.ydata,
+                  minimizer=minimizers)
+
+        names = [
+            'DifferentialEvolution', 'BFGS', 'BFGS_2',
+            'DifferentialEvolution_2', 'BFGS_3'
+        ]
+        for name, param_name in zip(names, fit.minimizer.__signature__.parameters):
+            self.assertEqual(name, param_name)
+        # Check for equal lengths because zip is slippery that way
+        self.assertEqual(len(names), len(fit.minimizer.__signature__.parameters))
+
+        for param in fit.minimizer.__signature__.parameters.values():
+            self.assertEqual(param.kind, inspect_sig.Parameter.KEYWORD_ONLY)
 
 class TestGlobalOptMexican(unittest.TestCase):
     def test_mexican_hat(self):
@@ -94,14 +122,12 @@ class TestGlobalOptMexican(unittest.TestCase):
 
         model = Model({y: x**4 - 10 * x**2 - x})  # Skewed Mexican hat
         fit = Fit(model, minimizer=[DifferentialEvolution, BFGS])
-        fit_result1 = fit.execute(minimizer_kwargs=[dict(seed=0), {}])
+        fit_result1 = fit.execute(DifferentialEvolution={'seed': 0})
 
         fit = Fit(model)
         fit_result2 = fit.execute()
 
-        print(fit_result1)
         self.assertGreater(fit_result1.value(x), 0)
-        print(fit_result2)
         self.assertLess(fit_result2.value(x), 0)
 
 
