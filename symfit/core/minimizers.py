@@ -167,7 +167,10 @@ class ChainedMinimizer(BaseMinimizer):
         :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
         bound_arguments = self.__signature__.bind(**minimizer_kwargs)
-        bound_arguments.apply_defaults()
+        # Include default values in bound_argument object
+        for param in self.__signature__.parameters.values():
+            if param.name not in bound_arguments.arguments:
+                bound_arguments.arguments[param.name] = param.default
 
         answers = []
         next_guess = self.initial_guesses
