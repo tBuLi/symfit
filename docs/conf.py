@@ -14,10 +14,7 @@
 
 import sys
 import os
-<<<<<<< HEAD
-=======
 import symfit
->>>>>>> 545c2d2... Fixes #35 by getting the version number from pkg_resources
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
