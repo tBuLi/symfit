@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import namedtuple, Mapping, OrderedDict, Sequence
 import copy
 from functools import partial
 import sys
@@ -16,7 +16,7 @@ from .support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str
 
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
-    ScipyMinimize, MINPACK
+    ScipyMinimize, MINPACK, ChainedMinimizer
 )
 from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
@@ -1267,6 +1267,9 @@ class Fit(HasCovarianceMatrix):
         fit = Fit(model, x=xdata, y=ydata, minimizer=NelderMead)
         fit_result = fit.execute()
 
+        # Use Nelder-Mead to get close, and BFGS to polish it off
+        fit = Fit(model, x=xdata, y=ydata, minimizer=[NelderMead, BFGS])
+        fit_result = fit.execute(minimizer_kwargs=[dict(xatol=0.1), {}])
     """
 
     @keywordonly(objective=None, minimizer=None, constraints=None)
@@ -1277,19 +1280,22 @@ class Fit(HasCovarianceMatrix):
         :param constraints: iterable of ``Relation`` objects to be used as
             constraints.
         :param bool absolute_sigma: True by default. If the sigma is only used
-            for relative weights in your problem, you could consider setting it to
-            False, but if your sigma are measurement errors, keep it at True.
-            Note that curve_fit has this set to False by default, which is wrong in
-            experimental science.
+            for relative weights in your problem, you could consider setting it
+            to False, but if your sigma are measurement errors, keep it at True.
+            Note that curve_fit has this set to False by default, which is
+            wrong in experimental science.
         :param objective: Have Fit use your specified objective. Can be one of
             the predefined `symfit` objectives or any callable which accepts fit
             parameters and returns a scalar.
-        :param minimizer: Have Fit use your specified :class:`symfit.core.minimizers.BaseMinimizer`.
-        :param ordered_data: data for dependent, independent and sigma variables. Assigned in
-            the following order: independent vars are assigned first, then dependent
-            vars, then sigma's in dependent vars. Within each group they are assigned in
-            alphabetical order.
-        :param named_data: assign dependent, independent and sigma variables data by name.
+        :param minimizer: Have Fit use your specified
+            :class:`symfit.core.minimizers.BaseMinimizer`. Can be a
+            :class:`~collections.abc.Sequence` of :class:`symfit.core.minimizers.BaseMinimizer`.
+        :param ordered_data: data for dependent, independent and sigma
+            variables. Assigned in the following order: independent vars are
+            assigned first, then dependent vars, then sigma's in dependent
+            vars. Within each group they are assigned in alphabetical order.
+        :param named_data: assign dependent, independent and sigma variables
+            data by name.
         """
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
@@ -1336,31 +1342,43 @@ class Fit(HasCovarianceMatrix):
                 minimizer = BFGS
 
         # Initialise the minimizer
-        if isinstance(minimizer, BaseMinimizer):
-            self.minimizer = minimizer
+        if isinstance(minimizer, Sequence):
+            minimizers = [self._init_minimizer(mini) for mini in minimizer]
+            self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:
-            minimizer_options = {}
-            if issubclass(minimizer, GradientMinimizer):
-                # If an analytical version of the Jacobian exists we should use
-                # that, otherwise we let the minimizer estimate it itself.
-                # Hence the check of numerical_jacobian, as this is the
-                # py function version of the analytical jacobian.
-                if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
-                    minimizer_options['jacobian'] = self.objective.eval_jacobian
+            self.minimizer = self._init_minimizer(minimizer)
 
-            if issubclass(minimizer, ConstrainedMinimizer):
-                if issubclass(minimizer, ScipyMinimize):
-                    minimizer_options['constraints'] = minimizer.scipy_constraints(
-                        self.constraints,
-                        self.data
-                    )
-                else:
-                    minimizer_options['constraints'] = self.constraints
-            self.minimizer = minimizer(
-                self.objective,
-                self.model.params,
-                **minimizer_options
-            )
+    def _init_minimizer(self, minimizer, **minimizer_options):
+        """
+        Takes a :class:`~symfit.core.minimizers.BaseMinimizer` and instantiates
+        it, passing the jacobian and constraints as appropriate for the
+        minimizer.
+
+        :param minimizer: :class:`~symfit.core.minimizers.BaseMinimizer` to
+            instantiate.
+        :param **minimizer_options: Further options to be passed to the
+            minimizer on instantiation.
+        :returns: instance of :class:`~symfit.core.minimizers.BaseMinimizer`.
+        """
+        if isinstance(minimizer, BaseMinimizer):
+            return minimizer
+        if issubclass(minimizer, GradientMinimizer):
+            # If an analytical version of the Jacobian exists we should use
+            # that, otherwise we let the minimizer estimate it itself.
+            # Hence the check of numerical_jacobian, as this is the
+            # py function version of the analytical jacobian.
+            if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
+                minimizer_options['jacobian'] = self.objective.eval_jacobian
+
+        if issubclass(minimizer, ConstrainedMinimizer):
+            if issubclass(minimizer, ScipyMinimize):
+                minimizer_options['constraints'] = minimizer.scipy_constraints(
+                    self.constraints,
+                    self.data
+                )
+            else:
+                minimizer_options['constraints'] = self.constraints
+        return minimizer(self.objective, self.model.params, **minimizer_options)
 
     def _init_constraints(self, constraints):
         """
