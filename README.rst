@@ -55,7 +55,7 @@ Need I say more? How about I let another code example do the talking?
       GreaterThan(y, 1),
   ]
   
-  fit = Fit(model, constraints=constraints)
+  fit = Fit(- model, constraints=constraints)
   fit_result = fit.execute()
 
 I know what you are thinking. "What if I need to fit to a system of Ordinary Differential Equations?"
