@@ -440,7 +440,7 @@ to your answer, and then polish it off using a local minimizer::
   Differential evolution is rather sensitive to it's hyperparameters. You might
   need to play with those to get appropriate results::
   
-    fit.execute(minimizer_kwargs=[dict(popsize=20, recombination=0.9), {}])
+    fit.execute(DifferentialEvolution={'popsize': 20, 'recombination': 0.9})
 
 .. note::
   There is no way to garuantee that the minimum found is actually the global
