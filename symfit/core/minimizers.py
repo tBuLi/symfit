@@ -81,17 +81,20 @@ class GradientMinimizer(BaseMinimizer):
     def resize_jac(self, func):
         """
         Removes values with identical indices to fixed parameters from the
-        output of func.
-        :param func: Function to be wrapped
-        :return: wrapped function
+        output of func. func has to return the jacobian of a scalar function.
+        :param func: Jacobian function to be wrapped. Is assumed to be the
+            jacobian of a scalar function.
+        :return: Jacobian corresponding to non-fixed parameters only.
         """
         if func is None:
             return None
         def wrapped(*args, **kwargs):
             out = func(*args, **kwargs)
+            # Make one dimensional, corresponding to a scalar function.
+            out = np.squeeze(out)
             jac = []
             for param, val in zip(self.parameters, out):
-                if not param.fixed:
+                if param not in self._fixed_params:
                     jac.append(val)
             return jac
         return wrapped
