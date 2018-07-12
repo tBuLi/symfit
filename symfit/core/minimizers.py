@@ -118,21 +118,22 @@ class ScipyMinimize(object):
         :param func: Function to be wrapped to keyword only calls.
         :return: wrapped function
         """
-        # parameters = {param.name: value for param, value in zip(self.params, values)}
         if func is None:
             return None
+        # Because scipy calls the objective with a list of parameters as
+        # guesses, we use 'values' instead of '*values'.
         def wrapped_func(values):
             parameters = key2str(dict(zip(self.params, values)))
             return np.array(func(**parameters))
         return wrapped_func
 
     @keywordonly(tol=1e-9)
-    def execute(self, bounds=None, jacobian=None, **minimize_options):
+    def execute(self, bounds=None, jacobian=None, constraints=None, **minimize_options):
         ans = minimize(
             self.wrapped_objective,
             self.initial_guesses,
             bounds=bounds,
-            constraints=self.constraints,
+            constraints=constraints,
             jac=jacobian,
             **minimize_options
         )
@@ -166,8 +167,23 @@ class ScipyMinimize(object):
                 fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
 
-    @staticmethod
-    def scipy_constraints(constraints, data):
+class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
+    def __init__(self, *args, **kwargs):
+        super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
+        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
+
+    def execute(self, **minimize_options):
+        return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
+
+class ScipyConstrainedMinimize(ScipyGradientMinimize, ConstrainedMinimizer):
+    def __init__(self, *args, **kwargs):
+        super(ScipyConstrainedMinimize, self).__init__(*args, **kwargs)
+        self.wrapped_constraints = self.scipy_constraints(self.constraints)
+
+    def execute(self, **minimize_options):
+        return super(ScipyConstrainedMinimize, self).execute(constraints=self.wrapped_constraints, **minimize_options)
+
+    def scipy_constraints(self, constraints):
         """
         Returns all constraints in a scipy compatible format.
 
@@ -178,36 +194,37 @@ class ScipyMinimize(object):
             sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
-        for key, constraint in enumerate(constraints):
-            # jac = make_jac(c, p)
+        for key, partialed_constraint in enumerate(constraints):
+            constraint_type = partialed_constraint.func.constraint_type
+            partialed_kwargs = partialed_constraint.keywords
             cons.append({
-                'type': types[constraint.constraint_type],
-                # Assume the lhs is the equation.
-                'fun': lambda p, x, c: c(*(list(x.values()) + list(p)))[0],
-                # Assume the lhs is the equation.
-                'jac': lambda p, x, c: [component(*(list(x.values()) + list(p)))
-                                        for component in
-                                        c.numerical_jacobian[0]],
-                'args': (data, constraint)
+                'type': types[constraint_type],
+                # Takes an nd.array of params and a partialed_constraint, and
+                # evaluates the constraint with these parameters.
+                # Wrap `c` so it is always called via keywords.
+                'fun': lambda p, c: self.wrap_func(c)(list(p))[0],
+                # In the case of the jacobian, first eval_jacobian of the
+                # constraint has to be partialed since that has not been done
+                # yet. Then it is made callable by keywords only, and finally
+                # the shape of the jacobian is made to match the number of
+                # unfixed parameters in the call, len(p).
+                'jac': lambda p, c: self.resize_jac(
+                    self.wrap_func(
+                        partial(c.func.eval_jacobian, **partialed_kwargs)
+                    )
+                )(list(p)),
+                'args': [partialed_constraint]
             })
+
         cons = tuple(cons)
         return cons
-
-class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
-    def __init__(self, *args, **kwargs):
-        super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
-
-    def execute(self, **minimize_options):
-        return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
-
 
 class BFGS(ScipyGradientMinimize):
     def execute(self, **minimize_options):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
 
-class SLSQP(ScipyGradientMinimize, ConstrainedMinimizer, BoundedMinimizer):
+class SLSQP(ScipyConstrainedMinimize, BoundedMinimizer):
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             method='SLSQP',
