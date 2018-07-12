@@ -91,7 +91,7 @@ class GradientMinimizer(BaseMinimizer):
         def wrapped(*args, **kwargs):
             out = func(*args, **kwargs)
             # Make one dimensional, corresponding to a scalar function.
-            out = np.squeeze(out)
+            out = np.atleast_1d(np.squeeze(out))
             jac = []
             for param, val in zip(self.parameters, out):
                 if param not in self._fixed_params:
