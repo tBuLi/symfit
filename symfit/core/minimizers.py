@@ -175,7 +175,7 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
 
-class ScipyConstrainedMinimize(ScipyGradientMinimize, ConstrainedMinimizer):
+class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyConstrainedMinimize, self).__init__(*args, **kwargs)
         self.wrapped_constraints = self.scipy_constraints(self.constraints)
@@ -196,23 +196,12 @@ class ScipyConstrainedMinimize(ScipyGradientMinimize, ConstrainedMinimizer):
 
         for key, partialed_constraint in enumerate(constraints):
             constraint_type = partialed_constraint.func.constraint_type
-            partialed_kwargs = partialed_constraint.keywords
             cons.append({
                 'type': types[constraint_type],
                 # Takes an nd.array of params and a partialed_constraint, and
                 # evaluates the constraint with these parameters.
                 # Wrap `c` so it is always called via keywords.
                 'fun': lambda p, c: self.wrap_func(c)(list(p))[0],
-                # In the case of the jacobian, first eval_jacobian of the
-                # constraint has to be partialed since that has not been done
-                # yet. Then it is made callable by keywords only, and finally
-                # the shape of the jacobian is made to match the number of
-                # unfixed parameters in the call, len(p).
-                'jac': lambda p, c: self.resize_jac(
-                    self.wrap_func(
-                        partial(c.func.eval_jacobian, **partialed_kwargs)
-                    )
-                )(list(p)),
                 'args': [partialed_constraint]
             })
 
@@ -224,12 +213,41 @@ class BFGS(ScipyGradientMinimize):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
 
-class SLSQP(ScipyConstrainedMinimize, BoundedMinimizer):
+class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             method='SLSQP',
             bounds=self.bounds,
             **minimize_options
+        )
+
+    def scipy_constraints(self, constraints):
+        """
+        Returns all constraints in a scipy compatible format.
+
+        :return: dict of scipy compatible constraints, including jacobian term.
+        """
+        # Take the normal scipy compatible constraints, and add jacobians.
+        scipy_constr = super(SLSQP, self).scipy_constraints(constraints)
+        for partialed_constraint, scipy_constraint in zip(constraints, scipy_constr):
+            partialed_kwargs = partialed_constraint.keywords
+            # In the case of the jacobian, first eval_jacobian of the
+            # constraint has to be partialed since that has not been done
+            # yet. Then it is made callable by keywords only, and finally
+            # the shape of the jacobian is made to match the number of
+            # unfixed parameters in the call, len(p).
+            scipy_constraint['jac'] = lambda p, c: self.resize_jac(
+                    self.wrap_func(
+                        partial(c.func.eval_jacobian, **partialed_kwargs)
+                    )
+                )(list(p))
+        return scipy_constr
+
+
+class COBYLA(ScipyConstrainedMinimize):
+    def execute(self, **minimize_options):
+        return super(COBYLA, self).execute(
+            method='SLSQP', **minimize_options
         )
 
 
