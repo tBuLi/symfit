@@ -56,7 +56,10 @@ class ConstrainedMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         constraints = kwargs.pop('constraints')
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
-        self.constraints = constraints
+        self.constraints = [
+            partial(constraint, **{p.name: p.value for p in self._fixed_params})
+            for constraint in constraints
+        ]
 
 class GradientMinimizer(BaseMinimizer):
     """
