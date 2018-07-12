@@ -1349,13 +1349,12 @@ class Fit(HasCovarianceMatrix):
                     minimizer_options['jacobian'] = self.objective.eval_jacobian
 
             if issubclass(minimizer, ConstrainedMinimizer):
-                if issubclass(minimizer, ScipyMinimize):
-                    minimizer_options['constraints'] = minimizer.scipy_constraints(
-                        self.constraints,
-                        self.data
-                    )
-                else:
-                    minimizer_options['constraints'] = self.constraints
+                # Minimizers are agnostic about data, they just know about
+                # objective functions. So we partial away the data at this point.
+                minimizer_options['constraints'] = [
+                    partial(constraint, **key2str(self.data))
+                    for constraint in self.constraints
+                ]
             self.minimizer = minimizer(
                 self.objective,
                 self.model.params,
