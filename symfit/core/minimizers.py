@@ -153,7 +153,7 @@ class ScipyMinimize(object):
             covariance_matrix=None,
             infodic=infodic,
             mesg=ans.message,
-            ier=ans.nit,
+            ier=ans.nit if hasattr(ans, 'nit') else float('nan'),
             objective_value=ans.fun,
         )
 
@@ -244,7 +244,7 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
 class COBYLA(ScipyConstrainedMinimize):
     def execute(self, **minimize_options):
         return super(COBYLA, self).execute(
-            method='SLSQP', **minimize_options
+            method='COBYLA', **minimize_options
         )
 
 
