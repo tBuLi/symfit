@@ -92,11 +92,8 @@ class GradientMinimizer(BaseMinimizer):
             out = func(*args, **kwargs)
             # Make one dimensional, corresponding to a scalar function.
             out = np.atleast_1d(np.squeeze(out))
-            jac = []
-            for param, val in zip(self.parameters, out):
-                if param not in self._fixed_params:
-                    jac.append(val)
-            return jac
+            mask = [p not in self._fixed_params for p in self.parameters]
+            return out[mask]
         return wrapped
 
 class ScipyMinimize(object):
