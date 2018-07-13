@@ -213,10 +213,18 @@ class BFGS(ScipyGradientMinimize):
 
 
 class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
+    def __init__(self, *args, **kwargs):
+        super(SLSQP, self).__init__(*args, **kwargs)
+        # We have to break DRY because you cannot inherit from both
+        # ScipyConstrainedMinimize and ScipyGradientMinimize. So SLQSP is a
+        # special case. This is the same code as in ScipyGradientMinimize.
+        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
+
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             method='SLSQP',
             bounds=self.bounds,
+            jacobian=self.wrapped_jacobian,
             **minimize_options
         )
 
