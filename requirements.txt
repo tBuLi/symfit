@@ -1,4 +1,4 @@
 numpy >= 1.12
 scipy >= 1.0
-sympy
+sympy <= 1.1.1
 funcsigs; python_version < '3.0'
