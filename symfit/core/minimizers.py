@@ -106,9 +106,9 @@ class ScipyMinimize(object):
         self.jacobian = None
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_objective = self.wrap_func(self.objective)
+        self.wrapped_objective = self.list2kwargs(self.objective)
 
-    def wrap_func(self, func):
+    def list2kwargs(self, func):
         """
         Given an objective function `func`, make sure it is always called via
         keyword arguments with the relevant parameter names.
@@ -169,7 +169,7 @@ class ScipyMinimize(object):
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
+        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
@@ -200,7 +200,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                 # Takes an nd.array of params and a partialed_constraint, and
                 # evaluates the constraint with these parameters.
                 # Wrap `c` so it is always called via keywords.
-                'fun': lambda p, c: self.wrap_func(c)(list(p))[0],
+                'fun': lambda p, c: self.list2kwargs(c)(list(p))[0],
                 'args': [partialed_constraint]
             })
 
@@ -218,7 +218,7 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
         # We have to break DRY because you cannot inherit from both
         # ScipyConstrainedMinimize and ScipyGradientMinimize. So SLQSP is a
         # special case. This is the same code as in ScipyGradientMinimize.
-        self.wrapped_jacobian = self.wrap_func(self.wrapped_jacobian)
+        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
@@ -244,7 +244,7 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
             # the shape of the jacobian is made to match the number of
             # unfixed parameters in the call, len(p).
             scipy_constraint['jac'] = lambda p, c: self.resize_jac(
-                    self.wrap_func(
+                    self.list2kwargs(
                         partial(c.func.eval_jacobian, **partialed_kwargs)
                     )
                 )(list(p))
