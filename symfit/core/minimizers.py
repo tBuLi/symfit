@@ -1,6 +1,6 @@
 import abc
 from collections import namedtuple
-from functools import partial
+from functools import partial, wraps
 
 from scipy.optimize import minimize
 import sympy
@@ -88,13 +88,14 @@ class GradientMinimizer(BaseMinimizer):
         """
         if func is None:
             return None
-        def wrapped(*args, **kwargs):
+        @wraps(func)
+        def resized(*args, **kwargs):
             out = func(*args, **kwargs)
             # Make one dimensional, corresponding to a scalar function.
             out = np.atleast_1d(np.squeeze(out))
             mask = [p not in self._fixed_params for p in self.parameters]
             return out[mask]
-        return wrapped
+        return resized
 
 class ScipyMinimize(object):
     """
@@ -119,6 +120,7 @@ class ScipyMinimize(object):
             return None
         # Because scipy calls the objective with a list of parameters as
         # guesses, we use 'values' instead of '*values'.
+        @wraps(func)
         def wrapped_func(values):
             parameters = key2str(dict(zip(self.params, values)))
             return np.array(func(**parameters))
