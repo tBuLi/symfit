@@ -216,7 +216,7 @@ class CallableModel(BaseModel):
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+            inspect_sig.Parameter(str(arg), inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
                 for arg in self.independent_vars + self.params
         ]
         return inspect_sig.Signature(parameters=parameters)

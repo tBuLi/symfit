@@ -60,6 +60,11 @@ class Argument(Symbol):
                       if hasattr(self, slot)})
         return state
 
+    def _sympystr(self, printer, *args, **kwargs):
+        return printer.doprint(self.name)
+
+    _lambdacode = _sympystr
+
 
 class Parameter(Argument):
     """
