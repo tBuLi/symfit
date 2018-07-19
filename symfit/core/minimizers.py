@@ -65,7 +65,6 @@ class GradientMinimizer(BaseMinimizer):
     """
     ABC for Minizers that support the use of a jacobian
     """
-
     @keywordonly(jacobian=None)
     def __init__(self, *args, **kwargs):
         jacobian = kwargs.pop('jacobian')
@@ -99,7 +98,7 @@ class GradientMinimizer(BaseMinimizer):
 
 class ScipyMinimize(object):
     """
-    Mix-in class that handles the execute calls to scipy.optimize.minimize.
+    Mix-in class that handles the execute calls to :func:`scipy.optimize.minimize`.
     """
     def __init__(self, *args, **kwargs):
         self.constraints = []
@@ -167,6 +166,9 @@ class ScipyMinimize(object):
         return FitResults(**fit_results)
 
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
+    """
+    Base class for :func:`scipy.optimize.minimize`'s gradient-minimizers.
+    """
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
         self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
@@ -175,6 +177,9 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
 
 class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
+    """
+    Base class for :func:`scipy.optimize.minimize`'s constrained-minimizers.
+    """
     def __init__(self, *args, **kwargs):
         super(ScipyConstrainedMinimize, self).__init__(*args, **kwargs)
         self.wrapped_constraints = self.scipy_constraints(self.constraints)
@@ -208,11 +213,17 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
         return cons
 
 class BFGS(ScipyGradientMinimize):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s BFGS algorithm.
+    """
     def execute(self, **minimize_options):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
 
 class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s SLSQP algorithm.
+    """
     def __init__(self, *args, **kwargs):
         super(SLSQP, self).__init__(*args, **kwargs)
         # We have to break DRY because you cannot inherit from both
@@ -252,6 +263,9 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
 
 
 class COBYLA(ScipyConstrainedMinimize):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
+    """
     def execute(self, **minimize_options):
         return super(COBYLA, self).execute(
             method='COBYLA', **minimize_options
@@ -259,6 +273,9 @@ class COBYLA(ScipyConstrainedMinimize):
 
 
 class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s LBFGSB algorithm.
+    """
     def execute(self, **minimize_options):
         return super(LBFGSB, self).execute(
             method='L-BFGS-B',
@@ -268,6 +285,9 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
 
 
 class NelderMead(ScipyMinimize, BaseMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s NelderMead algorithm.
+    """
     def execute(self, **minimize_options):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
