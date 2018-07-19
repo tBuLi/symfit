@@ -1,8 +1,9 @@
 import abc
-from collections import namedtuple
+import sys
+from collections import namedtuple, Counter
 from functools import partial, wraps
 
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 import sympy
 import numpy as np
 
@@ -10,7 +11,13 @@ from .support import key2str, keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 
+if sys.version_info >= (3,0):
+    import inspect as inspect_sig
+else:
+    import funcsigs as inspect_sig
+
 DummyModel = namedtuple('DummyModel', 'params')
+
 
 class BaseMinimizer(object):
     """
@@ -31,6 +38,7 @@ class BaseMinimizer(object):
         """
         The execute method should implement the actual minimization procedure,
         and should return a :class:`~symfit.core.fit_results.FitResults` instance.
+
         :param options: options to be used by the minimization procedure.
         :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
@@ -38,7 +46,15 @@ class BaseMinimizer(object):
 
     @property
     def initial_guesses(self):
-        return [p.value for p in self.params]
+        try:
+            return self._initial_guesses
+        except AttributeError:
+            return [p.value for p in self.params]
+
+    @initial_guesses.setter
+    def initial_guesses(self, vals):
+        self._initial_guesses = vals
+
 
 class BoundedMinimizer(BaseMinimizer):
     """
@@ -96,6 +112,117 @@ class GradientMinimizer(BaseMinimizer):
             return out[mask]
         return resized
 
+
+class GlobalMinimizer(BaseMinimizer):
+    """
+    A minimizer that looks for a global minimum, instead of a local one.
+    """
+    def __init__(self, *args, **kwargs):
+        super(GlobalMinimizer, self).__init__(*args, **kwargs)
+
+
+class ChainedMinimizer(BaseMinimizer):
+    """
+    A minimizer that consists of multiple other minimizers, each executed in
+    order.
+    This is valuable if you have minimizers that are not good at finding the
+    exact minimum such as :class:`~symfit.core.minimizers.NelderMead` or
+    :class:`~symfit.core.minimizers.DifferentialEvolution`.
+    """
+    @keywordonly(minimizers=None)
+    def __init__(self, *args, **kwargs):
+        '''
+        :param minimizers: a :class:`~collections.abc.Sequence` of
+            :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need
+            to be run in order.
+        :param \*args: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
+        :param \*\*kwargs: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
+        '''
+        minimizers = kwargs.pop('minimizers')
+        super(ChainedMinimizer, self).__init__(*args, **kwargs)
+        self.minimizers = minimizers
+        self.__signature__ = self._make_signature()
+
+    def execute(self, **minimizer_kwargs):
+        """
+        Execute the chained-minimization. In order to pass options to the
+        seperate minimizers, they can  be passed by using the
+        names of the minimizers as keywords. For example::
+
+            fit = Fit(self.model, self.xx, self.yy, self.ydata,
+                      minimizer=[DifferentialEvolution, BFGS])
+            fit_result = fit.execute(
+                DifferentialEvolution={'seed': 0, 'tol': 1e-4, 'maxiter': 10},
+                BFGS={'tol': 1e-4}
+            )
+
+        In case of multiple identical minimizers an index is added to each
+        keyword argument to make them identifiable. For example, if::
+
+            minimizer=[BFGS, DifferentialEvolution, BFGS])
+
+        then the keyword arguments will be 'BFGS', 'DifferentialEvolution',
+        and 'BFGS_2'.
+
+        :param minimizer_kwargs: Minimizer options to be passed to the
+            minimzers by name
+        :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
+        """
+        bound_arguments = self.__signature__.bind(**minimizer_kwargs)
+        # Include default values in bound_argument object
+        for param in self.__signature__.parameters.values():
+            if param.name not in bound_arguments.arguments:
+                bound_arguments.arguments[param.name] = param.default
+
+        answers = []
+        next_guess = self.initial_guesses
+        for minimizer, kwargs in zip(self.minimizers, bound_arguments.arguments.values()):
+            minimizer.initial_guesses = next_guess
+            ans = minimizer.execute(**kwargs)
+            next_guess = list(ans.params.values())
+            answers.append(ans)
+        final = answers[-1]
+        # TODO: Compile all previous results in one, instead of just the
+        # number of function evaluations. But there's some code down the
+        # line that expects scalars.
+        final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
+        return final
+
+    def _make_signature(self):
+        """
+        Create a signature for `execute` based on the minimizers this
+        `ChainedMinimizer` was initiated with. For the format, see the docstring
+        of :meth:`ChainedMinimizer.execute`.
+
+        :return: :class:`inspect.Signature` instance.
+        """
+        # Create KEYWORD_ONLY arguments with the names of the minimizers.
+        name = lambda x: x.__class__.__name__
+        count = Counter(
+            [name(minimizer) for minimizer in self.minimizers]
+        ) # Count the number of each minimizer, they don't have to be unique
+
+        # Note that these are inspect_sig.Parameter's, not symfit parameters!
+        parameters = []
+        for minimizer in reversed(self.minimizers):
+            if count[name(minimizer)] == 1:
+                # No ambiguity, so use the name directly.
+                param_name = name(minimizer)
+            else:
+                # Ambiguity, so append the number of remaining minimizers
+                param_name = '{}_{}'.format(name(minimizer), count[name(minimizer)])
+            count[name(minimizer)] -= 1
+
+            parameters.append(
+                inspect_sig.Parameter(
+                    param_name,
+                    kind=inspect_sig.Parameter.KEYWORD_ONLY,
+                    default={}
+                )
+            )
+        return inspect_sig.Signature(parameters=reversed(parameters))
+
+
 class ScipyMinimize(object):
     """
     Mix-in class that handles the execute calls to :func:`scipy.optimize.minimize`.
@@ -127,6 +254,17 @@ class ScipyMinimize(object):
 
     @keywordonly(tol=1e-9)
     def execute(self, bounds=None, jacobian=None, constraints=None, **minimize_options):
+        """
+        Calls the wrapped algorithm.
+
+        :param bounds: The bounds for the parameters. Usually filled by
+            :class:`~symfit.core.minimizers.BoundedMinimizer`.
+        :param jacobian: The Jacobian. Usually filled by
+            :class:`~symfit.core.minimizers.ScipyGradientMinimize`.
+        :param \*\*minimize_options: Further keywords to pass to
+            :func:`scipy.optimize.minimize`. Note that your `method` will
+            usually be filled by a specific subclass.
+        """
         ans = minimize(
             self.wrapped_objective,
             self.initial_guesses,
@@ -135,6 +273,17 @@ class ScipyMinimize(object):
             jac=jacobian,
             **minimize_options
         )
+        return self._pack_output(ans)
+
+    def _pack_output(self, ans):
+        """
+        Packs the output of a minimization in a
+        :class:`~symfit.core.fit_results.FitResults`.
+
+        :param ans: The output of a minimization as produced by
+            :func:`scipy.optimize.minimize`
+        :returns: :class:`~symfit.core.fit_results.FitResults`
+        """
         # Build infodic
         infodic = {
             'nfev': ans.nfev,
@@ -183,6 +332,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyConstrainedMinimize, self).__init__(*args, **kwargs)
         self.wrapped_constraints = self.scipy_constraints(self.constraints)
+        print(self.wrapped_constraints)
 
     def execute(self, **minimize_options):
         return super(ScipyConstrainedMinimize, self).execute(constraints=self.wrapped_constraints, **minimize_options)
@@ -218,6 +368,18 @@ class BFGS(ScipyGradientMinimize):
     """
     def execute(self, **minimize_options):
         return super(BFGS, self).execute(method='BFGS', **minimize_options)
+
+class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
+    """
+    A wrapper around :func:`scipy.optimize.differential_evolution`.
+    """
+    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
+                 recombination=0.95, polish=False, init='latinhypercube')
+    def execute(self, **de_options):
+        ans = differential_evolution(self.list2kwargs(self.objective),
+                                     self.bounds,
+                                     **de_options)
+        return self._pack_output(ans)
 
 
 class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
@@ -303,7 +465,7 @@ class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
 
     def execute(self, **minpack_options):
         """
-        :param minpack_options: Any named arguments to be passed to leastsqbound
+        :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
         popt, pcov, infodic, mesg, ier = leastsqbound(
             self.wrapped_objective,
