@@ -180,12 +180,12 @@ def key2str(target):
     In ``symfit`` there are many dicts with symbol: value pairs.
     These can not be used immediately as \*\*kwargs, even though this would make
     a lot of sense from the context.
-    This function wraps such dict to make them usable as \*\*kwargs immidiately.
+    This function wraps such dict to make them usable as \*\*kwargs immediately.
 
-    :param target: dict to be made save
-    :return: dict of str(symbol): value pairs.
+    :param target: `Mapping` to be made save
+    :return: `Mapping` of str(symbol): value pairs.
     """
-    return {str(symbol): value for symbol, value in target.items()}
+    return target.__class__((str(symbol), value) for symbol, value in target.items())
 
 class RequiredKeyword(object):
     """ Flag variable to indicate that this is a required keyword. """
