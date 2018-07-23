@@ -425,7 +425,7 @@ class Model(CallableModel):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
-        return [[sympy_to_py(partial, self.independent_vars, self.params) for partial in row] for row in self.jacobian]
+        return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
 
     @property
     # @cache
@@ -465,7 +465,7 @@ class Model(CallableModel):
         """
         # Evaluate the jacobian at specified points
         jac = [
-            [partial(*args, **kwargs) for partial in row ] for row in self.numerical_jacobian
+            [partial_dv(*args, **kwargs) for partial_dv in row ] for row in self.numerical_jacobian
         ]
         for idx, comp in enumerate(jac):
             # Find out how many datapoints this component has. We need to do
@@ -647,7 +647,7 @@ class Constraint(Model):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
-        return [[sympy_to_py(partial, self.model.vars, self.model.params) for partial in row] for row in self.jacobian]
+        return [[sympy_to_py(partial_dv, self.model.vars, self.model.params) for partial_dv in row] for row in self.jacobian]
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
