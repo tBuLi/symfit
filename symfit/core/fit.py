@@ -1,6 +1,5 @@
 from collections import namedtuple, Mapping, OrderedDict, Sequence
 import copy
-from functools import partial
 import sys
 import warnings
 from abc import abstractmethod
@@ -12,7 +11,8 @@ from scipy.optimize import minimize
 from scipy.integrate import odeint
 
 from symfit.core.argument import Parameter, Variable
-from .support import seperate_symbols, keywordonly, sympy_to_py, cache, key2str
+from .support import \
+    seperate_symbols, keywordonly, sympy_to_py, cache, key2str, partial
 
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,

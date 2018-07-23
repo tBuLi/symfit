@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import unittest
 import sys
-from functools import partial
 
 import numpy as np
 from symfit import (
@@ -10,6 +9,7 @@ from symfit import (
 )
 from symfit.distributions import Gaussian
 from symfit.core.minimizers import SLSQP, MINPACK
+from symfit.core.support import partial
 
 
 class TestConstrained(unittest.TestCase):

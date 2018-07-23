@@ -1,13 +1,12 @@
 import abc
 import sys
 from collections import namedtuple, Counter
-from functools import partial
 
 from scipy.optimize import minimize, differential_evolution
 import sympy
 import numpy as np
 
-from .support import key2str, keywordonly
+from .support import key2str, keywordonly, partial
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 
@@ -334,7 +333,6 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
     def __init__(self, *args, **kwargs):
         super(ScipyConstrainedMinimize, self).__init__(*args, **kwargs)
         self.wrapped_constraints = self.scipy_constraints(self.constraints)
-        print(self.wrapped_constraints)
 
     def execute(self, **minimize_options):
         return super(ScipyConstrainedMinimize, self).execute(constraints=self.wrapped_constraints, **minimize_options)

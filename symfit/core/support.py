@@ -25,6 +25,11 @@ else:
     import funcsigs as inspect_sig
     from functools32 import wraps
 
+if sys.version_info >= (3, 5):
+    from functools import partial
+else:
+    from ._support import repeatable_partial as partial
+
 class deprecated(object):
     """
     Decorator to raise a DeprecationWarning.
