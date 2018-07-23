@@ -98,6 +98,7 @@ class GradientMinimizer(BaseMinimizer):
         """
         Removes values with identical indices to fixed parameters from the
         output of func. func has to return the jacobian of a scalar function.
+        
         :param func: Jacobian function to be wrapped. Is assumed to be the
             jacobian of a scalar function.
         :return: Jacobian corresponding to non-fixed parameters only.
