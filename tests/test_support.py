@@ -7,7 +7,8 @@ import unittest
 import sys
 import warnings
 
-from symfit.core.support import keywordonly, RequiredKeyword, RequiredKeywordError
+from symfit.core.support import \
+    keywordonly, RequiredKeyword, RequiredKeywordError, partial
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -130,6 +131,30 @@ class TestSupport(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             b = self._B(3, 5, 7, d=2, e=6)
+
+    def test_repeatable_partial(self):
+        """
+        Test the custom repeatable partial, which makes partial behave the same
+        in older python versions as in the most recent.
+        """
+        def partial_me(a, b, c=None):
+            return a, b, c
+
+        partialed_one = partial(partial_me, a=2)
+        partialed_two = partial(partialed_one, b='string')
+
+        self.assertIsInstance(partialed_one, partial)
+        self.assertEqual(partialed_one.func, partial_me)
+        self.assertFalse(partialed_one.args)
+        self.assertEqual(partialed_one.keywords, {'a': 2})
+
+        # For the second partial, all should remain the same except the keywords
+        # are extended by one item.
+        self.assertIsInstance(partialed_two, partial)
+        self.assertEqual(partialed_two.func, partial_me)
+        self.assertFalse(partialed_two.args)
+        self.assertEqual(partialed_two.keywords, {'a': 2, 'b': 'string'})
+
 
 if __name__ == '__main__':
     try:
