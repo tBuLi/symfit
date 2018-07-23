@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 import unittest
-from functools import partial
 import sys
+from functools import partial
 
 import numpy as np
 from symfit import (
@@ -9,12 +9,8 @@ from symfit import (
     Fit, Equality, D, Model, log, FitResults, GreaterThan, Constraint
 )
 from symfit.distributions import Gaussian
-from symfit.core.minimizers import SLSQP, MINPACK, COBYLA
+from symfit.core.minimizers import SLSQP, MINPACK
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
 
 class TestConstrained(unittest.TestCase):
     """

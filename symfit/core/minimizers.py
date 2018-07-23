@@ -1,7 +1,7 @@
 import abc
 import sys
 from collections import namedtuple, Counter
-from functools import partial, wraps
+from functools import partial
 
 from scipy.optimize import minimize, differential_evolution
 import sympy
@@ -13,8 +13,10 @@ from .fit_results import FitResults
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
+    from functools import wraps
 else:
     import funcsigs as inspect_sig
+    from functools32 import wraps
 
 DummyModel = namedtuple('DummyModel', 'params')
 

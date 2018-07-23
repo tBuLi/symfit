@@ -4,7 +4,6 @@ throughout symfit. Some are used predominantly internally, others are
 designed for users.
 """
 from __future__ import print_function
-from functools import wraps
 from collections import OrderedDict
 import sys
 import warnings
@@ -21,8 +20,10 @@ from symfit.core.argument import Parameter, Variable
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
+    from functools import wraps
 else:
     import funcsigs as inspect_sig
+    from functools32 import wraps
 
 class deprecated(object):
     """
