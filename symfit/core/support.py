@@ -28,7 +28,7 @@ else:
 if sys.version_info >= (3, 5):
     from functools import partial
 else:
-    from ._support import repeatable_partial as partial
+    from ._repeatable_partial import repeatable_partial as partial
 
 class deprecated(object):
     """
