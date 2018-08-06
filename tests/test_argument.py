@@ -64,9 +64,9 @@ class TestArgument(unittest.TestCase):
         a = Parameter()
         b = Parameter(name='b')
         c = Parameter(name='d')
-        self.assertNotEqual(a.name, 'a')
-        self.assertEqual(b.name, 'b')
-        self.assertEqual(c.name, 'd')
+        self.assertNotEqual(str(a), 'a')
+        self.assertEqual(str(b), 'b')
+        self.assertEqual(str(c), 'd')
 
     def test_symbol_add(self):
         """
@@ -82,13 +82,17 @@ class TestArgument(unittest.TestCase):
         """
         A = Parameter('A', min=0., max=1e3, fixed=True)
         new_A = pickle.loads(pickle.dumps(A))
-        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
-                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+        self.assertEqual(
+            (A.min, A.value, A.max, A.fixed, str(A)),
+            (new_A.min, new_A.value, new_A.max, new_A.fixed, str(new_A))
+        )
 
         A = Parameter(min=0., max=1e3, fixed=True)
         new_A = pickle.loads(pickle.dumps(A))
-        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
-                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+        self.assertEqual(
+            (A.min, A.value, A.max, A.fixed, str(A)),
+            (new_A.min, new_A.value, new_A.max, new_A.fixed, str(new_A))
+        )
 
     def test_slots(self):
         """

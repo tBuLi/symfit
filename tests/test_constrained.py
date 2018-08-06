@@ -568,11 +568,11 @@ class TestConstrained(unittest.TestCase):
         fit_result_slsqp = fit.execute()
         # The data and fixed parameters should be partialed away.
         partialed_kwargs = {
-            phi2.name: phi2.value,
-            phi1.name: phi1.value,
-            x.name: xdata,
-            y.name: ydata,
-            fit.model.sigmas[y].name: np.ones_like(ydata)
+            str(phi2): phi2.value,
+            str(phi1): phi1.value,
+            str(x): xdata,
+            str(y): ydata,
+            str(fit.model.sigmas[y]): np.ones_like(ydata)
         }
         for constraint in fit.minimizer.constraints:
             self.assertIsInstance(constraint, partial)

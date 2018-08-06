@@ -73,8 +73,8 @@ def seperate_symbols(func):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
-    params.sort(key=lambda symbol: symbol.name)
-    vars.sort(key=lambda symbol: symbol.name)
+    params.sort(key=lambda symbol: str(symbol))
+    vars.sort(key=lambda symbol: str(symbol))
     return vars, params
 
 def sympy_to_py(func, vars, params):
