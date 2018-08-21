@@ -3,7 +3,9 @@ import numbers
 import warnings
 
 from sympy.core.symbol import Symbol
-
+from sympy.core.expr import Expr
+from sympy.tensor.indexed import IndexedBase, Indexed, IndexException
+from sympy.core.compatibility import is_sequence
 
 class Argument(Symbol):
     """
@@ -111,3 +113,60 @@ class Variable(Argument):
     # Variable index to be assigned to generated nameless variables
     _argument_name = 'var'
     __slots__ = ()
+
+class IndexedArgument(Indexed):
+    def __new__(cls, base, *args, **kw_args):
+        """
+        __new__ has to be overwritten to be duck typing compliant: just try it!
+        """
+        return Expr.__new__(cls, base, *args, **kw_args)
+
+    @property
+    def free_symbols(self):
+        """
+        In sympy, Indexed objects return their base and indices as free symbols.
+        We would like the Indexed object to be seen as fundamental however.
+        :return:
+        """
+        return {self}
+
+
+class IndexedVariable(IndexedArgument):
+    pass
+
+
+class IndexedParameter(IndexedArgument):
+    pass
+
+
+class IndexedArgumentBase(IndexedBase):
+    __slots__ = ()
+    _indexed_class = IndexedArgument
+
+    def __getitem__(self, indices, **kw_args):
+        try:
+            # Use this to do all sanity checking on the arguments, but if they
+            # go through, we build a self._indexed_class instead.
+            super(IndexedArgumentBase, self).__getitem__(indices, **kw_args)
+        except IndexException as err:
+            raise err
+        else:
+            if is_sequence(indices):
+                return self._indexed_class(self, *indices, **kw_args)
+            else:
+                return self._indexed_class(self, indices, **kw_args)
+
+    @property
+    def free_symbols(self):
+        """
+        In sympy, IndexedBase objects return their label as free symbols.
+        We would like the Indexed object to be seen as fundamental however.
+        :return:
+        """
+        return {self}
+
+class IndexedParameterBase(IndexedArgumentBase):
+    _indexed_class = IndexedParameter
+
+class IndexedVariableBase(IndexedArgumentBase):
+    _indexed_class = IndexedVariable
