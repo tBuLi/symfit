@@ -8,8 +8,10 @@ from symfit.core.fit import (
     TaylorModel, ODEModel, ModelError
 )
 from symfit.core.fit_results import FitResults
-from symfit.core.argument import Variable, Parameter
-from symfit.core.support import variables, parameters, D
+from symfit.core.argument import (
+    Variable, Parameter, IndexedVariable, IndexedParameter
+)
+from symfit.core.support import variables, parameters, indices, D
 
 # Expose the sympy API
 from sympy import *
