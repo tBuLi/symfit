@@ -2,7 +2,7 @@ import abc
 import sys
 from collections import namedtuple, Counter
 
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import minimize, differential_evolution, basinhopping
 import sympy
 import numpy as np
 
@@ -316,6 +316,16 @@ class ScipyMinimize(object):
                 fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
 
+    @classmethod
+    def minimize_method(cls):
+        """
+        Returns the name of the minimize method this object represents. This is
+        needed because the name of the object is not always exactly what needs
+        to be passed on to scipy as a string.
+        :return:
+        """
+        return cls.__name__
+
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
     Base class for :func:`scipy.optimize.minimize`'s gradient-minimizers.
@@ -453,6 +463,67 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
     """
     def execute(self, **minimize_options):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
+
+
+class BasinHopping(ScipyMinimize, BaseMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.basinhopping`'s basin-hopping algorithm.
+
+    As always, the best way to use this algorithm is through
+    :class:`~symfit.core.fit.Fit`, as this will automatically select a local
+    minimizer for you depending on wether you provvided ounds, constraints, etc.
+
+    Example::
+        from symfit import Fit, parameters, cos
+        from symfit.core.minimizers import BasinHopping
+
+        x1, x2 = parameters('x1, x2')
+        model = cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
+        fit = Fit(model, minimizer=BasinHopping)
+        fit_result = fit.execute()
+
+    This will automatically compute the jacobian for you and pass it on to the
+    local minimizer, BFGS in this case.
+    """
+    @keywordonly(local_minimizer=BFGS)
+    def __init__(self, *args, **kwargs):
+        self.local_minimizer = kwargs.pop('local_minimizer')
+        super(BasinHopping, self).__init__(*args, **kwargs)
+
+        type_error = TypeError(
+            'Currently only subclasses of ScipyMinimize are supported, since'
+            ' `scipy.optimize.basinhopping` uses `scipy.optimize.minimize`.'
+        )
+        try:
+            issubclass(self.local_minimizer, ScipyMinimize)
+        except TypeError:
+            # It is not a class
+            if not isinstance(self.local_minimizer, ScipyMinimize):
+                raise type_error
+        else:
+            if not issubclass(self.local_minimizer, ScipyMinimize):
+                raise type_error
+            self.local_minimizer = self.local_minimizer(self.objective, self.parameters)
+
+    def execute(self, **minimize_options):
+        if 'minimizer_kwargs' not in minimize_options:
+            minimize_options['minimizer_kwargs'] = {}
+
+        if 'method' not in minimize_options['minimizer_kwargs']:
+            # If no minimizer was set by the user upon execute, use the default.
+            minimize_options['minimizer_kwargs']['method'] = self.local_minimizer.minimize_method()
+        if 'jac' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, GradientMinimizer):
+            # Assign the jacobian
+            minimize_options['minimizer_kwargs']['jac'] = self.local_minimizer.wrapped_jacobian
+        if 'constraints' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, ConstrainedMinimizer):
+            # Assign constraints
+            minimize_options['minimizer_kwargs']['constraints'] = self.local_minimizer.wrapped_constraints
+        ans = basinhopping(
+            self.wrapped_objective,
+            self.initial_guesses,
+            **minimize_options
+        )
+        return self._pack_output(ans)
 
 
 class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
