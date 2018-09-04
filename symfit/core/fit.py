@@ -16,7 +16,7 @@ from .support import \
 
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
-    ScipyMinimize, MINPACK, ChainedMinimizer
+    ScipyMinimize, MINPACK, ChainedMinimizer, BasinHopping
 )
 from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
@@ -1333,20 +1333,27 @@ class Fit(HasCovarianceMatrix):
 
         # Select the minimizer on the basis of the provided information.
         if minimizer is None:
-            if self.constraints:
-                minimizer = SLSQP
-            elif any([bound is not None for pair in self.model.bounds for bound in pair]):
-                # If any bound is set
-                minimizer = LBFGSB
-            else:
-                minimizer = BFGS
+            minimizer = self._determine_minimizer()
 
-        # Initialise the minimizer
-        if isinstance(minimizer, Sequence):
+        if isinstance(minimizer, Sequence):  # Initialise the minimizer
             minimizers = [self._init_minimizer(mini) for mini in minimizer]
             self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:
             self.minimizer = self._init_minimizer(minimizer)
+
+    def _determine_minimizer(self):
+        """
+        Determine the most suitable minimizer by the presence of bounds or
+        constraints.
+        :return: a subclass of `BaseMinimizer`.
+        """
+        if self.constraints:
+            return SLSQP
+        elif any([bound is not None for pair in self.model.bounds for bound in pair]):
+            # If any bound is set
+            return LBFGSB
+        else:
+            return BFGS
 
     def _init_minimizer(self, minimizer, **minimizer_options):
         """
@@ -1360,8 +1367,13 @@ class Fit(HasCovarianceMatrix):
             minimizer on instantiation.
         :returns: instance of :class:`~symfit.core.minimizers.BaseMinimizer`.
         """
+
         if isinstance(minimizer, BaseMinimizer):
             return minimizer
+        if issubclass(minimizer, BasinHopping):
+            minimizer_options['local_minimizer'] = self._init_minimizer(
+                self._determine_minimizer()
+            )
         if issubclass(minimizer, GradientMinimizer):
             # If an analytical version of the Jacobian exists we should use
             # that, otherwise we let the minimizer estimate it itself.
