@@ -8,7 +8,7 @@ import sys
 import warnings
 
 from symfit.core.support import \
-    keywordonly, RequiredKeyword, RequiredKeywordError, partial
+    keywordonly, RequiredKeyword, RequiredKeywordError, partial, parameters
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -155,6 +155,33 @@ class TestSupport(unittest.TestCase):
         self.assertFalse(partialed_two.args)
         self.assertEqual(partialed_two.keywords, {'a': 2, 'b': 'string'})
 
+    def test_parameters(self):
+        """
+        Test the `parameter` convenience function.
+        """
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=0.0)
+        self.assertEqual(x1.value, 2.0)
+        self.assertEqual(x2.value, 1.3)
+        self.assertEqual(x1.min, 0.0)
+        self.assertEqual(x2.min, 0.0)
+        self.assertEqual(x1.fixed, False)
+        self.assertEqual(x2.fixed, False)
+        with self.assertRaises(ValueError):
+            x1, x2 = parameters('x1, x2', value=[2.0, 1.3, 3.0], min=0.0)
+
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[-30, -10], max=[300, 100], fixed=[True, False])
+        self.assertEqual(x1.min, -30)
+        self.assertEqual(x2.min, -10)
+        self.assertEqual(x1.max, 300)
+        self.assertEqual(x2.max, 100)
+        self.assertEqual(x1.value, 2.0)
+        self.assertEqual(x2.value, 1.3)
+        self.assertEqual(x1.fixed, True)
+        self.assertEqual(x2.fixed, False)
+
+        # Illegal bounds
+        with self.assertRaises(ValueError):
+            x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[400, -10], max=[300, 100])
 
 if __name__ == '__main__':
     try:

@@ -7,6 +7,8 @@ from __future__ import print_function
 from collections import OrderedDict
 import sys
 import warnings
+from itertools import repeat
+
 
 import numpy as np
 from sympy.utilities.lambdify import lambdify
@@ -135,12 +137,49 @@ def parameters(names, **kwargs):
     Convenience function for the creation of multiple parameters. For more
     control, consider using ``symbols(names, cls=Parameter, **kwargs)`` directly.
 
+    The `Parameter` attributes `value`, `min`, `max` and `fixed` can also be provided
+    directly. If given as a single value, the same value will be set for all
+    `Parameter`'s. When a sequence, it must be of the same length as the number of
+    parameters created.
+
+    Example::
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=0.0)
+
     :param names: string of parameter names.
         Example: a, b = parameters('a, b')
-    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
+    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`.
+        `value`, `min` and `max` will be handled separately if they are sequences.
     :return: iterable of :class:`symfit.core.argument.Parameter` objects
     """
-    return symbols(names, cls=Parameter, seq=True, **kwargs)
+    sequence_fields = ['value', 'min', 'max', 'fixed']
+    sequences = {}
+    for attr in sequence_fields:
+        # if attr in kwargs:
+        try:
+            len(kwargs[attr])
+        except (TypeError, KeyError):
+            # Not iterable
+            pass
+        else:
+            sequences[attr] = kwargs.pop(attr)
+
+    if 'min' in sequences and 'max' in sequences:
+        for min, max in zip(sequences['min'], sequences['max']):
+            if min > max:
+                raise ValueError('The value of `min` should be less than or'
+                                 ' equal to the value of `max`.')
+
+    ans = symbols(names, cls=Parameter, seq=True, **kwargs)
+    for key, values in sequences.items():
+        if not isinstance(values, repeat) and len(values) != len(ans):
+            raise ValueError(
+                '`len` of keyword-argument `{}` does not match the number of '
+                '`Parameter`s created.'.format(attr)
+            )
+        else:
+            for param, value in zip(ans, values):
+                setattr(param, key, value)
+    return ans
 
 def cache(func):
     """
