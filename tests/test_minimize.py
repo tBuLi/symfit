@@ -11,7 +11,7 @@ from symfit import (
     Model, cos
 )
 from symfit.core.objectives import MinimizeModel
-from symfit.core.minimizers import BFGS, BasinHopping, LBFGSB
+from symfit.core.minimizers import BFGS, BasinHopping, LBFGSB, SLSQP
 from symfit.core.support import partial
 
 
@@ -218,6 +218,24 @@ class TestMinimize(unittest.TestCase):
         self.assertEqual(res.x[0], fit_result.value(x1))
         self.assertEqual(res.x[1], fit_result.value(x2))
         self.assertEqual(res.fun, fit_result.objective_value)
+        self.assertIsInstance(fit.minimizer.local_minimizer, BFGS)
+        
+        # Impose constrains
+        np.random.seed(555)
+        model = cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
+        fit = Fit(model, minimizer=BasinHopping, constraints=[Eq(x1, x2)])
+        fit_result = fit.execute()
+        self.assertEqual(fit_result.value(x1), fit_result.value(x2))
+        self.assertIsInstance(fit.minimizer.local_minimizer, SLSQP)
+
+        # Impose bounds
+        np.random.seed(555)
+        x1.min = 0.0
+        model = cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
+        fit = Fit(model, minimizer=BasinHopping)
+        fit_result = fit.execute()
+        self.assertGreaterEqual(fit_result.value(x1), x1.min)
+        self.assertIsInstance(fit.minimizer.local_minimizer, LBFGSB)
 
 
 if __name__ == '__main__':
