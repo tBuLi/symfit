@@ -456,11 +456,18 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
             **minimize_options
         )
 
+    @classmethod
+    def minimize_method(cls):
+        return "L-BFGS-B"
 
 class NelderMead(ScipyMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s NelderMead algorithm.
     """
+    @classmethod
+    def minimize_method(cls):
+        return 'Nelder-Mead'
+
     def execute(self, **minimize_options):
         return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
