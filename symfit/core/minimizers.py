@@ -525,6 +525,10 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
         if 'constraints' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, ConstrainedMinimizer):
             # Assign constraints
             minimize_options['minimizer_kwargs']['constraints'] = self.local_minimizer.wrapped_constraints
+        if 'bounds' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, BoundedMinimizer):
+            # Assign bounds
+            minimize_options['minimizer_kwargs']['bounds'] = self.local_minimizer.bounds
+
         ans = basinhopping(
             self.wrapped_objective,
             self.initial_guesses,
