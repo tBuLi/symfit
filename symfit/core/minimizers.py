@@ -480,36 +480,61 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
     :class:`~symfit.core.fit.Fit`, as this will automatically select a local
     minimizer for you depending on wether you provvided ounds, constraints, etc.
 
-    Example::
-        from symfit import Fit, parameters, cos
-        from symfit.core.minimizers import BasinHopping
+    However, BasinHopping can also be used directly. Example with jacobian::
 
-        x1, x2 = parameters('x1, x2')
-        model = cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
-        fit = Fit(model, minimizer=BasinHopping)
-        fit_result = fit.execute()
+        import numpy as np
+        from symfit.core.minimizers import BFGS, BasinHopping
+        from symfit import parameters
 
-    This will automatically compute the jacobian for you and pass it on to the
-    local minimizer, BFGS in this case.
+        def func2d_symfit(x1, x2):
+            f = np.cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
+            return f
+
+        def jac2d_symfit(x1, x2):
+            df = np.zeros(2)
+            df[0] = -14.5 * np.sin(14.5 * x1 - 0.3) + 2. * x1 + 0.2
+            df[1] = 2. * x2 + 0.2
+            return df
+
+        x0 = [1.0, 1.0]
+        np.random.seed(555)
+        x1, x2 = parameters('x1, x2', value=x0)
+        fit = BasinHopping(func2d_symfit, [x1, x2], local_minimizer=BFGS)
+        minimizer_kwargs = {'jac': fit.list2kwargs(jac2d_symfit)}
+        fit_result = fit.execute(niter=200, minimizer_kwargs=minimizer_kwargs)
+
+    See :func:`scipy.optimize.basinhopping` for more options.
     """
     @keywordonly(local_minimizer=BFGS)
     def __init__(self, *args, **kwargs):
+        """
+        :param local_minimizer: minimizer to be used for local minimization
+            steps. Can be any subclass of
+            :class:`symfit.core.minimizers.ScipyMinimize`.
+        :param args: positional arguments to be passed on to `super`.
+        :param kwargs: keyword arguments to be passed on to `super`.
+        """
         self.local_minimizer = kwargs.pop('local_minimizer')
         super(BasinHopping, self).__init__(*args, **kwargs)
 
-        type_error = TypeError(
-            'Currently only subclasses of ScipyMinimize are supported, since'
-            ' `scipy.optimize.basinhopping` uses `scipy.optimize.minimize`.'
-        )
+        type_error_msg = 'Currently only subclasses of ScipyMinimize are ' \
+                         'supported, since `scipy.optimize.basinhopping` uses ' \
+                         '`scipy.optimize.minimize`.'
+        # self.local_minimizer has to be a subclass or instance of ScipyMinimize
+        # Since no one function exists to test this, we try/except instead.
         try:
+            # Test if subclass. If this line doesn't fail, we are dealing with
+            # some class. If it fails, we assume that it is an instance.
             issubclass(self.local_minimizer, ScipyMinimize)
         except TypeError:
-            # It is not a class
+            # It is not a class at all, so test if it's an instance instead
             if not isinstance(self.local_minimizer, ScipyMinimize):
-                raise type_error
+                # Only ScipyMinimize subclasses supported
+                raise TypeError(type_error_msg)
         else:
             if not issubclass(self.local_minimizer, ScipyMinimize):
-                raise type_error
+                # Only ScipyMinimize subclasses supported
+                raise TypeError(type_error_msg)
             self.local_minimizer = self.local_minimizer(self.objective, self.parameters)
 
     def execute(self, **minimize_options):
