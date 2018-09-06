@@ -7,8 +7,6 @@ from __future__ import print_function
 from collections import OrderedDict
 import sys
 import warnings
-from itertools import repeat
-
 
 import numpy as np
 from sympy.utilities.lambdify import lambdify
@@ -154,11 +152,10 @@ def parameters(names, **kwargs):
     sequence_fields = ['value', 'min', 'max', 'fixed']
     sequences = {}
     for attr in sequence_fields:
-        # if attr in kwargs:
         try:
-            len(kwargs[attr])
+            iter(kwargs[attr])
         except (TypeError, KeyError):
-            # Not iterable
+            # Not iterable or not provided
             pass
         else:
             sequences[attr] = kwargs.pop(attr)
@@ -169,17 +166,22 @@ def parameters(names, **kwargs):
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
 
-    ans = symbols(names, cls=Parameter, seq=True, **kwargs)
+    params = symbols(names, cls=Parameter, seq=True, **kwargs)
     for key, values in sequences.items():
-        if not isinstance(values, repeat) and len(values) != len(ans):
+        try:
+            assert len(values) == len(params)
+        except AssertionError:
             raise ValueError(
                 '`len` of keyword-argument `{}` does not match the number of '
                 '`Parameter`s created.'.format(attr)
             )
-        else:
-            for param, value in zip(ans, values):
+        except TypeError:
+            # Iterator do not have a `len` but are allowed.
+            pass
+        finally:
+            for param, value in zip(params, values):
                 setattr(param, key, value)
-    return ans
+    return params
 
 def cache(func):
     """
