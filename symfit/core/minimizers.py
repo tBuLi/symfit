@@ -270,6 +270,7 @@ class ScipyMinimize(object):
         ans = minimize(
             self.wrapped_objective,
             self.initial_guesses,
+            method=self.method_name(),
             bounds=bounds,
             constraints=constraints,
             jac=jacobian,
@@ -317,7 +318,7 @@ class ScipyMinimize(object):
         return FitResults(**fit_results)
 
     @classmethod
-    def minimize_method(cls):
+    def method_name(cls):
         """
         Returns the name of the minimize method this object represents. This is
         needed because the name of the object is not always exactly what needs
@@ -377,8 +378,6 @@ class BFGS(ScipyGradientMinimize):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s BFGS algorithm.
     """
-    def execute(self, **minimize_options):
-        return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
 class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
     """
@@ -406,7 +405,6 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
 
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
-            method='SLSQP',
             bounds=self.bounds,
             jacobian=self.wrapped_jacobian,
             **minimize_options
@@ -439,11 +437,6 @@ class COBYLA(ScipyConstrainedMinimize):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
-    def execute(self, **minimize_options):
-        return super(COBYLA, self).execute(
-            method='COBYLA', **minimize_options
-        )
-
 
 class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
     """
@@ -451,13 +444,12 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
     """
     def execute(self, **minimize_options):
         return super(LBFGSB, self).execute(
-            method='L-BFGS-B',
             bounds=self.bounds,
             **minimize_options
         )
 
     @classmethod
-    def minimize_method(cls):
+    def method_name(cls):
         return "L-BFGS-B"
 
 class NelderMead(ScipyMinimize, BaseMinimizer):
@@ -465,11 +457,8 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
     Wrapper around :func:`scipy.optimize.minimize`'s NelderMead algorithm.
     """
     @classmethod
-    def minimize_method(cls):
+    def method_name(cls):
         return 'Nelder-Mead'
-
-    def execute(self, **minimize_options):
-        return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
 
 
 class BasinHopping(ScipyMinimize, BaseMinimizer):
