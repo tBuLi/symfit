@@ -183,24 +183,47 @@ def parameters(names, **kwargs):
                 setattr(param, key, value)
     return params
 
-def cache(func):
-    """
-    Decorator function that gets a method as its input and either buffers the input,
-    or returns the buffered output. Used in conjunction with properties to take away
-    the standard buffering logic.
 
-    :param func:
-    :return:
+class cached_property(property):
     """
-    @wraps(func)
-    def new_func(self):
+    A property which cashes the output of the first ever call and always returns
+    that value from then on, unless delete is called on the attribute.
+
+    This is typically used in converting `sympy` code into `scipy` compatible
+    code, which is computationally a very expensive step we would like to
+    perform only once.
+
+    Does not allow setting of the attribute.
+    """
+    def __get__(self, obj, objtype=None):
+        """
+        In case of a first call, this will call the decorated function and
+        return it's output. On every subsequent call, the same output will be
+        returned.
+
+        :param obj: the parent object this property is attached to.
+        :param objtype:
+        :return: Output of the first call to the decorated function.
+        """
+        cache_attr = '_{}'.format(self.fget.__name__)
         try:
-            return getattr(self, '_{}'.format(func.__name__))
+            return getattr(obj, cache_attr)
         except AttributeError:
-            setattr(self, '_{}'.format(func.__name__), func(self))
-            return getattr(self, '_{}'.format(func.__name__))
+            # Call the wrapped function with the obj instance as argument
+            setattr(obj, cache_attr, self.fget(obj))
+            return getattr(obj, cache_attr)
 
-    return new_func
+    def __delete__(self, obj):
+        """
+        Calling delete on the attribute will delete the cache.
+        :param obj: parent object.
+        """
+        cache_attr = '_{}'.format(self.fget.__name__)
+        try:
+            delattr(obj, cache_attr)
+        except AttributeError:
+            pass
+
 
 def jacobian(expr, symbols):
     """
