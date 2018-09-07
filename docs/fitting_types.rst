@@ -144,6 +144,7 @@ Example::
 As always, bounds on parameters and even constraints are supported.
 
 .. _minimize_maximize:
+
 Minimize/Maximize
 -----------------
 Minimize or Maximize a model subject to bounds and/or constraints. As an example
