@@ -219,7 +219,7 @@ class TestMinimize(unittest.TestCase):
         self.assertEqual(res.x[1], fit_result.value(x2))
         self.assertEqual(res.fun, fit_result.objective_value)
         self.assertIsInstance(fit.minimizer.local_minimizer, BFGS)
-        
+
         # Impose constrains
         np.random.seed(555)
         model = cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1

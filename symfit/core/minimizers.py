@@ -469,17 +469,17 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
     :class:`~symfit.core.fit.Fit`, as this will automatically select a local
     minimizer for you depending on whether you provided bounds, constraints, etc.
 
-    However, BasinHopping can also be used directly. Example with jacobian::
+    However, BasinHopping can also be used directly. Example (with jacobian)::
 
         import numpy as np
         from symfit.core.minimizers import BFGS, BasinHopping
         from symfit import parameters
 
-        def func2d_symfit(x1, x2):
+        def func2d(x1, x2):
             f = np.cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
             return f
 
-        def jac2d_symfit(x1, x2):
+        def jac2d(x1, x2):
             df = np.zeros(2)
             df[0] = -14.5 * np.sin(14.5 * x1 - 0.3) + 2. * x1 + 0.2
             df[1] = 2. * x2 + 0.2
@@ -488,8 +488,8 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
         x0 = [1.0, 1.0]
         np.random.seed(555)
         x1, x2 = parameters('x1, x2', value=x0)
-        fit = BasinHopping(func2d_symfit, [x1, x2], local_minimizer=BFGS)
-        minimizer_kwargs = {'jac': fit.list2kwargs(jac2d_symfit)}
+        fit = BasinHopping(func2d, [x1, x2], local_minimizer=BFGS)
+        minimizer_kwargs = {'jac': fit.list2kwargs(jac2d)}
         fit_result = fit.execute(niter=200, minimizer_kwargs=minimizer_kwargs)
 
     See :func:`scipy.optimize.basinhopping` for more options.
@@ -527,12 +527,19 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
             self.local_minimizer = self.local_minimizer(self.objective, self.parameters)
 
     def execute(self, **minimize_options):
+        """
+        Execute the basin-hopping minimization.
+        
+        :param minimize_options: options to be passed on to
+            :func:`scipy.optimize.basinhopping`.
+        :return: :class:`symfit.core.fit_results.FitResults`
+        """
         if 'minimizer_kwargs' not in minimize_options:
             minimize_options['minimizer_kwargs'] = {}
 
         if 'method' not in minimize_options['minimizer_kwargs']:
             # If no minimizer was set by the user upon execute, use the default.
-            minimize_options['minimizer_kwargs']['method'] = self.local_minimizer.minimize_method()
+            minimize_options['minimizer_kwargs']['method'] = self.local_minimizer.method_name()
         if 'jac' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, GradientMinimizer):
             # Assign the jacobian
             minimize_options['minimizer_kwargs']['jac'] = self.local_minimizer.wrapped_jacobian
