@@ -143,6 +143,7 @@ Example::
 ``fit_result`` is a normal :class:`~symfit.core.fit_results.FitResults` object.
 As always, bounds on parameters and even constraints are supported.
 
+.. _minimize_maximize:
 Minimize/Maximize
 -----------------
 Minimize or Maximize a model subject to bounds and/or constraints. As an example
@@ -459,6 +460,58 @@ to your answer, and then polish it off using a local minimizer::
   There is no way to guarantee that the minimum found is actually the global
   minimum. Unfortunately there is no way around this. Therefore, you should
   always critically inspect the results.
+
+Constrained Basin-Hopping
+-------------------------
+Worthy of special mention is the ease with which constraints or bounds can be
+added to :class:`symfit.core.minimizers.BasinHopping` when used through the
+:class:`symfit.core.fit.Fit` interface. As a very simple example, we shall
+compare to an example from the :mod:`scipy` docs::
+
+    import numpy as np
+    from scipy.optimize import basinhopping
+
+    def func2d(x):
+        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * x[1] + (x[0] + 0.2) * x[0]
+        df = np.zeros(2)
+        df[0] = -14.5 * np.sin(14.5 * x[0] - 0.3) + 2. * x[0] + 0.2
+        df[1] = 2. * x[1] + 0.2
+        return f, df
+
+    minimizer_kwargs = {"method":"L-BFGS-B", "jac":True}
+    x0 = [1.0, 1.0]
+    ret = basinhopping(func2d, x0, minimizer_kwargs=minimizer_kwargs, niter=200)
+
+Let's compare to the same functionality in :mod:`symfit`
+
+    import numpy as np
+    from symfit.core.minimizers import BasinHopping
+    from symfit import parameters, Fit, cos
+
+    x0 = [1.0, 1.0]
+    x1, x2 = parameters('x1, x2', value=x0)
+
+    model = cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
+
+    fit = Fit(model, minimizer=BasinHopping)
+    fit_result = fit.execute(niter=200)
+
+No `minimizer_kwargs` have to be provided, as :mod:`symfit` will automatically
+compute and provide the jacobian and select a minimizer. In this case, `symfit`
+will choose `BFGS`. When bounds are provided, `symfit` will switch to
+using `L-BFGS-B` instead. Setting bounds is as simple as::
+
+    x1.min = 0.0
+    x1.max = 100.0
+
+However, the real strength the `symfit` syntax lies in providing constraints::
+
+    constraints = [Eq(x1, x2)]
+    fit = Fit(model, minimizer=BasinHopping, constraints=constraints)
+
+This artificial example will make sure `x1 == x2` after fitting. If you have
+read the :ref:`minimize_maximize` section, you will know how much work this
+would be in pure :mod:`scipy`.
 
 Advanced usage
 --------------
