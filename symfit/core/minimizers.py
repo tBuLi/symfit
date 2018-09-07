@@ -478,7 +478,7 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
 
     As always, the best way to use this algorithm is through
     :class:`~symfit.core.fit.Fit`, as this will automatically select a local
-    minimizer for you depending on wether you provvided ounds, constraints, etc.
+    minimizer for you depending on whether you provided bounds, constraints, etc.
 
     However, BasinHopping can also be used directly. Example with jacobian::
 
