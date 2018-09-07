@@ -190,8 +190,12 @@ class TestSupport(unittest.TestCase):
 
     def test_cached_property(self):
         class A(object):
+            def __init__(self):
+                self.counter = 0
+
             @cached_property
             def f(self):
+                self.counter += 1
                 return 2
 
         a = A()
@@ -212,6 +216,14 @@ class TestSupport(unittest.TestCase):
         with self.assertRaises(AttributeError):
             # Setting is not allowed.
             a.f = 3
+
+        # Counter should read 2 at this point, the number of calls since
+        # object creation.
+        self.assertEqual(a.counter, 2)
+        for _ in range(10):
+            a.f
+        # Should be returning from cache, so a.f is not actually called
+        self.assertEqual(a.counter, 2)
 
 if __name__ == '__main__':
     try:
