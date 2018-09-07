@@ -11,9 +11,9 @@ from scipy.optimize import minimize
 from scipy.integrate import odeint
 
 from symfit.core.argument import Parameter, Variable
-from .support import \
-    seperate_symbols, keywordonly, sympy_to_py, cache, key2str, partial
-
+from .support import (
+    seperate_symbols, keywordonly, sympy_to_py, key2str, partial, cached_property
+)
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
     ScipyMinimize, MINPACK, ChainedMinimizer, BasinHopping
@@ -149,8 +149,7 @@ class BaseModel(Mapping):
         # Make Variable object corresponding to each var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
-    @property
-    @cache
+    @cached_property
     def vars(self):
         """
         :return: Returns a list of dependent, independent and sigma variables, in that order.
@@ -244,8 +243,7 @@ class CallableModel(BaseModel):
         # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
         return Ans(*self.eval_components(**bound_arguments.arguments))
 
-    @property
-    # @cache
+    @cached_property
     def numerical_components(self):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
@@ -357,7 +355,6 @@ class Model(CallableModel):
         return "\n".join(parts)
 
     @property
-    # @cache
     def jacobian(self):
         """
         :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
@@ -367,7 +364,6 @@ class Model(CallableModel):
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
     @property
-    # @cache
     def chi_squared(self):
         """
         :return: Symbolic :math:`\\chi^2`
@@ -375,7 +371,6 @@ class Model(CallableModel):
         return sum(((f - y)/self.sigmas[y])**2 for y, f in self.items())
 
     @property
-    # @cache
     def chi(self):
         """
         :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
@@ -383,7 +378,6 @@ class Model(CallableModel):
         return sympy.sqrt(self.chi_squared)
 
     @property
-    # @cache
     def chi_jacobian(self):
         """
         Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
@@ -397,7 +391,6 @@ class Model(CallableModel):
         return jac
 
     @property
-    # @cache
     def chi_squared_jacobian(self):
         """
         Return a symbolic jacobian of the :math:`\\chi^2` function.
@@ -411,48 +404,41 @@ class Model(CallableModel):
         return jac
 
     # @property
-    # # @cache
     # def ss_res(self):
     #     """
     #     :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
     #     """
     #     return sum((y - f)**2 for y, f in self.items())
 
-
-    @property
-    # @cache
+    @cached_property
     def numerical_jacobian(self):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
         return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
 
-    @property
-    # @cache
+    @cached_property
     def numerical_chi_squared(self):
         """
         :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
         """
         return sympy_to_py(self.chi_squared, self.vars, self.params)
 
-    @property
-    # @cache
+    @cached_property
     def numerical_chi(self):
         """
         :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.
         """
         return sympy_to_py(self.chi, self.vars, self.params)
 
-    @property
-    # @cache
+    @cached_property
     def numerical_chi_jacobian(self):
         """
         :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.
         """
         return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
 
-    @property
-    # @cache
+    @cached_property
     def numerical_chi_squared_jacobian(self):
         """
         :return: lambda functions of the jacobian of the ``.chi_squared`` method.
@@ -624,7 +610,6 @@ class Constraint(Model):
         return self.__class__(new_constraint, self.model)
 
     @property
-    # @cache
     def jacobian(self):
         """
         :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
@@ -633,16 +618,14 @@ class Constraint(Model):
         """
         return [[sympy.diff(expr, param) for param in self.model.params] for expr in self.values()]
 
-    @property
-    # @cache
+    @cached_property
     def numerical_components(self):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
         return [sympy_to_py(expr, self.model.vars, self.model.params) for expr in self.values()]
 
-    @property
-    # @cache
+    @cached_property
     def numerical_jacobian(self):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
@@ -1788,13 +1771,11 @@ class ODEModel(CallableModel):
             new_model_dict[key] *= -1
         return self.__class__(new_model_dict, initial=self.initial)
 
-    @property
-    @cache
+    @cached_property
     def _ncomponents(self):
         return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
 
-    @property
-    @cache
+    @cached_property
     def _njacobian(self):
         return [
             [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var in self.dependent_vars]
