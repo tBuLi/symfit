@@ -363,11 +363,12 @@ More common examples, such as dampened harmonic oscillators also work as expecte
 
 .. _global-fitting:
 
-Global Fitting
---------------
-In a global fitting problem, we fit to multiple datasets where one or more
-parameters might be shared. The same syntax used for ODE fitting makes this
-problem very easy to solve in :mod:`symfit`.
+Fitting multiple datasets
+-------------------------
+A common fitting problem, is to fit to multiple datasets. This is sometimes
+referred to as global fitting. In such fits parameters might be shared
+between the fits to the different datasets. The same syntax used for ODE
+fitting makes this problem very easy to solve in :mod:`symfit`.
 
 As a simple example, suppose we have two datasets measuring exponential decay,
 with the same background, but different amplitude and decay rate.
@@ -397,6 +398,10 @@ normal way::
    :width: 500px
    :alt: ODE integration
 
+Any ``Model`` that comes to mind is fair game, behind the scenes :mod:`symfit`
+will build a least squares function where the residues of all the components
+are added squared, ready to be minimized. Unlike in the above example, the
+`x`-axis does not even have to be shared between the components.
 
 .. warning::
   The regression coefficient is not properly defined for vector-valued models,
@@ -406,8 +411,8 @@ normal way::
 
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
-Finding the optimal solution
-----------------------------
+Global Minimization
+-------------------
 Very often, there are multiple solutions to a fitting (or minimisation)
 problem. These are local minima of the objective function. The best solution of
 course is the global minimum, but most minimization algorithms will only find a
@@ -416,10 +421,16 @@ your parameters. This can be incredibly annoying if you have no further
 knowledge about your system.
 
 Luckily, global minimizers exist which are not influenced by the initial
-guesses for your parameters. In symfit the
+guesses for your parameters. In symfit, two such algorithms from :mod:`scipy`
+have been wrapped for this pourpose. Firstly, the
 :func:`~scipy.optimize.differential_evolution` algorithm from :mod:`scipy` is
-wrapped as :class:`~symfit.core.minimizers.DifferentialEvolution`. To use it,
+wrapped as :class:`~symfit.core.minimizers.DifferentialEvolution`. Secondly,
+the :func:`~scipy.optimize.basinhopping` algorithm is available as
+:class:`~symfit.core.minimizers.BasinHopping`. To use these minimizers,
 just tell :class:`~symfit.core.fit.Fit`::
+
+    from symfit import Parameter, Variable, Model, Fit
+    from symfit.core.minimizers import DifferentialEvolution
 
     x = Parameter('x')
     x.min, x.max = -100, 100
@@ -428,8 +439,9 @@ just tell :class:`~symfit.core.fit.Fit`::
 
     model = Model({y: x**4 - 10 * x**2 - x})  # Skewed Mexican hat
     fit = Fit(model, minimizer=DifferentialEvolution)
+    fit_result = fit.execute()
 
-However, due to how the algorithm works, it's not great at finding the exact
+However, due to how this algorithm works, it's not great at finding the exact
 minimum (but it will find it if given enough time). You can work around this by
 "chaining" minimizers: first run a global minimization to (hopefully) get close
 to your answer, and then polish it off using a local minimizer::
@@ -437,14 +449,16 @@ to your answer, and then polish it off using a local minimizer::
     fit = Fit(model, minimizer=[DifferentialEvolution, BFGS])
 
 .. note::
-  Differential evolution is rather sensitive to it's hyperparameters. You might
-  need to play with those to get appropriate results::
+  Global minimizers such as differential evolution and basin-hopping are
+  rather sensitive to their hyperparameters. You might
+  need to play with those to get appropriate results, e.g.::
   
     fit.execute(DifferentialEvolution={'popsize': 20, 'recombination': 0.9})
 
 .. note::
-  There is no way to garuantee that the minimum found is actually the global
-  minimum. Unfortunately there is no way around this.
+  There is no way to guarantee that the minimum found is actually the global
+  minimum. Unfortunately there is no way around this. Therefore, you should
+  always critically inspect the results.
 
 Advanced usage
 --------------
