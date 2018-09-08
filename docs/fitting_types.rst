@@ -367,7 +367,7 @@ More common examples, such as dampened harmonic oscillators also work as expecte
 
 Fitting multiple datasets
 -------------------------
-A common fitting problem, is to fit to multiple datasets. This is sometimes
+A common fitting problem is to fit to multiple datasets. This is sometimes
 referred to as global fitting. In such fits parameters might be shared
 between the fits to the different datasets. The same syntax used for ODE
 fitting makes this problem very easy to solve in :mod:`symfit`.
@@ -400,7 +400,7 @@ normal way::
    :width: 500px
    :alt: ODE integration
 
-Any ``Model`` that comes to mind is fair game, behind the scenes :mod:`symfit`
+Any ``Model`` that comes to mind is fair game. Behind the scenes :mod:`symfit`
 will build a least squares function where the residues of all the components
 are added squared, ready to be minimized. Unlike in the above example, the
 `x`-axis does not even have to be shared between the components.
@@ -483,7 +483,7 @@ compare to an example from the :mod:`scipy` docs::
     x0 = [1.0, 1.0]
     ret = basinhopping(func2d, x0, minimizer_kwargs=minimizer_kwargs, niter=200)
 
-Let's compare to the same functionality in :mod:`symfit`
+Let's compare to the same functionality in :mod:`symfit`::
 
     import numpy as np
     from symfit.core.minimizers import BasinHopping
@@ -505,7 +505,7 @@ using `L-BFGS-B` instead. Setting bounds is as simple as::
     x1.min = 0.0
     x1.max = 100.0
 
-However, the real strength the `symfit` syntax lies in providing constraints::
+However, the real strength of the `symfit` syntax lies in providing constraints::
 
     constraints = [Eq(x1, x2)]
     fit = Fit(model, minimizer=BasinHopping, constraints=constraints)

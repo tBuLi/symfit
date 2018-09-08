@@ -538,7 +538,7 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
             minimize_options['minimizer_kwargs'] = {}
 
         if 'method' not in minimize_options['minimizer_kwargs']:
-            # If no minimizer was set by the user upon execute, use the default.
+            # If no minimizer was set by the user upon execute, use local_minimizer
             minimize_options['minimizer_kwargs']['method'] = self.local_minimizer.method_name()
         if 'jac' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, GradientMinimizer):
             # Assign the jacobian

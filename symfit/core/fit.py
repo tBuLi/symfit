@@ -1318,7 +1318,8 @@ class Fit(HasCovarianceMatrix):
         if minimizer is None:
             minimizer = self._determine_minimizer()
 
-        if isinstance(minimizer, Sequence):  # Initialise the minimizer
+        # Initialise the minimizer
+        if isinstance(minimizer, Sequence):
             minimizers = [self._init_minimizer(mini) for mini in minimizer]
             self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:
@@ -1773,13 +1774,35 @@ class ODEModel(CallableModel):
 
     @cached_property
     def _ncomponents(self):
-        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
+        """
+        :return: The `numerical_components` for an ODEModel. This differs from
+            the traditional `numerical_components`, in that these component can
+            also contain dependent variables, not just the independent ones.
+
+            Each of these components does not correspond to e.g. `y(t) = ...`,
+            but to `D(y, t) = ...`. The system spanned by these component
+            therefore still needs to be integrated.
+        """
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params)
+                for expr in self.values()]
 
     @cached_property
     def _njacobian(self):
+        """
+        :return: The `numerical_jacobian` of the components of the ODEModel with
+            regards to the dependent variables. This is not to be confused with
+            the jacobian of the model as a whole, which is 2D and computed with
+            regards to the dependent vars and the fit parameters, and the
+            ODEModel still needs to integrated to compute that.
+
+            Instead, this function is used by the ODE integrator, and is not
+            meant for human consumption.
+        """
         return [
-            [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var in self.dependent_vars]
-            for _, expr in self.items()
+            [sympy_to_py(
+                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params
+                ) for var in self.dependent_vars
+            ] for _, expr in self.items()
         ]
 
     def eval_components(self, *args, **kwargs):
