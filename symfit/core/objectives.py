@@ -4,7 +4,7 @@ from six import add_metaclass
 
 import numpy as np
 
-from .support import cache, keywordonly, key2str
+from .support import cached_property, keywordonly, key2str
 
 @add_metaclass(abc.ABCMeta)
 class BaseObjective(object):
@@ -19,8 +19,7 @@ class BaseObjective(object):
         self.model = model
         self.data = data
 
-    @property
-    @cache
+    @cached_property
     def dependent_data(self):
         """
         Read-only Property
@@ -31,8 +30,7 @@ class BaseObjective(object):
         """
         return OrderedDict((var, self.data[var]) for var in self.model)
 
-    @property
-    @cache
+    @cached_property
     def independent_data(self):
         """
         Read-only Property
@@ -44,8 +42,7 @@ class BaseObjective(object):
         return OrderedDict((var, self.data[var]) for var in
                            self.model.independent_vars)
 
-    @property
-    @cache
+    @cached_property
     def sigma_data(self):
         """
         Read-only Property

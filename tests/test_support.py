@@ -6,9 +6,12 @@ from __future__ import division, print_function
 import unittest
 import sys
 import warnings
+from itertools import repeat
 
-from symfit.core.support import \
-    keywordonly, RequiredKeyword, RequiredKeywordError, partial
+from symfit.core.support import (
+    keywordonly, RequiredKeyword, RequiredKeywordError, partial, parameters,
+    cached_property
+)
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -155,6 +158,72 @@ class TestSupport(unittest.TestCase):
         self.assertFalse(partialed_two.args)
         self.assertEqual(partialed_two.keywords, {'a': 2, 'b': 'string'})
 
+    def test_parameters(self):
+        """
+        Test the `parameter` convenience function.
+        """
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=0.0)
+        self.assertEqual(x1.value, 2.0)
+        self.assertEqual(x2.value, 1.3)
+        self.assertEqual(x1.min, 0.0)
+        self.assertEqual(x2.min, 0.0)
+        self.assertEqual(x1.fixed, False)
+        self.assertEqual(x2.fixed, False)
+        with self.assertRaises(ValueError):
+            x1, x2 = parameters('x1, x2', value=[2.0, 1.3, 3.0], min=0.0)
+
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[-30, -10], max=[300, 100], fixed=[True, False])
+        self.assertEqual(x1.min, -30)
+        self.assertEqual(x2.min, -10)
+        self.assertEqual(x1.max, 300)
+        self.assertEqual(x2.max, 100)
+        self.assertEqual(x1.value, 2.0)
+        self.assertEqual(x2.value, 1.3)
+        self.assertEqual(x1.fixed, True)
+        self.assertEqual(x2.fixed, False)
+
+        # Illegal bounds
+        with self.assertRaises(ValueError):
+            x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[400, -10], max=[300, 100])
+        # Should not raise any error, as repeat is an endless source of values
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=repeat(0.0))
+
+    def test_cached_property(self):
+        class A(object):
+            def __init__(self):
+                self.counter = 0
+
+            @cached_property
+            def f(self):
+                self.counter += 1
+                return 2
+
+        a = A()
+        # Deleta before a cache was set will fail silently.
+        del a.f
+        with self.assertRaises(AttributeError):
+            # Cache does not exist before f is called
+            a._f
+        self.assertEqual(a.f, 2)
+        self.assertTrue(hasattr(a, '_f'))
+        del a.f
+        # check that deletion was successful
+        with self.assertRaises(AttributeError):
+            # Does not exist before f is called
+            a._f
+        # However, the function should still be there
+        self.assertEqual(a.f, 2)
+        with self.assertRaises(AttributeError):
+            # Setting is not allowed.
+            a.f = 3
+
+        # Counter should read 2 at this point, the number of calls since
+        # object creation.
+        self.assertEqual(a.counter, 2)
+        for _ in range(10):
+            a.f
+        # Should be returning from cache, so a.f is not actually called
+        self.assertEqual(a.counter, 2)
 
 if __name__ == '__main__':
     try:

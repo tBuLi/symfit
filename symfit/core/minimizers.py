@@ -2,7 +2,7 @@ import abc
 import sys
 from collections import namedtuple, Counter
 
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import minimize, differential_evolution, basinhopping
 import sympy
 import numpy as np
 
@@ -270,6 +270,7 @@ class ScipyMinimize(object):
         ans = minimize(
             self.wrapped_objective,
             self.initial_guesses,
+            method=self.method_name(),
             bounds=bounds,
             constraints=constraints,
             jac=jacobian,
@@ -315,6 +316,16 @@ class ScipyMinimize(object):
             except AttributeError:
                 fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
+
+    @classmethod
+    def method_name(cls):
+        """
+        Returns the name of the minimize method this object represents. This is
+        needed because the name of the object is not always exactly what needs
+        to be passed on to scipy as a string.
+        :return:
+        """
+        return cls.__name__
 
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
@@ -367,8 +378,6 @@ class BFGS(ScipyGradientMinimize):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s BFGS algorithm.
     """
-    def execute(self, **minimize_options):
-        return super(BFGS, self).execute(method='BFGS', **minimize_options)
 
 class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
     """
@@ -396,7 +405,6 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
 
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
-            method='SLSQP',
             bounds=self.bounds,
             jacobian=self.wrapped_jacobian,
             **minimize_options
@@ -429,11 +437,6 @@ class COBYLA(ScipyConstrainedMinimize):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
-    def execute(self, **minimize_options):
-        return super(COBYLA, self).execute(
-            method='COBYLA', **minimize_options
-        )
-
 
 class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
     """
@@ -441,18 +444,118 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
     """
     def execute(self, **minimize_options):
         return super(LBFGSB, self).execute(
-            method='L-BFGS-B',
             bounds=self.bounds,
             **minimize_options
         )
 
+    @classmethod
+    def method_name(cls):
+        return "L-BFGS-B"
 
 class NelderMead(ScipyMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s NelderMead algorithm.
     """
+    @classmethod
+    def method_name(cls):
+        return 'Nelder-Mead'
+
+
+class BasinHopping(ScipyMinimize, BaseMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.basinhopping`'s basin-hopping algorithm.
+
+    As always, the best way to use this algorithm is through
+    :class:`~symfit.core.fit.Fit`, as this will automatically select a local
+    minimizer for you depending on whether you provided bounds, constraints, etc.
+
+    However, BasinHopping can also be used directly. Example (with jacobian)::
+
+        import numpy as np
+        from symfit.core.minimizers import BFGS, BasinHopping
+        from symfit import parameters
+
+        def func2d(x1, x2):
+            f = np.cos(14.5 * x1 - 0.3) + (x2 + 0.2) * x2 + (x1 + 0.2) * x1
+            return f
+
+        def jac2d(x1, x2):
+            df = np.zeros(2)
+            df[0] = -14.5 * np.sin(14.5 * x1 - 0.3) + 2. * x1 + 0.2
+            df[1] = 2. * x2 + 0.2
+            return df
+
+        x0 = [1.0, 1.0]
+        np.random.seed(555)
+        x1, x2 = parameters('x1, x2', value=x0)
+        fit = BasinHopping(func2d, [x1, x2], local_minimizer=BFGS)
+        minimizer_kwargs = {'jac': fit.list2kwargs(jac2d)}
+        fit_result = fit.execute(niter=200, minimizer_kwargs=minimizer_kwargs)
+
+    See :func:`scipy.optimize.basinhopping` for more options.
+    """
+    @keywordonly(local_minimizer=BFGS)
+    def __init__(self, *args, **kwargs):
+        """
+        :param local_minimizer: minimizer to be used for local minimization
+            steps. Can be any subclass of
+            :class:`symfit.core.minimizers.ScipyMinimize`.
+        :param args: positional arguments to be passed on to `super`.
+        :param kwargs: keyword arguments to be passed on to `super`.
+        """
+        self.local_minimizer = kwargs.pop('local_minimizer')
+        super(BasinHopping, self).__init__(*args, **kwargs)
+
+        type_error_msg = 'Currently only subclasses of ScipyMinimize are ' \
+                         'supported, since `scipy.optimize.basinhopping` uses ' \
+                         '`scipy.optimize.minimize`.'
+        # self.local_minimizer has to be a subclass or instance of ScipyMinimize
+        # Since no one function exists to test this, we try/except instead.
+        try:
+            # Test if subclass. If this line doesn't fail, we are dealing with
+            # some class. If it fails, we assume that it is an instance.
+            issubclass(self.local_minimizer, ScipyMinimize)
+        except TypeError:
+            # It is not a class at all, so test if it's an instance instead
+            if not isinstance(self.local_minimizer, ScipyMinimize):
+                # Only ScipyMinimize subclasses supported
+                raise TypeError(type_error_msg)
+        else:
+            if not issubclass(self.local_minimizer, ScipyMinimize):
+                # Only ScipyMinimize subclasses supported
+                raise TypeError(type_error_msg)
+            self.local_minimizer = self.local_minimizer(self.objective, self.parameters)
+
     def execute(self, **minimize_options):
-        return super(NelderMead, self).execute(method='Nelder-Mead', **minimize_options)
+        """
+        Execute the basin-hopping minimization.
+        
+        :param minimize_options: options to be passed on to
+            :func:`scipy.optimize.basinhopping`.
+        :return: :class:`symfit.core.fit_results.FitResults`
+        """
+        if 'minimizer_kwargs' not in minimize_options:
+            minimize_options['minimizer_kwargs'] = {}
+
+        if 'method' not in minimize_options['minimizer_kwargs']:
+            # If no minimizer was set by the user upon execute, use local_minimizer
+            minimize_options['minimizer_kwargs']['method'] = self.local_minimizer.method_name()
+        if 'jac' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, GradientMinimizer):
+            # Assign the jacobian
+            minimize_options['minimizer_kwargs']['jac'] = self.local_minimizer.wrapped_jacobian
+        if 'constraints' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, ConstrainedMinimizer):
+            # Assign constraints
+            minimize_options['minimizer_kwargs']['constraints'] = self.local_minimizer.wrapped_constraints
+        if 'bounds' not in minimize_options['minimizer_kwargs'] and isinstance(self.local_minimizer, BoundedMinimizer):
+            # Assign bounds
+            minimize_options['minimizer_kwargs']['bounds'] = self.local_minimizer.bounds
+
+        ans = basinhopping(
+            self.wrapped_objective,
+            self.initial_guesses,
+            **minimize_options
+        )
+        return self._pack_output(ans)
 
 
 class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
