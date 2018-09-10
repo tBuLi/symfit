@@ -31,7 +31,7 @@ class BaseMinimizer(object):
         """
         self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
-        self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
+        self.objective = partial(objective, **{str(p): p.value for p in self._fixed_params})
         self.params = [p for p in parameters if not p.fixed]
 
     @abc.abstractmethod
@@ -74,7 +74,7 @@ class ConstrainedMinimizer(BaseMinimizer):
         constraints = kwargs.pop('constraints')
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
         self.constraints = [
-            partial(constraint, **{p.name: p.value for p in self._fixed_params})
+            partial(constraint, **{str(p): p.value for p in self._fixed_params})
             for constraint in constraints
         ]
 
@@ -88,7 +88,7 @@ class GradientMinimizer(BaseMinimizer):
         super(GradientMinimizer, self).__init__(*args, **kwargs)
 
         if jacobian is not None:
-            jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
+            jac_with_fixed_params = partial(jacobian, **{str(p): p.value for p in self._fixed_params})
             self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
         else:
             self.jacobian = None

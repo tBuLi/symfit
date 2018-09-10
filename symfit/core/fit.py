@@ -147,7 +147,7 @@ class BaseModel(Mapping):
         self.independent_vars = sorted(self.independent_vars, key=sort_func)
 
         # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+        self.sigmas = {var: Variable('sigma_{}'.format(var)) for var in self.dependent_vars}
 
     @cached_property
     def vars(self):
@@ -239,7 +239,7 @@ class CallableModel(BaseModel):
             even for scalar valued functions. This is done for consistency.
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
+        Ans = namedtuple('Ans', [str(var) for var in self])
         # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
         return Ans(*self.eval_components(**bound_arguments.arguments))
 
@@ -266,8 +266,8 @@ class CallableModel(BaseModel):
         # it will make way too many function evaluations
         dx = kwargs.pop('dx')
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
-        param_vals = [bound_arguments.arguments[param.name] for param in self.params]
+        var_vals = [bound_arguments.arguments[str(var)] for var in self.independent_vars]
+        param_vals = [bound_arguments.arguments[str(param)] for param in self.params]
         param_vals = np.array(param_vals, dtype=float)
         f = partial(self, *var_vals)
         # See also: scipy.misc.central_diff_weights
@@ -347,8 +347,8 @@ class Model(CallableModel):
         for var, expr in self.items():
             parts.append(template.format(
                     var,
-                    ", ".join(arg.name for arg in self.independent_vars),
-                    ", ".join(arg.name for arg in self.params),
+                    ", ".join(str(arg) for arg in self.independent_vars),
+                    ", ".join(str(arg) for arg in self.params),
                     expr
                 )
             )
@@ -511,7 +511,7 @@ class TaylorModel(Model):
         :param model: Instance of ``Model``
         """
         params_0 = OrderedDict(
-            [(p, Parameter(name='{}_0'.format(p.name))) for p in model.params]
+            [(p, Parameter(name='{}_0'.format(p))) for p in model.params]
         )
         model_dict = {}
         for (var, component), jacobian_vec in zip(model.items(), model.jacobian):
@@ -635,7 +635,7 @@ class Constraint(Model):
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+            inspect_sig.Parameter(str(arg), inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
                 for arg in self.model.vars + self.model.params
         ]
         return inspect_sig.Signature(parameters=parameters)
@@ -673,7 +673,7 @@ class TakesData(object):
             self.model = Model(model)
 
         # Handle ordered_data and named_data according to the allowed names.
-        var_names = [var.name for var in self.model.vars]
+        var_names = [str(var) for var in self.model.vars]
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
             # inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
             inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=None)
@@ -685,7 +685,7 @@ class TakesData(object):
             bound_arguments = signature.bind(*ordered_data, **named_data)
         except TypeError as err:
             for var in self.model.vars:
-                if var.name.startswith(Variable._argument_name):
+                if str(var).startswith(Variable._argument_name):
                     raise type(err)(str(err) + '. Some of your Variable\'s are unnamed. That might be the cause of this Error: make sure you use e.g. x = Variable(\'x\')')
             else:
                 raise err
@@ -695,7 +695,7 @@ class TakesData(object):
                 bound_arguments.arguments[param.name] = param.default
 
         original_data = bound_arguments.arguments   # ordereddict of the data
-        self.data = OrderedDict((var, original_data[var.name]) for var in self.model.vars)
+        self.data = OrderedDict((var, original_data[str(var)]) for var in self.model.vars)
         # Change the type to array if no array operations are supported.
         # We don't want to break duck-typing, hence the try-except.
         for var, dataset in self.data.items():
@@ -730,7 +730,7 @@ class TakesData(object):
             for sigma in self.sigma_data:
                 # Check if the user provided sigmas in the original data.
                 # If so, interpret sigmas as measurement errors
-                if original_data[sigma.name] is not None:
+                if original_data[str(sigma)] is not None:
                     self.absolute_sigma = True
                     break
             else:
@@ -1103,7 +1103,7 @@ class LinearLeastSquares(BaseFit):
         # Calculate the covariance matrix from the Jacobian X @ best_params.
         # In X, we do NOT sum over the components by design. This is because
         # it has to be contracted with W, the weight matrix.
-        kwargs = {p.name: float(value) for p, value in best_fit_params.items()}
+        kwargs = {str(p): float(value) for p, value in best_fit_params.items()}
         kwargs.update(self.independent_data)
         # kwargs.update(self.data)
         X = np.atleast_2d([
@@ -1194,7 +1194,7 @@ class NonLinearLeastSquares(BaseFit):
         S_k1 = np.sum(
             self.model.numerical_chi_squared(
                 *self.data.values(),
-                **{p.name: float(value) for p, value in zip(self.model.params, self.initial_guesses)}
+                **{str(p): float(value) for p, value in zip(self.model.params, self.initial_guesses)}
             )
         )
         while i < max_iter:
@@ -1202,7 +1202,7 @@ class NonLinearLeastSquares(BaseFit):
             S_k2 = np.sum(
                 self.model.numerical_chi_squared(
                     *self.data.values(),
-                    **{p.name: float(value) for p, value in fit_params.items()}
+                    **{str(p): float(value) for p, value in fit_params.items()}
                 )
             )
             if not S_k1 < 0 and np.abs(S_k2 - S_k1) <= relative_error * np.abs(S_k1):
@@ -1659,7 +1659,7 @@ def r_squared(model, fit_result, data):
     """
     # First filter out the dependent vars
     y_is = [data[var] for var in model if var in data]
-    x_is = [value for var, value in data.items() if var.name in model.__signature__.parameters]
+    x_is = [value for var, value in data.items() if str(var) in model.__signature__.parameters]
     y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
     f_is = model(*x_is, **fit_result.params)
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
@@ -1723,7 +1723,7 @@ class ODEModel(CallableModel):
         # self.initial_params = sorted(self.initial_params, key=sort_func)
 
         # Make Variable object corresponding to each sigma var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+        self.sigmas = {var: Variable('sigma_{}'.format(var)) for var in self.dependent_vars}
 
         self.__signature__ = self._make_signature()
 
@@ -1738,7 +1738,7 @@ class ODEModel(CallableModel):
         for var, expr in self.model_dict.items():
             parts.append(template.format(
                     str(var)[:-1],
-                    ", ".join(arg.name for arg in self.params),
+                    ", ".join(str(arg) for arg in self.params),
                     expr
                 )
             )
@@ -1816,7 +1816,7 @@ class ODEModel(CallableModel):
         :return:
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        t_like = bound_arguments.arguments[self.independent_vars[0].name]
+        t_like = bound_arguments.arguments[str(self.independent_vars[0])]
 
         # System of functions to be integrated
         f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
@@ -1853,7 +1853,7 @@ class ODEModel(CallableModel):
             initial_dependent,
             t_bigger,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.params),
+                bound_arguments.arguments[str(param)] for param in self.params),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
@@ -1862,7 +1862,7 @@ class ODEModel(CallableModel):
             initial_dependent,
             t_smaller,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.params),
+                bound_arguments.arguments[str(param)] for param in self.params),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
@@ -1893,6 +1893,6 @@ class ODEModel(CallableModel):
             even for scalar valued functions. This is done for consistency.
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
+        Ans = namedtuple('Ans', [str(var) for var in self])
         ans = Ans(*self.eval_components(**bound_arguments.arguments))
         return ans

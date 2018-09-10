@@ -37,7 +37,7 @@ class FitResults(object):
         self.gof_qualifiers = gof_qualifiers
 
         self._popt = popt
-        self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
+        self.params = OrderedDict([(str(p), value) for p, value in zip(self.model.params, popt)])
         self.covariance_matrix = covariance_matrix
 
 
@@ -51,7 +51,7 @@ class FitResults(object):
             value_str = '{:e}'.format(value) if value is not None else 'None'
             stdev = self.stdev(p)
             stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
-            res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
+            res += '{:10}{} {}\n'.format(p, value_str, stdev_str, width=20)
 
         res += 'Fitting status message: {}\n'.format(self.status_message)
         res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
@@ -94,7 +94,7 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Value of ``param``.
         """
-        return self.params[param.name]
+        return self.params[str(param)]
 
     def variance(self, param):
         """
