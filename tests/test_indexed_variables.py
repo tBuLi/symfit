@@ -145,7 +145,7 @@ class TestIndexedFit(unittest.TestCase):
         i, = indices('i', range=len(ydata))
         l = Parameter('l')
 
-        minimizers = [BFGS, MINPACK, SLSQP, LBFGSB, NelderMead, COBYLA, DifferentialEvolution]
+        minimizers = [BFGS, SLSQP, LBFGSB, NelderMead, COBYLA, DifferentialEvolution]
         model = {y[i]: a * x[i] + b}
         fit_slsqp = Fit(model, x=xdata, y=ydata, constraints=[Equality(a + b, 1)])
         fit_slsqp_result = fit_slsqp.execute()
