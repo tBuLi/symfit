@@ -244,10 +244,12 @@ class MinimizeModel(BaseObjective):
         super(MinimizeModel, self).__init__(model, *args, **kwargs)
 
     def __call__(self, **parameters):
+        parameters.update(key2str(self.independent_data))
         return self.model(**parameters)[0]
 
     def eval_jacobian(self, **parameters):
         if hasattr(self.model, 'numerical_jacobian'):
+            parameters.update(key2str(self.independent_data))
             ans = []
             for partial_derivative in self.model.numerical_jacobian[0]:
                 ans.append(partial_derivative(**parameters))
