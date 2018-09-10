@@ -10,7 +10,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import odeint
 
-from symfit.core.argument import Parameter, Variable
+from symfit.core.argument import Parameter, Variable, Argument, IndexedParameter
 from .support import \
     seperate_symbols, keywordonly, sympy_to_py, cache, key2str, partial
 
@@ -132,22 +132,68 @@ class BaseModel(Mapping):
         :param model_dict: dict of (dependent_var, expression) pairs.
         """
         sort_func = lambda symbol: str(symbol)
-        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
-        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
+        # The self.xxx_vars should contain Variable-objects. So if we have been
+        # provided with an Indexed-object, take it's base instead, which will be
+        # a Variable.
+
+        # A mapping of the vars to their (perhaps) indexed counterparts
+        self.var_dict = {var if isinstance(var, Variable) else var.base: var
+                        for var in model_dict.keys()}
+
+        self.dependent_vars = sorted(self.var_dict.keys(), key=sort_func)
+        # Ordering is determined by the Variable names, not their indexed
+        # version. (e.g. `y`, not `y[i]` to prevent possible ambiguities.).
+        self.model_dict = OrderedDict(
+            (self.var_dict[var], model_dict[self.var_dict[var]]) for var in self.dependent_vars
+        )
+
 
         # Extract all the params and vars as a sorted, unique list.
         expressions = model_dict.values()
-        _params, self.independent_vars = set([]), set([])
+        _params, self.independent_vars, _indices = set([]), set([]), set([])
         for expression in expressions:
-            vars, params = seperate_symbols(expression)
+            indexed_vars, indexed_params = seperate_symbols(expression)
+            vars = self.arguments_from_indexed(indexed_vars)
+            params = self.arguments_from_indexed(indexed_params)
             _params.update(params)
+            # Add them to the mapping of vars to indexed vars
+            self.var_dict.update(zip(vars, indexed_vars))
+            self.var_dict.update(zip(params, indexed_params))
             self.independent_vars.update(vars)
-        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
+            # Extract indices
+            _, _, indices = seperate_symbols(expression, separate_indices=True)
+            _indices.update(indices)
+        # Although unique now, params and vars should be sorted alphabetically
+        # to prevent ambiguity
         self.params = sorted(_params, key=sort_func)
         self.independent_vars = sorted(self.independent_vars, key=sort_func)
+        self.indices = sorted(_indices, key=sort_func)
+        self.indexed_params = [param for param in self.params if isinstance(param, IndexedParameter)]
 
         # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable('sigma_{}'.format(var)) for var in self.dependent_vars}
+        self.sigmas = {var: var.__class__('sigma_{}'.format(var)) for var in self.dependent_vars}
+        # Add sigmas to the mapping from Variable to Indexed, by indexing with
+        # the indices from the var, if available
+        indexed_sigmas = {}
+        for var in self.dependent_vars:
+            sigma = self.sigmas[var]
+            indexed_var = self.var_dict[var]
+            try:
+                indexed_sigmas[sigma] = sigma[indexed_var.indices]
+            except AttributeError:
+                indexed_sigmas[sigma] = sigma
+        self.var_dict.update(indexed_sigmas)
+
+    @staticmethod
+    def arguments_from_indexed(args):
+        """
+        Helper function to extract argument objects from a list containing a
+        mixture of indexed and unindexed objects.
+
+        :param vars:
+        :return: list of Variable objects.
+        """
+        return [arg if isinstance(arg, Argument) else arg.base for arg in args]
 
     @property
     @cache
@@ -217,7 +263,7 @@ class CallableModel(BaseModel):
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+            inspect_sig.Parameter(str(arg), inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
                 for arg in self.independent_vars + self.params
         ]
         return inspect_sig.Signature(parameters=parameters)
@@ -240,9 +286,9 @@ class CallableModel(BaseModel):
             even for scalar valued functions. This is done for consistency.
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [str(var) for var in self])
-        # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
-        return Ans(*self.eval_components(**bound_arguments.arguments))
+        Ans = namedtuple('Ans', [str(var) for var in self.dependent_vars])
+        kwargs = bound_arguments.arguments
+        return Ans(*self.eval_components(**kwargs))
 
     @property
     # @cache
@@ -250,7 +296,11 @@ class CallableModel(BaseModel):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
+        symbols = [self.independent_vars, self.params, self.indices]
+        return [
+            partial(sympy_to_py(expr, *symbols), **{str(i): None for i in self.indices})
+            for expr in self.values()
+        ]
 
     @keywordonly(dx=1e-8)
     def finite_difference(self, *args, **kwargs):
@@ -364,7 +414,7 @@ class Model(CallableModel):
           Partial derivatives are of the components of the function with respect to the Parameter's,
           not the independent Variable's.
         """
-        return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
+        return [[sympy.diff(expr, self.var_dict[param]) for param in self.params] for expr in self.values()]
 
     @property
     # @cache
@@ -425,7 +475,13 @@ class Model(CallableModel):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
-        return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
+        symbols = [self.independent_vars, self.params, self.indices]
+        return [
+            [partial(sympy_to_py(partial_dv, *symbols), **{str(i): None for i in self.indices})
+             for partial_dv in row
+             ]
+            for row in self.jacobian
+        ]
 
     @property
     # @cache
@@ -692,11 +748,9 @@ class TakesData(object):
         # Handle ordered_data and named_data according to the allowed names.
         var_names = [str(var) for var in self.model.vars]
         parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            # inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
             inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=None)
                 for name in var_names
         ]
-
         signature = inspect_sig.Signature(parameters=parameters)
         try:
             bound_arguments = signature.bind(*ordered_data, **named_data)
@@ -762,7 +816,7 @@ class TakesData(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in self.model)
+        return OrderedDict((var, self.data[var]) for var in self.model.dependent_vars)
 
     @property
     def independent_data(self):
@@ -785,7 +839,7 @@ class TakesData(object):
         :rtype: collections.OrderedDict
         """
         sigmas = self.model.sigmas
-        return OrderedDict((sigmas[var], self.data[sigmas[var]]) for var in self.model)
+        return OrderedDict((sigmas[var], self.data[sigmas[var]]) for var in self.model.dependent_vars)
 
     @property
     def data_shapes(self):
@@ -1727,7 +1781,7 @@ class ODEModel(CallableModel):
         # self.initial_params = sorted(self.initial_params, key=sort_func)
 
         # Make Variable object corresponding to each sigma var.
-        self.sigmas = {var: Variable('sigma_{}'.format(var)) for var in self.dependent_vars}
+        self.sigmas = {var: var.__class__('sigma_{}'.format(var)) for var in self.dependent_vars}
 
         self.__signature__ = self._make_signature()
 
@@ -1779,13 +1833,13 @@ class ODEModel(CallableModel):
     @property
     @cache
     def _ncomponents(self):
-        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params) for expr in self.values()]
+        return [sympy_to_py(expr, self.independent_vars, self.dependent_vars, self.params) for expr in self.values()]
 
     @property
     @cache
     def _njacobian(self):
         return [
-            [sympy_to_py(sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params) for var in self.dependent_vars]
+            [sympy_to_py(sympy.diff(expr, var), self.independent_vars, self.dependent_vars, self.params) for var in self.dependent_vars]
             for _, expr in self.items()
         ]
 
