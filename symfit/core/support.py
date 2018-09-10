@@ -105,17 +105,20 @@ def seperate_symbols(func, separate_indices=False):
     else:
         return vars, params
 
-def sympy_to_py(func, syms):
+def sympy_to_py(func, *symbol_lists):
     """
     Turn a symbolic expression into a Python lambda function,
     which has the names of the variables and parameters as it's argument names.
 
     :param func: sympy expression
-    :param syms:  
+    :param symbol_lists: Any lists which are provided will be treated as lists
+        of symbols which have to be arguments of the resulting python function.
+        They will be combined in the order provided.
     :return: lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars
         first, then params.
     """
-    return lambdify(syms, func, modules='numpy', dummify=False)
+    all_symbols = [sym for syms in symbol_lists for sym in syms]
+    return lambdify(all_symbols, func, modules='numpy', dummify=False)
 
 def sympy_to_scipy(func, vars, params):
     """
