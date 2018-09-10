@@ -1439,7 +1439,7 @@ class Fit(HasCovarianceMatrix):
                 partial(constraint, **key2str(self.data))
                 for constraint in self.constraints
             ]
-        return minimizer(self.objective, self.model.params, **minimizer_options)
+        return minimizer(self.objective, self.model.unindexed_params, **minimizer_options)
 
     def _init_constraints(self, constraints):
         """
