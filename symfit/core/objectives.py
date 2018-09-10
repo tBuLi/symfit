@@ -28,7 +28,9 @@ class BaseObjective(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in self.model)
+        return OrderedDict(
+            (var, self.data[var]) for var in self.model.dependent_vars
+        )
 
     @cached_property
     def independent_data(self):
@@ -39,8 +41,9 @@ class BaseObjective(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in
-                           self.model.independent_vars)
+        return OrderedDict(
+            (var, self.data[var]) for var in self.model.independent_vars
+        )
 
     @cached_property
     def sigma_data(self):
@@ -53,8 +56,8 @@ class BaseObjective(object):
         """
         sigmas = self.model.sigmas
         return OrderedDict(
-            (sigmas[var], self.data[sigmas[var]]) for var in
-            self.model)
+            (sigmas[var], self.data[sigmas[var]]) for var in self.model.dependent_vars
+        )
 
     @abc.abstractmethod
     def __call__(self, **parameters):
@@ -151,7 +154,7 @@ class LeastSquares(GradientObjective):
         evaluated_func = self.model(**jac_kwargs)
 
         chi2 = [0 for _ in evaluated_func]
-        for index, (dep_var, dep_var_value) in enumerate(zip(self.model, evaluated_func)):
+        for index, (dep_var, dep_var_value) in enumerate(zip(self.model.dependent_vars, evaluated_func)):
             dep_data = self.dependent_data[dep_var]
             if dep_data is not None:
                 sigma = self.sigma_data[self.model.sigmas[dep_var]]
@@ -175,7 +178,7 @@ class LeastSquares(GradientObjective):
         evaluated_func = self.model(**jac_kwargs)
         result = [0.0 for _ in self.model.params]
 
-        for ans, var, row in zip(evaluated_func, self.model,
+        for ans, var, row in zip(evaluated_func, self.model.dependent_vars,
                                self.model.numerical_jacobian):
             dep_data = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
