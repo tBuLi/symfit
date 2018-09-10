@@ -10,7 +10,9 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import odeint
 
-from symfit.core.argument import Parameter, Variable, Argument, IndexedParameter
+from symfit.core.argument import (
+    Parameter, Variable, Argument, IndexedParameter, IndexedParameterBase
+)
 from .support import \
     seperate_symbols, keywordonly, sympy_to_py, key2str, partial, cached_property
 
@@ -137,38 +139,44 @@ class BaseModel(Mapping):
         # a Variable.
 
         # A mapping of the vars to their (perhaps) indexed counterparts
-        self.var_dict = {var if isinstance(var, Variable) else var.base: var
-                        for var in model_dict.keys()}
+        self.symbol2indexed = {var if isinstance(var, Variable) else var.base: var
+                               for var in model_dict.keys()}
 
-        self.dependent_vars = sorted(self.var_dict.keys(), key=sort_func)
+        self.dependent_vars = sorted(self.symbol2indexed.keys(), key=sort_func)
         # Ordering is determined by the Variable names, not their indexed
         # version. (e.g. `y`, not `y[i]` to prevent possible ambiguities.).
         self.model_dict = OrderedDict(
-            (self.var_dict[var], model_dict[self.var_dict[var]]) for var in self.dependent_vars
+            (self.symbol2indexed[var], model_dict[self.symbol2indexed[var]])
+            for var in self.dependent_vars
         )
 
 
         # Extract all the params and vars as a sorted, unique list.
         expressions = model_dict.values()
-        _params, self.independent_vars, _indices = set([]), set([]), set([])
+        _params, _independent_vars, _indices = set([]), set([]), set([])
         for expression in expressions:
+            # extract symbols from expression, viewing IndexedSymbols as atoms,
+            # e.g. returns `y[i]` not `y` when applicable
             indexed_vars, indexed_params = seperate_symbols(expression)
+            # Extract the bases, e.g. y, not y[i].
+            # also used as kwargs when calling the model.
             vars = self.arguments_from_indexed(indexed_vars)
             params = self.arguments_from_indexed(indexed_params)
+            _independent_vars.update(vars)
             _params.update(params)
             # Add them to the mapping of vars to indexed vars
-            self.var_dict.update(zip(vars, indexed_vars))
-            self.var_dict.update(zip(params, indexed_params))
-            self.independent_vars.update(vars)
+            self.symbol2indexed.update(zip(vars, indexed_vars))
+            self.symbol2indexed.update(zip(params, indexed_params))
             # Extract indices
             _, _, indices = seperate_symbols(expression, separate_indices=True)
             _indices.update(indices)
         # Although unique now, params and vars should be sorted alphabetically
         # to prevent ambiguity
         self.params = sorted(_params, key=sort_func)
-        self.independent_vars = sorted(self.independent_vars, key=sort_func)
+        self.independent_vars = sorted(_independent_vars, key=sort_func)
         self.indices = sorted(_indices, key=sort_func)
-        self.indexed_params = [param for param in self.params if isinstance(param, IndexedParameter)]
+        self.indexed_params = [param for param in self.params if isinstance(param, IndexedParameterBase)]
+        self.unindexed_params = [param for param in self.params if not param in self.indexed_params]
 
         # Make Variable object corresponding to each var.
         self.sigmas = {var: var.__class__('sigma_{}'.format(var)) for var in self.dependent_vars}
@@ -177,21 +185,21 @@ class BaseModel(Mapping):
         indexed_sigmas = {}
         for var in self.dependent_vars:
             sigma = self.sigmas[var]
-            indexed_var = self.var_dict[var]
+            indexed_var = self.symbol2indexed[var]
             try:
                 indexed_sigmas[sigma] = sigma[indexed_var.indices]
             except AttributeError:
                 indexed_sigmas[sigma] = sigma
-        self.var_dict.update(indexed_sigmas)
+        self.symbol2indexed.update(indexed_sigmas)
 
     @staticmethod
     def arguments_from_indexed(args):
         """
-        Helper function to extract argument objects from a list containing a
+        Helper function to extract ``Argument`` objects from a list containing a
         mixture of indexed and unindexed objects.
 
-        :param vars:
-        :return: list of Variable objects.
+        :param args:
+        :return: list of Argument objects.
         """
         return [arg if isinstance(arg, Argument) else arg.base for arg in args]
 
@@ -208,7 +216,7 @@ class BaseModel(Mapping):
         :return: List of tuples of all bounds on parameters.
         """
         bounds = []
-        for p in self.params:
+        for p in self.unindexed_params:
             if p.fixed:
                 if p.value >= 0.0:
                     bounds.append([np.nextafter(p.value, 0), p.value])
@@ -411,7 +419,7 @@ class Model(CallableModel):
           Partial derivatives are of the components of the function with respect to the Parameter's,
           not the independent Variable's.
         """
-        return [[sympy.diff(expr, self.var_dict[param]) for param in self.params] for expr in self.values()]
+        return [[sympy.diff(expr, self.symbol2indexed[param]) for param in self.params] for expr in self.values()]
 
     @property
     def chi_squared(self):
