@@ -1,26 +1,17 @@
 from __future__ import division, print_function
 import pickle
 import unittest
-import sys
 import sympy
 import warnings
 
-import numpy as np
-import scipy.stats
-from scipy.optimize import curve_fit, minimize
-
 from symfit import (
-    Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge
+    Variable, Parameter, IndexedBase, Idx, IndexedVariable, IndexedParameter,
+    Symbol, variables, parameters
 )
-from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
-from symfit.core.objectives import LogLikelihood
-from symfit.distributions import Gaussian, Exp
-
-if sys.version_info >= (3, 0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+from symfit.core.argument import (
+    IndexedArgument, IndexedArgumentBase, Argument, IndexedVariableBase,
+    IndexedParameterBase
+)
 
 
 class TestArgument(unittest.TestCase):
@@ -114,6 +105,47 @@ class TestArgument(unittest.TestCase):
         with self.assertRaises(AttributeError):
             V.bar = None
 
+    def test_indexed(self):
+        """
+        Symfit Variables are a subtype of IndexedBase
+        :return:
+        """
+        x = Variable('x')
+        i = Idx('i')
+        with self.assertRaises(TypeError):
+            x_i = x[i]
+
+        self.assertIsInstance(x, Argument)
+        self.assertTrue(issubclass(IndexedVariableBase, IndexedBase))
+
+        y, = variables('y', indexed=True)
+        y_i = y[i]
+        self.assertIsInstance(y, IndexedVariableBase)
+        self.assertIsInstance(y_i, IndexedArgument)
+        self.assertIsInstance(y_i, IndexedVariable)
+        self.assertEqual(y_i.base, y)
+
+        a = Parameter('a')
+        i = Idx('i')
+        with self.assertRaises(TypeError):
+            a_i = a[i]
+        self.assertIsInstance(a, (Parameter, Symbol))
+
+        b, = parameters('b', indexed=True)
+        b_i = b[i]
+        self.assertIsInstance(b, IndexedParameterBase)
+        self.assertIsInstance(b_i, IndexedArgument)
+        self.assertIsInstance(b_i, IndexedParameter)
+        self.assertEqual(b_i.base, b)
+
+        # Indexed objects have labels, not names by default.
+        self.assertEqual(str(b), str(b.label))
+
+        # The free symbols in an expression should be of these Indexed types.
+        expr = b_i * y_i
+        for symbol in expr.free_symbols:
+            self.assertIsInstance(symbol, IndexedArgument)
+            self.assertIsInstance(symbol.base, IndexedArgumentBase)
 
 if __name__ == '__main__':
     try:
