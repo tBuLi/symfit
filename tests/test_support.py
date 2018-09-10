@@ -7,8 +7,12 @@ import unittest
 import sys
 import warnings
 
-from symfit.core.support import \
-    keywordonly, RequiredKeyword, RequiredKeywordError, partial
+from symfit.core.support import (
+    keywordonly, RequiredKeyword, RequiredKeywordError, partial,
+    seperate_symbols, variables, parameters
+)
+from symfit import symbols, Idx
+from symfit.core.argument import *
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -155,6 +159,37 @@ class TestSupport(unittest.TestCase):
         self.assertFalse(partialed_two.args)
         self.assertEqual(partialed_two.keywords, {'a': 2, 'b': 'string'})
 
+    def test_seperate_symbols(self):
+        x, y = variables('x, y', indexed=True)
+        a, b = parameters('a, b', indexed=True)
+
+        expr = a * x + b * y
+        vars, params = seperate_symbols(expr)
+        self.assertEqual([x, y], vars)
+        self.assertEqual([a, b], params)
+
+        i, j = symbols('i, j', cls=Idx)
+        expr = a[i] * x[i, j] + b[i] * y[i, j]
+        # By default, the Indexed objects are seen as the fundamental object
+        vars, params = seperate_symbols(expr)
+        self.assertEqual([x[i, j], y[i, j]], vars)
+        self.assertEqual([a[i], b[i]], params)
+        # when indices is set, we expect to go down to the indices and bases
+        vars, params, indices = seperate_symbols(expr, separate_indices=True)
+        self.assertEqual([x, y], vars)
+        self.assertEqual([a, b], params)
+        self.assertEqual([i, j], indices)
+
+        # Mixed param types
+        expr = a[i] * x[i, j] + b * y[j]
+        vars, params = seperate_symbols(expr)
+        self.assertEqual([x[i, j], y[j]], vars)
+        self.assertEqual([a[i], b], params)
+        # when indices is set, we expect to go down to the indices and bases
+        vars, params, indices = seperate_symbols(expr, separate_indices=True)
+        self.assertEqual([x, y], vars)
+        self.assertEqual([a, b], params)
+        self.assertEqual([i, j], indices)
 
 if __name__ == '__main__':
     try:
