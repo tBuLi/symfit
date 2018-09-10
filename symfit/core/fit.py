@@ -1787,6 +1787,8 @@ class ODEModel(CallableModel):
         # self.params = sorted(self.model_params | self.initial_params, key=sort_func)
         # self.model_params = sorted(self.model_params, key=sort_func)
         # self.initial_params = sorted(self.initial_params, key=sort_func)
+        self.unindexed_params = self.params
+        self.indexed_params = []
 
         # Make Variable object corresponding to each sigma var.
         self.sigmas = {var: var.__class__('sigma_{}'.format(var)) for var in self.dependent_vars}
