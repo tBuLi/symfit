@@ -71,9 +71,9 @@ def call(self, *values, **named_values):
     :return: The function evaluated at ``values``. The type depends entirely on the input.
         Typically an array or a float but nothing is enforced.
     """
-    independent_vars, params = seperate_symbols(self)
+    independent_vars, params, indices = seperate_symbols(self, separate_indices=True)
     # Convert to a pythonic function
-    func = sympy_to_py(self, independent_vars, params)
+    func = sympy_to_py(self, independent_vars, params, indices)
 
     # Handle args and kwargs according to the allowed names.
     parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
