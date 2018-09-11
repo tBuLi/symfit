@@ -121,15 +121,6 @@ class IndexedArgument(Indexed):
         """
         return Expr.__new__(cls, base, *args, **kw_args)
 
-    @property
-    def free_symbols(self):
-        """
-        In sympy, Indexed objects return their base and indices as free symbols.
-        We would like the Indexed object to be seen as fundamental however.
-        :return:
-        """
-        return {self}
-
 
 class IndexedVariable(IndexedArgument):
     pass

@@ -141,11 +141,10 @@ class TestArgument(unittest.TestCase):
         # Indexed objects have labels, not names by default.
         self.assertEqual(str(b), str(b.label))
 
-        # The free symbols in an expression should be of these Indexed types.
+        # The free symbols in an expression should not be Indexed types.
         expr = b_i * y_i
         for symbol in expr.free_symbols:
-            self.assertIsInstance(symbol, IndexedArgument)
-            self.assertIsInstance(symbol.base, IndexedArgumentBase)
+            self.assertNotIsInstance(symbol, IndexedArgument)
 
 if __name__ == '__main__':
     try:

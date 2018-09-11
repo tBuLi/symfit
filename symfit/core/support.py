@@ -12,7 +12,7 @@ import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
 
-from sympy.tensor import Idx
+from sympy.tensor import Idx, Indexed
 from sympy import symbols
 from sympy.core.expr import Expr
 
@@ -75,22 +75,12 @@ def seperate_symbols(func, separate_indices=False):
     for symbol in func.free_symbols:
         if isinstance(symbol, Parameter):
             params.append(symbol)
-        elif isinstance(symbol, IndexedParameter):
-            if separate_indices:
-                params.append(symbol.base)
-                indices.extend(symbol.indices)
-            else:
-                params.append(symbol)
         elif isinstance(symbol, IndexedParameterBase):
             params.append(symbol)
-        elif isinstance(symbol, IndexedVariable):
-            if separate_indices:
-                vars.append(symbol.base)
-                indices.extend(symbol.indices)
-            else:
-                vars.append(symbol)
         elif isinstance(symbol, IndexedVariableBase):
             vars.append(symbol)
+        elif isinstance(symbol, Idx):
+            indices.append(symbol)
         elif isinstance(symbol, Expr):
             vars.append(symbol)
         else:
@@ -103,6 +93,11 @@ def seperate_symbols(func, separate_indices=False):
     if separate_indices:
         return vars, params, indices
     else:
+        # User is not interested in the bases and indices, but in indexed objects
+        indexed = get_indexed(func)
+        indexed_dict = {symbol.base: symbol for symbol in indexed}
+        vars = [v if v not in indexed_dict else indexed_dict[v] for v in vars]
+        params = [v if v not in indexed_dict else indexed_dict[v] for v in params]
         return vars, params
 
 def sympy_to_py(func, *symbol_lists):
@@ -414,3 +409,18 @@ class D(sympy.Derivative):
     Convenience wrapper for ``sympy.Derivative``. Used most notably in defining
     ``ODEModel``'s.
     """
+
+def get_indexed(expr):
+    """
+    Extract the indexed objects from an expression.
+    :param expr: valid sympy Expr.
+    :return: List of indexed symbols in `expr`
+    """
+    if isinstance(expr, Indexed):
+        return {expr}
+    else:
+        # Call this function recursively
+        indexed = set([])
+        for fac in expr.args:
+            indexed.update(get_indexed(fac))
+        return indexed

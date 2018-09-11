@@ -37,7 +37,7 @@ class TestIndexedFit(unittest.TestCase):
         fit = Fit(model, x=xdata, y=ydata)
 
         self.assertEqual(type(y), type(list(fit.model.sigmas.keys())[0]))
-        self.assertEqual(fit.model[y[i]].free_symbols, {a, b, x[i]})
+        self.assertEqual(fit.model[y[i]].free_symbols, {a, b, x, i})
         self.assertEqual(
             fit.model.symbol2indexed,
             {y: y[i], x: x[i], fit.model.sigmas[y]: fit.model.sigmas[y][i], a: a, b: b}

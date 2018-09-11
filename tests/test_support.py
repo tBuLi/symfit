@@ -10,7 +10,7 @@ from itertools import repeat
 
 from symfit.core.support import (
     keywordonly, RequiredKeyword, RequiredKeywordError, partial,
-    seperate_symbols, variables, parameters, cached_property
+    seperate_symbols, variables, parameters, cached_property, get_indexed
 )
 from symfit import symbols, Idx
 from symfit.core.argument import *
@@ -258,6 +258,15 @@ class TestSupport(unittest.TestCase):
         self.assertEqual([x, y], vars)
         self.assertEqual([a, b], params)
         self.assertEqual([i, j], indices)
+
+    def test_get_indexed(self):
+        x, y = variables('x, y', indexed=True)
+        a, b = parameters('a, b', indexed=True)
+        i, j = symbols('i, j', cls=Idx)
+        # Mixed param types
+        expr = a[i] * x[i, j] + b * y[j]
+        indexed = get_indexed(expr)
+        self.assertEqual({x[i, j], a[i], y[j]}, indexed)
 
 if __name__ == '__main__':
     try:
