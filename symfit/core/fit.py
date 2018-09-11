@@ -6,6 +6,7 @@ from abc import abstractmethod
 
 import sympy
 from sympy.core.relational import Relational
+from sympy.tensor.indexed import Idx
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import odeint
@@ -426,27 +427,27 @@ class Model(CallableModel):
         """
         :return: Symbolic :math:`\\chi^2`
         """
-        return sum(((f - y)/self.sigmas[y])**2 for y, f in self.items())
-
-    @property
-    def chi(self):
-        """
-        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
-        """
-        return sympy.sqrt(self.chi_squared)
-
-    @property
-    def chi_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector! This is because that's what leastsq needs.
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi, param)
-            jac.append(f)
-        return jac
+        if not self.indices:
+            # Go old-skool. Probably most common in the code base, hence the not
+            return sum(((f - y) / self.sigmas[y]) ** 2 for y, f in self.items())
+        else:
+            chi2 = 0
+            for y in self.dependent_vars:
+                y_i = self.symbol2indexed[y]
+                sigma_i = self.symbol2indexed[self.sigmas[y]]
+                f_i = self.model_dict[y_i]
+                # Free indices are summed over last when building chi2.
+                free_indices = y_i.indices
+                _, _, expr_indices = seperate_symbols(f_i,
+                                                      separate_indices=True)
+                contracted_indices = [i for i in expr_indices if
+                                      i not in free_indices]
+                # All the other indices in the expr have to be summed over first.
+                if contracted_indices:
+                    f_i = sympy.Sum(f_i, *contracted_indices)
+                # Finally we sum over the free indices, making them unfree.
+                chi2 += sympy.Sum(((f_i - y_i) / sigma_i) ** 2, *free_indices)
+            return chi2
 
     @property
     def chi_squared_jacobian(self):
@@ -454,19 +455,31 @@ class Model(CallableModel):
         Return a symbolic jacobian of the :math:`\\chi^2` function.
         Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
         """
+        from sympy import latex, pprint
         jac = []
+        # Differentiate w.r.t every param. To do this, we first ignore the
+        # outer sum
         for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi_squared, param)
+            if param in self.indexed_params:
+                # Get original indices and turn them into dummies.
+                idxs = self.symbol2indexed[param].indices
+                dummie_idxs = [Idx('_{}'.format(i), (i.lower, i.upper))
+                               for i in idxs]
+                # TODO remove this loop after moving to sympy >= 1.2
+                for idx in dummie_idxs:
+                    idx._assumptions['nonnegative'] = True
+                param_i = param[dummie_idxs]
+                f = sympy.diff(self.chi_squared, param_i)
+                # This expression will contain KroneckerDelta's: perform as many
+                # sums as possible
+                f = f.doit()
+                # This result now still contains dummie indices, let's replace
+                # them with the original indices
+                f = f.subs(zip(dummie_idxs, idxs))
+            else:
+                f = sympy.diff(self.chi_squared, param)
             jac.append(f)
         return jac
-
-    # @property
-    # def ss_res(self):
-    #     """
-    #     :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
-    #     """
-    #     return sum((y - f)**2 for y, f in self.items())
 
     @cached_property
     def numerical_jacobian(self):
@@ -487,20 +500,6 @@ class Model(CallableModel):
         :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
         """
         return sympy_to_py(self.chi_squared, self.vars, self.params)
-
-    @cached_property
-    def numerical_chi(self):
-        """
-        :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.
-        """
-        return sympy_to_py(self.chi, self.vars, self.params)
-
-    @cached_property
-    def numerical_chi_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
 
     @cached_property
     def numerical_chi_squared_jacobian(self):

@@ -1,3 +1,7 @@
+"""
+Testing for fit's containing indexed variables
+"""
+
 from __future__ import division, print_function
 import unittest
 
@@ -84,7 +88,7 @@ class TestIndexedFit(unittest.TestCase):
         i, = indices('i', range=len(ydata))
         l = Parameter('l')
 
-        model = {y[i]: a * x[i] + b}
+        model = Model({y[i]: a * x[i] + b})
         chi2_raw = (model[y[i]] - y[i])**2
         chi2 = {X2: Sum(chi2_raw, i)}
         self.assertEqual({i}, get_indices(chi2_raw)[0])
@@ -92,8 +96,14 @@ class TestIndexedFit(unittest.TestCase):
             chi2[X2](x=xdata, y=ydata, a=2, b=4),
             np.sum((2 * xdata + 4 - ydata) ** 2)
         )
+        self.assertEqual(
+            model.numerical_chi_squared(x=xdata, y=ydata,
+                                        sigma_y=np.ones_like(ydata), a=2, b=4),
+            np.sum((2 * xdata + 4 - ydata) ** 2)
+        )
+
         # Minimize the chi2 model directly.
-        fit_chi2 = Fit(chi2, x=xdata, y=ydata, X2=np.array([0.0]), objective=MinimizeModel)
+        fit_chi2 = Fit(chi2, x=xdata, y=ydata, X2=None, objective=MinimizeModel)
         fit = Fit(model, x=xdata, y=ydata)
         fit_chi2_result = fit_chi2.execute()
         fit_result = fit.execute()
@@ -104,9 +114,6 @@ class TestIndexedFit(unittest.TestCase):
         L = chi2[X2] + l * (a + b - 1)
         # The jacobian of L should equal zero, that's the system to solve.
         dLdp = Model(Model(L).jacobian[0])
-        # The new components should be set to 0.
-        with self.assertRaises(Exception):
-            fit = Fit(dLdp, x=xdata, y=ydata)
 
         minimizers = [BFGS, SLSQP, LBFGSB, NelderMead, DifferentialEvolution]
         fit_slsqp = Fit(model, x=xdata, y=ydata,
@@ -114,6 +121,7 @@ class TestIndexedFit(unittest.TestCase):
         fit_slsqp_result = fit_slsqp.execute()
         self.assertAlmostEqual(fit_slsqp_result.value(a) + fit_slsqp_result.value(b), 1.0)
         for minimizer in minimizers:
+            # The new components should be set to 0.
             fit = Fit(dLdp, x=xdata, y=ydata, minimizer=minimizer,
                       **{str(v): np.array([0.0]) for v in dLdp.dependent_vars})
             if minimizer is DifferentialEvolution:
