@@ -14,10 +14,10 @@ def distr(x, k, x0):
     return exp(-k*(x-x0)**2/kbT)
 
 
-x = Variable()
-y = Variable()
-k = Parameter(900)
-x0 = Parameter(1.5)
+x = Variable('x')
+y = Variable('y')
+k = Parameter('k', 900)
+x0 = Parameter('x0', 1.5)
 
 model = Model({y: distr(x, k, x0)})
 x_data = np.linspace(0, 2.5, 50)
