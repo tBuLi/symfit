@@ -28,6 +28,10 @@ class Argument(Symbol):
     _argument_indices = defaultdict(int)
 
     def __new__(cls, name=None, *args, **assumptions):
+        """
+        Create a new ``Argument``. See :class:`~sympy.core.symbol.Symbol`
+        for more information.
+        """
         assumptions['real'] = True
         # Generate a dummy name
         if not name:
