@@ -15,6 +15,7 @@ paper.
 
     ex_fourier_series
     ex_piecewise
+    ex_poly_surface_fit
 
 Interactive Guess Module
 ------------------------
