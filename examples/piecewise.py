@@ -17,7 +17,7 @@ constraints = [Eq(y1.diff(t).subs({t: t0}), y2.diff(t).subs({t: t0}))]
 # # Generate example data
 tdata = np.linspace(0, 4., 200)
 ydata = model(t=tdata, a=63, b=300, d=2205, k=3, t0=0.65).y
-ydata = np.random.normal(ydata, 0.05 * ydata)  # add 1% noise
+ydata = np.random.normal(ydata, 0.05 * ydata)  # add 5% noise
 
 # Help the fit by bounding the switchpoint between the models and giving initial
 # guesses
