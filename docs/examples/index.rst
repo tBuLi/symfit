@@ -1,7 +1,14 @@
+========
 Examples
 ========
 
-Contents:
+Model Examples
+--------------
+
+These are examples of the flexibility of :mod:`symfit` Models. This is because
+essentially any valid :mod:`sympy` code can be provided as a model. This makes
+it very intuitive to define your mathematical models almost as you would on
+paper.
 
 .. toctree::
     :maxdepth: 1
