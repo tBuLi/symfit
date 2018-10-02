@@ -2,7 +2,7 @@
 
 from symfit import Variable, Parameter, exp, Fit, Model
 from symfit.distributions import Gaussian
-from symfit.contrib.interactive_guess import InteractiveGuess2D
+from symfit.contrib.interactive_guess import InteractiveGuess
 import numpy as np
 
 
@@ -24,7 +24,7 @@ x_data = x_data.flatten()
 y_data = y_data.flatten()
 z_data = model(x=x_data, y=y_data, mu_x=5, sig_x=0.3, mu_y=10, sig_y=1).z
 
-guess = InteractiveGuess2D(model, x=x_data, y=y_data, z=z_data)
+guess = InteractiveGuess(model, x=x_data, y=y_data, z=z_data)
 guess.execute()
 print(guess)
 
