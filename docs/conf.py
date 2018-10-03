@@ -46,6 +46,7 @@ intersphinx_mapping = {
 nitpick_ignore = [
     ('py:mod', 'symfit'),
     ('py:mod', 'scipy'),
+    ('py:mod', 'sympy'),
     ('py:func', 'symfit.core.leastsqbound.leastsqbound')
 ]
 

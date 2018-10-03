@@ -4,7 +4,6 @@ throughout symfit. Some are used predominantly internally, others are
 designed for users.
 """
 from __future__ import print_function
-from functools import wraps
 from collections import OrderedDict
 import sys
 import warnings
@@ -21,8 +20,15 @@ from symfit.core.argument import Parameter, Variable
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
+    from functools import wraps
 else:
     import funcsigs as inspect_sig
+    from functools32 import wraps
+
+if sys.version_info >= (3, 5):
+    from functools import partial
+else:
+    from ._repeatable_partial import repeatable_partial as partial
 
 class deprecated(object):
     """
@@ -129,31 +135,95 @@ def parameters(names, **kwargs):
     Convenience function for the creation of multiple parameters. For more
     control, consider using ``symbols(names, cls=Parameter, **kwargs)`` directly.
 
+    The `Parameter` attributes `value`, `min`, `max` and `fixed` can also be provided
+    directly. If given as a single value, the same value will be set for all
+    `Parameter`'s. When a sequence, it must be of the same length as the number of
+    parameters created.
+
+    Example::
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=0.0)
+
     :param names: string of parameter names.
         Example: a, b = parameters('a, b')
-    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
+    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`.
+        `value`, `min` and `max` will be handled separately if they are sequences.
     :return: iterable of :class:`symfit.core.argument.Parameter` objects
     """
-    return symbols(names, cls=Parameter, seq=True, **kwargs)
-
-def cache(func):
-    """
-    Decorator function that gets a method as its input and either buffers the input,
-    or returns the buffered output. Used in conjunction with properties to take away
-    the standard buffering logic.
-
-    :param func:
-    :return:
-    """
-    @wraps(func)
-    def new_func(self):
+    sequence_fields = ['value', 'min', 'max', 'fixed']
+    sequences = {}
+    for attr in sequence_fields:
         try:
-            return getattr(self, '_{}'.format(func.__name__))
-        except AttributeError:
-            setattr(self, '_{}'.format(func.__name__), func(self))
-            return getattr(self, '_{}'.format(func.__name__))
+            iter(kwargs[attr])
+        except (TypeError, KeyError):
+            # Not iterable or not provided
+            pass
+        else:
+            sequences[attr] = kwargs.pop(attr)
 
-    return new_func
+    if 'min' in sequences and 'max' in sequences:
+        for min, max in zip(sequences['min'], sequences['max']):
+            if min > max:
+                raise ValueError('The value of `min` should be less than or'
+                                 ' equal to the value of `max`.')
+
+    params = symbols(names, cls=Parameter, seq=True, **kwargs)
+    for key, values in sequences.items():
+        try:
+            assert len(values) == len(params)
+        except AssertionError:
+            raise ValueError(
+                '`len` of keyword-argument `{}` does not match the number of '
+                '`Parameter`s created.'.format(attr)
+            )
+        except TypeError:
+            # Iterator do not have a `len` but are allowed.
+            pass
+        finally:
+            for param, value in zip(params, values):
+                setattr(param, key, value)
+    return params
+
+
+class cached_property(property):
+    """
+    A property which cashes the output of the first ever call and always returns
+    that value from then on, unless delete is called on the attribute.
+
+    This is typically used in converting `sympy` code into `scipy` compatible
+    code, which is computationally a very expensive step we would like to
+    perform only once.
+
+    Does not allow setting of the attribute.
+    """
+    def __get__(self, obj, objtype=None):
+        """
+        In case of a first call, this will call the decorated function and
+        return it's output. On every subsequent call, the same output will be
+        returned.
+
+        :param obj: the parent object this property is attached to.
+        :param objtype:
+        :return: Output of the first call to the decorated function.
+        """
+        cache_attr = '_{}'.format(self.fget.__name__)
+        try:
+            return getattr(obj, cache_attr)
+        except AttributeError:
+            # Call the wrapped function with the obj instance as argument
+            setattr(obj, cache_attr, self.fget(obj))
+            return getattr(obj, cache_attr)
+
+    def __delete__(self, obj):
+        """
+        Calling delete on the attribute will delete the cache.
+        :param obj: parent object.
+        """
+        cache_attr = '_{}'.format(self.fget.__name__)
+        try:
+            delattr(obj, cache_attr)
+        except AttributeError:
+            pass
+
 
 def jacobian(expr, symbols):
     """
@@ -174,12 +244,12 @@ def key2str(target):
     In ``symfit`` there are many dicts with symbol: value pairs.
     These can not be used immediately as \*\*kwargs, even though this would make
     a lot of sense from the context.
-    This function wraps such dict to make them usable as \*\*kwargs immidiately.
+    This function wraps such dict to make them usable as \*\*kwargs immediately.
 
-    :param target: dict to be made save
-    :return: dict of str(symbol): value pairs.
+    :param target: `Mapping` to be made save
+    :return: `Mapping` of str(symbol): value pairs.
     """
-    return {str(symbol): value for symbol, value in target.items()}
+    return target.__class__((str(symbol), value) for symbol, value in target.items())
 
 class RequiredKeyword(object):
     """ Flag variable to indicate that this is a required keyword. """

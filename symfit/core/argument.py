@@ -99,7 +99,6 @@ class Parameter(Argument):
 
         if min is not None and max is not None and min > max:
             if not self.fixed:
-                print(min, max)
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
         else:
