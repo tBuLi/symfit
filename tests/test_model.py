@@ -3,7 +3,7 @@ import unittest
 from collections import OrderedDict
 
 from symfit import (
-    Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters,
+    Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters, indices,
     variables, NonLinearLeastSquares, Model, TaylorModel, Constraint, ODEModel, D, Eq
 )
 
@@ -77,6 +77,38 @@ class TestModel(unittest.TestCase):
         self.assertEqual(id(constraint.model), id(model))
 
         # raise NotImplementedError('')
+
+    def test_indexed_model(self):
+        """
+        Test a Model with many indexed and non-indexed parameters and variables.
+        """
+        x, y, z = variables('x, y, z', indexed=True)
+        a, b = parameters('a, b', indexed=True)
+        c, d = parameters('c, d')
+        i, j = indices('i, j')
+        model = Model({
+            z[i]: a[i, j] * x[j] + b[i, j] * y[j] + c * x[i]**2 + d * y[i]**2
+        })
+
+        self.assertEqual(model.params, [a, b, c, d])
+        self.assertEqual(model.indexed_params, [a, b])
+        self.assertEqual(model.unindexed_params, [c, d])
+        self.assertEqual(model.indices, [i, j])
+        self.assertEqual(model.dependent_vars, [z])
+        self.assertEqual(model.independent_vars, [x, y])
+        # Check the translation to indexed/unindexed
+        self.assertEqual(
+            [model.symbol2indexed[var] for var in model.independent_vars],
+            [x[j], y[j]]
+        )
+        self.assertEqual(
+            [model.symbol2indexed[var] for var in model.dependent_vars],
+            [z[i]]
+        )
+        self.assertEqual(
+            [model.symbol2indexed[var] for var in model.params],
+            [a[i, j], b[i, j], c, d]
+        )
 
 if __name__ == '__main__':
     unittest.main()

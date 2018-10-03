@@ -49,9 +49,7 @@ class TestFitResults(unittest.TestCase):
         fit = Fit(new, xdata, ydata, minimizer=MINPACK)
 
         self.assertTrue(issubclass(fit.model.chi_squared.__class__, sympy.Expr))
-        self.assertTrue(issubclass(fit.model.chi.__class__, sympy.Expr))
         self.assertTrue(type(fit.model.numerical_chi_squared) is types.LambdaType)
-        self.assertTrue(type(fit.model.numerical_chi) is types.LambdaType)
 
         fit_result = fit.execute()
         self.assertIsInstance(fit_result, FitResults)

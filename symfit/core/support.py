@@ -12,11 +12,14 @@ import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
 
-from sympy.tensor import Idx
+from sympy.tensor import Idx, Indexed
 from sympy import symbols
 from sympy.core.expr import Expr
 
-from symfit.core.argument import Parameter, Variable
+from symfit.core.argument import (
+    Parameter, IndexedParameter, IndexedParameterBase,
+    Variable, IndexedVariable, IndexedVariableBase
+)
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -50,45 +53,67 @@ class deprecated(object):
             return func(*args, **kwargs)
         return deprecated_func
 
-def seperate_symbols(func):
+def seperate_symbols(func, separate_indices=False):
     """
     Seperate the symbols in symbolic function func. Return them in alphabetical
     order.
 
     :param func: scipy symbolic function.
-    :return: (vars, params), a tuple of all variables and parameters, each 
-        sorted in alphabetical order.
+    :param separate_indices: If True, Indexed objects are separated into their
+        IndexedBase and Idx, and apart from variables and parameter, also a list
+        of all indices is returned. If Flase, Indexed object are seen as
+        fundamental.
+    :return: (vars, params) if `separate_indices` is False, or
+        (vars, params, indices) when True.
+        each of these items is an alphabetically ordered list.
     :raises TypeError: only symfit Variable and Parameter are allowed, not sympy
         Symbols.
     """
     params = []
     vars = []
+    indices = []
     for symbol in func.free_symbols:
         if isinstance(symbol, Parameter):
             params.append(symbol)
+        elif isinstance(symbol, IndexedParameterBase):
+            params.append(symbol)
+        elif isinstance(symbol, IndexedVariableBase):
+            vars.append(symbol)
         elif isinstance(symbol, Idx):
-            # Idx objects are not seen as parameters or vars.
-            pass
+            indices.append(symbol)
         elif isinstance(symbol, Expr):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
-    params.sort(key=lambda symbol: symbol.name)
-    vars.sort(key=lambda symbol: symbol.name)
-    return vars, params
 
-def sympy_to_py(func, vars, params):
+    indices = list(set(indices))
+    params.sort(key=lambda symbol: str(symbol))
+    vars.sort(key=lambda symbol: str(symbol))
+    indices.sort(key=lambda symbol: str(symbol))
+    if separate_indices:
+        return vars, params, indices
+    else:
+        # User is not interested in the bases and indices, but in indexed objects
+        indexed = get_indexed(func)
+        indexed_dict = {symbol.base: symbol for symbol in indexed}
+        vars = [v if v not in indexed_dict else indexed_dict[v] for v in vars]
+        params = [v if v not in indexed_dict else indexed_dict[v] for v in params]
+        return vars, params
+
+def sympy_to_py(func, *symbol_lists):
     """
     Turn a symbolic expression into a Python lambda function,
     which has the names of the variables and parameters as it's argument names.
 
     :param func: sympy expression
-    :param vars: variables in this model
-    :param params: parameters in this model
+    :param symbol_lists: Any lists which are provided will be treated as lists
+        of symbols which have to be arguments of the resulting python function.
+        They will be combined in the order provided.
     :return: lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars
         first, then params.
     """
-    return lambdify((vars + params), func, modules='numpy', dummify=False)
+    all_symbols = [sym for syms in symbol_lists for sym in syms]
+    return lambdify(all_symbols, func, modules='numpy', dummify=False)
 
 def sympy_to_scipy(func, vars, params):
     """
@@ -99,7 +124,7 @@ def sympy_to_scipy(func, vars, params):
     :param params: parameters
     :return: Scipy-style function to be used for numerical evaluation of the model.
     """
-    lambda_func = sympy_to_py(func, vars, params)
+    lambda_func = sympy_to_py(func, vars + params)
     def f(x, p):
         """
         Scipy style function.
@@ -118,19 +143,25 @@ def sympy_to_scipy(func, vars, params):
 
     return f
 
-def variables(names, **kwargs):
+def variables(names, indexed=False, **kwargs):
     """
     Convenience function for the creation of multiple variables. For more
     control, consider using ``symbols(names, cls=Variable, **kwargs)`` directly.
 
     :param names: string of variable names.
         Example: x, y = variables('x, y')
+    :param indexed: If True, the return a IndexedVariableBase object, to which
+        indices can be assigned.
     :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
     :return: iterable of :class:`symfit.core.argument.Variable` objects
     """
-    return symbols(names, cls=Variable, seq=True, **kwargs)
+    if indexed:
+        cls = IndexedVariableBase
+    else:
+        cls = Variable
+    return symbols(names, cls=cls, seq=True, **kwargs)
 
-def parameters(names, **kwargs):
+def parameters(names, indexed=False, **kwargs):
     """
     Convenience function for the creation of multiple parameters. For more
     control, consider using ``symbols(names, cls=Parameter, **kwargs)`` directly.
@@ -145,9 +176,13 @@ def parameters(names, **kwargs):
 
     :param names: string of parameter names.
         Example: a, b = parameters('a, b')
-    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`.
+    :param indexed: If True, return an IndexedParameterBase object, to which
+        indices can be assigned.
+    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
         `value`, `min` and `max` will be handled separately if they are sequences.
-    :return: iterable of :class:`symfit.core.argument.Parameter` objects
+    :return: iterable of :class:`symfit.core.argument.Parameter` objects if
+        indexed=False, iterable of
+        :class:`symfit.core.argument.IndexedParameterBase` instances otherwise.
     """
     sequence_fields = ['value', 'min', 'max', 'fixed']
     sequences = {}
@@ -166,7 +201,12 @@ def parameters(names, **kwargs):
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
 
-    params = symbols(names, cls=Parameter, seq=True, **kwargs)
+    if indexed:
+        cls = IndexedParameterBase
+    else:
+        cls = Parameter
+    params = symbols(names, cls=cls, seq=True, **kwargs)
+
     for key, values in sequences.items():
         try:
             assert len(values) == len(params)
@@ -183,6 +223,17 @@ def parameters(names, **kwargs):
                 setattr(param, key, value)
     return params
 
+def indices(names, **kwargs):
+    """
+    Convenience function for the creation of multiple indices. For more
+    control, consider using ``symbols(names, cls=Idx, **kwargs)`` directly.
+
+    :param names: string of index names.
+        Example: i, j = indices('i, j')
+    :param kwargs: kwargs to be passed onto :func:`sympy.core.symbol.symbols`
+    :return: iterable of :class:`sympy.tensor.indexed.Idx` objects
+    """
+    return symbols(names, cls=Idx, seq=True, **kwargs)
 
 class cached_property(property):
     """
@@ -358,3 +409,18 @@ class D(sympy.Derivative):
     Convenience wrapper for ``sympy.Derivative``. Used most notably in defining
     ``ODEModel``'s.
     """
+
+def get_indexed(expr):
+    """
+    Extract the indexed objects from an expression.
+    :param expr: valid sympy Expr.
+    :return: List of indexed symbols in `expr`
+    """
+    if isinstance(expr, Indexed):
+        return {expr}
+    else:
+        # Call this function recursively
+        indexed = set([])
+        for fac in expr.args:
+            indexed.update(get_indexed(fac))
+        return indexed

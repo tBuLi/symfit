@@ -1,26 +1,17 @@
 from __future__ import division, print_function
 import pickle
 import unittest
-import sys
 import sympy
 import warnings
 
-import numpy as np
-import scipy.stats
-from scipy.optimize import curve_fit, minimize
-
 from symfit import (
-    Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge
+    Variable, Parameter, IndexedBase, Idx, IndexedVariable, IndexedParameter,
+    Symbol, variables, parameters
 )
-from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
-from symfit.core.objectives import LogLikelihood
-from symfit.distributions import Gaussian, Exp
-
-if sys.version_info >= (3, 0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+from symfit.core.argument import (
+    IndexedArgument, IndexedArgumentBase, Argument, IndexedVariableBase,
+    IndexedParameterBase
+)
 
 
 class TestArgument(unittest.TestCase):
@@ -64,9 +55,9 @@ class TestArgument(unittest.TestCase):
         a = Parameter()
         b = Parameter(name='b')
         c = Parameter(name='d')
-        self.assertNotEqual(a.name, 'a')
-        self.assertEqual(b.name, 'b')
-        self.assertEqual(c.name, 'd')
+        self.assertNotEqual(str(a), 'a')
+        self.assertEqual(str(b), 'b')
+        self.assertEqual(str(c), 'd')
 
     def test_symbol_add(self):
         """
@@ -82,13 +73,17 @@ class TestArgument(unittest.TestCase):
         """
         A = Parameter('A', min=0., max=1e3, fixed=True)
         new_A = pickle.loads(pickle.dumps(A))
-        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
-                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+        self.assertEqual(
+            (A.min, A.value, A.max, A.fixed, str(A)),
+            (new_A.min, new_A.value, new_A.max, new_A.fixed, str(new_A))
+        )
 
         A = Parameter(min=0., max=1e3, fixed=True)
         new_A = pickle.loads(pickle.dumps(A))
-        self.assertEqual((A.min, A.value, A.max, A.fixed, A.name),
-                         (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name))
+        self.assertEqual(
+            (A.min, A.value, A.max, A.fixed, str(A)),
+            (new_A.min, new_A.value, new_A.max, new_A.fixed, str(new_A))
+        )
 
     def test_slots(self):
         """
@@ -110,6 +105,46 @@ class TestArgument(unittest.TestCase):
         with self.assertRaises(AttributeError):
             V.bar = None
 
+    def test_indexed(self):
+        """
+        Symfit Variables are a subtype of IndexedBase
+        :return:
+        """
+        x = Variable('x')
+        i = Idx('i')
+        with self.assertRaises(TypeError):
+            x_i = x[i]
+
+        self.assertIsInstance(x, Argument)
+        self.assertTrue(issubclass(IndexedVariableBase, IndexedBase))
+
+        y, = variables('y', indexed=True)
+        y_i = y[i]
+        self.assertIsInstance(y, IndexedVariableBase)
+        self.assertIsInstance(y_i, IndexedArgument)
+        self.assertIsInstance(y_i, IndexedVariable)
+        self.assertEqual(y_i.base, y)
+
+        a = Parameter('a')
+        i = Idx('i')
+        with self.assertRaises(TypeError):
+            a_i = a[i]
+        self.assertIsInstance(a, (Parameter, Symbol))
+
+        b, = parameters('b', indexed=True)
+        b_i = b[i]
+        self.assertIsInstance(b, IndexedParameterBase)
+        self.assertIsInstance(b_i, IndexedArgument)
+        self.assertIsInstance(b_i, IndexedParameter)
+        self.assertEqual(b_i.base, b)
+
+        # Indexed objects have labels, not names by default.
+        self.assertEqual(str(b), str(b.label))
+
+        # The free symbols in an expression should not be Indexed types.
+        expr = b_i * y_i
+        for symbol in expr.free_symbols:
+            self.assertNotIsInstance(symbol, IndexedArgument)
 
 if __name__ == '__main__':
     try:
