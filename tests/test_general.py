@@ -888,6 +888,14 @@ class Tests(unittest.TestCase):
         except Exception as error:
             self.fail('test_model_from_dict raised {}'.format(error))
 
+    def test_version(self):
+        """
+        Test if __version__ is availabe
+        :return:
+        """
+        import symfit
+        symfit.__version__
+
 
 if __name__ == '__main__':
     try:
