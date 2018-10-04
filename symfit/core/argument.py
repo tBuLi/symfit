@@ -64,6 +64,7 @@ class Argument(Symbol):
         return printer.doprint(self.name)
 
     _lambdacode = _sympystr
+    _numpycode = _sympystr
 
 
 class Parameter(Argument):
