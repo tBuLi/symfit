@@ -254,9 +254,9 @@ class BaseNumericalModel(BaseModel):
         :return: new model with opposite sign. Does not change the model in-place,
             but returns a new copy.
         """
-        new_model_dict = self.model_dict.copy()
-        for key in new_model_dict:
-            new_model_dict[key] = lambda *args, **kwargs: new_model_dict[key](*args, **kwargs)
+        new_model_dict = {}
+        for key, callable_expr in self.model_dict.values():
+            new_model_dict[key] = lambda *args, **kwargs: - callable_expr(*args, **kwargs)
         return self.__class__(new_model_dict)
 
     @property
