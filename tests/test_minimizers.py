@@ -7,10 +7,11 @@ import numpy as np
 from scipy.optimize import minimize
 
 from symfit import (
-    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit, Model, FitResults
+    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
+    Model, FitResults, variables
 )
 from symfit.core.objectives import MinimizeModel
-from symfit.core.minimizers import BFGS
+from symfit.core.minimizers import BFGS, Powell
 
 
 class TestMinimize(unittest.TestCase):
@@ -68,6 +69,22 @@ class TestMinimize(unittest.TestCase):
         fit_custom = BFGS(chi_squared, [a, c])
         with self.assertRaises(TypeError):
             fit_custom.execute()
+
+    def test_powell(self):
+        """
+        Powell with a single parameter gave an error because a 0-d array was
+        returned by scipy. So no error here is winning.
+        """
+        x, y = variables('x, y')
+        a, b = parameters('a, b')
+        b.fixed = True
+
+        model = Model({y: a * x + b})
+        xdata = np.linspace(0, 10)
+        ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
+        fit = Fit({y: a * x + b}, x=xdata, y=ydata, minimizer=Powell)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.value(b), 1.0)
 
 
 
