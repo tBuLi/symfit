@@ -2,9 +2,11 @@ from __future__ import division, print_function
 import unittest
 from collections import OrderedDict
 
+import numpy as np
+
 from symfit import (
-    Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters,
-    variables, NonLinearLeastSquares, Model, TaylorModel, Constraint, ODEModel, D, Eq
+    Fit, parameters, variables, Model, Constraint, ODEModel, D, Eq,
+    CallableModel, CallableNumericalModel
 )
 
 
@@ -78,5 +80,35 @@ class TestModel(unittest.TestCase):
 
         # raise NotImplementedError('')
 
+    def test_NumericalModel(self):
+        x, y = variables('x, y')
+        a, b = parameters('a, b')
+
+        model = CallableModel({y: a * x + b})
+        numerical_model = CallableNumericalModel({y: lambda x, a, b: a * x + b}, [x], [a, b])
+        self.assertEqual(model.__signature__, numerical_model.__signature__)
+
+        xdata = np.linspace(0, 10)
+        ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
+        np.testing.assert_almost_equal(
+            model(x=xdata, a=5.5, b=15.0),
+            numerical_model(x=xdata, a=5.5, b=15.0),
+        )
+
+        faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b}, [], [a, b])
+        self.assertNotEqual(model.__signature__, faulty_model.__signature__)
+        with self.assertRaises(TypeError):
+            # This is an incorrect signature, even though the lambda function is
+            # correct. Should fail.
+            faulty_model(xdata, 5.5, 15.0)
+
+        fit = Fit(model, x=xdata, y=ydata)
+        analytical_result = fit.execute()
+        fit = Fit(numerical_model, x=xdata, y=ydata)
+        numerical_result = fit.execute()
+        for val1, val2 in zip(analytical_result.params, numerical_result.params):
+            self.assertAlmostEqual(val1, val2)
+
 if __name__ == '__main__':
     unittest.main()
+

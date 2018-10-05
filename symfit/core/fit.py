@@ -35,10 +35,12 @@ class ModelError(Exception):
     """
     pass
 
+
 class BaseModel(Mapping):
     """
     ABC for ``Model``'s. Makes sure models are iterable.
-    Models can be initiated from Mappings or Iterables of Expressions, or from an expression directly.
+    Models can be initiated from Mappings or Iterables of Expressions,
+    or from an expression directly.
     Expressions are not enforced for ducktyping purposes.
     """
     def __init__(self, model):
@@ -191,38 +193,108 @@ class BaseModel(Mapping):
             else:
                 return False
 
-    @abstractmethod
     def __str__(self):
         """
-        A representation upon printing has to provided.
+        Printable representation of a Mapping model.
+
+        :return: str
         """
+        template = "{}({}; {}) = {}"
+        parts = []
+        for var, expr in self.items():
+            parts.append(template.format(
+                    var,
+                    ", ".join(arg.name for arg in self.independent_vars),
+                    ", ".join(arg.name for arg in self.params),
+                    expr
+                )
+            )
+        return "\n".join(parts)
 
 
-class CallableModel(BaseModel):
+class BaseAnalyticalModel(BaseModel):
     """
-    Defines a callable model. The usual rules apply to the ordering of the arguments:
-
-    * first independent variables, then dependent variables, then parameters.
-    * within each of these groups they are ordered alphabetically.
+    ABC for Analytical Models. These are models whose components are analytical
+    sympy expressions.
     """
-    @abstractmethod
+
+
+class BaseNumericalModel(BaseModel):
+    """
+    ABC for Analytical Models. These are models whose components are generic
+    python callables.
+    """
+    def __init__(self, model, independent_vars, params):
+        self.independent_vars = sorted(independent_vars, key=str)
+        self.params = sorted(params, key=str)
+        super(BaseNumericalModel, self).__init__(model)
+
+    def _init_from_dict(self, model_dict):
+        """
+        Initiate self from a model_dict which has python callables as its values.
+        This init makes sure self.dependent_vars is available, the other are
+        set in __init__.
+
+        :param model_dict: dict of (dependent_var, callable) pairs.
+        """
+        sort_func = lambda symbol: str(symbol)
+        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
+        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
+
+        # Make Variable object corresponding to each var.
+        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+
+    def __eq__(self, other):
+        raise NotImplementedError(
+            'Equality checking for {} is ambiguous.'.format(self.__class__.__name__)
+        )
+
+    def __neg__(self):
+        """
+        :return: new model with opposite sign. Does not change the model in-place,
+            but returns a new copy.
+        """
+        new_model_dict = self.model_dict.copy()
+        for key in new_model_dict:
+            new_model_dict[key] = lambda *args, **kwargs: new_model_dict[key](*args, **kwargs)
+        return self.__class__(new_model_dict)
+
+    @property
+    def shared_parameters(self):
+        raise NotImplementedError(
+            'Shared parameters can not be inferred for {}'.format(self.__class__.__name__)
+        )
+
+
+class BaseCallableModel(BaseModel):
+    """
+    Baseclass for callable models.
+    """
     def eval_components(self, *args, **kwargs):
         """
-        Evaluate the components of the model with the given data.
-        Used for numerical evaluation.
+        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
+        return [expr(*args, **kwargs) for expr in self.numerical_components]
 
+    @abstractmethod
+    def numerical_components(self):
+        """
+        :return: A list of callables corresponding to each of the components
+            of the model.
+        """
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
-        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
-                for arg in self.independent_vars + self.params
+        parameters = [
+            # Note that these are inspect_sig.Parameter's, not symfit parameters!
+            inspect_sig.Parameter(arg.name,
+                                  inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+            for arg in self.independent_vars + self.params
         ]
         return inspect_sig.Signature(parameters=parameters)
 
     def _init_from_dict(self, model_dict):
-        super(CallableModel, self)._init_from_dict(model_dict)
+        super(BaseCallableModel, self)._init_from_dict(model_dict)
         self.__signature__ = self._make_signature()
 
     def __call__(self, *args, **kwargs):
@@ -240,15 +312,7 @@ class CallableModel(BaseModel):
         """
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         Ans = namedtuple('Ans', [var.name for var in self])
-        # return Ans(*[component(**bound_arguments.arguments) for component in self.numerical_components])
         return Ans(*self.eval_components(**bound_arguments.arguments))
-
-    @cached_property
-    def numerical_components(self):
-        """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
-        """
-        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
     @keywordonly(dx=1e-8)
     def finite_difference(self, *args, **kwargs):
@@ -310,7 +374,7 @@ class CallableModel(BaseModel):
                         out.append(param_grad)
                 for comp_idx in range(len(self)):
                     diff = up[comp_idx] - down[comp_idx]
-                    out[comp_idx][param_idx, :] += factor * diff/(2*h[param_idx])
+                    out[comp_idx][param_idx, :] += factor * diff / (2 * h[param_idx])
         return out
 
     def eval_jacobian(self, *args, **kwargs):
@@ -318,6 +382,52 @@ class CallableModel(BaseModel):
         :return: The jacobian matrix of the function.
         """
         return self.finite_difference(*args, **kwargs)
+
+
+class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
+    """
+    Callable model, whose components are callables provided by the user.
+    This allows the user to provide the components directly.
+
+    Example::
+
+        x, y = variables('x, y')
+        a, b = parameters('a, b')
+        numerical_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b},
+            independent_vars=[x],
+            params=[a, b]
+        )
+
+    This is identical in functionality to the more traditional::
+
+        x, y = variables('x, y')
+        a, b = parameters('a, b')
+        model = CallableModel({y: a * x + b})
+
+    but allows power-users a lot more freedom while still interacting
+    seamlessly with the :mod:`symfit` API.
+    """
+    @property
+    def numerical_components(self):
+        return self.model_dict.values()
+
+
+class CallableModel(BaseCallableModel, BaseAnalyticalModel):
+    """
+    Defines a callable model. The usual rules apply to the ordering of the
+    arguments:
+
+    * first independent variables, then dependent variables, then parameters.
+    * within each of these groups they are ordered alphabetically.
+    """
+    @cached_property
+    def numerical_components(self):
+        """
+        :return: lambda functions of each of the analytical components in
+        model_dict, to be used in numerical calculation.
+        """
+        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
 
 class Model(CallableModel):
@@ -336,24 +446,6 @@ class Model(CallableModel):
     Models are also iterable, behaving as their internal model_dict. In the example above,
     a[y] returns x**2, len(a) == 1, y in a == True, etc.
     """
-    def __str__(self):
-        """
-        Printable representation of this model.
-
-        :return: str
-        """
-        template = "{}({}; {}) = {}"
-        parts = []
-        for var, expr in self.items():
-            parts.append(template.format(
-                    var,
-                    ", ".join(arg.name for arg in self.independent_vars),
-                    ", ".join(arg.name for arg in self.params),
-                    expr
-                )
-            )
-        return "\n".join(parts)
-
     @property
     def jacobian(self):
         """
@@ -489,14 +581,6 @@ class Model(CallableModel):
             # (Nparams, Ndata)
             jac[idx] = np.array(jac[idx], dtype=float)
         return jac
-
-    def eval_components(self, *args, **kwargs):
-        """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
-        """
-        return [expr(*args, **kwargs) for expr in self.numerical_components]
-        # return [sympy_to_py(expr, self.independent_vars, self.params)(*args, **kwargs) for expr in self.values()]
-
 
 
 class TaylorModel(Model):
