@@ -109,6 +109,10 @@ class TestModel(unittest.TestCase):
         for val1, val2 in zip(analytical_result.params, numerical_result.params):
             self.assertAlmostEqual(val1, val2)
 
+        fit = Fit(numerical_model, x=xdata, y=ydata, constraints=[Eq(a, b)])
+        constrained_result = fit.execute()
+        self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
+
 if __name__ == '__main__':
     unittest.main()
 
