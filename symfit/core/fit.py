@@ -373,7 +373,7 @@ class BaseCallableModel(BaseModel):
                         else:
                             data_shape = up[comp_idx].shape
                         # Initialize at 0 so we can += all the contributions
-                        param_grad = np.zeros((len(self.params), *data_shape), dtype=float)
+                        param_grad = np.zeros([len(self.params)] + list(data_shape), dtype=float)
                         out.append(param_grad)
                 for comp_idx in range(len(self)):
                     diff = up[comp_idx] - down[comp_idx]
