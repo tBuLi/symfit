@@ -18,6 +18,7 @@ Contents:
     style_guide
     technical_notes
     dependencies
+    examples/index
     module_docs
 
 

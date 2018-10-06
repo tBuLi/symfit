@@ -41,11 +41,14 @@ intersphinx_mapping = {
     'sympy': ('http://docs.sympy.org/latest', None),
     'python': ('https://docs.python.org/3', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'matplotlib': ('http://matplotlib.org', None)
 }
 
 nitpick_ignore = [
     ('py:mod', 'symfit'),
+    ('py:mod', 'symfit.contrib.interactive_guess'),
     ('py:mod', 'scipy'),
+    ('py:mod', 'matplotlib'),
     ('py:mod', 'sympy'),
     ('py:func', 'symfit.core.leastsqbound.leastsqbound')
 ]

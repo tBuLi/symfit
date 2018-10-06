@@ -4,11 +4,11 @@ from symfit.contrib.interactive_guess import InteractiveGuess2D
 import numpy as np
 
 
-x = Variable()
-y1 = Variable()
-y2 = Variable()
-k = Parameter(900)
-x0 = Parameter(1.5)
+x = Variable('x')
+y1 = Variable('y1')
+y2 = Variable('y2')
+k = Parameter('k', 900)
+x0 = Parameter('x0', 1.5)
 
 model = {
     y1: k * (x-x0)**2,

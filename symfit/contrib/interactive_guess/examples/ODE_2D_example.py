@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from symfit import variables, Parameter, NumericalLeastSquares, D, ODEModel
+from symfit import variables, Parameter, Fit, D, ODEModel
 import numpy as np
 from symfit.contrib.interactive_guess import InteractiveGuess2D
 
@@ -16,7 +16,7 @@ concentration_B = np.max(concentration_A) - concentration_A
 
 # Define our ODE model
 A, B, t = variables('A, B, t')
-k = Parameter()
+k = Parameter('k')
 
 model_dict = {
     D(A, t): - k * A**2,
@@ -28,6 +28,6 @@ guess = InteractiveGuess2D(model, A=concentration_A, B=concentration_B, t=tdata,
 guess.execute()
 print(guess)
 
-fit = NumericalLeastSquares(model, A=concentration_A, B=concentration_B, t=tdata)
+fit = Fit(model, A=concentration_A, B=concentration_B, t=tdata)
 fit_result = fit.execute()
 print(fit_result)
