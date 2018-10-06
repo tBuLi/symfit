@@ -81,7 +81,7 @@ class TestModel(unittest.TestCase):
         # raise NotImplementedError('')
 
     def test_NumericalModel(self):
-        x, y = variables('x, y')
+        x, y, z = variables('x, y, z')
         a, b = parameters('a, b')
 
         model = CallableModel({y: a * x + b})
@@ -95,20 +95,46 @@ class TestModel(unittest.TestCase):
             numerical_model(x=xdata, a=5.5, b=15.0),
         )
 
-        faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b}, [], [a, b])
+        faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
+                                              [], [a, b])
         self.assertNotEqual(model.__signature__, faulty_model.__signature__)
         with self.assertRaises(TypeError):
             # This is an incorrect signature, even though the lambda function is
             # correct. Should fail.
             faulty_model(xdata, 5.5, 15.0)
 
+        # Faulty model whose components do not all accept all of the args
+        faulty_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: lambda x, a: x**a}, [x], [a, b]
+        )
+        self.assertEqual(model.__signature__, faulty_model.__signature__)
+        with self.assertRaises(TypeError):
+            # Lambda got an unexpected keyword 'b'
+            faulty_model(xdata, 5.5, 15.0)
+
+        # Correct version of the previous model
+        numerical_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: lambda x, a, b: x**a}, [x], [a, b]
+        )
+        numerical_model(x=xdata, a=5.5, b=15.0)
+
+        # Check if the fits are the same
         fit = Fit(model, x=xdata, y=ydata)
         analytical_result = fit.execute()
         fit = Fit(numerical_model, x=xdata, y=ydata)
         numerical_result = fit.execute()
-        for val1, val2 in zip(analytical_result.params, numerical_result.params):
-            self.assertAlmostEqual(val1, val2)
+        for param in [a, b]:
+            self.assertAlmostEqual(
+                analytical_result.value(param),
+                numerical_result.value(param)
+            )
+            self.assertAlmostEqual(
+                analytical_result.stdev(param),
+                numerical_result.stdev(param)
+            )
+        self.assertAlmostEqual(analytical_result.r_squared, numerical_result.r_squared)
 
+        # Test if the constrained syntax is supported
         fit = Fit(numerical_model, x=xdata, y=ydata, constraints=[Eq(a, b)])
         constrained_result = fit.execute()
         self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
