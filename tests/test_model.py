@@ -112,11 +112,29 @@ class TestModel(unittest.TestCase):
             # Lambda got an unexpected keyword 'b'
             faulty_model(xdata, 5.5, 15.0)
 
+        # Faulty model with a wrongly named argument
+        faulty_model = CallableNumericalModel(
+            {y: lambda x, a, c=5: a * x + c}, [x], [a, b]
+        )
+        self.assertEqual(model.__signature__, faulty_model.__signature__)
+        with self.assertRaises(TypeError):
+            # Lambda got an unexpected keyword 'b'
+            faulty_model(xdata, 5.5, 15.0)
+
+
         # Correct version of the previous model
         numerical_model = CallableNumericalModel(
             {y: lambda x, a, b: a * x + b, z: lambda x, a, b: x**a}, [x], [a, b]
         )
-        numerical_model(x=xdata, a=5.5, b=15.0)
+        # Correct version of the previous model
+        mixed_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: x ** a}, [x],
+            [a, b]
+        )
+        np.testing.assert_almost_equal(
+            numerical_model(x=xdata, a=5.5, b=15.0),
+            mixed_model(x=xdata, a=5.5, b=15.0)
+        )
 
         # Check if the fits are the same
         fit = Fit(model, x=xdata, y=ydata)
