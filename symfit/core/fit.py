@@ -415,9 +415,11 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
         and  ``params`` of the model as arguments, even if not all of them are
         used by every callable.
     """
-    @property
+    @cached_property
     def numerical_components(self):
-        return self.model_dict.values()
+        return [expr if not isinstance(expr, sympy.Expr) else
+                sympy_to_py(expr, self.independent_vars, self.params)
+                for expr in self.values()]
 
 
 class CallableModel(BaseCallableModel):
