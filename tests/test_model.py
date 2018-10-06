@@ -80,7 +80,7 @@ class TestModel(unittest.TestCase):
 
         # raise NotImplementedError('')
 
-    def test_NumericalModel(self):
+    def test_CallableNumericalModel(self):
         x, y, z = variables('x, y, z')
         a, b = parameters('a, b')
 
@@ -138,6 +138,30 @@ class TestModel(unittest.TestCase):
         fit = Fit(numerical_model, x=xdata, y=ydata, constraints=[Eq(a, b)])
         constrained_result = fit.execute()
         self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
+
+    def test_CallableNumericalModel2D(self):
+        """
+        Apply a CallableNumericalModel to 2D data, to see if it is
+        agnostic to data shape.
+        """
+        shape = (30, 40)
+
+        def function(a, b):
+            out = np.ones(shape) * a
+            out[15:, :] += b
+            return out
+
+        a, b = parameters('a, b')
+        y, = variables('y')
+
+        model = CallableNumericalModel({y: function}, [], [a, b])
+        data = 15 * np.ones(shape)
+        data[15:, :] += 20
+
+        fit = Fit(model, y=data)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.value(a), 15)
+        self.assertAlmostEqual(fit_result.value(b), 20)
 
 if __name__ == '__main__':
     unittest.main()

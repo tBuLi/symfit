@@ -367,11 +367,13 @@ class BaseCallableModel(BaseModel):
                     # a list of arrays.
                     for comp_idx in range(len(self)):
                         try:
-                            data_len = len(up[comp_idx])
+                            len(up[comp_idx])
                         except TypeError:  # output[comp_idx] is a number
-                            data_len = 1
+                            data_shape = (1,)
+                        else:
+                            data_shape = up[comp_idx].shape
                         # Initialize at 0 so we can += all the contributions
-                        param_grad = np.zeros((len(self.params), data_len), dtype=float)
+                        param_grad = np.zeros((len(self.params), *data_shape), dtype=float)
                         out.append(param_grad)
                 for comp_idx in range(len(self)):
                     diff = up[comp_idx] - down[comp_idx]
