@@ -212,19 +212,20 @@ class BaseModel(Mapping):
         return "\n".join(parts)
 
 
-class BaseAnalyticalModel(BaseModel):
-    """
-    ABC for Analytical Models. These are models whose components are analytical
-    sympy expressions.
-    """
-
-
 class BaseNumericalModel(BaseModel):
     """
-    ABC for Analytical Models. These are models whose components are generic
+    ABC for Numerical Models. These are models whose components are generic
     python callables.
     """
     def __init__(self, model, independent_vars, params):
+        """
+
+        :param model: dict of ``callable``, where dependent variables are the
+            keys. If instead of a dict a (sequence of) ``callable`` is provided,
+            it will be turned into a dict automatically.
+        :param independent_vars: The independent variables of the model.
+        :param params: The parameters of the model.
+        """
         self.independent_vars = sorted(independent_vars, key=str)
         self.params = sorted(params, key=str)
         super(BaseNumericalModel, self).__init__(model)
@@ -407,13 +408,17 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
 
     but allows power-users a lot more freedom while still interacting
     seamlessly with the :mod:`symfit` API.
+
+    .. note:: All of the callables must accept all of the ``independent_vars``
+        and  ``params`` of the model as arguments, even if not all of them are
+        used by every callable.
     """
     @property
     def numerical_components(self):
         return self.model_dict.values()
 
 
-class CallableModel(BaseCallableModel, BaseAnalyticalModel):
+class CallableModel(BaseCallableModel):
     """
     Defines a callable model. The usual rules apply to the ordering of the
     arguments:
