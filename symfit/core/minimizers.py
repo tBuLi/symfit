@@ -293,7 +293,7 @@ class ScipyMinimize(object):
         }
 
         best_vals = []
-        found = iter(ans.x)
+        found = iter(np.atleast_1d(ans.x))
         for param in self.parameters:
             if param.fixed:
                 best_vals.append(param.value)
@@ -459,6 +459,12 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
     @classmethod
     def method_name(cls):
         return 'Nelder-Mead'
+
+
+class Powell(ScipyMinimize, BaseMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s Powell algorithm.
+    """
 
 
 class BasinHopping(ScipyMinimize, BaseMinimizer):

@@ -2,9 +2,11 @@ from __future__ import division, print_function
 import unittest
 from collections import OrderedDict
 
+import numpy as np
+
 from symfit import (
-    Variable, Parameter, Fit, FitResults, LinearLeastSquares, parameters,
-    variables, NonLinearLeastSquares, Model, TaylorModel, Constraint, ODEModel, D, Eq
+    Fit, parameters, variables, Model, Constraint, ODEModel, D, Eq,
+    CallableModel, CallableNumericalModel
 )
 
 
@@ -78,5 +80,126 @@ class TestModel(unittest.TestCase):
 
         # raise NotImplementedError('')
 
+    def test_CallableNumericalModel(self):
+        x, y, z = variables('x, y, z')
+        a, b = parameters('a, b')
+
+        model = CallableModel({y: a * x + b})
+        numerical_model = CallableNumericalModel({y: lambda x, a, b: a * x + b}, [x], [a, b])
+        self.assertEqual(model.__signature__, numerical_model.__signature__)
+
+        xdata = np.linspace(0, 10)
+        ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
+        np.testing.assert_almost_equal(
+            model(x=xdata, a=5.5, b=15.0),
+            numerical_model(x=xdata, a=5.5, b=15.0),
+        )
+
+        faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
+                                              [], [a, b])
+        self.assertNotEqual(model.__signature__, faulty_model.__signature__)
+        with self.assertRaises(TypeError):
+            # This is an incorrect signature, even though the lambda function is
+            # correct. Should fail.
+            faulty_model(xdata, 5.5, 15.0)
+
+        # Faulty model whose components do not all accept all of the args
+        faulty_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: lambda x, a: x**a}, [x], [a, b]
+        )
+        self.assertEqual(model.__signature__, faulty_model.__signature__)
+        with self.assertRaises(TypeError):
+            # Lambda got an unexpected keyword 'b'
+            faulty_model(xdata, 5.5, 15.0)
+
+        # Faulty model with a wrongly named argument
+        faulty_model = CallableNumericalModel(
+            {y: lambda x, a, c=5: a * x + c}, [x], [a, b]
+        )
+        self.assertEqual(model.__signature__, faulty_model.__signature__)
+        with self.assertRaises(TypeError):
+            # Lambda got an unexpected keyword 'b'
+            faulty_model(xdata, 5.5, 15.0)
+
+
+        # Correct version of the previous model
+        numerical_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: lambda x, a, b: x**a}, [x], [a, b]
+        )
+        # Correct version of the previous model
+        mixed_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: x ** a}, [x],
+            [a, b]
+        )
+        np.testing.assert_almost_equal(
+            numerical_model(x=xdata, a=5.5, b=15.0),
+            mixed_model(x=xdata, a=5.5, b=15.0)
+        )
+
+        # Check if the fits are the same
+        fit = Fit(model, x=xdata, y=ydata)
+        analytical_result = fit.execute()
+        fit = Fit(numerical_model, x=xdata, y=ydata)
+        numerical_result = fit.execute()
+        for param in [a, b]:
+            self.assertAlmostEqual(
+                analytical_result.value(param),
+                numerical_result.value(param)
+            )
+            self.assertAlmostEqual(
+                analytical_result.stdev(param),
+                numerical_result.stdev(param)
+            )
+        self.assertAlmostEqual(analytical_result.r_squared, numerical_result.r_squared)
+
+        # Test if the constrained syntax is supported
+        fit = Fit(numerical_model, x=xdata, y=ydata, constraints=[Eq(a, b)])
+        constrained_result = fit.execute()
+        self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
+
+    def test_CallableNumericalModel2D(self):
+        """
+        Apply a CallableNumericalModel to 2D data, to see if it is
+        agnostic to data shape.
+        """
+        shape = (30, 40)
+
+        def function(a, b):
+            out = np.ones(shape) * a
+            out[15:, :] += b
+            return out
+
+        a, b = parameters('a, b')
+        y, = variables('y')
+
+        model = CallableNumericalModel({y: function}, [], [a, b])
+        data = 15 * np.ones(shape)
+        data[15:, :] += 20
+
+        fit = Fit(model, y=data)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.value(a), 15)
+        self.assertAlmostEqual(fit_result.value(b), 20)
+
+        def flattened_function(a, b):
+            out = np.ones(shape) * a
+            out[15:, :] += b
+            return out.flatten()
+
+        model = CallableNumericalModel({y: flattened_function}, [], [a, b])
+        data = 15 * np.ones(shape)
+        data[15:, :] += 20
+        data = data.flatten()
+
+        fit = Fit(model, y=data)
+        flat_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.value(a), flat_result.value(a))
+        self.assertAlmostEqual(fit_result.value(b), flat_result.value(b))
+        self.assertAlmostEqual(fit_result.stdev(a), flat_result.stdev(a))
+        self.assertAlmostEqual(fit_result.stdev(b), flat_result.stdev(b))
+        self.assertAlmostEqual(fit_result.r_squared, flat_result.r_squared)
+
 if __name__ == '__main__':
     unittest.main()
+
