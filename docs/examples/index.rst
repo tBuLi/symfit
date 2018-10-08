@@ -17,6 +17,7 @@ paper.
     ex_piecewise
     ex_poly_surface_fit
     ex_ODEModel
+    ex_CallableNumericalModel
 
 Interactive Guess Module
 ------------------------
