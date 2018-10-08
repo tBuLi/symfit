@@ -181,6 +181,25 @@ class TestModel(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(a), 15)
         self.assertAlmostEqual(fit_result.value(b), 20)
 
+        def flattened_function(a, b):
+            out = np.ones(shape) * a
+            out[15:, :] += b
+            return out.flatten()
+
+        model = CallableNumericalModel({y: flattened_function}, [], [a, b])
+        data = 15 * np.ones(shape)
+        data[15:, :] += 20
+        data = data.flatten()
+
+        fit = Fit(model, y=data)
+        flat_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.value(a), flat_result.value(a))
+        self.assertAlmostEqual(fit_result.value(b), flat_result.value(b))
+        self.assertAlmostEqual(fit_result.stdev(a), flat_result.stdev(a))
+        self.assertAlmostEqual(fit_result.stdev(b), flat_result.stdev(b))
+        self.assertAlmostEqual(fit_result.r_squared, flat_result.r_squared)
+
 if __name__ == '__main__':
     unittest.main()
 
