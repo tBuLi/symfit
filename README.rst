@@ -1,8 +1,8 @@
 .. image:: https://zenodo.org/badge/24005390.svg
    :target: https://zenodo.org/badge/latestdoi/24005390
 
-Please cite this doi if `symfit` benefited your publication. Building this has been a lot of work, and as young researchers your citation means a lot to us.
-Martin Roelfs & Peter Kroon, symfit. doi:10.5281/zenodo.1133336
+Please cite this DOI if ``symfit`` benefited your publication. Building this has been a lot of work, and as young researchers your citation means a lot to us.
+Martin Roelfs & Peter C Kroon, symfit. doi:10.5281/zenodo.1133336
 
 Documentation
 =============
