@@ -211,6 +211,15 @@ class BaseModel(Mapping):
             )
         return "\n".join(parts)
 
+    def __getstate__(self):
+        # Remove cached_property values from the state, they need to be
+        # re-calculated after pickle.
+        state = self.__dict__.copy()
+        for key in self.__dict__:
+            if key.startswith(cached_property.base_str):
+                del state[key]
+        return state
+
 
 class BaseNumericalModel(BaseModel):
     """

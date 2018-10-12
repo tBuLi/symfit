@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import unittest
 from collections import OrderedDict
+import pickle
 
 import numpy as np
 
@@ -199,6 +200,30 @@ class TestModel(unittest.TestCase):
         self.assertAlmostEqual(fit_result.stdev(a), flat_result.stdev(a))
         self.assertAlmostEqual(fit_result.stdev(b), flat_result.stdev(b))
         self.assertAlmostEqual(fit_result.r_squared, flat_result.r_squared)
+
+    def test_pickle(self):
+        """
+        Make sure models can be pickled are preserved when pickling
+        """
+        xdata = np.linspace(1, 10, 10)
+        ydata = 3 * xdata ** 2
+
+        a, b = parameters('a, b')
+        x, y = variables('x, y')
+        model = Model({y: a * x ** b})
+        # We fit to make sure cached properties are activated
+        fit = Fit(model, x=xdata, y=ydata)
+        fit.execute()
+
+        new_model = pickle.loads(pickle.dumps(model))
+        # We fit to make sure cached properties are activated
+        fit = Fit(new_model, x=xdata, y=ydata)
+        fit.execute()
+
+        # We only check for keys, since the lambda functions will make the test
+        # fail since they are at a different address
+        self.assertEqual(new_model.__dict__.keys(), model.__dict__.keys())
+
 
 if __name__ == '__main__':
     unittest.main()
