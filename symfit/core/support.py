@@ -195,6 +195,11 @@ class cached_property(property):
 
     Does not allow setting of the attribute.
     """
+    base_str = '_cached'
+    def __init__(self, *args, **kwargs):
+        super(cached_property, self).__init__(*args, **kwargs)
+        self.cache_attr = '{}_{}'.format(self.base_str, self.fget.__name__)
+
     def __get__(self, obj, objtype=None):
         """
         In case of a first call, this will call the decorated function and
@@ -205,22 +210,20 @@ class cached_property(property):
         :param objtype:
         :return: Output of the first call to the decorated function.
         """
-        cache_attr = '_{}'.format(self.fget.__name__)
         try:
-            return getattr(obj, cache_attr)
+            return getattr(obj, self.cache_attr)
         except AttributeError:
             # Call the wrapped function with the obj instance as argument
-            setattr(obj, cache_attr, self.fget(obj))
-            return getattr(obj, cache_attr)
+            setattr(obj, self.cache_attr, self.fget(obj))
+            return getattr(obj, self.cache_attr)
 
     def __delete__(self, obj):
         """
         Calling delete on the attribute will delete the cache.
         :param obj: parent object.
         """
-        cache_attr = '_{}'.format(self.fget.__name__)
         try:
-            delattr(obj, cache_attr)
+            delattr(obj, self.cache_attr)
         except AttributeError:
             pass
 

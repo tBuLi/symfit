@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import unittest
 from collections import OrderedDict
+import pickle
 
 import numpy as np
 
@@ -200,6 +201,46 @@ class TestModel(unittest.TestCase):
         self.assertAlmostEqual(fit_result.stdev(b), flat_result.stdev(b))
         self.assertAlmostEqual(fit_result.r_squared, flat_result.r_squared)
 
+    def test_pickle(self):
+        """
+        Make sure models can be pickled are preserved when pickling
+        """
+        a, b = parameters('a, b')
+        x, y = variables('x, y')
+        exact_model = Model({y: a * x ** b})
+        constraint = Constraint(Eq(a, b), exact_model)
+        num_model = CallableNumericalModel(
+            {y: a * x ** b}, independent_vars=[x], params=[a, b]
+        )
+        # Test if lsoda args are pickled too
+        ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, 3, 4)
+        for model in [exact_model, constraint, num_model, ode_model]:
+            new_model = pickle.loads(pickle.dumps(model))
+            if isinstance(model, Constraint):
+                # For constraints the dependent var names are generated. Every
+                # field dependent on this has to be updated.
+                self.assertEqual(
+                    len(model.dependent_vars), len(new_model.dependent_vars)
+                )
+                self.assertEqual(
+                    len(model.sigmas), len(new_model.sigmas)
+                )
+                for expr1, expr2 in zip(model.model_dict.values(), new_model.model_dict.values()):
+                    self.assertEqual(expr1, expr2)
+                new_model.model_dict = model.model_dict
+                new_model.dependent_vars = model.dependent_vars
+                new_model.sigmas = model.sigmas
+            # Trigger the cached vars.
+            model.vars
+            new_model.vars
+            self.assertEqual(new_model.__dict__, model.__dict__)
+        # ODEModels with lsoda kwargs cannot be pickled, python doesn't
+        # support kwargs pickling :(
+        ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0},
+                             3, 4, some_kwarg=True
+                             )
+        with self.assertRaises(pickle.PicklingError):
+            pickle.dumps(ode_model)
 if __name__ == '__main__':
     unittest.main()
 

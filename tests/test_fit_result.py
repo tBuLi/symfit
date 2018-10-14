@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 import unittest
-import warnings
+import pickle
 import sympy
 import types
 from collections import OrderedDict
@@ -129,6 +129,21 @@ class TestFitResults(unittest.TestCase):
     def test_objective_included(self):
         """"The objective used should be included in the results."""
         return NotImplementedError()
+
+    def test_pickle(self):
+        xdata = np.linspace(1, 10, 10)
+        ydata = 3 * xdata ** 2
+
+        a = Parameter('a')  # 3.1, min=2.5, max=3.5
+        b = Parameter('b')
+        x = Variable('x')
+        y = Variable('y')
+        new = {y: a * x ** b}
+
+        fit = Fit(new, x=xdata, y=ydata)
+        fit_result = fit.execute()
+        new_result = pickle.loads(pickle.dumps(fit_result))
+        self.assertEqual(fit_result.__dict__.keys(), new_result.__dict__.keys())
 
 if __name__ == '__main__':
     unittest.main()

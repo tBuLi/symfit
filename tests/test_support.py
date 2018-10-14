@@ -205,7 +205,7 @@ class TestSupport(unittest.TestCase):
             # Cache does not exist before f is called
             a._f
         self.assertEqual(a.f, 2)
-        self.assertTrue(hasattr(a, '_f'))
+        self.assertTrue(hasattr(a, '{}_f'.format(cached_property.base_str)))
         del a.f
         # check that deletion was successful
         with self.assertRaises(AttributeError):

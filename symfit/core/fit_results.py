@@ -69,10 +69,10 @@ class FitResults(object):
         :param item: Name of Goodness of Fit qualifier.
         :return: Goodness of Fit qualifier if present.
         """
-        if item in self.gof_qualifiers:
-            return self.gof_qualifiers[item]
-        else:
-            raise AttributeError
+        if 'gof_qualifiers' in vars(self):
+            if item in self.gof_qualifiers:
+                return self.gof_qualifiers[item]
+        raise AttributeError
 
     def stdev(self, param):
         """
