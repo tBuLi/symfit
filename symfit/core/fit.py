@@ -220,6 +220,9 @@ class BaseModel(Mapping):
                 del state[key]
         return state
 
+    def __reduce__(self):
+        return (self.__class__, (self.model_dict,))
+
 
 class BaseNumericalModel(BaseModel):
     """
@@ -273,6 +276,12 @@ class BaseNumericalModel(BaseModel):
     def shared_parameters(self):
         raise NotImplementedError(
             'Shared parameters can not be inferred for {}'.format(self.__class__.__name__)
+        )
+
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self.model_dict, self.independent_vars, self.params)
         )
 
 
@@ -742,6 +751,11 @@ class Constraint(Model):
         ]
         return inspect_sig.Signature(parameters=parameters)
 
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self.constraint_type(list(self.values())[0]), self.model)
+        )
 
 class TakesData(object):
     """
@@ -1828,6 +1842,17 @@ class ODEModel(CallableModel):
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
         self.__signature__ = self._make_signature()
+
+    def __reduce__(self):
+        if self.lsoda_kwargs:
+            from pickle import PicklingError
+            raise PicklingError(
+                '{} with lsoda_kwargs can not be pickled.'.format(self.__class__)
+            )
+        return (
+            self.__class__,
+            tuple([self.model_dict, self.initial] + list(self.lsoda_args))
+        )
 
     def __str__(self):
         """

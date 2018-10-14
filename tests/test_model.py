@@ -205,26 +205,42 @@ class TestModel(unittest.TestCase):
         """
         Make sure models can be pickled are preserved when pickling
         """
-        xdata = np.linspace(1, 10, 10)
-        ydata = 3 * xdata ** 2
-
         a, b = parameters('a, b')
         x, y = variables('x, y')
-        model = Model({y: a * x ** b})
-        # We fit to make sure cached properties are activated
-        fit = Fit(model, x=xdata, y=ydata)
-        fit.execute()
-
-        new_model = pickle.loads(pickle.dumps(model))
-        # We fit to make sure cached properties are activated
-        fit = Fit(new_model, x=xdata, y=ydata)
-        fit.execute()
-
-        # We only check for keys, since the lambda functions will make the test
-        # fail since they are at a different address
-        self.assertEqual(new_model.__dict__.keys(), model.__dict__.keys())
-
-
+        exact_model = Model({y: a * x ** b})
+        constraint = Constraint(Eq(a, b), exact_model)
+        num_model = CallableNumericalModel(
+            {y: a * x ** b}, independent_vars=[x], params=[a, b]
+        )
+        # Test if lsoda args are pickled too
+        ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, 3, 4)
+        for model in [exact_model, constraint, num_model, ode_model]:
+            new_model = pickle.loads(pickle.dumps(model))
+            if isinstance(model, Constraint):
+                # For constraints the dependent var names are generated. Every
+                # field dependent on this has to be updated.
+                self.assertEqual(
+                    len(model.dependent_vars), len(new_model.dependent_vars)
+                )
+                self.assertEqual(
+                    len(model.sigmas), len(new_model.sigmas)
+                )
+                for expr1, expr2 in zip(model.model_dict.values(), new_model.model_dict.values()):
+                    self.assertEqual(expr1, expr2)
+                new_model.model_dict = model.model_dict
+                new_model.dependent_vars = model.dependent_vars
+                new_model.sigmas = model.sigmas
+            # Trigger the cached vars.
+            model.vars
+            new_model.vars
+            self.assertEqual(new_model.__dict__, model.__dict__)
+        # ODEModels with lsoda kwargs cannot be pickled, python doesn't
+        # support kwargs pickling :(
+        ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0},
+                             3, 4, some_kwarg=True
+                             )
+        with self.assertRaises(pickle.PicklingError):
+            pickle.dumps(ode_model)
 if __name__ == '__main__':
     unittest.main()
 
