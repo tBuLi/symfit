@@ -156,24 +156,12 @@ class InteractiveGuess(TakesData):
             ax = self.fig.add_subplot(ncols, nrows, plotnr,
                                       label=plotlabel)
             ax.set_title(ax.get_label())
-<<<<<<< HEAD
             ax.set_ylim(y_mins[y], y_maxs[y])
             ax.set_xlim(x_mins[x], x_maxs[x])
-            # TODO reduce dimensionality.
-            ax.scatter(self.independent_data[x],
-                       self.dependent_data[y], c='b')
-
-            y_vals = getattr(evaluated_model, y.name)
-            x_vals = self._x_points[x]
-            plot, = ax.plot(x_vals, y_vals, c='red')
-=======
-            ax.set_ylim(y_mins[y.name], y_maxs[y.name])
-            ax.set_xlim(x_mins[x.name], x_maxs[x.name])
-            ax.set_xlabel('${}$'.format(x.name))
-            ax.set_ylabel('${}$'.format(y.name))
+            ax.set_xlabel('${}$'.format(x))
+            ax.set_ylabel('${}$'.format(y))
             self._plot_data(proj, ax)
             plot = self._plot_model(proj, ax)
->>>>>>> 070fea8... Finalized the nD interactive guesses. Deprecates InteractiveGuess2D
             self._plots[proj] = plot
 
     def _set_up_sliders(self):
@@ -189,7 +177,7 @@ class InteractiveGuess(TakesData):
                 axbg = 'red'
             # start-x, start-y, width, height
             ax = self.fig.add_axes((0.162, i, 0.68, 0.03),
-                                   facecolor=axbg, label=param.name)
+                                   facecolor=axbg, label=param)
             val = param.value
             if not hasattr(param, 'min') or param.min is None:
                 minimum = 0
@@ -200,7 +188,7 @@ class InteractiveGuess(TakesData):
             else:
                 maximum = param.max
 
-            slid = plt.Slider(ax, param.name, minimum, maximum,
+            slid = plt.Slider(ax, param, minimum, maximum,
                               valinit=val, valfmt='% 5.4g')
             self._sliders[param] = slid
             slid.on_changed(self._update_plot)
@@ -227,17 +215,8 @@ class InteractiveGuess(TakesData):
         for param in self.model.params:
             param.value = self._sliders[param].val
         for indep_var, dep_var in self._projections:
-<<<<<<< HEAD
-            plot = self._plots[(indep_var, dep_var)]
-            # TODO: reduce dimensionality of self._x_points and vals for this projection
-            y_vals = getattr(evaluated_model, dep_var.name)
-            x_vals = self._x_points[indep_var]
-            plot.set_data(x_vals, y_vals)
-#        self.fig.canvas.draw()  # Force redraw
-=======
             self._update_specific_plot(indep_var, dep_var)
         # self.fig.canvas.draw()  # Force redraw
->>>>>>> 070fea8... Finalized the nD interactive guesses. Deprecates InteractiveGuess2D
 
     def _eval_model(self):
         """
@@ -270,8 +249,8 @@ class Strategy2D:
         Creates and plots a scatter plot of the original data.
         """
         x, y = proj
-        ax.scatter(self.ig.independent_data[x.name],
-                   self.ig.dependent_data[y.name], c='b')
+        ax.scatter(self.ig.independent_data[x],
+                   self.ig.dependent_data[y], c='b')
 
     def plot_model(self, proj, ax):
         """
@@ -279,7 +258,7 @@ class Strategy2D:
         """
         x, y = proj
         y_vals = getattr(self.ig._eval_model(), y.name)
-        x_vals = self.ig._x_points[x.name]
+        x_vals = self.ig._x_points[x]
         plot, = ax.plot(x_vals, y_vals, c='red')
         return plot
 
@@ -290,7 +269,7 @@ class Strategy2D:
         evaluated_model = self.ig._eval_model()
         plot = self.ig._plots[(indep_var, dep_var)]
         y_vals = getattr(evaluated_model, dep_var.name)
-        x_vals = self.ig._x_points[indep_var.name]
+        x_vals = self.ig._x_points[indep_var]
         plot.set_data(x_vals, y_vals)
 
 
@@ -304,12 +283,12 @@ class StrategynD:
         by evaluating the density of projected datapoints on a grid.
         """
         x, y = proj
-        x_data = self.ig.independent_data[x.name]
-        y_data = self.ig.dependent_data[y.name]
+        x_data = self.ig.independent_data[x]
+        y_data = self.ig.dependent_data[y]
         projected_data = np.column_stack((x_data, y_data)).T
         kde = gaussian_kde(projected_data)
 
-        xx, yy = np.meshgrid(self.ig._x_points[x.name], self.ig._y_points[y.name])
+        xx, yy = np.meshgrid(self.ig._x_points[x], self.ig._y_points[y])
         x_grid = xx.flatten()
         y_grid = yy.flatten()
 
@@ -331,7 +310,7 @@ class StrategynD:
         x, y = proj
         evaluated_model = self.ig._eval_model()
         y_vals = getattr(evaluated_model, y.name)
-        x_vals = self.ig._x_grid[x.name]
+        x_vals = self.ig._x_grid[x]
         plot = ax.errorbar(x_vals, y_vals, xerr=0, yerr=0, c='red')
         return plot
 
@@ -341,7 +320,7 @@ class StrategynD:
         """
         evaluated_model = self.ig._eval_model()
         y_vals = getattr(evaluated_model, dep_var.name)
-        x_vals = self.ig._x_grid[indep_var.name]
+        x_vals = self.ig._x_grid[indep_var]
 
         x_plot_data = []
         y_plot_data = []
@@ -351,7 +330,7 @@ class StrategynD:
         # the points plotted at x=x_i, and do some statistics on those.
         # Since all the points are on a grid made by meshgrid, the error
         # in x will alwys be 0.
-        for x_val in self.ig._x_points[indep_var.name]:
+        for x_val in self.ig._x_points[indep_var]:
             # We get away with this instead of digitize because x_vals is
             # on a grid made with meshgrid
             idx_mask = x_vals == x_val

@@ -161,14 +161,14 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
 #        xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
 
-        x0 = Parameter(value=0.6)
-        sig_x = Parameter(value=0.2, min=0.0)
-        x = Variable()
-        y0 = Parameter(value=0.4)
-        sig_y = Parameter(value=0.1, min=0.0)
-        A = Parameter()
-        y = Variable()
-        z = Variable()
+        x0 = Parameter('x0', value=0.6)
+        sig_x = Parameter('sig_x', value=0.2, min=0.0)
+        x = Variable('x')
+        y0 = Parameter('y0', value=0.4)
+        sig_y = Parameter('sig_y', value=0.1, min=0.0)
+        A = Parameter('A')
+        y = Variable('y')
+        z = Variable('z')
         g = {z: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)}
         cls.g = g
 #        cls.xdata = xdata
