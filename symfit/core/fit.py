@@ -490,6 +490,15 @@ class Model(CallableModel):
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
     @property
+    def hessian(self):
+        """
+        :return: Hessian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
+          Partial derivatives are of the components of the function with respect to the Parameter's,
+          not the independent Variable's.
+        """
+        return [[[sympy.diff(diff1, param2) for param2 in self.params] for diff1 in comp] for comp in self.jacobian]
+
+    @property
     def chi_squared(self):
         """
         :return: Symbolic :math:`\\chi^2`
@@ -547,6 +556,20 @@ class Model(CallableModel):
         return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
 
     @cached_property
+    def numerical_hessian(self):
+        """
+        :return: lambda functions of the Hessian matrix of the function, which can be used in numerical optimization.
+        """
+        return [
+                [
+                 [
+                  sympy_to_py(diff2, self.independent_vars, self.params)
+                  for diff2 in diff1
+                 ] for diff1 in comp
+                ] for comp in self.hessian
+               ]
+
+    @cached_property
     def numerical_chi_squared(self):
         """
         :return: lambda function of the ``.chi_squared`` method, to be used in
@@ -586,41 +609,36 @@ class Model(CallableModel):
             [partial_dv(*args, **kwargs) for partial_dv in row ] for row in self.numerical_jacobian
         ]
         for idx, comp in enumerate(jac):
-            # Find out how many datapoints this component has. We need to do
-            # this with a try/except, since partial_derivative can be a number or
-            # a sequence. We ultimately want to make sure every evey component
-            # has this size, so component of the jacobian can be contracted properly.
-            data_len = 1
-            for partial_derivative in comp:
-                if hasattr(partial_derivative, 'shape') and partial_derivative.shape:
-                    # Last line is to descriminate against numpy.float of shape (,)
-                    shape = partial_derivative.shape
-                else:
-                    try:
-                        shape = len(partial_derivative)
-                    except TypeError: # Not iterable, so assume number
-                        shape = 1
-                if isinstance(shape, tuple):
-                    if isinstance(data_len, tuple):
-                        if len(shape) > len(data_len):
-                            data_len = shape
-
-                    else:
-                        data_len = shape
-                elif isinstance(data_len, tuple):
-                    # data_len is a tuple, but shape isn't. Prefer the tuple.
-                    pass
-                else:
-                    data_len = max(shape, data_len)
-            # And make everything in this component the same size, since some are
-            # numbers.
-            for jdx, partial_derivative in enumerate(comp):
-                # This is a no-op for elements of size `longest`.
-                jac[idx][jdx] = np.ones(data_len) * partial_derivative
-            # And lastly, turn jac into a list of 2D numpy arrays of shape
-            # (Nparams, Ndata)
-            jac[idx] = np.array(jac[idx], dtype=float)
+            shapes = [np.atleast_1d(diff).shape for diff in comp]
+            # Funny key so that higher dimensional data > lower dimensional
+            # data
+            largest = max(shapes, key=lambda s: (len(s), *s))
+            ones = np.ones(largest, dtype=float)
+            data = np.array([ones * diff for diff in comp])
+            jac[idx] = data.reshape((len(comp), *largest))
         return jac
+
+    def eval_hessian(self, *args, **kwargs):
+        """
+        :return: Hessian evaluated at the specified point.
+        """
+        hess = [
+                [
+                 [
+                  diff2(*args, **kwargs) for diff2 in diff1
+                 ] for diff1 in comp
+                ] for comp in self.numerical_hessian
+               ]
+        for idx, comp in enumerate(hess):
+            shapes = [np.atleast_1d(d2).shape for d1 in comp for d2 in d1]
+            # Funny key so that higher dimensional data > lower dimensional
+            # data
+            largest = max(shapes,
+                          key=lambda s: (len(s), *s))
+            ones = np.ones(largest, dtype=float)
+            data = np.array([ones * d2 for d1 in comp for d2 in d1])
+            hess[idx] = data.reshape((len(comp), len(comp), *largest))
+        return hess
 
 
 class TaylorModel(Model):

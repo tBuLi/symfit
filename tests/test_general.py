@@ -553,6 +553,19 @@ class Tests(unittest.TestCase):
 
         model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
         self.assertEqual([[2, 3, 0], [0, 5, 0], [0, 0, 7]], model.jacobian)
+    
+    def test_hessian_matrix(self):
+        """
+        The Hessian matrix of a model should be a 3D list (matrix) containing
+        all the 2nd partial derivatives.
+        """
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = Model({a_i: 2 * a**2 + 3 * b, b_i: 5 * b**2, c_i: 7 * c*b})
+        self.assertEqual([[[4, 0, 0], [0, 0, 0], [0, 0, 0]], 
+                          [[0, 0, 0], [0, 10, 0], [0, 0, 0]],
+                          [[0, 0, 0], [0, 0, 7], [0, 7, 0]]], model.hessian)
 
     def test_likelihood_fitting_exponential(self):
         """
