@@ -3,6 +3,7 @@ import sys
 from collections import namedtuple, Counter
 
 from scipy.optimize import minimize, differential_evolution, basinhopping
+import scipy.optimize as so
 import sympy
 import numpy as np
 
@@ -499,7 +500,76 @@ class Powell(ScipyMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s Powell algorithm.
     """
+    
 
+class TrustConstr(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
+    """
+    Wrapper around :func:`scipy.optimize.minimize`'s Trust-Constr algorithm.
+    """
+    def __init__(self, *args, **kwargs):
+        super(TrustConstr, self).__init__(*args, **kwargs)
+        # We have to break DRY because you cannot inherit from both
+        # ScipyConstrainedMinimize and ScipyGradientMinimize. So SLQSP is a
+        # special case. This is the same code as in ScipyGradientMinimize.
+        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
+
+    @keywordonly(jacobian=None, hess=None, options=None)
+    def execute(self, **minimize_options):
+        jacobian = minimize_options.pop('jacobian')
+        hess = minimize_options.pop('hess')
+        options = minimize_options.pop('options')
+        if options is None:
+            options = {}
+        # For models that are not differentiable, users need the ability to
+        # change the jacobian to e.g. 'cs' or '3-point'. In that case, hess
+        # should either be scipy.optimize.BFGS or SR1.
+        # In addition, users may want to change the way the Hessian is
+        # calculated, especially if they manage to make a model whose Jacobian
+        # can't handle complex numbers.
+        if jacobian is None:
+            jacobian = self.wrapped_jacobian
+            if hess is None:
+                hess = 'cs'
+            # Our Jacobians are dense, and apparently we need to explicitely
+            # tell this.
+            options.update(sparse_jacobian=False)
+        elif hess is None:
+            hess = so.BFGS(exception_strategy='damp_update')
+
+        return super(TrustConstr, self).execute(
+            bounds=self.bounds,
+            jacobian=jacobian,
+            hess=hess,
+            options=options,
+            **minimize_options
+        )
+
+    def scipy_constraints(self, constraints):
+        """
+        Returns all constraints in a scipy compatible format.
+
+        :return: dict of scipy compatible constraints, including jacobian term.
+        """
+        # Take the normal scipy compatible constraints, and add jacobians.
+        scipy_constr = super(TrustConstr, self).scipy_constraints(constraints)
+        for partialed_constraint, scipy_constraint in zip(constraints, scipy_constr):
+            partialed_kwargs = partialed_constraint.keywords
+            # In the case of the jacobian, first eval_jacobian of the
+            # constraint has to be partialed since that has not been done
+            # yet. Then it is made callable by keywords only, and finally
+            # the shape of the jacobian is made to match the number of
+            # unfixed parameters in the call, len(p).
+            scipy_constraint['jac'] = lambda p, c: self.resize_jac(
+                    self.list2kwargs(
+                        partial(c.func.eval_jacobian, **partialed_kwargs)
+                    )
+                )(list(p))
+        return scipy_constr
+    
+    @classmethod
+    def method_name(cls):
+        return 'trust-constr'
+    
 
 class BasinHopping(ScipyMinimize, BaseMinimizer):
     """
