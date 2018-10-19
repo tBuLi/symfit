@@ -599,10 +599,10 @@ class Model(CallableModel):
             shapes = [np.atleast_1d(diff).shape for diff in comp]
             # Funny key so that higher dimensional data > lower dimensional
             # data
-            largest = max(shapes, key=lambda s: (len(s), *s))
+            largest = max(shapes, key=lambda s: [len(s)]+list(s))
             ones = np.ones(largest, dtype=float)
             data = np.array([ones * diff for diff in comp])
-            jac[idx] = data.reshape((len(comp), *largest))
+            jac[idx] = data.reshape([len(comp)] + list(largest))
         return jac
 
     def eval_hessian(self, *args, **kwargs):
@@ -620,11 +620,10 @@ class Model(CallableModel):
             shapes = [np.atleast_1d(d2).shape for d1 in comp for d2 in d1]
             # Funny key so that higher dimensional data > lower dimensional
             # data
-            largest = max(shapes,
-                          key=lambda s: (len(s), *s))
+            largest = max(shapes, key=lambda s: [len(s)]+list(s))
             ones = np.ones(largest, dtype=float)
             data = np.array([ones * d2 for d1 in comp for d2 in d1])
-            hess[idx] = data.reshape((len(comp), len(comp), *largest))
+            hess[idx] = data.reshape([len(comp), len(comp)] + list(largest))
         return hess
 
 
