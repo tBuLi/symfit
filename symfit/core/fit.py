@@ -754,7 +754,7 @@ class Constraint(Model):
     def __reduce__(self):
         return (
             self.__class__,
-            (self.constraint_type(list(self.values())[0]), self.model)
+            (self.constraint_type(list(self.values())[0], 0), self.model)
         )
 
 class TakesData(object):
