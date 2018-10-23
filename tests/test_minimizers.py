@@ -27,28 +27,23 @@ def chi_squared(x, y, a, b, sum=True):
 def worker(fit_obj):
     return fit_obj.execute()
 
-
-def subclasses(object, all_subs=None):
+def subclasses(base, leaves_only=True):
     """
-    Recursively create a set of subclasses of ``object``. Returns only
-    the leaves in the subclass tree.
+    Recursively create a set of subclasses of ``object``.
 
     :param object: Class
-    :param all_subs: set of subclasses so far. Will be build internally.
-    :return: All leaves of the subclass tree.
+    :param leaves_only: If ``True``, return only the leaves of the subclass tree
+    :return: (All leaves of) the subclass tree.
     """
-    if all_subs is None:
+    base_subs = set(base.__subclasses__())
+    if not base_subs or not leaves_only:
+        all_subs = {base}
+    else:
         all_subs = set()
-    object_subs = set(object.__subclasses__())
-    all_subs.update(object_subs)
-    for sub in object_subs:
-        sub_subs = subclasses(sub, all_subs=all_subs)
-        # Only keep the leaves of the tree
-        if sub_subs and object in all_subs:
-            all_subs.remove(object)
+    for sub in list(base_subs):
+        sub_subs = subclasses(sub, leaves_only=leaves_only)
         all_subs.update(sub_subs)
     return all_subs
-
 
 class TestMinimize(unittest.TestCase):
     @classmethod
