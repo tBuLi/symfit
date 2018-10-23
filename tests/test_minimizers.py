@@ -4,8 +4,8 @@ import sys
 import warnings
 
 import numpy as np
-from scipy.optimize import minimize
 import pickle
+import multiprocessing as mp
 
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
@@ -138,9 +138,9 @@ class TestMinimize(unittest.TestCase):
 
         # Make a set of all ScipyMinimizers, and add a chained minimizer.
         scipy_minimizers = subclasses(ScipyMinimize)
-        # chained_minimizer = partial(ChainedMinimizer,
-        #                             minimizers=[DifferentialEvolution, BFGS])
-        # scipy_minimizers.add(chained_minimizer)
+        chained_minimizer = partial(ChainedMinimizer,
+                                    minimizers=[DifferentialEvolution, BFGS])
+        scipy_minimizers.add(chained_minimizer)
         constrained_minimizers = subclasses(ScipyConstrainedMinimize)
         # Test for all of them if they can be pickled.
         for minimizer in scipy_minimizers:
@@ -187,14 +187,17 @@ class TestMinimize(unittest.TestCase):
                         # These attr are new instances, and therefore do not
                         # pass an equality test. All we can do is see if they
                         # are at least the same type.
-                        if isinstance(value, list):
+                        if isinstance(value, (list, tuple)):
                             for val1, val2 in zip(value, new_value):
                                 self.assertTrue(isinstance(val1, val2.__class__))
+                        elif key == '_pickle_kwargs':
+                            FitResults._array_safe_dict_eq(value, new_value)
                         else:
                             self.assertTrue(isinstance(new_value, value.__class__))
                     else:
                         raise err
-            self.assertEqual(fit.__dict__.keys(), pickled_fit.__dict__.keys())
+            self.assertEqual(set(fit.__dict__.keys()),
+                             set(pickled_fit.__dict__.keys()))
 
             # Test if we converge to the same result.
             np.random.seed(2)
@@ -208,12 +211,10 @@ class TestMinimize(unittest.TestCase):
         To make sure pickling truly works, try multiprocessing. No news is good
         news.
         """
-        import multiprocessing as mp
-
         np.random.seed(2)
         x = np.arange(100, dtype=float)
         y = x + 0.25 * x * np.random.rand(100)
-        a_values = np.arange(12) + 1
+        a_values = np.arange(3) + 1
         np.random.shuffle(a_values)
 
         def gen_fit_objs(x, y, a, minimizer):
