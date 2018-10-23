@@ -121,3 +121,31 @@ class FitResults(object):
         param_1_number = self.model.params.index(param_1)
         param_2_number = self.model.params.index(param_2)
         return self.covariance_matrix[param_1_number, param_2_number]
+
+    @staticmethod
+    def _array_safe_dict_eq(one_dict, other_dict):
+        """
+        Dicts containing arrays are hard to compare. This function uses
+        numpy.allclose to compare arrays, and does normal comparison for all
+        other types.
+
+        :param one_dict:
+        :param other_dict:
+        :return: bool
+        """
+        for key in one_dict:
+            try:
+                assert one_dict[key] == other_dict[key]
+            except ValueError as err:
+                # When dealing with arrays, we need to use numpy for comparison
+                if isinstance(one_dict[key], dict):
+                    assert FitResults._array_safe_dict_eq(one_dict[key], other_dict[key])
+                else:
+                    assert np.allclose(one_dict[key], other_dict[key])
+            except AssertionError:
+                print('key', key)
+                return False
+        else: return True
+
+    def __eq__(self, other):
+        return FitResults._array_safe_dict_eq(self.__dict__, other.__dict__)

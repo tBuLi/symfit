@@ -32,6 +32,8 @@ class BaseMinimizer(object):
         self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
         self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
+        # Mapping which we use to track the original, to be used upon pickling
+        self._pickle_kwargs = {'parameters': parameters, 'objective': objective}
         self.params = [p for p in parameters if not p.fixed]
 
     @abc.abstractmethod
@@ -56,6 +58,13 @@ class BaseMinimizer(object):
     def initial_guesses(self, vals):
         self._initial_guesses = vals
 
+    def __getstate__(self):
+        return {key: value for key, value in self.__dict__.items()
+                if not key.startswith('wrapped_')}
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.__init__(**self._pickle_kwargs)
 
 class BoundedMinimizer(BaseMinimizer):
     """
@@ -73,6 +82,10 @@ class ConstrainedMinimizer(BaseMinimizer):
     def __init__(self, *args, **kwargs):
         constraints = kwargs.pop('constraints')
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
+        # Remember the vanilla constraints for pickling
+        self._pickle_kwargs['constraints'] = constraints
+        if constraints is None:
+            constraints = []
         self.constraints = [
             partial(constraint, **{p.name: p.value for p in self._fixed_params})
             for constraint in constraints
@@ -84,11 +97,12 @@ class GradientMinimizer(BaseMinimizer):
     """
     @keywordonly(jacobian=None)
     def __init__(self, *args, **kwargs):
-        jacobian = kwargs.pop('jacobian')
+        self.jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
+        self._pickle_kwargs['jacobian'] = self.jacobian
 
-        if jacobian is not None:
-            jac_with_fixed_params = partial(jacobian, **{p.name: p.value for p in self._fixed_params})
+        if self.jacobian is not None:
+            jac_with_fixed_params = partial(self.jacobian, **{p.name: p.value for p in self._fixed_params})
             self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
         else:
             self.jacobian = None
@@ -143,6 +157,7 @@ class ChainedMinimizer(BaseMinimizer):
         minimizers = kwargs.pop('minimizers')
         super(ChainedMinimizer, self).__init__(*args, **kwargs)
         self.minimizers = minimizers
+        self._pickle_kwargs['minimizers'] = self.minimizers
         self.__signature__ = self._make_signature()
 
     def execute(self, **minimizer_kwargs):
@@ -306,7 +321,7 @@ class ScipyMinimize(object):
             covariance_matrix=None,
             infodic=infodic,
             mesg=ans.message,
-            ier=ans.nit if hasattr(ans, 'nit') else float('nan'),
+            ier=ans.nit if hasattr(ans, 'nit') else None,
             objective_value=ans.fun,
         )
 
@@ -326,6 +341,7 @@ class ScipyMinimize(object):
         :return:
         """
         return cls.__name__
+
 
 class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
@@ -373,6 +389,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
 
         cons = tuple(cons)
         return cons
+
 
 class BFGS(ScipyGradientMinimize):
     """
