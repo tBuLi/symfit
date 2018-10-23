@@ -230,6 +230,8 @@ class TestModel(unittest.TestCase):
                 new_model.model_dict = model.model_dict
                 new_model.dependent_vars = model.dependent_vars
                 new_model.sigmas = model.sigmas
+            # Compare signatures
+            self.assertEqual(model.__signature__, new_model.__signature__)
             # Trigger the cached vars.
             model.vars
             new_model.vars
