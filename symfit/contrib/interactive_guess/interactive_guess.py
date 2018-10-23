@@ -354,6 +354,7 @@ class StrategynD:
 
 
 class InteractiveGuess2D(InteractiveGuess):
+    @deprecated(InteractiveGuess)
     def __init__(self, *args, **kwargs):
         import warnings
         # Deprecated as of 01/06/2017
