@@ -239,6 +239,10 @@ class ChainedMinimizer(BaseMinimizer):
             )
         return inspect_sig.Signature(parameters=reversed(parameters))
 
+    def __getstate__(self):
+        state = super(ChainedMinimizer, self).__getstate__()
+        del state['__signature__']
+        return state
 
 class ScipyMinimize(object):
     """
