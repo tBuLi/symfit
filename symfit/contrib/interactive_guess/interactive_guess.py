@@ -2,7 +2,7 @@
 
 from ... import ODEModel, Derivative, latex
 from ...core.fit import TakesData
-from ...core.support import keywordonly, key2str
+from ...core.support import keywordonly, key2str, deprecated
 
 import itertools
 
@@ -11,14 +11,6 @@ import numpy as np
 from scipy.stats import gaussian_kde
 
 plt.ioff()
-
-#from pkg_resources import parse_version
-
-#SUPPORTED_VERSION = '0.3.6'
-#SYMFIT_VERSION = symfit.version  # something something.
-#
-#if parse_version(SUPPORTED_VERSION) != parse_version(SYMFIT_VERSION):
-#    raise EnvironmentError("Your symfit version is not supported. YMMV.")
 
 
 class InteractiveGuess(TakesData):
@@ -241,6 +233,10 @@ class InteractiveGuess(TakesData):
 
 
 class Strategy2D:
+    """
+    A strategy that describes how to plot a model that depends on a single independent variable,
+    and how to update that plot.
+    """
     def __init__(self, interactive_guess):
         self.ig = interactive_guess
 
@@ -274,6 +270,10 @@ class Strategy2D:
 
 
 class StrategynD:
+    """
+    A strategy that describes how to plot a model that depends on a multiple independent variables,
+    and how to update that plot.
+    """
     def __init__(self, interactive_guess):
         self.ig = interactive_guess
 
@@ -356,11 +356,11 @@ class StrategynD:
 class InteractiveGuess2D(InteractiveGuess):
     @deprecated(InteractiveGuess)
     def __init__(self, *args, **kwargs):
-        import warnings
+        #import warnings
         # Deprecated as of 01/06/2017
         # Do an unspecified warnings.warn instead of raising a DeprecationWarning,
         # because it won't show otherwise. Python hides DeprecationWarnings
         # unless you run it with the appropriate flag.
-        warnings.warn("InteractiveGuess2D is deprecated in favor of InteractiveGuess")
+        #warnings.warn("InteractiveGuess2D is deprecated in favor of InteractiveGuess")
         # raise DeprecationWarning("InteractiveGuess2D is deprecated in favor of InteractiveGuess")
         super(InteractiveGuess2D, self).__init__(*args, **kwargs)
