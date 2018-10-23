@@ -167,12 +167,10 @@ class TestMinimize(unittest.TestCase):
         x0 = [1.]
         np.random.seed(555)
         res = basinhopping(func, x0, minimizer_kwargs={"method": "BFGS"}, niter=200)
-        print(res)
         np.random.seed(555)
         x, = parameters('x')
         fit = BasinHopping(func, [x])
         fit_result = fit.execute(minimizer_kwargs={"method": "BFGS", 'jac': False}, niter=200)
-        print(fit_result)
 
         self.assertEqual(res.x, fit_result.value(x))
         self.assertEqual(res.fun, fit_result.objective_value)

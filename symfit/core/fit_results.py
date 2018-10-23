@@ -143,7 +143,6 @@ class FitResults(object):
                 else:
                     assert np.allclose(one_dict[key], other_dict[key])
             except AssertionError:
-                print('key', key)
                 return False
         else: return True
 

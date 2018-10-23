@@ -138,9 +138,9 @@ class TestMinimize(unittest.TestCase):
 
         # Make a set of all ScipyMinimizers, and add a chained minimizer.
         scipy_minimizers = subclasses(ScipyMinimize)
-        chained_minimizer = partial(ChainedMinimizer,
-                                    minimizers=[DifferentialEvolution, BFGS])
-        scipy_minimizers.add(chained_minimizer)
+        # chained_minimizer = partial(ChainedMinimizer,
+        #                             minimizers=[DifferentialEvolution, BFGS])
+        # scipy_minimizers.add(chained_minimizer)
         constrained_minimizers = subclasses(ScipyConstrainedMinimize)
         # Test for all of them if they can be pickled.
         for minimizer in scipy_minimizers:
@@ -173,8 +173,8 @@ class TestMinimize(unittest.TestCase):
             dump = pickle.dumps(fit)
             pickled_fit = pickle.loads(dump)
             problematic_attr = [
-                'objective', '_objective', 'wrapped_objective',
-                '_constraints', 'constraints', 'wrapped_constraints',
+                'objective', '_pickle_kwargs', 'wrapped_objective',
+                'constraints', 'wrapped_constraints',
                 'local_minimizer', 'minimizers'
             ]
 
