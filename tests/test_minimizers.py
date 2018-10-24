@@ -185,6 +185,24 @@ class TestMinimize(unittest.TestCase):
                         if isinstance(value, (list, tuple)):
                             for val1, val2 in zip(value, new_value):
                                 self.assertTrue(isinstance(val1, val2.__class__))
+                                if key == 'constraints':
+                                    self.assertEqual(val1.func.constraint_type,
+                                                     val2.func.constraint_type)
+                                    self.assertEqual(
+                                        list(val1.func.model_dict.values())[0],
+                                        list(val2.func.model_dict.values())[0]
+                                    )
+                                    self.assertEqual(val1.func.independent_vars,
+                                                     val2.func.independent_vars)
+                                    self.assertEqual(val1.func.params,
+                                                     val2.func.params)
+                                    self.assertEqual(val1.func.__signature__,
+                                                     val2.func.__signature__)
+                                elif key == 'wrapped_constraints':
+                                    self.assertEqual(val1['type'],
+                                                     val2['type'])
+                                    self.assertEqual(set(val1.keys()),
+                                                     set(val2.keys()))
                         elif key == '_pickle_kwargs':
                             FitResults._array_safe_dict_eq(value, new_value)
                         else:
