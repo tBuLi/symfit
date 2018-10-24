@@ -108,7 +108,7 @@ class BaseModel(Mapping):
                 if var_1 != var_2:
                     return False
                 else:
-                    if not self[var_1].expand() - other[var_2].expand() == 0:
+                    if not self[var_1].expand() == other[var_2].expand():
                         return False
             else:
                 return True
@@ -754,7 +754,7 @@ class Constraint(Model):
     def __reduce__(self):
         return (
             self.__class__,
-            (self.constraint_type(list(self.values())[0]), self.model)
+            (self.constraint_type(list(self.values())[0], 0), self.model)
         )
 
 class TakesData(object):
