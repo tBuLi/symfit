@@ -215,6 +215,7 @@ class BaseModel(Mapping):
         # Remove cached_property values from the state, they need to be
         # re-calculated after pickle.
         state = self.__dict__.copy()
+        del state['__signature__']
         for key in self.__dict__:
             if key.startswith(cached_property.base_str):
                 del state[key]
@@ -222,6 +223,7 @@ class BaseModel(Mapping):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
+        self.__signature__ = self._make_signature()
 
 
 class BaseNumericalModel(BaseModel):
