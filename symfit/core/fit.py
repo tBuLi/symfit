@@ -215,13 +215,15 @@ class BaseModel(Mapping):
         # Remove cached_property values from the state, they need to be
         # re-calculated after pickle.
         state = self.__dict__.copy()
+        del state['__signature__']
         for key in self.__dict__:
             if key.startswith(cached_property.base_str):
                 del state[key]
         return state
 
-    def __reduce__(self):
-        return (self.__class__, (self.model_dict,))
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.__signature__ = self._make_signature()
 
 
 class BaseNumericalModel(BaseModel):
@@ -276,12 +278,6 @@ class BaseNumericalModel(BaseModel):
     def shared_parameters(self):
         raise NotImplementedError(
             'Shared parameters can not be inferred for {}'.format(self.__class__.__name__)
-        )
-
-    def __reduce__(self):
-        return (
-            self.__class__,
-            (self.model_dict, self.independent_vars, self.params)
         )
 
 
@@ -751,11 +747,6 @@ class Constraint(Model):
         ]
         return inspect_sig.Signature(parameters=parameters)
 
-    def __reduce__(self):
-        return (
-            self.__class__,
-            (self.constraint_type(list(self.values())[0], 0), self.model)
-        )
 
 class TakesData(object):
     """
@@ -1842,17 +1833,6 @@ class ODEModel(CallableModel):
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
         self.__signature__ = self._make_signature()
-
-    def __reduce__(self):
-        if self.lsoda_kwargs:
-            from pickle import PicklingError
-            raise PicklingError(
-                '{} with lsoda_kwargs can not be pickled.'.format(self.__class__)
-            )
-        return (
-            self.__class__,
-            tuple([self.model_dict, self.initial] + list(self.lsoda_args))
-        )
 
     def __str__(self):
         """
