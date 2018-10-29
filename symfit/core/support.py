@@ -13,7 +13,7 @@ from sympy.utilities.lambdify import lambdify
 import sympy
 
 from sympy.tensor import Idx
-from sympy import symbols
+from sympy import symbols, MatrixExpr
 from sympy.core.expr import Expr
 
 from symfit.core.argument import Parameter, Variable
@@ -65,12 +65,14 @@ def seperate_symbols(func):
     params = []
     vars = []
     for symbol in func.free_symbols:
+        if not str(symbol).isalnum():
+            continue  # E.g. Indexed objects might print to A[i, j]
         if isinstance(symbol, Parameter):
             params.append(symbol)
         elif isinstance(symbol, Idx):
             # Idx objects are not seen as parameters or vars.
             pass
-        elif isinstance(symbol, Expr):
+        elif isinstance(symbol, (MatrixExpr, Expr)):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
