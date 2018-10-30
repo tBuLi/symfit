@@ -356,15 +356,11 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
             sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
-        for key, partialed_constraint in enumerate(constraints):
-            constraint_type = partialed_constraint.func.constraint_type
+        for minimize_constraint in constraints:
+            constraint_type = minimize_constraint.model.constraint_type
             cons.append({
                 'type': types[constraint_type],
-                # Takes an nd.array of params and a partialed_constraint, and
-                # evaluates the constraint with these parameters.
-                # Wrap `c` so it is always called via keywords.
-                'fun': lambda p, c: self.list2kwargs(c)(list(p))[0],
-                'args': [partialed_constraint]
+                'fun': minimize_constraint,
             })
 
         cons = tuple(cons)
@@ -408,18 +404,8 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
         """
         # Take the normal scipy compatible constraints, and add jacobians.
         scipy_constr = super(SLSQP, self).scipy_constraints(constraints)
-        for partialed_constraint, scipy_constraint in zip(constraints, scipy_constr):
-            partialed_kwargs = partialed_constraint.keywords
-            # In the case of the jacobian, first eval_jacobian of the
-            # constraint has to be partialed since that has not been done
-            # yet. Then it is made callable by keywords only, and finally
-            # the shape of the jacobian is made to match the number of
-            # unfixed parameters in the call, len(p).
-            scipy_constraint['jac'] = lambda p, c: self.resize_jac(
-                    self.list2kwargs(
-                        partial(c.func.eval_jacobian, **partialed_kwargs)
-                    )
-                )(list(p))
+        for minimize_constraint, scipy_constraint in zip(constraints, scipy_constr):
+            scipy_constraint['jac'] = self.resize_jac(minimize_constraint.eval_jacobian)
         return scipy_constr
 
 

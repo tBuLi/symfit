@@ -193,6 +193,13 @@ class BaseModel(Mapping):
             else:
                 return False
 
+    @property
+    def unfixed_params(self):
+        """
+        :return: ordered list of the subset of variable params
+        """
+        return [p for p in self.params if not p.fixed]
+
     def __str__(self):
         """
         Printable representation of a Mapping model.
@@ -1477,7 +1484,7 @@ class Fit(HasCovarianceMatrix):
             # Minimizers are agnostic about data, they just know about
             # objective functions. So we partial away the data at this point.
             minimizer_options['constraints'] = [
-                partial(constraint, **key2str(self.data))
+                MinimizeModel(constraint, data=self.data)
                 for constraint in self.constraints
             ]
         return minimizer(self.objective, self.model.params, **minimizer_options)
