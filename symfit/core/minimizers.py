@@ -9,6 +9,7 @@ import numpy as np
 from .support import key2str, keywordonly, partial
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
+from .objectives import BaseObjective, MinimizeModel
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -31,7 +32,18 @@ class BaseMinimizer(object):
         """
         self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
-        self.objective = objective
+        if isinstance(objective, BaseObjective):
+            self.objective = objective
+        else:
+            # Minimize the provided custom objective instead. This why want to
+            # minimize a CallableNumericalModel, thats what they are for.
+            from .fit import CallableNumericalModel
+            self.objective = MinimizeModel(
+                                CallableNumericalModel(objective,
+                                                       params=parameters,
+                                                       independent_vars=[]),
+                                data={})
+
         # Mapping which we use to track the original, to be used upon pickling
         self._pickle_kwargs = {'parameters': parameters, 'objective': objective}
         self.params = [p for p in parameters if not p.fixed]
@@ -108,7 +120,7 @@ class GradientMinimizer(BaseMinimizer):
         """
         Removes values with identical indices to fixed parameters from the
         output of func. func has to return the jacobian of a scalar function.
-        
+
         :param func: Jacobian function to be wrapped. Is assumed to be the
             jacobian of a scalar function.
         :return: Jacobian corresponding to non-fixed parameters only.
