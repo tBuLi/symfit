@@ -57,14 +57,43 @@ class BaseObjective(object):
             self.model)
 
     @abc.abstractmethod
-    def __call__(self, **parameters):
+    def __call__(self, ordered_parameters=[], **parameters):
         """
         Evaluate the objective function for given parameter values.
 
-        :param parameters:
-        :return: float
+        :param ordered_parameters: List of parameter, in alphabetical order.
+            Typically provided by the minimizer.
+        :param parameters: parameters as keyword arguments.
+        :return: evaluated model.
         """
-        pass
+        # zip will stop when the shortest of the two is exhausted
+        parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
+        parameters.update(self.model_kwargs)
+        return self.model(**key2str(parameters))
+
+    @cached_property
+    def model_kwargs(self):
+        """
+        Prepares the other kwargs to ``self.model`` which are not provided by
+        the minimizers. This means fixed parameters and data, matching the
+        signature of ``self.model``.
+        """
+        kwargs = {p: p.value for p in self.model.params
+                     if p not in self.model.unfixed_params}
+        data_by_name = key2str(self.data)
+        kwargs.update(
+            {p: data_by_name[p] for p in
+            self.model.__signature__.parameters if p in data_by_name}
+        )
+        return kwargs
+
+    def _clear_cache(self):
+        """
+        Clear cached properties. Should preferably be called after every
+        minimization precedure to clean the pallette.
+        """
+        del self.model_kwargs
+
 
 @add_metaclass(abc.ABCMeta)
 class GradientObjective(BaseObjective):
@@ -72,14 +101,19 @@ class GradientObjective(BaseObjective):
     ABC for objectives that support gradient methods.
     """
     @abc.abstractmethod
-    def eval_jacobian(self, **parameters):
+    def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
         Evaluate the jacobian for given parameter values.
 
-        :param parameters:
-        :return: float
+        :param ordered_parameters: List of parameter, in alphabetical order.
+            Typically provided by the minimizer.
+        :param parameters: parameters as keyword arguments.
+        :return: evaluated jacobian
         """
-        pass
+        parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
+        parameters.update(self.model_kwargs)
+        return self.model.eval_jacobian(**key2str(parameters))
+
 
 class VectorLeastSquares(GradientObjective):
     """
@@ -87,20 +121,19 @@ class VectorLeastSquares(GradientObjective):
     and summing, rather then chi2 itself.
     """
     @keywordonly(flatten_components=True)
-    def __call__(self, **parameters):
+    def __call__(self, ordered_parameters=[], **parameters):
         """
         Returns the value of the square root of :math:`\\chi^2`, summing over the components.
 
         This function now supports setting variables to None.
 
-        :param p: array of parameter values.
         :param flatten_components: If True, summing is performed over the data indices (default).
         :return: :math:`\\sqrt(\\chi^2)`
         """
         flatten_components = parameters.pop('flatten_components')
-        jac_kwargs = key2str(parameters)
-        jac_kwargs.update(key2str(self.independent_data))
-        evaluated_func = self.model(**jac_kwargs)
+        evaluated_func = super(VectorLeastSquares, self).__call__(
+            ordered_parameters, **parameters
+        )
         result = []
 
         # zip together the dependent vars and evaluated component
@@ -111,17 +144,20 @@ class VectorLeastSquares(GradientObjective):
                     result[-1] = result[-1].flatten()
         return np.sqrt(sum(result))
 
-    def eval_jacobian(self, **parameters):
-        chi = self(flatten=False, **parameters)
-        jac_kwargs = key2str(parameters)
-        jac_kwargs.update(key2str(self.independent_data))
-        evaluated_func = self.model(**jac_kwargs)
+    def eval_jacobian(self, ordered_parameters=[], **parameters):
+        chi = self(ordered_parameters, flatten=False, **parameters)
+        evaluated_func = super(VectorLeastSquares, self).__call__(
+            ordered_parameters, **parameters
+        )
+        evaluated_jac = super(VectorLeastSquares, self).eval_jacobian(
+            ordered_parameters, **parameters
+        )
 
         result = len(self.model.params) * [0.0]
-        for ans, y, row in zip(evaluated_func, self.model, self.model.numerical_jacobian):
+        for ans, y, row in zip(evaluated_func, self.model, evaluated_jac):
             if self.dependent_data[y] is not None:
                 for index, component in enumerate(row):
-                    result[index] += component(**jac_kwargs) * (
+                    result[index] += component * (
                         (self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]] ** 2
                     )
         result *= (1 / chi)
@@ -135,9 +171,9 @@ class LeastSquares(GradientObjective):
     Objective representing the :math:`\chi^2` of a model.
     """
     @keywordonly(flatten_components=True)
-    def __call__(self, **parameters):
+    def __call__(self, ordered_parameters=[], **parameters):
         """
-
+        :param ordered_parameters: See ``parameters``.
         :param parameters: values of the
             :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\chi^2` at.
         :param flatten_components: if `True`, return the total :math:`\chi^2`. If
@@ -146,9 +182,9 @@ class LeastSquares(GradientObjective):
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
         flatten_components = parameters.pop('flatten_components')
-        jac_kwargs = key2str(parameters)
-        jac_kwargs.update(key2str(self.independent_data))
-        evaluated_func = self.model(**jac_kwargs)
+        evaluated_func = super(LeastSquares, self).__call__(
+            ordered_parameters, **parameters
+        )
 
         chi2 = [0 for _ in evaluated_func]
         for index, (dep_var, dep_var_value) in enumerate(zip(self.model, evaluated_func)):
@@ -156,12 +192,12 @@ class LeastSquares(GradientObjective):
             if dep_data is not None:
                 sigma = self.sigma_data[self.model.sigmas[dep_var]]
                 chi2[index] += np.sum(
-                    (dep_var_value - dep_data) ** 2 / sigma ** 2)
-                # chi2 += np.sum((dep_var_value - dep_data)**2/sigma**2)
+                    (dep_var_value - dep_data) ** 2 / sigma ** 2
+                )
         chi2 = np.sum(chi2) if flatten_components else chi2
         return chi2
 
-    def eval_jacobian(self, **parameters):
+    def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
         Jacobian of :math:`\\chi^2` in the
         :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} \\chi^2`).
@@ -170,20 +206,22 @@ class LeastSquares(GradientObjective):
             :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
         :return: `np.array` of length equal to the number of parameters..
         """
-        jac_kwargs = key2str(parameters)
-        jac_kwargs.update(key2str(self.independent_data))
-        evaluated_func = self.model(**jac_kwargs)
+        evaluated_func = super(LeastSquares, self).__call__(
+            ordered_parameters, **parameters
+        )
+        evaluated_jac = super(LeastSquares, self).eval_jacobian(
+            ordered_parameters, **parameters
+        )
         result = [0.0 for _ in self.model.params]
 
-        for ans, var, row in zip(evaluated_func, self.model,
-                               self.model.numerical_jacobian):
+        for ans, var, row in zip(evaluated_func, self.model, evaluated_jac):
             dep_data = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if dep_data is not None:
                 sigma = self.sigma_data[sigma_var]  # Should be changed with #41
                 for index, component in enumerate(row):
                     result[index] += np.sum(
-                        component(**jac_kwargs) * ((dep_data - ans) / sigma ** 2)
+                        component * ((dep_data - ans) / sigma ** 2)
                     )
         return - np.array(result).T
 
@@ -193,19 +231,20 @@ class LogLikelihood(GradientObjective):
     Error function to be minimized by a minimizer in order to *maximize*
     the log-likelihood.
     """
-    def __call__(self, **parameters):
+    def __call__(self, ordered_parameters=[], **parameters):
         """
         :param parameters: values for the fit parameters.
         :return: scalar value of log-likelihood
         """
-        jac_kwargs = key2str(parameters)
-        jac_kwargs.update(key2str(self.independent_data))
+        evaluated_func = super(LogLikelihood, self).__call__(
+            ordered_parameters, **parameters
+        )
 
-        ans = - np.nansum(np.log(self.model(**jac_kwargs)))
+        ans = - np.nansum(np.log(evaluated_func))
         return ans
 
     @keywordonly(apply_func=np.nansum)
-    def eval_jacobian(self, **parameters):
+    def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
         Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
@@ -215,22 +254,26 @@ class LogLikelihood(GradientObjective):
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
         apply_func = parameters.pop('apply_func')
-        jac_kwargs = key2str(parameters)
-        jac_kwargs.update(key2str(self.independent_data))
+        evaluated_func = super(LogLikelihood, self).__call__(
+            ordered_parameters, **parameters
+        )
+        evaluated_jac = super(LogLikelihood, self).eval_jacobian(
+            ordered_parameters, **parameters
+        )
 
         ans = []
-        for row in self.model.numerical_jacobian:
+        for row in evaluated_jac:
             for partial_derivative in row:
                 ans.append(
                     - apply_func(
-                        partial_derivative(**jac_kwargs).flatten() / self.model(**jac_kwargs)
+                        partial_derivative.flatten() / evaluated_func
                     )
                 )
         else:
             return np.array(ans)
 
 
-class MinimizeModel(BaseObjective):
+class MinimizeModel(GradientObjective):
     """
     Objective to use when the model itself is the quantity that should be
     minimized. This is only supported for scalar models.
@@ -240,14 +283,17 @@ class MinimizeModel(BaseObjective):
             raise TypeError('Only scalar functions are supported by {}'.format(self.__class__))
         super(MinimizeModel, self).__init__(model, *args, **kwargs)
 
-    def __call__(self, **parameters):
-        return self.model(**parameters)[0]
+    def __call__(self, ordered_parameters=[], **parameters):
+        evaluated_func = super(MinimizeModel, self).__call__(
+            ordered_parameters, **parameters
+        )
+        return evaluated_func[0]
 
-    def eval_jacobian(self, **parameters):
-        if hasattr(self.model, 'numerical_jacobian'):
-            ans = []
-            for partial_derivative in self.model.numerical_jacobian[0]:
-                ans.append(partial_derivative(**parameters))
-            return np.array(ans)
+    def eval_jacobian(self, ordered_parameters=[], **parameters):
+        if hasattr(self.model, 'eval_jacobian'):
+            evaluated_jac = super(MinimizeModel, self).eval_jacobian(
+                ordered_parameters, **parameters
+            )
+            return np.array(evaluated_jac[0])
         else:
             return None

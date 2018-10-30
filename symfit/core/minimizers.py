@@ -253,25 +253,6 @@ class ScipyMinimize(object):
         self.jacobian = None
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_objective = self.list2kwargs(self.objective)
-
-    def list2kwargs(self, func):
-        """
-        Given an objective function `func`, make sure it is always called via
-        keyword arguments with the relevant parameter names.
-
-        :param func: Function to be wrapped to keyword only calls.
-        :return: wrapped function
-        """
-        if func is None:
-            return None
-        # Because scipy calls the objective with a list of parameters as
-        # guesses, we use 'values' instead of '*values'.
-        @wraps(func)
-        def wrapped_func(values):
-            parameters = key2str(dict(zip(self.params, values)))
-            return np.array(func(**parameters))
-        return wrapped_func
 
     @keywordonly(tol=1e-9)
     def execute(self, bounds=None, jacobian=None, constraints=None, **minimize_options):
@@ -353,7 +334,6 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
