@@ -31,7 +31,7 @@ class BaseMinimizer(object):
         """
         self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
-        self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
+        self.objective = objective
         # Mapping which we use to track the original, to be used upon pickling
         self._pickle_kwargs = {'parameters': parameters, 'objective': objective}
         self.params = [p for p in parameters if not p.fixed]
@@ -86,10 +86,7 @@ class ConstrainedMinimizer(BaseMinimizer):
         self._pickle_kwargs['constraints'] = constraints
         if constraints is None:
             constraints = []
-        self.constraints = [
-            partial(constraint, **{p.name: p.value for p in self._fixed_params})
-            for constraint in constraints
-        ]
+        self.constraints = constraints
 
 class GradientMinimizer(BaseMinimizer):
     """
@@ -102,8 +99,7 @@ class GradientMinimizer(BaseMinimizer):
         self._pickle_kwargs['jacobian'] = self.jacobian
 
         if self.jacobian is not None:
-            jac_with_fixed_params = partial(self.jacobian, **{p.name: p.value for p in self._fixed_params})
-            self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
+            self.wrapped_jacobian = self.resize_jac(self.jacobian)
         else:
             self.jacobian = None
             self.wrapped_jacobian = None
@@ -268,7 +264,7 @@ class ScipyMinimize(object):
             usually be filled by a specific subclass.
         """
         ans = minimize(
-            self.wrapped_objective,
+            self.objective,
             self.initial_guesses,
             method=self.method_name(),
             bounds=bounds,
@@ -387,7 +383,7 @@ class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
     @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
                  recombination=0.95, polish=False, init='latinhypercube')
     def execute(self, **de_options):
-        ans = differential_evolution(self.list2kwargs(self.objective),
+        ans = differential_evolution(self.objective,
                                      self.bounds,
                                      **de_options)
         return self._pack_output(ans)
@@ -397,13 +393,6 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s SLSQP algorithm.
     """
-    def __init__(self, *args, **kwargs):
-        super(SLSQP, self).__init__(*args, **kwargs)
-        # We have to break DRY because you cannot inherit from both
-        # ScipyConstrainedMinimize and ScipyGradientMinimize. So SLQSP is a
-        # special case. This is the same code as in ScipyGradientMinimize.
-        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
-
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             bounds=self.bounds,
@@ -558,7 +547,7 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
             minimize_options['minimizer_kwargs']['bounds'] = self.local_minimizer.bounds
 
         ans = basinhopping(
-            self.wrapped_objective,
+            self.objective,
             self.initial_guesses,
             **minimize_options
         )
@@ -579,7 +568,7 @@ class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
         :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
         popt, pcov, infodic, mesg, ier = leastsqbound(
-            self.wrapped_objective,
+            self.objective,
             # Dfun=self.jacobian,
             x0=self.initial_guesses,
             bounds=self.bounds,
