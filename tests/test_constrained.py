@@ -9,7 +9,8 @@ from symfit import (
 )
 from symfit.distributions import Gaussian
 from symfit.core.minimizers import SLSQP, MINPACK
-from symfit.core.support import partial
+from symfit.core.support import key2str
+from symfit.core.objectives import MinimizeModel
 
 
 class TestConstrained(unittest.TestCase):
@@ -567,27 +568,37 @@ class TestConstrained(unittest.TestCase):
                   constraints=constraints, minimizer=SLSQP)
         fit_result_slsqp = fit.execute()
         # The data and fixed parameters should be partialed away.
-        partialed_kwargs = {
+        objective_kwargs = {
+            phi2.name: phi2.value,
+            phi1.name: phi1.value,
+            x.name: xdata,
+        }
+        constraint_kwargs = {
             phi2.name: phi2.value,
             phi1.name: phi1.value,
             x.name: xdata,
             y.name: ydata,
             fit.model.sigmas[y].name: np.ones_like(ydata)
         }
-        for constraint in fit.minimizer.constraints:
-            self.assertIsInstance(constraint, partial)
-            self.assertIsInstance(constraint.func, Constraint)
-            self.assertTupleEqual(constraint.args, tuple())
+        for index, constraint in enumerate(fit.minimizer.constraints):
+            self.assertIsInstance(constraint, MinimizeModel)
+            self.assertEqual(constraint.model, fit.constraints[index])
+            self.assertEqual(constraint.data, fit.data)
+            self.assertEqual(constraint.data, fit.objective.data)
+
+            # Data should be the same memory location so they can share state.
+            self.assertEqual(id(fit.objective.data),
+                             id(constraint.data))
 
             # Test if the data and fixed params have been partialed away
-            self.assertEqual(len(partialed_kwargs), len(constraint.keywords))
-            for key, value in constraint.keywords.items():
-                self.assertTrue(key in partialed_kwargs)
-                np.testing.assert_equal(partialed_kwargs[key], value)
+            self.assertEqual(key2str(constraint.model_kwargs).keys(),
+                             constraint_kwargs.keys())
+            self.assertEqual(key2str(fit.objective.model_kwargs).keys(),
+                             objective_kwargs.keys())
 
         # Compare the shapes. The constraint shape should now be the same as
         # that of the objective
-        obj_val = fit.minimizer.wrapped_objective(fit.minimizer.initial_guesses)
+        obj_val = fit.minimizer.objective(fit.minimizer.initial_guesses)
         obj_jac = fit.minimizer.wrapped_jacobian(fit.minimizer.initial_guesses)
         with self.assertRaises(TypeError):
             len(obj_val)  # scalars don't have lengths
@@ -595,18 +606,20 @@ class TestConstrained(unittest.TestCase):
 
         for index, constraint in enumerate(fit.minimizer.wrapped_constraints):
             self.assertEqual(constraint['type'], 'ineq')
-            self.assertEqual(len(constraint['args']), 1)
-            self.assertIsInstance(constraint['args'][0], partial)
+            self.assertTrue('args' not in constraint)
             self.assertTrue(callable(constraint['fun']))
             self.assertTrue(callable(constraint['jac']))
 
             # The argument should be the partialed Constraint object
-            self.assertEqual(constraint['args'][0], fit.minimizer.constraints[index])
+            self.assertEqual(constraint['fun'], fit.minimizer.constraints[index])
+            self.assertIsInstance(constraint['fun'], MinimizeModel)
+            self.assertTrue('jac' in constraint)
 
             # Test the shapes
-            cons_val = constraint['fun'](fit.minimizer.initial_guesses, constraint['args'][0])
-            cons_jac = constraint['jac'](fit.minimizer.initial_guesses, constraint['args'][0])
-            self.assertEqual(obj_val.shape, cons_val.shape)
+            cons_val = constraint['fun'](fit.minimizer.initial_guesses)
+            cons_jac = constraint['jac'](fit.minimizer.initial_guesses)
+            with self.assertRaises(TypeError):
+                len(cons_val)  # scalars don't have lengths
             self.assertEqual(obj_jac.shape, cons_jac.shape)
             self.assertEqual(obj_jac.shape, (2,))
 
