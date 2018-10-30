@@ -712,6 +712,11 @@ class Constraint(Model):
             else:
                 raise TypeError('The model argument must be of type Model.')
             super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
+
+            # Update the signature to accept all vars and parms of the model
+            self.independent_vars = self.model.vars
+            self.params = self.model.params
+            self.__signature__ = self._make_signature()
         else:
             raise TypeError('Constraints have to be initiated with a subclass of sympy.Relational')
 
@@ -745,14 +750,6 @@ class Constraint(Model):
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
         return [[sympy_to_py(partial_dv, self.model.vars, self.model.params) for partial_dv in row] for row in self.jacobian]
-
-    def _make_signature(self):
-        # Handle args and kwargs according to the allowed names.
-        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
-                for arg in self.model.vars + self.model.params
-        ]
-        return inspect_sig.Signature(parameters=parameters)
 
 
 class TakesData(object):
