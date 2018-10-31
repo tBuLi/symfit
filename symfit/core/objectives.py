@@ -93,7 +93,7 @@ class BaseObjective(object):
         Clear cached properties. Should preferably be called after every
         minimization precedure to clean the pallette.
         """
-        del self.model_kwargs
+        del self.invariant_kwargs
 
 
 @add_metaclass(abc.ABCMeta)
