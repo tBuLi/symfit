@@ -68,14 +68,15 @@ class BaseObjective(object):
         """
         # zip will stop when the shortest of the two is exhausted
         parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
-        parameters.update(self.model_kwargs)
+        parameters.update(self.invariant_kwargs)
         return self.model(**key2str(parameters))
 
     @cached_property
-    def model_kwargs(self):
+    def invariant_kwargs(self):
         """
-        Prepares the other kwargs to ``self.model`` which are not provided by
-        the minimizers. This means fixed parameters and data, matching the
+        Prepares the invariant kwargs to ``self.model`` which are not provided
+        by the minimizers, and are the same for every iteration of the
+        minimization. This means fixed parameters and data, matching the
         signature of ``self.model``.
         """
         kwargs = {p: p.value for p in self.model.params
@@ -111,7 +112,7 @@ class GradientObjective(BaseObjective):
         :return: evaluated jacobian
         """
         parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
-        parameters.update(self.model_kwargs)
+        parameters.update(self.invariant_kwargs)
         return self.model.eval_jacobian(**key2str(parameters))
 
 
