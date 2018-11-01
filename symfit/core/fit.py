@@ -482,21 +482,23 @@ class Model(CallableModel):
     @property
     def jacobian(self):
         """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all
-            the partial derivatives. Partial derivatives are of the components
-            of the function with respect to the Parameter's, not the independent
-            Variable's.
+        :return: Jacobian filled with the symbolic expressions for all the
+            partial derivatives. Partial derivatives are of the components of
+            the function with respect to the Parameter's, not the independent
+            Variable's. The return shape is a list over the models components,
+            filled with tha symbolical jacobian for that component, as a list.
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
     @property
     def hessian(self):
         """
-        :return: Hessian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-          Partial derivatives are of the components of the function with respect to the Parameter's,
-          not the independent Variable's.
+        :return: Hessian filled with the symbolic expressions for all the
+            second order partial derivatives. Partial derivatives are taken with
+            respect to the Parameter's, not the independent Variable's.
         """
-        return [[[sympy.diff(diff1, param2) for param2 in self.params] for diff1 in comp] for comp in self.jacobian]
+        return [[[sympy.diff(partial_dv, param) for param in self.params]
+                 for partial_dv in comp] for comp in self.jacobian]
 
     @property
     def chi_squared(self):
@@ -558,16 +560,13 @@ class Model(CallableModel):
     @cached_property
     def numerical_hessian(self):
         """
-        :return: lambda functions of the Hessian matrix of the function, which can be used in numerical optimization.
+        :return: lambda functions of the Hessian matrix of the function, which
+        can be used in numerical optimization.
         """
-        return [
-                [
-                 [
-                  sympy_to_py(diff2, self.independent_vars, self.params)
-                  for diff2 in diff1
-                 ] for diff1 in comp
-                ] for comp in self.hessian
-               ]
+        return [[[sympy_to_py(second_order_pdv, self.independent_vars, self.params)
+                    for second_order_pdv in row]
+                for row in comp]
+            for comp in self.hessian]
 
     @cached_property
     def numerical_chi_squared(self):
@@ -622,13 +621,11 @@ class Model(CallableModel):
         """
         :return: Hessian evaluated at the specified point.
         """
-        hess = [
-                [
-                 [
-                  diff2(*args, **kwargs) for diff2 in diff1
-                 ] for diff1 in comp
-                ] for comp in self.numerical_hessian
-               ]
+        hess = [[[second_order_pdv(*args, **kwargs)
+                    for second_order_pdv in row]
+                for row in comp]
+            for comp in self.numerical_hessian]
+
         for idx, comp in enumerate(hess):
             shapes = [np.atleast_1d(d2).shape for d1 in comp for d2 in d1]
             # Funny key so that higher dimensional data > lower dimensional
