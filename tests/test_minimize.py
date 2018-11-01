@@ -8,10 +8,10 @@ from scipy.optimize import minimize, basinhopping
 
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
-    Model, cos
+    Model, cos, CallableNumericalModel
 )
 from symfit.core.objectives import MinimizeModel
-from symfit.core.minimizers import BFGS, BasinHopping, LBFGSB, SLSQP
+from symfit.core.minimizers import BFGS, BasinHopping, LBFGSB, SLSQP, NelderMead
 from symfit.core.support import partial
 
 
@@ -169,8 +169,9 @@ class TestMinimize(unittest.TestCase):
         res = basinhopping(func, x0, minimizer_kwargs={"method": "BFGS"}, niter=200)
         np.random.seed(555)
         x, = parameters('x')
-        fit = BasinHopping(func, [x])
-        fit_result = fit.execute(minimizer_kwargs={"method": "BFGS", 'jac': False}, niter=200)
+        fit = BasinHopping(func, [x], local_minimizer=BFGS)
+        fit_result = fit.execute(niter=200)
+        # fit_result = fit.execute(minimizer_kwargs={"method": "BFGS"}, niter=200)
 
         self.assertEqual(res.x, fit_result.value(x))
         self.assertEqual(res.fun, fit_result.objective_value)
@@ -200,12 +201,21 @@ class TestMinimize(unittest.TestCase):
 
         np.random.seed(555)
         x1, x2 = parameters('x1, x2', value=x0)
-        fit = BasinHopping(func2d_symfit, [x1, x2], local_minimizer=BFGS)
-        minimizer_kwargs = {'jac': fit.list2kwargs(jac2d_symfit)}
-        fit_result = fit.execute(niter=200, minimizer_kwargs=minimizer_kwargs)
-
-        self.assertEqual(res.x[0], fit_result.value(x1))
-        self.assertEqual(res.x[1], fit_result.value(x2))
+        with self.assertRaises(TypeError):
+            fit = BasinHopping(
+                func2d_symfit, [x1, x2],
+                local_minimizer=NelderMead(func2d_symfit, [x1, x2],
+                                           jacobian=jac2d_symfit)
+            )
+        fit = BasinHopping(
+            func2d_symfit, [x1, x2],
+            local_minimizer=BFGS(func2d_symfit, [x1, x2], jacobian=jac2d_symfit)
+        )
+        fit_result = fit.execute(niter=200)
+        self.assertIsInstance(fit.local_minimizer.jacobian, MinimizeModel)
+        self.assertIsInstance(fit.local_minimizer.jacobian.model, CallableNumericalModel)
+        self.assertEqual(res.x[0] / fit_result.value(x1), 1.0)
+        self.assertEqual(res.x[1] / fit_result.value(x2), 1.0)
         self.assertEqual(res.fun, fit_result.objective_value)
 
         # Now compare with the symbolic equivalent
