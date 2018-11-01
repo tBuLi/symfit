@@ -116,6 +116,26 @@ class GradientObjective(BaseObjective):
         return self.model.eval_jacobian(**key2str(parameters))
 
 
+@add_metaclass(abc.ABCMeta)
+class HessianObjective(GradientObjective):
+    """
+    ABC for objectives that support hessian methods.
+    """
+    @abc.abstractmethod
+    def eval_hessian(self, ordered_parameters=[], **parameters):
+        """
+        Evaluate the hessian for given parameter values.
+
+        :param ordered_parameters: List of parameter, in alphabetical order.
+            Typically provided by the minimizer.
+        :param parameters: parameters as keyword arguments.
+        :return: evaluated hessian
+        """
+        parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
+        parameters.update(self.invariant_kwargs)
+        return self.model.eval_hessian(**key2str(parameters))
+
+
 class VectorLeastSquares(GradientObjective):
     """
     Implemented for MINPACK only. Returns the residuals/sigma before squaring
@@ -167,7 +187,7 @@ class VectorLeastSquares(GradientObjective):
         return - np.array(result).T
 
 
-class LeastSquares(GradientObjective):
+class LeastSquares(HessianObjective):
     """
     Objective representing the :math:`\chi^2` of a model.
     """
@@ -227,6 +247,39 @@ class LeastSquares(GradientObjective):
                     )
         return np.array(result).T
 
+    def eval_hessian(self, ordered_parameters=[], **parameters):
+        """
+        Hessian of :math:`\\chi^2` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p}^2 \\chi^2`).
+
+        :param parameters: values of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
+        :return: `np.array` of length equal to the number of parameters..
+        """
+        evaluated_func = super(LeastSquares, self).__call__(
+            ordered_parameters, **parameters
+        )
+        evaluated_jac = super(LeastSquares, self).eval_jacobian(
+            ordered_parameters, **parameters
+        )
+        evaluated_hess = super(LeastSquares, self).eval_hessian(
+            ordered_parameters, **parameters
+        )
+        result = [[0.0 for _ in self.model.params]  for _ in self.model.params]
+
+        for var, f, jac_comp, hess_comp in zip(self.model, evaluated_func, evaluated_jac, evaluated_hess):
+            y = self.dependent_data[var]
+            sigma_var = self.model.sigmas[var]
+            if y is not None:
+                sigma = self.sigma_data[sigma_var]  # Should be changed with #41
+                for i, (df, hess_row) in enumerate(jac_comp, hess_comp):
+                    # df = \nabla_p_i f, ddf = \nabla_p_i \nabla_p_j f
+                    for j, ddf in enumerate(hess_comp):
+                        result[i][j] += 2 * np.sum(
+                            (df**2 / sigma**2) - ((y - f) * ddf / sigma**2)
+                        )
+        return np.array(result).T
+
 
 class LogLikelihood(GradientObjective):
     """
@@ -275,7 +328,7 @@ class LogLikelihood(GradientObjective):
             return np.array(ans)
 
 
-class MinimizeModel(GradientObjective):
+class MinimizeModel(HessianObjective):
     """
     Objective to use when the model itself is the quantity that should be
     minimized. This is only supported for scalar models.
@@ -297,5 +350,14 @@ class MinimizeModel(GradientObjective):
                 ordered_parameters, **parameters
             )
             return np.array(evaluated_jac[0])
+        else:
+            return None
+
+    def eval_hessian(self, ordered_parameters=[], **parameters):
+        if hasattr(self.model, 'eval_hessian'):
+            evaluated_hess = super(MinimizeModel, self).eval_hessian(
+                ordered_parameters, **parameters
+            )
+            return np.array(evaluated_hess[0])
         else:
             return None
