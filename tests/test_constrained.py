@@ -591,9 +591,9 @@ class TestConstrained(unittest.TestCase):
                              id(constraint.data))
 
             # Test if the data and fixed params have been partialed away
-            self.assertEqual(key2str(constraint.model_kwargs).keys(),
+            self.assertEqual(key2str(constraint.invariant_kwargs).keys(),
                              constraint_kwargs.keys())
-            self.assertEqual(key2str(fit.objective.model_kwargs).keys(),
+            self.assertEqual(key2str(fit.objective.invariant_kwargs).keys(),
                              objective_kwargs.keys())
 
         # Compare the shapes. The constraint shape should now be the same as
