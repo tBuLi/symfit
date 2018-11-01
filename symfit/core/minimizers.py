@@ -361,6 +361,9 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
         """
         Returns all constraints in a scipy compatible format.
 
+        :param constraints: List of either MinimizeModel instances (this is what
+            is provided by :mod:`~symfit.core.fit.Fit`),
+            :mod:`~symfit.core.fit.Constraints`, or :mod:`~sympy.Rel`.
         :return: dict of scipy compatible statements.
         """
         cons = []
@@ -368,11 +371,33 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
             sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
-        for minimize_constraint in constraints:
-            constraint_type = minimize_constraint.model.constraint_type
+        for constraint in constraints:
+            if isinstance(constraint, MinimizeModel):
+                # Typically the case when called by `Fit
+                constraint_type = constraint.model.constraint_type
+            elif hasattr(constraint, 'constraint_type'):
+                # Constraint object, not provided by `Fit`. Do the best we can.
+                if self.parameters != constraint.params:
+                    raise AssertionError('The constraint should accept the same'
+                                         ' parameters as used for the fit.')
+                constraint_type = constraint.constraint_type
+                constraint = MinimizeModel(constraint, data={})
+            elif isinstance(constraint, sympy.Rel):
+                from .fit import Constraint, CallableNumericalModel
+                # Todo: remove this CallableNumericalModel work around when
+                # either Constraint-obj are removed or a params arg is added.
+                constraint = Constraint(
+                    constraint,
+                    CallableNumericalModel({}, params=self.parameters,
+                                           independent_vars=[])
+                )
+                constraint_type = constraint.constraint_type
+                constraint = MinimizeModel(constraint, data={})
+            else:
+                raise TypeError('Unknown type for a constraint.')
             cons.append({
                 'type': types[constraint_type],
-                'fun': minimize_constraint,
+                'fun': constraint,
             })
 
         cons = tuple(cons)
@@ -416,8 +441,10 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
         """
         # Take the normal scipy compatible constraints, and add jacobians.
         scipy_constr = super(SLSQP, self).scipy_constraints(constraints)
-        for minimize_constraint, scipy_constraint in zip(constraints, scipy_constr):
-            scipy_constraint['jac'] = self.resize_jac(minimize_constraint.eval_jacobian)
+        for scipy_constraint in scipy_constr:
+            scipy_constraint['jac'] = self.resize_jac(
+                scipy_constraint['fun'].eval_jacobian
+            )
         return scipy_constr
 
 

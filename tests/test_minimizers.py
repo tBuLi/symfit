@@ -151,7 +151,7 @@ class TestMinimize(unittest.TestCase):
                 fit = minimizer(
                     partial(chi_squared, x=xdata, y=ydata),
                     [a, b],
-                    constraints=[Constraint(Ge(b, a), model=dummy_model)]
+                    constraints=[Ge(b, a)]
                 )
             elif isinstance(minimizer, partial) and issubclass(minimizer.func, ChainedMinimizer):
                 init_minimizers = []
@@ -252,6 +252,28 @@ class TestMinimize(unittest.TestCase):
             results = pool.map(worker, gen_fit_objs(x, y, a_values, minimizer))
             all_results[minimizer] = [res.params['a'] for res in results]
 
+    def test_minimizer_constraint_compatibility(self):
+        """
+        Test if #156 has been solved, and test all the other constraint styles.
+        """
+        x, y, z = variables('x, y, z')
+        a, b, c = parameters('a, b, c')
+        b.fixed = True
+
+        model = Model({z: a * x**2 - b * y**2 + c})
+        # Equivalent ways of defining the same constraint
+        constraints = [
+            Eq(a, c), MinimizeModel(Constraint(Eq(a, c), model=model), data={}),
+            Constraint(Eq(a, c), model=model)
+        ]
+        fit = SLSQP(MinimizeModel(model, data={}), parameters=[a, b, c],
+                    constraints=constraints)
+        # No scipy style dicts allowed.
+        with self.assertRaises(TypeError):
+            fit = SLSQP(MinimizeModel(model, data={}),
+                        parameters=[a, b, c],
+                        constraints=[{'type': 'eq', 'fun': lambda a, b, c: a - c}]
+            )
 
 if __name__ == '__main__':
     try:
