@@ -282,6 +282,9 @@ class BaseNumericalModel(BaseModel):
 
     @property
     def shared_parameters(self):
+        """
+        BaseNumericalModel's cannot infer if parameters are shared.
+        """
         raise NotImplementedError(
             'Shared parameters can not be inferred for {}'.format(self.__class__.__name__)
         )
