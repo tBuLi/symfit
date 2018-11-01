@@ -67,7 +67,7 @@ class BaseObjective(object):
         :return: evaluated model.
         """
         # zip will stop when the shortest of the two is exhausted
-        parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
+        parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
         return self.model(**key2str(parameters))
 
@@ -80,7 +80,7 @@ class BaseObjective(object):
         signature of ``self.model``.
         """
         kwargs = {p: p.value for p in self.model.params
-                     if p not in self.model.unfixed_params}
+                  if p not in self.model.free_params}
         data_by_name = key2str(self.data)
         kwargs.update(
             {p: data_by_name[p] for p in
@@ -111,7 +111,7 @@ class GradientObjective(BaseObjective):
         :param parameters: parameters as keyword arguments.
         :return: evaluated jacobian
         """
-        parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
+        parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
         return self.model.eval_jacobian(**key2str(parameters))
 

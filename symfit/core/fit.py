@@ -194,7 +194,7 @@ class BaseModel(Mapping):
                 return False
 
     @property
-    def unfixed_params(self):
+    def free_params(self):
         """
         :return: ordered list of the subset of variable params
         """
