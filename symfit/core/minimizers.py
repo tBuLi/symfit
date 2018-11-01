@@ -32,22 +32,36 @@ class BaseMinimizer(object):
         """
         self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
-        if isinstance(objective, BaseObjective):
-            self.objective = objective
-        else:
-            # Minimize the provided custom objective instead. This why want to
-            # minimize a CallableNumericalModel, thats what they are for.
-            from .fit import CallableNumericalModel
-            self.objective = MinimizeModel(
-                                CallableNumericalModel(objective,
-                                                       params=parameters,
-                                                       independent_vars=[]),
-                                data={})
+        self.objective = self._baseobjective_from_callable(objective)
 
         # Mapping which we use to track the original, to be used upon pickling
         self._pickle_kwargs = {'parameters': parameters, 'objective': objective}
         self.params = [p for p in parameters if not p.fixed]
 
+    def _baseobjective_from_callable(self, func, objective_type=MinimizeModel):
+        """
+        symfit works with BaseObjective subclasses internally. If a custom
+        objective is provided, we wrap it into a BaseObjective, MinimizeModel by
+        default.
+
+        :param func: Callable. If already an instance of BaseObjective, it is
+            returned immidiatelly. If not, it is turned into a BaseObjective of
+            type ``objective_type``.
+        :param objective_type:
+        :return:
+        """
+        if isinstance(func, BaseObjective):
+            return func
+        else:
+            # Minimize the provided custom objective instead. This why want to
+            # minimize a CallableNumericalModel, thats what they are for.
+            from .fit import CallableNumericalModel
+            return objective_type(
+                CallableNumericalModel(func,
+                                       params=self.parameters,
+                                       independent_vars=[]),
+                data={}
+            )
     @abc.abstractmethod
     def execute(self, **options):
         """
@@ -111,6 +125,7 @@ class GradientMinimizer(BaseMinimizer):
         self._pickle_kwargs['jacobian'] = self.jacobian
 
         if self.jacobian is not None:
+            self.jacobian = self._baseobjective_from_callable(self.jacobian)
             self.wrapped_jacobian = self.resize_jac(self.jacobian)
         else:
             self.jacobian = None
