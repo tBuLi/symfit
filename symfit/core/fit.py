@@ -240,7 +240,6 @@ class BaseNumericalModel(BaseModel):
     """
     def __init__(self, model, independent_vars, params):
         """
-
         :param model: dict of ``callable``, where dependent variables are the
             keys. If instead of a dict a (sequence of) ``callable`` is provided,
             it will be turned into a dict automatically.
@@ -294,7 +293,8 @@ class BaseCallableModel(BaseModel):
     """
     def eval_components(self, *args, **kwargs):
         """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
+        :return: lambda functions of each of the components in model_dict, to be
+            used in numerical calculation.
         """
         return [expr(*args, **kwargs) for expr in self.numerical_components]
 
@@ -455,7 +455,7 @@ class CallableModel(BaseCallableModel):
     def numerical_components(self):
         """
         :return: lambda functions of each of the analytical components in
-        model_dict, to be used in numerical calculation.
+            model_dict, to be used in numerical calculation.
         """
         return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
@@ -479,9 +479,10 @@ class Model(CallableModel):
     @property
     def jacobian(self):
         """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-          Partial derivatives are of the components of the function with respect to the Parameter's,
-          not the independent Variable's.
+        :return: Jacobian 'Matrix' filled with the symbolic expressions for all
+            the partial derivatives. Partial derivatives are of the components
+            of the function with respect to the Parameter's, not the independent
+            Variable's.
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
 
@@ -495,7 +496,8 @@ class Model(CallableModel):
     @property
     def chi(self):
         """
-        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
+        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK
+            optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
         """
         return sympy.sqrt(self.chi_squared)
 
@@ -503,7 +505,8 @@ class Model(CallableModel):
     def chi_jacobian(self):
         """
         Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector! This is because that's what leastsq needs.
+        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
+        This is because that's what leastsq needs.
         """
         jac = []
         for param in self.params:
@@ -535,28 +538,32 @@ class Model(CallableModel):
     @cached_property
     def numerical_jacobian(self):
         """
-        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
+        :return: lambda functions of the jacobian matrix of the function, which
+            can be used in numerical optimization.
         """
         return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
 
     @cached_property
     def numerical_chi_squared(self):
         """
-        :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
+        :return: lambda function of the ``.chi_squared`` method, to be used in
+            numerical optimisation.
         """
         return sympy_to_py(self.chi_squared, self.vars, self.params)
 
     @cached_property
     def numerical_chi(self):
         """
-        :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.
+        :return: lambda function of the ``.chi`` method, to be used in MINPACK
+            optimisation.
         """
         return sympy_to_py(self.chi, self.vars, self.params)
 
     @cached_property
     def numerical_chi_jacobian(self):
         """
-        :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.
+        :return: lambda functions of the jacobian of the ``.chi`` method, which
+            can be used in numerical optimization.
         """
         return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
 
@@ -986,6 +993,7 @@ class HasCovarianceMatrix(TakesData):
     def _reduced_residual_ss(self, best_fit_params, flatten=False):
         """
         Calculate the residual Sum of Squares divided by the d.o.f..
+
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :param flatten: when `True`, return the total sum of squares (SS).
             If `False`, return the componentwise SS.
@@ -1237,12 +1245,14 @@ class LinearLeastSquares(BaseFit):
         Execute an analytical (Linear) Least Squares Fit. This object works by symbolically
         solving when :math:`\\nabla \\chi^2 = 0`.
 
-        To perform this task the expression of :math:`\\nabla \\chi^2` is determined, ignoring that
-        :math:`\\chi^2` involves summing over all terms. Then the sum is performed by substituting
-        the variables by their respective data and summing all terms, while leaving the parameters
+        To perform this task the expression of :math:`\\nabla \\chi^2` is
+        determined, ignoring that :math:`\\chi^2` involves summing over all
+        terms. Then the sum is performed by substituting the variables by their
+        respective data and summing all terms, while leaving the parameters
         symbolic.
 
-        The resulting system of equations is then easily solved with ``sympy.solve``.
+        The resulting system of equations is then easily solved with
+        ``sympy.solve``.
 
         :return: ``FitResult``
         """
@@ -1491,7 +1501,8 @@ class Fit(HasCovarianceMatrix):
         Takes the user provided constraints and converts them to a list of
         :class:`~symfit.core.fit.Constraint` objects.
 
-        :param constraints: iterable of :class:`sympy.Relation` objects.
+        :param constraints: iterable of :class:`~sympy.core.relational.Relation`
+            objects.
         :return: list of :class:`~symfit.core.fit.Constraint` objects.
         """
         con_models = []
