@@ -215,16 +215,17 @@ class LeastSquares(GradientObjective):
         )
         result = [0.0 for _ in self.model.params]
 
-        for ans, var, row in zip(evaluated_func, self.model, evaluated_jac):
-            dep_data = self.dependent_data[var]
+        for var, f, row in zip(self.model, evaluated_func, evaluated_jac):
+            y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
-            if dep_data is not None:
+            if y is not None:
                 sigma = self.sigma_data[sigma_var]  # Should be changed with #41
-                for index, component in enumerate(row):
-                    result[index] += np.sum(
-                        component * ((dep_data - ans) / sigma ** 2)
+                for index, df in enumerate(row):
+                    # df = \nabla_p_i f
+                    result[index] -= 2 * np.sum(
+                        df * ((y - f) / sigma ** 2)
                     )
-        return - np.array(result).T
+        return np.array(result).T
 
 
 class LogLikelihood(GradientObjective):
