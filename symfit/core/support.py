@@ -17,6 +17,7 @@ from sympy import symbols
 from sympy.core.expr import Expr
 
 from symfit.core.argument import Parameter, Variable
+from symfit.core.printing import SymfitNumPyPrinter
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -88,7 +89,7 @@ def sympy_to_py(func, vars, params):
     :return: lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars
         first, then params.
     """
-    return lambdify((vars + params), func, modules='numpy', dummify=False)
+    return lambdify((vars + params), func, printer=SymfitNumPyPrinter, dummify=False)
 
 def sympy_to_scipy(func, vars, params):
     """
