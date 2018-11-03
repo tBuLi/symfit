@@ -994,9 +994,8 @@ class HasCovarianceMatrix(TakesData):
         if isinstance(self.objective, LogLikelihood):
             # Loglikelihood is a special case that needs to be considered
             # separately, see #138
-            jac = self.objective.eval_jacobian(apply_func=lambda x: x, **key2str(best_fit_params))
-            cov_matrix_inv = np.tensordot(jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-            cov_mat = np.linalg.inv(cov_matrix_inv)
+            hess = self.objective.eval_hessian(**key2str(best_fit_params))
+            cov_mat = np.linalg.inv(hess)
             return cov_mat
         try:
             if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
