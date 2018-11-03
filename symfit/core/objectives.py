@@ -69,7 +69,33 @@ class BaseObjective(object):
         # zip will stop when the shortest of the two is exhausted
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
-        return self.model(**key2str(parameters))
+        result = self.model(**key2str(parameters))
+        return self._shape_dependent_data(result)
+
+    def _shape_dependent_data(self, model_output, level=0):
+        """
+        In rare cases, the dependent data and the output of the model do not
+        have the same shape. Think for example about :math:`y_i = a`. This
+        function makes sure both sides of the equation have the same shape.
+
+        :param model_output: Output of a call to model
+        :return: ``model_output`` reshaped to ``dependent_data``'s shape, if
+            possible.
+        """
+        shaped_result = []
+        for dep_data, component in zip(self.dependent_data.values(), model_output):
+            if dep_data is not None:
+                if dep_data.shape == component.shape:
+                    shaped_result.append(component)
+                else:
+                    for _ in range(level):
+                        dep_data = np.expand_dims(dep_data, 0)
+                    shaped_result.append(
+                        np.broadcast_arrays(dep_data, component)[1]
+                    )
+            else:
+                shaped_result.append(component)
+        return shaped_result
 
     @cached_property
     def invariant_kwargs(self):
@@ -113,7 +139,8 @@ class GradientObjective(BaseObjective):
         """
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
-        return self.model.eval_jacobian(**key2str(parameters))
+        result = self.model.eval_jacobian(**key2str(parameters))
+        return self._shape_dependent_data(result, level=1)
 
 
 @add_metaclass(abc.ABCMeta)
@@ -131,9 +158,10 @@ class HessianObjective(GradientObjective):
         :param parameters: parameters as keyword arguments.
         :return: evaluated hessian
         """
-        parameters.update(dict(zip(self.model.unfixed_params, ordered_parameters)))
+        parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
-        return self.model.eval_hessian(**key2str(parameters))
+        result = self.model.eval_hessian(**key2str(parameters))
+        return self._shape_dependent_data(result, level=2)
 
 
 class VectorLeastSquares(GradientObjective):
@@ -233,19 +261,17 @@ class LeastSquares(HessianObjective):
         evaluated_jac = super(LeastSquares, self).eval_jacobian(
             ordered_parameters, **parameters
         )
-        result = [0.0 for _ in self.model.params]
 
-        for var, f, row in zip(self.model, evaluated_func, evaluated_jac):
+        result = 0
+        for var, f, jac_comp in zip(self.model, evaluated_func, evaluated_jac):
             y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if y is not None:
-                sigma = self.sigma_data[sigma_var]  # Should be changed with #41
-                for index, df in enumerate(row):
-                    # df = \nabla_p_i f
-                    result[index] -= 2 * np.sum(
-                        df * ((y - f) / sigma ** 2)
-                    )
-        return np.array(result).T
+                sigma = self.sigma_data[sigma_var]
+                pre_sum = jac_comp * ((y - f) / sigma**2)[np.newaxis, ...]
+                axes = tuple(range(1, len(pre_sum.shape)))
+                result -= 2 * np.sum(pre_sum, axis=axes, keepdims=False)
+        return np.atleast_1d(np.squeeze(np.array(result)))
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
         """
@@ -265,23 +291,25 @@ class LeastSquares(HessianObjective):
         evaluated_hess = super(LeastSquares, self).eval_hessian(
             ordered_parameters, **parameters
         )
-        result = [[0.0 for _ in self.model.params]  for _ in self.model.params]
 
-        for var, f, jac_comp, hess_comp in zip(self.model, evaluated_func, evaluated_jac, evaluated_hess):
+        result = 0
+        for var, f, jac_comp, hess_comp in zip(self.model, evaluated_func,
+                                               evaluated_jac, evaluated_hess):
             y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if y is not None:
-                sigma = self.sigma_data[sigma_var]  # Should be changed with #41
-                for i, (df, hess_row) in enumerate(jac_comp, hess_comp):
-                    # df = \nabla_p_i f, ddf = \nabla_p_i \nabla_p_j f
-                    for j, ddf in enumerate(hess_comp):
-                        result[i][j] += 2 * np.sum(
-                            (df**2 / sigma**2) - ((y - f) * ddf / sigma**2)
-                        )
-        return np.array(result).T
+                sigma = self.sigma_data[sigma_var]
+                p1 = hess_comp * ((y - f) / sigma**2)[np.newaxis, np.newaxis, ...]
+                # Outer product
+                p2 = np.einsum('i...,j...->ij...', jac_comp, jac_comp)
+                p2 / sigma[np.newaxis, np.newaxis, ...]**2
+                # We sum away everything except the matrices in the axes 0 & 1.
+                axes = tuple(range(2, len(p2.shape)))
+                result += 2 * np.sum(p2 - p1, axis=axes, keepdims=False)
+        return np.atleast_2d(np.squeeze(np.array(result)))
 
 
-class LogLikelihood(GradientObjective):
+class LogLikelihood(HessianObjective):
     """
     Error function to be minimized by a minimizer in order to *maximize*
     the log-likelihood.
@@ -316,16 +344,46 @@ class LogLikelihood(GradientObjective):
             ordered_parameters, **parameters
         )
 
-        ans = []
-        for row in evaluated_jac:
-            for partial_derivative in row:
-                ans.append(
+        result = []
+        for jac_comp in evaluated_jac:
+            for df in jac_comp:
+                result.append(
                     - apply_func(
-                        partial_derivative.flatten() / evaluated_func
+                        df.flatten() / evaluated_func
                     )
                 )
         else:
-            return np.array(ans)
+            return np.atleast_1d(np.squeeze(np.array(result)))
+
+    def eval_hessian(self, ordered_parameters=[], **parameters):
+        """
+        Hessian for log-likelihood is defined as
+        :math:`\\nabla^2_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
+
+        :param parameters: values for the fit parameters.
+        :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
+        """
+        evaluated_func = super(LogLikelihood, self).__call__(
+            ordered_parameters, **parameters
+        )
+        evaluated_jac = super(LogLikelihood, self).eval_jacobian(
+            ordered_parameters, **parameters
+        )
+        evaluated_hess = super(LogLikelihood, self).eval_hessian(
+            ordered_parameters, **parameters
+        )
+
+        result = 0
+        for f, jac_comp, hess_comp in zip(evaluated_func, evaluated_jac, evaluated_hess):
+            # Outer product
+            jac_outer_jac = np.einsum('i...,j...->ij...', jac_comp, jac_comp)
+            dd_logf = - hess_comp / f[np.newaxis, np.newaxis, ...] + \
+                      (1 / f**2)[np.newaxis, np.newaxis, ...] * jac_outer_jac
+            # We sum away everything except the matrices in the axes 0 & 1.
+            axes = tuple(range(2, len(dd_logf.shape)))
+            result += np.sum(dd_logf, axis=axes, keepdims=False)
+        else:
+            return np.atleast_2d(np.squeeze(np.array(result)))
 
 
 class MinimizeModel(HessianObjective):
