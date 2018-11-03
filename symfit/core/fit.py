@@ -1504,12 +1504,14 @@ class Fit(HasCovarianceMatrix):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
 
         if issubclass(minimizer, ConstrainedMinimizer):
-            # Minimizers are agnostic about data, they just know about
-            # objective functions. So we partial away the data at this point.
-            minimizer_options['constraints'] = [
-                MinimizeModel(constraint, data=self.data)
-                for constraint in self.constraints
-            ]
+            # set the constraints as MinimizeModel. The dependent vars of the
+            # constraint are set to None since their value is irrelevant.
+            constraint_objectives = []
+            for constraint in self.constraints:
+                data = self.data  # No copy, share state
+                data.update({var: None for var in constraint.dependent_vars})
+                constraint_objectives.append(MinimizeModel(constraint, data))
+            minimizer_options['constraints'] = constraint_objectives
         return minimizer(self.objective, self.model.params, **minimizer_options)
 
     def _init_constraints(self, constraints):
