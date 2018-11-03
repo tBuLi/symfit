@@ -50,18 +50,21 @@ class BaseMinimizer(object):
         :param objective_type:
         :return:
         """
-        if isinstance(func, BaseObjective):
+        if isinstance(func, BaseObjective) or (hasattr(func, '__self__') and
+                                               isinstance(func.__self__, BaseObjective)):
+            # The latter condition is added to make sure .eval_jacobian methods
+            # are still considered correct, and not doubly wrapped.
             return func
         else:
             # Minimize the provided custom objective instead. This why want to
             # minimize a CallableNumericalModel, thats what they are for.
             from .fit import CallableNumericalModel
-            return objective_type(
-                CallableNumericalModel(func,
-                                       params=self.parameters,
-                                       independent_vars=[]),
-                data={}
-            )
+            model = CallableNumericalModel(func,
+                                           params=self.parameters,
+                                           independent_vars=[])
+            return objective_type(model,
+                                  data={y: None for y in model.dependent_vars})
+
     @abc.abstractmethod
     def execute(self, **options):
         """
