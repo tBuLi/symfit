@@ -545,6 +545,7 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
         """
         self.local_minimizer = kwargs.pop('local_minimizer')
         super(BasinHopping, self).__init__(*args, **kwargs)
+        self._pickle_kwargs['local_minimizer'] = self.local_minimizer
 
         type_error_msg = 'Currently only subclasses of ScipyMinimize are ' \
                          'supported, since `scipy.optimize.basinhopping` uses ' \
