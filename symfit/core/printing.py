@@ -90,3 +90,14 @@ class SymfitNumPyPrinter(NumPyPrinter):
 
     def _print_Variable(self, expr):
         return self._print(expr.name)
+
+    def _print_DiracDelta(self, expr):
+        """
+        Replaces a DiracDelta(x) by np.inf if x == 0, and 0 otherwise. This is
+        wrong, but the only thing we can do by the time we are printing. To
+        prevent mistakes, integrate before printing.
+        """
+        return "{0}({1}, [{1} == 0 , {1} != 0], [{2}, 0])".format(
+                                        self._module_format('numpy.piecewise'),
+                                        self._print(expr.args[0]),
+                                        self._module_format('numpy.inf'))
