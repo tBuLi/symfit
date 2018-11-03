@@ -115,3 +115,9 @@ class Variable(Argument):
     # Variable index to be assigned to generated nameless variables
     _argument_name = 'var'
     __slots__ = ()
+
+    def _numpycode(self, printer):
+        return printer.doprint(self.name)
+
+    _lambdacode = _numpycode
+    _sympystr = _numpycode
