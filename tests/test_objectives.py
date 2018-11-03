@@ -80,7 +80,7 @@ class TestObjectives(unittest.TestCase):
         eval_numerical = chi2_numerical(x=xdata, a=2, b=3)
         jac_numerical = chi2_numerical.eval_jacobian(x=xdata, a=2, b=3)
         hess_numerical = chi2_numerical.eval_hessian(x=xdata, a=2, b=3)
-        print(eval_numerical.shape, jac_numerical.shape, hess_numerical.shape)
+
         # Test model jacobian and hessian shape
         self.assertEqual(model(x=xdata, a=2, b=3)[0].shape, ydata.shape)
         self.assertEqual(model.eval_jacobian(x=xdata, a=2, b=3)[0].shape,
@@ -88,17 +88,19 @@ class TestObjectives(unittest.TestCase):
         self.assertEqual(model.eval_hessian(x=xdata, a=2, b=3)[0].shape,
                          (2, 2, 100))
         # Test exact chi2 shape
-        self.assertEqual(eval_exact[0].shape, tuple())
-        self.assertEqual(jac_exact[0].shape, (2,))
-        self.assertEqual(hess_exact[0].shape, (2, 2))
+        self.assertEqual(eval_exact[0].shape, (1,))
+        self.assertEqual(jac_exact[0].shape, (2, 1))
+        self.assertEqual(hess_exact[0].shape, (2, 2, 1))
 
         # Test if these two models have the same call, jacobian, and hessian
         self.assertAlmostEqual(eval_exact[0], eval_numerical)
         self.assertIsInstance(eval_numerical, float)
-        self.assertIsInstance(eval_exact[0], float)
-        np.testing.assert_almost_equal(jac_exact[0], jac_numerical)
+        self.assertIsInstance(eval_exact[0][0], float)
+        np.testing.assert_almost_equal(np.squeeze(jac_exact[0], axis=-1),
+                                       jac_numerical)
         self.assertIsInstance(jac_numerical, np.ndarray)
-        np.testing.assert_almost_equal(hess_exact[0], hess_numerical)
+        np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
+                                       hess_numerical)
         self.assertIsInstance(hess_numerical, np.ndarray)
 
     def test_LogLikelihood(self):
@@ -119,8 +121,8 @@ class TestObjectives(unittest.TestCase):
         # designed to find the maximum when used with a *minimizer*, so it has
         # opposite sign. Also test MinimizeModel at the same time.
         logL_exact = Model({y: - Sum(log(pdf), i)})
-        logL_numerical = LogLikelihood(Model({y: pdf}), {x:xdata})
-        logL_minmodel = MinimizeModel(logL_exact, data={x:xdata})
+        logL_numerical = LogLikelihood(Model({y: pdf}), {x: xdata, y: None})
+        logL_minmodel = MinimizeModel(logL_exact, data={x: xdata, y: None})
 
         # Test model jacobian and hessian shape
         eval_exact = logL_exact(x=xdata, a=2, b=3)
@@ -129,13 +131,15 @@ class TestObjectives(unittest.TestCase):
         eval_minimizemodel = logL_minmodel(a=2, b=3)
         jac_minimizemodel = logL_minmodel.eval_jacobian(a=2, b=3)
         hess_minimizemodel = logL_minmodel.eval_hessian(a=2, b=3)
-        eval_numerical = logL_minmodel(a=2, b=3)
-        jac_numerical = logL_minmodel.eval_jacobian(a=2, b=3)
-        hess_numerical = logL_minmodel.eval_hessian(a=2, b=3)
+        eval_numerical = logL_numerical(a=2, b=3)
+        jac_numerical = logL_numerical.eval_jacobian(a=2, b=3)
+        hess_numerical = logL_numerical.eval_hessian(a=2, b=3)
 
-        self.assertEqual(eval_exact[0].shape, tuple())
-        self.assertEqual(jac_exact[0].shape, (2,))
-        self.assertEqual(hess_exact[0].shape, (2, 2))
+        # TODO: These shapes should not have the ones! This is due to the current
+        # convention that scalars should be returned as a 1d array by Model's.
+        self.assertEqual(eval_exact[0].shape, (1,))
+        self.assertEqual(jac_exact[0].shape, (2, 1))
+        self.assertEqual(hess_exact[0].shape, (2, 2, 1))
         # Test if identical to MinimizeModel
         np.testing.assert_almost_equal(eval_exact[0], eval_minimizemodel)
         np.testing.assert_almost_equal(jac_exact[0], jac_minimizemodel)
@@ -146,13 +150,12 @@ class TestObjectives(unittest.TestCase):
         # to slice that away.
         self.assertAlmostEqual(eval_exact.y, eval_numerical)
         self.assertIsInstance(eval_numerical, float)
-        self.assertIsInstance(eval_exact.y, float)
-        np.testing.assert_almost_equal(
-            jac_exact[0],
-            jac_numerical
-        )
+        self.assertIsInstance(eval_exact.y[0], float)
+        np.testing.assert_almost_equal(np.squeeze(jac_exact[0], axis=-1),
+                                       jac_numerical)
         self.assertIsInstance(jac_numerical, np.ndarray)
-        np.testing.assert_almost_equal(hess_exact[0], hess_numerical)
+        np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
+                                       hess_numerical)
         self.assertIsInstance(hess_numerical, np.ndarray)
 
 
