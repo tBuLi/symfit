@@ -147,6 +147,18 @@ class FiniteDifferenceTests(unittest.TestCase):
                                     a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
         approx = model.finite_difference(x_1=xdata1, x_2=xdata2,
                                          a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
+        # First axis is the number of components
+        self.assertEqual(len(exact), 2)
+        self.assertEqual(len(approx), 2)
+
+        # Second axis is the number of parameters, same for all components
+        for exact_comp, approx_comp, xdata in zip(exact, approx, [xdata1, xdata2]):
+            self.assertEqual(len(exact_comp), len(model.params))
+            self.assertEqual(len(approx_comp), len(model.params))
+            for exact_elem, approx_elem in zip(exact_comp, approx_comp):
+                self.assertEqual(exact_elem.shape, xdata.shape)
+                self.assertEqual(approx_elem.shape, xdata.shape)
+
         self._assert_equal(exact, approx, rtol=1e-4)
 
         model = sf.Model({
