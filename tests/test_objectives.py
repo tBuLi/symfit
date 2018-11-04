@@ -65,7 +65,7 @@ class TestObjectives(unittest.TestCase):
 
         model = Model({y: a * x**2 + b * x})
         xdata = np.linspace(0, 10, 100)
-        ydata = model(x=xdata, a=5, b=2).y
+        ydata = model(x=xdata, a=5, b=2).y + np.random.normal(0, 5, xdata.shape)
 
         # Construct a LeastSquares objective and its analytical equivalent
         chi2_numerical = LeastSquares(model, data={
@@ -103,6 +103,17 @@ class TestObjectives(unittest.TestCase):
                                        hess_numerical)
         self.assertIsInstance(hess_numerical, np.ndarray)
 
+        fit = Fit(chi2_exact, x=xdata, y=ydata, objective=MinimizeModel)
+        fit_exact_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata)
+        fit_num_result = fit.execute()
+        self.assertEqual(fit_exact_result.value(a), fit_num_result.value(a))
+        self.assertEqual(fit_exact_result.value(b), fit_num_result.value(b))
+        # TODO: uncomment the next line. Currently doesn't work because the
+        # analytical model does not have a cov matrix for some reason.
+        # self.assertEqual(fit_exact_result, fit_num_result)
+
+
     def test_LogLikelihood(self):
         """
         Tests if the LeastSquares objective gives the right shapes of output by
@@ -120,8 +131,9 @@ class TestObjectives(unittest.TestCase):
         # We use minus loglikelihood for the model, because the objective was
         # designed to find the maximum when used with a *minimizer*, so it has
         # opposite sign. Also test MinimizeModel at the same time.
+        logL_model = Model({y: pdf})
         logL_exact = Model({y: - Sum(log(pdf), i)})
-        logL_numerical = LogLikelihood(Model({y: pdf}), {x: xdata, y: None})
+        logL_numerical = LogLikelihood(logL_model, {x: xdata, y: None})
         logL_minmodel = MinimizeModel(logL_exact, data={x: xdata, y: None})
 
         # Test model jacobian and hessian shape
@@ -157,6 +169,16 @@ class TestObjectives(unittest.TestCase):
         np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
                                        hess_numerical)
         self.assertIsInstance(hess_numerical, np.ndarray)
+
+        fit = Fit(logL_exact, x=xdata, y=None, objective=MinimizeModel)
+        fit_exact_result = fit.execute()
+        fit = Fit(logL_model, x=xdata, objective=LogLikelihood)
+        fit_num_result = fit.execute()
+        self.assertEqual(fit_exact_result.value(a), fit_num_result.value(a))
+        self.assertEqual(fit_exact_result.value(b), fit_num_result.value(b))
+        # TODO: uncomment the next line. Currently doesn't work because the
+        # analytical model does not have a cov matrix for some reason.
+        # self.assertEqual(fit_exact_result, fit_num_result)
 
 
 if __name__ == '__main__':
