@@ -19,7 +19,10 @@ from symfit.distributions import Exp
 
 # Overwrite the way Sum is printed by numpy just while testing. Is not
 # general enough to be moved to SymfitNumPyPrinter, but has to be used
-# in this test.
+# in this test. This way of sommung complety ignores the summation indices and
+# the dimensions, and instead just flattens everything to a scalar. Only used
+# in this test to build the analytical equivalents of our LeastSquares
+# and LogLikelihood
 def _print_Sum(self, expr):
     return "%s(%s)" % (self._module_format('numpy.sum'),
                        self._print(expr.function))
