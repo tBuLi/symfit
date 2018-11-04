@@ -72,27 +72,28 @@ class BaseObjective(object):
         result = self.model(**key2str(parameters))
         return self._shape_dependent_data(result)
 
-    def _shape_dependent_data(self, model_output, level=0):
+    def _shape_dependent_data(self, model_output, param_level=0):
         """
         In rare cases, the dependent data and the output of the model do not
         have the same shape. Think for example about :math:`y_i = a`. This
         function makes sure both sides of the equation have the same shape.
 
         :param model_output: Output of a call to model
+        :param param_level: indicates how many parameter dimensions should be
+            added to the shape. 0 for __call__, 1 for jac, 2 for hess.
         :return: ``model_output`` reshaped to ``dependent_data``'s shape, if
             possible.
         """
         shaped_result = []
+        n_params = len(self.model.params)
         for dep_data, component in zip(self.dependent_data.values(), model_output):
             if dep_data is not None:
                 if dep_data.shape == component.shape:
                     shaped_result.append(component)
                 else:
-                    for _ in range(level):
-                        dep_data = np.expand_dims(dep_data, 0)
-                    shaped_result.append(
-                        np.broadcast_arrays(dep_data, component)[1]
-                    )
+                    # Let numpy deal with all the broadcasting
+                    shape = param_level * [n_params] + list(dep_data.shape)
+                    shaped_result.append(np.broadcast_to(component, shape))
             else:
                 shaped_result.append(component)
         return shaped_result
@@ -140,7 +141,7 @@ class GradientObjective(BaseObjective):
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
         result = self.model.eval_jacobian(**key2str(parameters))
-        return self._shape_dependent_data(result, level=1)
+        return self._shape_dependent_data(result, param_level=1)
 
 
 @add_metaclass(abc.ABCMeta)
@@ -161,7 +162,7 @@ class HessianObjective(GradientObjective):
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self.invariant_kwargs)
         result = self.model.eval_hessian(**key2str(parameters))
-        return self._shape_dependent_data(result, level=2)
+        return self._shape_dependent_data(result, param_level=2)
 
 
 class VectorLeastSquares(GradientObjective):
