@@ -986,13 +986,13 @@ class HasCovarianceMatrix(TakesData):
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
-        if isinstance(self.objective, LogLikelihood):
-            # Loglikelihood is a special case that needs to be considered
-            # separately, see #138
-            hess = self.objective.eval_hessian(**key2str(best_fit_params))
-            cov_mat = np.linalg.inv(hess)
-            return cov_mat
         try:
+            if isinstance(self.objective, LogLikelihood):
+                # Loglikelihood is a special case that needs to be considered
+                # separately, see #138
+                hess = self.objective.eval_hessian(**key2str(best_fit_params))
+                cov_mat = np.linalg.inv(hess)
+                return cov_mat
             if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
                 # Shapes of all sigma data identical
                 return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
@@ -1068,6 +1068,8 @@ class HasCovarianceMatrix(TakesData):
         mask = [data is not None for data in self.dependent_data.values()]
         jac = jac[mask]
         W = W[mask]
+        if jac.shape[0] == 0:
+            return None
 
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
