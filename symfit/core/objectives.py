@@ -91,6 +91,10 @@ class BaseObjective(object):
                 if dep_data.shape == component.shape:
                     shaped_result.append(component)
                 else:
+                    # Add extra dimensions to the component if needed.
+                    dim_diff = len(dep_data.shape) - len(component.shape[param_level:])
+                    for _ in range(dim_diff):
+                        component = np.expand_dims(component, -1)
                     # Let numpy deal with all the broadcasting
                     shape = param_level * [n_params] + list(dep_data.shape)
                     shaped_result.append(np.broadcast_to(component, shape))
@@ -303,7 +307,7 @@ class LeastSquares(HessianObjective):
                 p1 = hess_comp * ((y - f) / sigma**2)[np.newaxis, np.newaxis, ...]
                 # Outer product
                 p2 = np.einsum('i...,j...->ij...', jac_comp, jac_comp)
-                p2 / sigma[np.newaxis, np.newaxis, ...]**2
+                p2 /= sigma[np.newaxis, np.newaxis, ...]**2
                 # We sum away everything except the matrices in the axes 0 & 1.
                 axes = tuple(range(2, len(p2.shape)))
                 result += 2 * np.sum(p2 - p1, axis=axes, keepdims=False)
