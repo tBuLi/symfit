@@ -122,7 +122,7 @@ class TestMinimize(unittest.TestCase):
         Test the picklability of the different minimizers.
         """
         # Create test data
-        xdata = np.linspace(0, 100, 2)  # From 0 to 100 in 100 steps
+        xdata = np.linspace(0, 100, 100)  # From 0 to 100 in 100 steps
         a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
         b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
         ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
@@ -130,41 +130,26 @@ class TestMinimize(unittest.TestCase):
         # Normal symbolic fit
         a = Parameter('a', value=0, min=0.0, max=1000)
         b = Parameter('b', value=0, min=0.0, max=1000)
+        x, y = variables('x, y')
 
         # Make a set of all ScipyMinimizers, and add a chained minimizer.
-        scipy_minimizers = subclasses(ScipyMinimize)
-        chained_minimizer = partial(ChainedMinimizer,
-                                    minimizers=[DifferentialEvolution, BFGS])
-        scipy_minimizers.add(chained_minimizer)
+        scipy_minimizers = list(subclasses(ScipyMinimize))
+        chained_minimizer = (DifferentialEvolution, BFGS)
+        scipy_minimizers.append(chained_minimizer)
         constrained_minimizers = subclasses(ScipyConstrainedMinimize)
         # Test for all of them if they can be pickled.
         for minimizer in scipy_minimizers:
-            if minimizer is MINPACK:
-                fit = minimizer(
-                    partial(chi_squared, x=xdata, y=ydata, sum=False),
-                    [a, b]
-                )
-            elif minimizer in constrained_minimizers:
-                # For constraint minimizers we also add a constraint, just to be
-                # sure constraints are treated well.
-                dummy_model = CallableNumericalModel({}, independent_vars=[], params=[a, b])
-                fit = minimizer(
-                    partial(chi_squared, x=xdata, y=ydata),
-                    [a, b],
-                    constraints=[Constraint(Ge(b, a), model=dummy_model)]
-                )
-            elif isinstance(minimizer, partial) and issubclass(minimizer.func, ChainedMinimizer):
-                init_minimizers = []
-                for sub_minimizer in minimizer.keywords['minimizers']:
-                    init_minimizers.append(sub_minimizer(
-                        partial(chi_squared, x=xdata, y=ydata),
-                        [a, b]
-                    ))
-                minimizer.keywords['minimizers'] = init_minimizers
-                fit = minimizer(partial(chi_squared, x=xdata, y=ydata), [a, b])
+            if minimizer in constrained_minimizers:
+                constraints = [Ge(b, a)]
             else:
-                fit = minimizer(partial(chi_squared, x=xdata, y=ydata), [a, b])
-
+                constraints = []
+            model = CallableNumericalModel(
+                {y: f},
+                independent_vars=[x], params=[a, b]
+            )
+            fit = Fit(model, x=xdata, y=ydata, minimizer=minimizer,
+                      constraints=constraints)
+            fit = fit.minimizer  # Just check if the minimizer pickles
             dump = pickle.dumps(fit)
             pickled_fit = pickle.loads(dump)
             problematic_attr = [
@@ -186,18 +171,18 @@ class TestMinimize(unittest.TestCase):
                             for val1, val2 in zip(value, new_value):
                                 self.assertTrue(isinstance(val1, val2.__class__))
                                 if key == 'constraints':
-                                    self.assertEqual(val1.func.constraint_type,
-                                                     val2.func.constraint_type)
+                                    self.assertEqual(val1.model.constraint_type,
+                                                     val2.model.constraint_type)
                                     self.assertEqual(
-                                        list(val1.func.model_dict.values())[0],
-                                        list(val2.func.model_dict.values())[0]
+                                        list(val1.model.model_dict.values())[0],
+                                        list(val2.model.model_dict.values())[0]
                                     )
-                                    self.assertEqual(val1.func.independent_vars,
-                                                     val2.func.independent_vars)
-                                    self.assertEqual(val1.func.params,
-                                                     val2.func.params)
-                                    self.assertEqual(val1.func.__signature__,
-                                                     val2.func.__signature__)
+                                    self.assertEqual(val1.model.independent_vars,
+                                                     val2.model.independent_vars)
+                                    self.assertEqual(val1.model.params,
+                                                     val2.model.params)
+                                    self.assertEqual(val1.model.__signature__,
+                                                     val2.model.__signature__)
                                 elif key == 'wrapped_constraints':
                                     self.assertEqual(val1['type'],
                                                      val2['type'])
@@ -252,6 +237,28 @@ class TestMinimize(unittest.TestCase):
             results = pool.map(worker, gen_fit_objs(x, y, a_values, minimizer))
             all_results[minimizer] = [res.params['a'] for res in results]
 
+    def test_minimizer_constraint_compatibility(self):
+        """
+        Test if #156 has been solved, and test all the other constraint styles.
+        """
+        x, y, z = variables('x, y, z')
+        a, b, c = parameters('a, b, c')
+        b.fixed = True
+
+        model = Model({z: a * x**2 - b * y**2 + c})
+        # Equivalent ways of defining the same constraint
+        constraints = [
+            Eq(a, c), MinimizeModel(Constraint(Eq(a, c), model=model), data={}),
+            Constraint(Eq(a, c), model=model)
+        ]
+        fit = SLSQP(MinimizeModel(model, data={}), parameters=[a, b, c],
+                    constraints=constraints)
+        # No scipy style dicts allowed.
+        with self.assertRaises(TypeError):
+            fit = SLSQP(MinimizeModel(model, data={}),
+                        parameters=[a, b, c],
+                        constraints=[{'type': 'eq', 'fun': lambda a, b, c: a - c}]
+            )
 
 if __name__ == '__main__':
     try:

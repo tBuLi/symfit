@@ -9,6 +9,7 @@ import numpy as np
 from .support import key2str, keywordonly, partial
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
+from .objectives import BaseObjective, MinimizeModel
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -31,10 +32,38 @@ class BaseMinimizer(object):
         """
         self.parameters = parameters
         self._fixed_params = [p for p in parameters if p.fixed]
-        self.objective = partial(objective, **{p.name: p.value for p in self._fixed_params})
+        self.objective = self._baseobjective_from_callable(objective)
+
         # Mapping which we use to track the original, to be used upon pickling
         self._pickle_kwargs = {'parameters': parameters, 'objective': objective}
         self.params = [p for p in parameters if not p.fixed]
+
+    def _baseobjective_from_callable(self, func, objective_type=MinimizeModel):
+        """
+        symfit works with BaseObjective subclasses internally. If a custom
+        objective is provided, we wrap it into a BaseObjective, MinimizeModel by
+        default.
+
+        :param func: Callable. If already an instance of BaseObjective, it is
+            returned immidiatelly. If not, it is turned into a BaseObjective of
+            type ``objective_type``.
+        :param objective_type:
+        :return:
+        """
+        if isinstance(func, BaseObjective) or (hasattr(func, '__self__') and
+                                               isinstance(func.__self__, BaseObjective)):
+            # The latter condition is added to make sure .eval_jacobian methods
+            # are still considered correct, and not doubly wrapped.
+            return func
+        else:
+            # Minimize the provided custom objective instead. This why want to
+            # minimize a CallableNumericalModel, thats what they are for.
+            from .fit import CallableNumericalModel
+            model = CallableNumericalModel(func,
+                                           params=self.parameters,
+                                           independent_vars=[])
+            return objective_type(model,
+                                  data={y: None for y in model.dependent_vars})
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -86,10 +115,7 @@ class ConstrainedMinimizer(BaseMinimizer):
         self._pickle_kwargs['constraints'] = constraints
         if constraints is None:
             constraints = []
-        self.constraints = [
-            partial(constraint, **{p.name: p.value for p in self._fixed_params})
-            for constraint in constraints
-        ]
+        self.constraints = constraints
 
 class GradientMinimizer(BaseMinimizer):
     """
@@ -102,8 +128,8 @@ class GradientMinimizer(BaseMinimizer):
         self._pickle_kwargs['jacobian'] = self.jacobian
 
         if self.jacobian is not None:
-            jac_with_fixed_params = partial(self.jacobian, **{p.name: p.value for p in self._fixed_params})
-            self.wrapped_jacobian = self.resize_jac(jac_with_fixed_params)
+            self.jacobian = self._baseobjective_from_callable(self.jacobian)
+            self.wrapped_jacobian = self.resize_jac(self.jacobian)
         else:
             self.jacobian = None
             self.wrapped_jacobian = None
@@ -112,7 +138,7 @@ class GradientMinimizer(BaseMinimizer):
         """
         Removes values with identical indices to fixed parameters from the
         output of func. func has to return the jacobian of a scalar function.
-        
+
         :param func: Jacobian function to be wrapped. Is assumed to be the
             jacobian of a scalar function.
         :return: Jacobian corresponding to non-fixed parameters only.
@@ -253,25 +279,6 @@ class ScipyMinimize(object):
         self.jacobian = None
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_objective = self.list2kwargs(self.objective)
-
-    def list2kwargs(self, func):
-        """
-        Given an objective function `func`, make sure it is always called via
-        keyword arguments with the relevant parameter names.
-
-        :param func: Function to be wrapped to keyword only calls.
-        :return: wrapped function
-        """
-        if func is None:
-            return None
-        # Because scipy calls the objective with a list of parameters as
-        # guesses, we use 'values' instead of '*values'.
-        @wraps(func)
-        def wrapped_func(values):
-            parameters = key2str(dict(zip(self.params, values)))
-            return np.array(func(**parameters))
-        return wrapped_func
 
     @keywordonly(tol=1e-9)
     def execute(self, bounds=None, jacobian=None, constraints=None, **minimize_options):
@@ -287,7 +294,7 @@ class ScipyMinimize(object):
             usually be filled by a specific subclass.
         """
         ans = minimize(
-            self.wrapped_objective,
+            self.objective,
             self.initial_guesses,
             method=self.method_name(),
             bounds=bounds,
@@ -353,7 +360,6 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
 
     def execute(self, **minimize_options):
         return super(ScipyGradientMinimize, self).execute(jacobian=self.wrapped_jacobian, **minimize_options)
@@ -373,6 +379,10 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
         """
         Returns all constraints in a scipy compatible format.
 
+        :param constraints: List of either MinimizeModel instances (this is what
+          is provided by :class:`~symfit.core.fit.Fit`),
+          :class:`~symfit.core.fit.Constraint`, or
+          :class:`sympy.core.relational.Relational`.
         :return: dict of scipy compatible statements.
         """
         cons = []
@@ -380,15 +390,33 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
             sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
-        for key, partialed_constraint in enumerate(constraints):
-            constraint_type = partialed_constraint.func.constraint_type
+        for constraint in constraints:
+            if isinstance(constraint, MinimizeModel):
+                # Typically the case when called by `Fit
+                constraint_type = constraint.model.constraint_type
+            elif hasattr(constraint, 'constraint_type'):
+                # Constraint object, not provided by `Fit`. Do the best we can.
+                if self.parameters != constraint.params:
+                    raise AssertionError('The constraint should accept the same'
+                                         ' parameters as used for the fit.')
+                constraint_type = constraint.constraint_type
+                constraint = MinimizeModel(constraint, data={})
+            elif isinstance(constraint, sympy.Rel):
+                from .fit import Constraint, CallableNumericalModel
+                # Todo: remove this CallableNumericalModel work around when
+                # either Constraint-obj are removed or a params arg is added.
+                constraint = Constraint(
+                    constraint,
+                    CallableNumericalModel({}, params=self.parameters,
+                                           independent_vars=[])
+                )
+                constraint_type = constraint.constraint_type
+                constraint = MinimizeModel(constraint, data={})
+            else:
+                raise TypeError('Unknown type for a constraint.')
             cons.append({
                 'type': types[constraint_type],
-                # Takes an nd.array of params and a partialed_constraint, and
-                # evaluates the constraint with these parameters.
-                # Wrap `c` so it is always called via keywords.
-                'fun': lambda p, c: self.list2kwargs(c)(list(p))[0],
-                'args': [partialed_constraint]
+                'fun': constraint,
             })
 
         cons = tuple(cons)
@@ -407,7 +435,7 @@ class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
     @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
                  recombination=0.95, polish=False, init='latinhypercube')
     def execute(self, **de_options):
-        ans = differential_evolution(self.list2kwargs(self.objective),
+        ans = differential_evolution(self.objective,
                                      self.bounds,
                                      **de_options)
         return self._pack_output(ans)
@@ -417,13 +445,6 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s SLSQP algorithm.
     """
-    def __init__(self, *args, **kwargs):
-        super(SLSQP, self).__init__(*args, **kwargs)
-        # We have to break DRY because you cannot inherit from both
-        # ScipyConstrainedMinimize and ScipyGradientMinimize. So SLQSP is a
-        # special case. This is the same code as in ScipyGradientMinimize.
-        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
-
     def execute(self, **minimize_options):
         return super(SLSQP, self).execute(
             bounds=self.bounds,
@@ -439,18 +460,10 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
         """
         # Take the normal scipy compatible constraints, and add jacobians.
         scipy_constr = super(SLSQP, self).scipy_constraints(constraints)
-        for partialed_constraint, scipy_constraint in zip(constraints, scipy_constr):
-            partialed_kwargs = partialed_constraint.keywords
-            # In the case of the jacobian, first eval_jacobian of the
-            # constraint has to be partialed since that has not been done
-            # yet. Then it is made callable by keywords only, and finally
-            # the shape of the jacobian is made to match the number of
-            # unfixed parameters in the call, len(p).
-            scipy_constraint['jac'] = lambda p, c: self.resize_jac(
-                    self.list2kwargs(
-                        partial(c.func.eval_jacobian, **partialed_kwargs)
-                    )
-                )(list(p))
+        for scipy_constraint in scipy_constr:
+            scipy_constraint['jac'] = self.resize_jac(
+                scipy_constraint['fun'].eval_jacobian
+            )
         return scipy_constr
 
 
@@ -532,6 +545,7 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
         """
         self.local_minimizer = kwargs.pop('local_minimizer')
         super(BasinHopping, self).__init__(*args, **kwargs)
+        self._pickle_kwargs['local_minimizer'] = self.local_minimizer
 
         type_error_msg = 'Currently only subclasses of ScipyMinimize are ' \
                          'supported, since `scipy.optimize.basinhopping` uses ' \
@@ -578,7 +592,7 @@ class BasinHopping(ScipyMinimize, BaseMinimizer):
             minimize_options['minimizer_kwargs']['bounds'] = self.local_minimizer.bounds
 
         ans = basinhopping(
-            self.wrapped_objective,
+            self.objective,
             self.initial_guesses,
             **minimize_options
         )
@@ -599,7 +613,7 @@ class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
         :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
         popt, pcov, infodic, mesg, ier = leastsqbound(
-            self.wrapped_objective,
+            self.objective,
             # Dfun=self.jacobian,
             x0=self.initial_guesses,
             bounds=self.bounds,
