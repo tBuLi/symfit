@@ -27,20 +27,10 @@ CodePrinter._number_symbols = DontDeleteMe(set())
 #########################################################
 
 class SymfitNumPyPrinter(NumPyPrinter):
-    def _print_OnesLike(self, expr):
-        return "%s(%s)" % (self._module_format('numpy.ones_like'),
-                           self._print(expr.args[0]))
-
-    def _print_ZerosLike(self, expr):
-        return "%s(%s)" % (self._module_format('numpy.zeros_like'),
-                           self._print(expr.args[0]))
-
-    def _print_VarOnesLikeVar(self, expr):
-        return self._print(expr.args[0])
-
-    def _print_Variable(self, expr):
-        return self._print(expr.name)
-
+    """
+    Our own NumpyPrinter subclass, in case we need to print certain numpy
+    features which are not yet supported in SymPy.
+    """
     def _print_DiracDelta(self, expr):
         """
         Replaces a DiracDelta(x) by np.inf if x == 0, and 0 otherwise. This is
