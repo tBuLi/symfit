@@ -299,7 +299,7 @@ class BaseCallableModel(BaseModel):
         :return: lambda functions of each of the components in model_dict, to be
             used in numerical calculation.
         """
-        return [expr(*args, **kwargs) for expr in self.numerical_components]
+        return [np.atleast_1d(expr(*args, **kwargs)) for expr in self.numerical_components]
 
     @abstractmethod
     def numerical_components(self):
