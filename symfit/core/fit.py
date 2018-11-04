@@ -299,7 +299,7 @@ class BaseCallableModel(BaseModel):
         :return: lambda functions of each of the components in model_dict, to be
             used in numerical calculation.
         """
-        return [expr(*args, **kwargs) for expr in self.numerical_components]
+        return [np.atleast_1d(expr(*args, **kwargs)) for expr in self.numerical_components]
 
     @abstractmethod
     def numerical_components(self):
@@ -482,12 +482,23 @@ class Model(CallableModel):
     @property
     def jacobian(self):
         """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all
-            the partial derivatives. Partial derivatives are of the components
-            of the function with respect to the Parameter's, not the independent
-            Variable's.
+        :return: Jacobian filled with the symbolic expressions for all the
+            partial derivatives. Partial derivatives are of the components of
+            the function with respect to the Parameter's, not the independent
+            Variable's. The return shape is a list over the models components,
+            filled with tha symbolical jacobian for that component, as a list.
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
+
+    @property
+    def hessian(self):
+        """
+        :return: Hessian filled with the symbolic expressions for all the
+            second order partial derivatives. Partial derivatives are taken with
+            respect to the Parameter's, not the independent Variable's.
+        """
+        return [[[sympy.diff(partial_dv, param) for param in self.params]
+                 for partial_dv in comp] for comp in self.jacobian]
 
     @property
     def chi_squared(self):
@@ -547,6 +558,17 @@ class Model(CallableModel):
         return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
 
     @cached_property
+    def numerical_hessian(self):
+        """
+        :return: lambda functions of the Hessian matrix of the function, which
+        can be used in numerical optimization.
+        """
+        return [[[sympy_to_py(second_order_pdv, self.independent_vars, self.params)
+                    for second_order_pdv in row]
+                for row in comp]
+            for comp in self.hessian]
+
+    @cached_property
     def numerical_chi_squared(self):
         """
         :return: lambda function of the ``.chi_squared`` method, to be used in
@@ -582,45 +604,32 @@ class Model(CallableModel):
         :return: Jacobian evaluated at the specified point.
         """
         # Evaluate the jacobian at specified points
-        jac = [
-            [partial_dv(*args, **kwargs) for partial_dv in row ] for row in self.numerical_jacobian
+        jac = [[np.atleast_1d(partial_dv(*args, **kwargs))
+                for partial_dv in row]
+            for row in self.numerical_jacobian
         ]
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
         for idx, comp in enumerate(jac):
-            # Find out how many datapoints this component has. We need to do
-            # this with a try/except, since partial_derivative can be a number or
-            # a sequence. We ultimately want to make sure every evey component
-            # has this size, so component of the jacobian can be contracted properly.
-            data_len = 1
-            for partial_derivative in comp:
-                if hasattr(partial_derivative, 'shape') and partial_derivative.shape:
-                    # Last line is to descriminate against numpy.float of shape (,)
-                    shape = partial_derivative.shape
-                else:
-                    try:
-                        shape = len(partial_derivative)
-                    except TypeError: # Not iterable, so assume number
-                        shape = 1
-                if isinstance(shape, tuple):
-                    if isinstance(data_len, tuple):
-                        if len(shape) > len(data_len):
-                            data_len = shape
-
-                    else:
-                        data_len = shape
-                elif isinstance(data_len, tuple):
-                    # data_len is a tuple, but shape isn't. Prefer the tuple.
-                    pass
-                else:
-                    data_len = max(shape, data_len)
-            # And make everything in this component the same size, since some are
-            # numbers.
-            for jdx, partial_derivative in enumerate(comp):
-                # This is a no-op for elements of size `longest`.
-                jac[idx][jdx] = np.ones(data_len) * partial_derivative
-            # And lastly, turn jac into a list of 2D numpy arrays of shape
-            # (Nparams, Ndata)
-            jac[idx] = np.array(jac[idx], dtype=float)
+            jac[idx] = np.stack(np.broadcast_arrays(*comp))
         return jac
+
+    def eval_hessian(self, *args, **kwargs):
+        """
+        :return: Hessian evaluated at the specified point.
+        """
+        hess = [[[np.atleast_1d(second_order_pdv(*args, **kwargs))
+                    for second_order_pdv in row]
+                for row in comp]
+            for comp in self.numerical_hessian
+        ]
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
+        for idx, comp in enumerate(hess):
+            hess[idx] = np.stack(np.broadcast_arrays(*comp))
+        return hess
 
 
 class TaylorModel(Model):
@@ -977,14 +986,13 @@ class HasCovarianceMatrix(TakesData):
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
-        if isinstance(self.objective, LogLikelihood):
-            # Loglikelihood is a special case that needs to be considered
-            # separately, see #138
-            jac = self.objective.eval_jacobian(apply_func=lambda x: x, **key2str(best_fit_params))
-            cov_matrix_inv = np.tensordot(jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-            cov_mat = np.linalg.inv(cov_matrix_inv)
-            return cov_mat
         try:
+            if isinstance(self.objective, LogLikelihood):
+                # Loglikelihood is a special case that needs to be considered
+                # separately, see #138
+                hess = self.objective.eval_hessian(**key2str(best_fit_params))
+                cov_mat = np.linalg.inv(hess)
+                return cov_mat
             if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
                 # Shapes of all sigma data identical
                 return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
@@ -1060,6 +1068,8 @@ class HasCovarianceMatrix(TakesData):
         mask = [data is not None for data in self.dependent_data.values()]
         jac = jac[mask]
         W = W[mask]
+        if jac.shape[0] == 0:
+            return None
 
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
@@ -1491,12 +1501,14 @@ class Fit(HasCovarianceMatrix):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
 
         if issubclass(minimizer, ConstrainedMinimizer):
-            # Minimizers are agnostic about data, they just know about
-            # objective functions. So we partial away the data at this point.
-            minimizer_options['constraints'] = [
-                MinimizeModel(constraint, data=self.data)
-                for constraint in self.constraints
-            ]
+            # set the constraints as MinimizeModel. The dependent vars of the
+            # constraint are set to None since their value is irrelevant.
+            constraint_objectives = []
+            for constraint in self.constraints:
+                data = self.data  # No copy, share state
+                data.update({var: None for var in constraint.dependent_vars})
+                constraint_objectives.append(MinimizeModel(constraint, data))
+            minimizer_options['constraints'] = constraint_objectives
         return minimizer(self.objective, self.model.params, **minimizer_options)
 
     def _init_constraints(self, constraints):

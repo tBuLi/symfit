@@ -81,10 +81,16 @@ class TestConstrained(unittest.TestCase):
         b_2.value = 1
         y0.value = 10
 
+        eval_jac = model.eval_jacobian(x_1=xdata1, x_2=xdata2, a_1=101.3,
+                                       b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
+        self.assertEqual(len(eval_jac), 2)
+        for comp in eval_jac:
+            self.assertEqual(len(comp), len(model.params))
+
         sigma_y = np.concatenate((np.ones(20), [2., 4., 5, 7, 3]))
 
         fit = Fit(model, x_1=xdata[0], x_2=xdata[1],
-                                               y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
+                  y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y)
         fit_result = fit.execute()
 
         # fit_curves = model(x_1=xdata[0], x_2=xdata[1], **fit_result.params)
@@ -618,8 +624,8 @@ class TestConstrained(unittest.TestCase):
             # Test the shapes
             cons_val = constraint['fun'](fit.minimizer.initial_guesses)
             cons_jac = constraint['jac'](fit.minimizer.initial_guesses)
-            with self.assertRaises(TypeError):
-                len(cons_val)  # scalars don't have lengths
+            self.assertEqual(cons_val.shape, (1,))
+            self.assertIsInstance(cons_val[0], float)
             self.assertEqual(obj_jac.shape, cons_jac.shape)
             self.assertEqual(obj_jac.shape, (2,))
 
