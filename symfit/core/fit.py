@@ -604,36 +604,31 @@ class Model(CallableModel):
         :return: Jacobian evaluated at the specified point.
         """
         # Evaluate the jacobian at specified points
-        jac = [
-            [partial_dv(*args, **kwargs) for partial_dv in row ] for row in self.numerical_jacobian
+        jac = [[np.atleast_1d(partial_dv(*args, **kwargs))
+                for partial_dv in row]
+            for row in self.numerical_jacobian
         ]
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
         for idx, comp in enumerate(jac):
-            shapes = [np.atleast_1d(diff).shape for diff in comp]
-            # Funny key so that higher dimensional data > lower dimensional
-            # data
-            largest = max(shapes, key=lambda s: [len(s)]+list(s))
-            ones = np.ones(largest, dtype=float)
-            data = np.array([ones * diff for diff in comp])
-            jac[idx] = data.reshape([len(comp)] + list(largest))
+            jac[idx] = np.stack(np.broadcast_arrays(*comp))
         return jac
 
     def eval_hessian(self, *args, **kwargs):
         """
         :return: Hessian evaluated at the specified point.
         """
-        hess = [[[second_order_pdv(*args, **kwargs)
+        hess = [[[np.atleast_1d(second_order_pdv(*args, **kwargs))
                     for second_order_pdv in row]
                 for row in comp]
-            for comp in self.numerical_hessian]
-
+            for comp in self.numerical_hessian
+        ]
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
         for idx, comp in enumerate(hess):
-            shapes = [np.atleast_1d(d2).shape for d1 in comp for d2 in d1]
-            # Funny key so that higher dimensional data > lower dimensional
-            # data
-            largest = max(shapes, key=lambda s: [len(s)]+list(s))
-            ones = np.ones(largest, dtype=float)
-            data = np.array([ones * d2 for d1 in comp for d2 in d1])
-            hess[idx] = data.reshape([len(comp), len(comp)] + list(largest))
+            hess[idx] = np.stack(np.broadcast_arrays(*comp))
         return hess
 
 
