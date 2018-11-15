@@ -127,7 +127,6 @@ class GradientMinimizer(BaseMinimizer):
         self.jacobian = kwargs.pop('jacobian')
         super(GradientMinimizer, self).__init__(*args, **kwargs)
         self._pickle_kwargs['jacobian'] = self.jacobian
-
         if self.jacobian is not None:
             self.jacobian = self._baseobjective_from_callable(self.jacobian)
             self.wrapped_jacobian = self.resize_jac(self.jacobian)
@@ -158,17 +157,41 @@ class GradientMinimizer(BaseMinimizer):
 
 
 class HessianMinimizer(GradientMinimizer):
+    """
+    ABC for Minizers that support the use of a Hessian.
+    """
     @keywordonly(hessian=None)
     def __init__(self, *args, **kwargs):
-        hessian = kwargs.pop('hessian')
+        self.hessian = kwargs.pop('hessian')
         super(HessianMinimizer, self).__init__(*args, **kwargs)
-        if hessian is not None:
-            hess_with_fixed_parameters = partial(hessian, **{p.name: p.value for p in self._fixed_params})
-            self.wrapped_hessian = self.resize_jac(hess_with_fixed_parameters)
+        self._pickle_kwargs['hessian'] = self.hessian
+        if self.hessian is not None:
+            self.hessian = self._baseobjective_from_callable(self.hessian)
+            self.wrapped_hessian = self.resize_hess(self.hessian)
             self.has_hessian = True
         else:
             self.wrapped_hessian = None
             self.has_hessian = False
+
+    def resize_hess(self, func):
+        """
+        Removes values with identical indices to fixed parameters from the
+        output of func. func has to return the Hessian of a scalar function.
+
+        :param func: Hessian function to be wrapped. Is assumed to be the
+            Hessian of a scalar function.
+        :return: Hessian corresponding to non-fixed parameters only.
+        """
+        if func is None:
+            return None
+        @wraps(func)
+        def resized(*args, **kwargs):
+            out = func(*args, **kwargs)
+            # Make two dimensional, corresponding to a scalar function.
+            out = np.atleast_2d(np.squeeze(out))
+            mask = [p not in self._fixed_params for p in self.parameters]
+            return out[mask, mask]
+        return resized
 
 
 class GlobalMinimizer(BaseMinimizer):
@@ -309,6 +332,20 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`. Note that your `method` will
             usually be filled by a specific subclass.
         """
+        if bounds is None and isinstance(self, BoundedMinimizer):
+            bounds = self.bounds
+
+#        print(self.objective)
+#        print(self.initial_guesses)
+#        print(self.method_name())
+#        print(bounds)
+#        print(constraints)
+#        print(jacobian)
+#        print(hessian)
+#        print(jacobian(self.initial_guesses))
+#        print(hessian(self.initial_guesses))
+#        print(minimize_options)
+
         ans = minimize(
             self.objective,
             self.initial_guesses,
@@ -383,35 +420,55 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
             jacobian = self.wrapped_jacobian
         return super(ScipyGradientMinimize, self).execute(jacobian=jacobian, **minimize_options)
 
+    def scipy_constraints(self, constraints):
+        cons = super(ScipyGradientMinimize, self).scipy_constraints(constraints)
+        for con in cons:
+            # FIXME: Just assume that because the objective has a jac, so do
+            # all the constraints
+            if self.has_jacobian:
+                con['jac'] = self.resize_jac(con['fun'].eval_jacobian)
+        return cons
+
+
 class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
     """
     Base class for :func:`scipy.optimize.minimize`'s hessian-minimizers.
     """
+    def get_jacobian_hessian(self):
+        """
+        Figure out how to calculate the jacobian and hessian. Will return a
+        tuple describing how best to calculate the jacobian and hessian,
+        repectively. If None, it should be calculated using the available
+        analytical method.
+
+        :return: tuple of jacobian_method, hessian_method
+        """
+        if self.has_jacobian and not self.has_hessian:
+            hessian = 'cs'
+        elif not self.has_jacobian and not self.has_hessian:
+            jacobian = 'cs'
+            hessian = soBFGS(exception_strategy='damp_update')
+        else:
+            jacobian = None
+            hessian = None
+        return jacobian, hessian
+
     @keywordonly(jacobian=None, hessian=None)
     def execute(self, **minimize_options):
         hessian = minimize_options.pop('hessian')
         jacobian = minimize_options.pop('jacobian')
-        options = minimize_options.get('options', {})
 
-        # Our Jacobians are dense, and apparently we need to explicitely
-        # tell this.
-        if self.has_jacobian:
-            options.update(sparse_jacobian=False)
-
+        auto_jacobian, auto_hessian = self.get_jacobian_hessian()
         # For models that are not differentiable, users need the ability to
         # change the jacobian to e.g. 'cs' or '3-point'. In that case, hess
         # should either be scipy.optimize.BFGS or SR1.
         # In addition, users may want to change the way the Hessian is
         # calculated, especially if they manage to make a model whose Jacobian
         # can't handle complex numbers.
-        if self.has_jacobian and not self.has_hessian:
-            if hessian is None:
-                hessian = 'cs'
-        elif not self.has_jacobian and not self.has_hessian:
-            if jacobian is None:
-                jacobian = 'cs'
-            if hessian is None:
-                hessian = soBFGS(exception_strategy='damp_update')
+        if jacobian is None:
+            jacobian = auto_jacobian
+        if hessian is None:
+            hessian = auto_hessian
 
         if jacobian is None:
             jacobian = self.wrapped_jacobian
@@ -420,6 +477,21 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
 
         return super(ScipyHessianMinimize, self).execute(jacobian=jacobian, hessian=hessian, **minimize_options)
 
+    def scipy_constraints(self, constraints):
+        cons = super(ScipyGradientMinimize, self).scipy_constraints(constraints)
+        # FIXME: Just assume that because the objective has a jac/hess, so do
+        # all the constraints
+
+        for con in cons:
+            constraint = con['fun']
+            jacobian, hessian = self.get_jacobian_hessian()
+            if jacobian is None:
+                jacobian = self.resize_jac(constraint.eval_jacobian)
+            if hessian is None:
+                hessian = self.resize_hess(constraint.eval_hessian)
+            con['jac'] = jacobian
+            con['hess'] = hessian
+        return cons
 
 class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
     """
@@ -513,7 +585,7 @@ class NelderMead(ScipyMinimize, BaseMinimizer):
     def method_name(cls):
         return 'Nelder-Mead'
 
-class Powell(ScipyMinimize, BoundedMinimizer):
+class Powell(ScipyMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s Powell algorithm.
     """
@@ -525,7 +597,7 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
     @classmethod
     def method_name(cls):
         return 'trust-constr'
-    
+
     def scipy_constraints(self, constraints):
         cons = super(TrustConstr, self).scipy_constraints(constraints)
         out = []
@@ -534,13 +606,21 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
                 ub = 0
             else:
                 ub = np.inf
-            print(con)
             tc_con = NonlinearConstraint(fun=con['fun'],
                                          lb=0, ub=ub,
                                          jac=con['jac'],
-                                         hess='cs')
+                                         hess=con['hess'],
+                                         )
             out.append(tc_con)
         return out
+
+    def execute(self, **minimize_options):
+        options = minimize_options.get('options', {})
+        # Our Jacobians are dense, and apparently we need to explicitely
+        # tell this.
+        options.update(sparse_jacobian=False)
+        minimize_options['options'] = options
+        return super(TrustConstr, self).execute(**minimize_options)
 
 class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
     """

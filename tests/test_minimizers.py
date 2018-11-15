@@ -117,6 +117,23 @@ class TestMinimize(unittest.TestCase):
         fit_result = fit.execute()
         self.assertAlmostEqual(fit_result.value(b), 1.0)
 
+    def test_jac_hess(self):
+        """
+        Make sure both the Jacobian and Hessian are passed to the minimizer.
+        """
+        x, y = variables('x, y')
+        a, b = parameters('a, b')
+        b.fixed = True
+
+        model = Model({y: a * x + b})
+        xdata = np.linspace(0, 10)
+        ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
+        fit = Fit({y: a * x + b}, x=xdata, y=ydata, minimizer=TrustConstr)
+        self.assertNotEqual(fit.minimizer.jacobian, None)
+        self.assertNotEqual(fit.minimizer.hessian, None)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.value(b), 1.0)
+
     def test_pickle(self):
         """
         Test the picklability of the different minimizers.

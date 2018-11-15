@@ -861,6 +861,19 @@ class Tests(unittest.TestCase):
         fit_result = fit.execute()
         self.assertEqual(4.0, fit_result.params['c'])
 
+    def test_boundaries(self):
+        """
+        Make sure parameter boundaries are respected 
+        """
+        x = Parameter('x', min=1)
+        y = Variable('y')
+        model = Model({y: x**2})
+
+        fit = Fit(model)
+        fit_result = fit.execute()
+        self.assertGreaterEqual(fit_result.params['x'], 1.0)
+        self.assertLessEqual(fit_result.params['x'], 2.0)
+
     def test_single_param_model(self):
         """
         Added after #161, this tests if models with a single additive parameter
