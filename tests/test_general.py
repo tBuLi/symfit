@@ -435,8 +435,8 @@ class Tests(unittest.TestCase):
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(A), 5.0)
-        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0)
+        self.assertAlmostEqual(fit_result.value(A)/5, 1.0, 6)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0, 6)
         self.assertAlmostEqual(fit_result.value(x0), 0.0)
         # raise Exception([i for i in fit_result.params])
         sexy = g(x=2.0, **fit_result.params)
@@ -553,7 +553,7 @@ class Tests(unittest.TestCase):
 
         model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
         self.assertEqual([[2, 3, 0], [0, 5, 0], [0, 0, 7]], model.jacobian)
-    
+
     def test_hessian_matrix(self):
         """
         The Hessian matrix of a model should be a 3D list (matrix) containing
@@ -563,7 +563,7 @@ class Tests(unittest.TestCase):
         a_i, b_i, c_i = variables('a_i, b_i, c_i')
 
         model = Model({a_i: 2 * a**2 + 3 * b, b_i: 5 * b**2, c_i: 7 * c*b})
-        self.assertEqual([[[4, 0, 0], [0, 0, 0], [0, 0, 0]], 
+        self.assertEqual([[[4, 0, 0], [0, 0, 0], [0, 0, 0]],
                           [[0, 0, 0], [0, 10, 0], [0, 0, 0]],
                           [[0, 0, 0], [0, 0, 7], [0, 7, 0]]], model.hessian)
 
@@ -617,7 +617,7 @@ class Tests(unittest.TestCase):
 
         self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
         self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
-        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
+        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 5)
 
     def test_evaluate_model(self):
         """
@@ -849,13 +849,13 @@ class Tests(unittest.TestCase):
         """
         xdata = np.arange(100)
         ydata = np.arange(100)
-        
+
         a, b, c, d = parameters('a, b, c, d')
         x, y = variables('x, y')
-        
+
         c.value = 4.0
         c.fixed = True
-        
+
         model_dict = {y: a * exp(-(x - b)**2 / (2 * c**2)) + d}
         fit = Fit(model_dict, x=xdata, y=ydata)
         fit_result = fit.execute()
@@ -863,7 +863,7 @@ class Tests(unittest.TestCase):
 
     def test_boundaries(self):
         """
-        Make sure parameter boundaries are respected 
+        Make sure parameter boundaries are respected
         """
         x = Parameter('x', min=1)
         y = Variable('y')
@@ -873,6 +873,19 @@ class Tests(unittest.TestCase):
         fit_result = fit.execute()
         self.assertGreaterEqual(fit_result.params['x'], 1.0)
         self.assertLessEqual(fit_result.params['x'], 2.0)
+
+    def test_non_boundaries(self):
+        """
+        Make sure parameter boundaries are respected
+        """
+        x = Parameter('x')
+        y = Variable('y')
+        model = Model({y: x**2})
+
+        fit = Fit(model, minimizer=LBFGSB)
+        fit_result = fit.execute()
+        self.assertAlmostEqual(fit_result.params['x'], 0.0)
+        self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
         """
