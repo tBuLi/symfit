@@ -8,9 +8,14 @@ from symfit import (
     Fit, Equality, D, Model, log, FitResults, GreaterThan, Constraint
 )
 from symfit.distributions import Gaussian
+<<<<<<< HEAD
 from symfit.core.minimizers import SLSQP, MINPACK
 from symfit.core.support import key2str
 from symfit.core.objectives import MinimizeModel
+=======
+from symfit.core.minimizers import SLSQP, MINPACK, TrustConstr
+from symfit.core.support import partial
+>>>>>>> 821a77a... Take a broom through minimizer inheritence
 
 
 class TestConstrained(unittest.TestCase):
@@ -626,6 +631,75 @@ class TestConstrained(unittest.TestCase):
             cons_jac = constraint['jac'](fit.minimizer.initial_guesses)
             self.assertEqual(cons_val.shape, (1,))
             self.assertIsInstance(cons_val[0], float)
+            self.assertEqual(obj_jac.shape, cons_jac.shape)
+            self.assertEqual(obj_jac.shape, (2,))
+
+    def test_fixed_and_constrained_tc(self):
+        """
+        Taken from #165. Fixing parameters and constraining others caused a
+        TypeError: missing a required argument: 'theta1', which was caused by a
+        mismatch in the shape of the initial guesses given and the number of
+        parameters constraints expected. The initial_guesses no longer contained
+        those corresponding to fixed parameters.
+        """
+        phi1, phi2, theta1, theta2 = parameters('phi1, phi2, theta1, theta2')
+        x, y = variables('x, y')
+
+        model_dict = {y: (1 + x * theta1 + theta2 * x ** 2) / (
+                    1 + phi1 * x * theta1 + phi2 * theta2 * x ** 2)}
+        constraints = [GreaterThan(theta1, theta2)]
+
+        xdata = np.array(
+            [0., 0.000376, 0.000752, 0.0015, 0.00301, 0.00601, 0.00902])
+        ydata = np.array(
+            [1., 1.07968041, 1.08990638, 1.12151629, 1.13068452, 1.15484109,
+             1.19883952])
+
+        phi1.value = 0.845251484373516
+        phi1.fixed = True
+
+        phi2.value = 0.7105427053026403
+        phi2.fixed = True
+
+        fit = Fit(model_dict, x=xdata, y=ydata,
+                  constraints=constraints, minimizer=TrustConstr)
+        fit_result_slsqp = fit.execute()
+        # The data and fixed parameters should be partialed away.
+        partialed_kwargs = {
+            phi2.name: phi2.value,
+            phi1.name: phi1.value,
+            x.name: xdata,
+            y.name: ydata,
+            fit.model.sigmas[y].name: np.ones_like(ydata)
+        }
+        for constraint in fit.minimizer.constraints:
+            self.assertIsInstance(constraint, partial)
+            self.assertIsInstance(constraint.func, Constraint)
+            self.assertTupleEqual(constraint.args, tuple())
+
+            # Test if the data and fixed params have been partialed away
+            self.assertEqual(len(partialed_kwargs), len(constraint.keywords))
+            for key, value in constraint.keywords.items():
+                self.assertTrue(key in partialed_kwargs)
+                np.testing.assert_equal(partialed_kwargs[key], value)
+
+        # Compare the shapes. The constraint shape should now be the same as
+        # that of the objective
+        obj_val = fit.minimizer.wrapped_objective(fit.minimizer.initial_guesses)
+        obj_jac = fit.minimizer.wrapped_jacobian(fit.minimizer.initial_guesses)
+        with self.assertRaises(TypeError):
+            len(obj_val)  # scalars don't have lengths
+        self.assertEqual(len(obj_jac), 2)
+
+        for index, constraint in enumerate(fit.minimizer.wrapped_constraints):
+            self.assertNotEqual(constraint.lb, constraint.ub)
+            self.assertTrue(callable(constraint.fun))
+            self.assertTrue(callable(constraint.jac))
+
+            # Test the shapes
+            cons_val = constraint.fun(fit.minimizer.initial_guesses)
+            cons_jac = constraint.jac(fit.minimizer.initial_guesses)
+            self.assertEqual(obj_val.shape, cons_val.shape)
             self.assertEqual(obj_jac.shape, cons_jac.shape)
             self.assertEqual(obj_jac.shape, (2,))
 
