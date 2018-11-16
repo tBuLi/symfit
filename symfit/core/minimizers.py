@@ -131,8 +131,10 @@ class GradientMinimizer(BaseMinimizer):
         if self.jacobian is not None:
             self.jacobian = self._baseobjective_from_callable(self.jacobian)
             self.wrapped_jacobian = self.resize_jac(self.jacobian)
+            self.has_jacobian = True
         else:
             self.wrapped_jacobian = None
+            self.has_jacobian = False
 
     def resize_jac(self, func):
         """
@@ -163,8 +165,10 @@ class HessianMinimizer(GradientMinimizer):
         if hessian is not None:
             hess_with_fixed_parameters = partial(hessian, **{p.name: p.value for p in self._fixed_params})
             self.wrapped_hessian = self.resize_jac(hess_with_fixed_parameters)
+            self.has_hessian = True
         else:
             self.wrapped_hessian = None
+            self.has_hessian = False
 
 
 class GlobalMinimizer(BaseMinimizer):
@@ -287,6 +291,9 @@ class ScipyMinimize(object):
     Mix-in class that handles the execute calls to :func:`scipy.optimize.minimize`.
     """
     def __init__(self, *args, **kwargs):
+        self.constraints = []
+        self.jacobian = None
+        self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
 
     @keywordonly(tol=1e-9)
@@ -368,13 +375,11 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
     Base class for :func:`scipy.optimize.minimize`'s gradient-minimizers.
     """
-    def __init__(self, *args, **kwargs):
-        super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-
     @keywordonly(jacobian=None)
     def execute(self, **minimize_options):
-        jacobian = minimize_options.pop('jacobian')
-        if jacobian is None:
+        if 'jacobian' in minimize_options:
+            jacobian = minimize_options.pop('jacobian')
+        else:
             jacobian = self.wrapped_jacobian
         return super(ScipyGradientMinimize, self).execute(jacobian=jacobian, **minimize_options)
 
@@ -382,11 +387,6 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
     """
     Base class for :func:`scipy.optimize.minimize`'s hessian-minimizers.
     """
-    def __init__(self, *args, **kwargs):
-        super(ScipyHessianMinimize, self).__init__(*args, **kwargs)
-        self.has_hessian = self.wrapped_hessian is not None
-        self.wrapped_hessian= self.list2kwargs(self.wrapped_hessian)
-    
     @keywordonly(jacobian=None, hessian=None)
     def execute(self, **minimize_options):
         hessian = minimize_options.pop('hessian')
@@ -471,11 +471,11 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                 constraint = MinimizeModel(constraint, data={})
             else:
                 raise TypeError('Unknown type for a constraint.')
-            cons.append({
+            con = {
                 'type': types[constraint_type],
                 'fun': constraint,
-            })
-
+                }
+            cons.append(con)
         cons = tuple(cons)
         return cons
 
@@ -534,9 +534,10 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
                 ub = 0
             else:
                 ub = np.inf
-            tc_con = NonlinearConstraint(fun=partial(con['fun'], c=con['args'][0]),
+            print(con)
+            tc_con = NonlinearConstraint(fun=con['fun'],
                                          lb=0, ub=ub,
-                                         jac=partial(con['jac'], c=con['args'][0]),
+                                         jac=con['jac'],
                                          hess='cs')
             out.append(tc_con)
         return out
@@ -548,7 +549,7 @@ class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
     @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
                  recombination=0.95, polish=False, init='latinhypercube')
     def execute(self, **de_options):
-        ans = differential_evolution(self.list2kwargs(self.objective),
+        ans = differential_evolution(self.objective,
                                      self.bounds,
                                      **de_options)
         return self._pack_output(ans)

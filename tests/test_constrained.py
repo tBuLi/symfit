@@ -658,43 +658,55 @@ class TestConstrained(unittest.TestCase):
 
         fit = Fit(model_dict, x=xdata, y=ydata,
                   constraints=constraints, minimizer=TrustConstr)
-        fit_result_slsqp = fit.execute()
-        # The data and fixed parameters should be partialed away.
-        partialed_kwargs = {
+        objective_kwargs = {
+            phi2.name: phi2.value,
+            phi1.name: phi1.value,
+            x.name: xdata,
+        }
+        constraint_kwargs = {
             phi2.name: phi2.value,
             phi1.name: phi1.value,
             x.name: xdata,
             y.name: ydata,
             fit.model.sigmas[y].name: np.ones_like(ydata)
         }
-        for constraint in fit.minimizer.constraints:
-            self.assertIsInstance(constraint, partial)
-            self.assertIsInstance(constraint.func, Constraint)
-            self.assertTupleEqual(constraint.args, tuple())
+        for index, constraint in enumerate(fit.minimizer.constraints):
+            self.assertIsInstance(constraint, MinimizeModel)
+            self.assertEqual(constraint.model, fit.constraints[index])
+            self.assertEqual(constraint.data, fit.data)
+            self.assertEqual(constraint.data, fit.objective.data)
+
+            # Data should be the same memory location so they can share state.
+            self.assertEqual(id(fit.objective.data),
+                             id(constraint.data))
 
             # Test if the data and fixed params have been partialed away
-            self.assertEqual(len(partialed_kwargs), len(constraint.keywords))
-            for key, value in constraint.keywords.items():
-                self.assertTrue(key in partialed_kwargs)
-                np.testing.assert_equal(partialed_kwargs[key], value)
+            self.assertEqual(key2str(constraint.invariant_kwargs).keys(),
+                             constraint_kwargs.keys())
+            self.assertEqual(key2str(fit.objective.invariant_kwargs).keys(),
+                             objective_kwargs.keys())
 
         # Compare the shapes. The constraint shape should now be the same as
         # that of the objective
-        obj_val = fit.minimizer.wrapped_objective(fit.minimizer.initial_guesses)
+        obj_val = fit.minimizer.objective(fit.minimizer.initial_guesses)
         obj_jac = fit.minimizer.wrapped_jacobian(fit.minimizer.initial_guesses)
         with self.assertRaises(TypeError):
             len(obj_val)  # scalars don't have lengths
         self.assertEqual(len(obj_jac), 2)
 
         for index, constraint in enumerate(fit.minimizer.wrapped_constraints):
-            self.assertNotEqual(constraint.lb, constraint.ub)
             self.assertTrue(callable(constraint.fun))
             self.assertTrue(callable(constraint.jac))
+
+            # The argument should be the partialed Constraint object
+            self.assertEqual(constraint.fun, fit.minimizer.constraints[index])
+            self.assertIsInstance(constraint.fun, MinimizeModel)
 
             # Test the shapes
             cons_val = constraint.fun(fit.minimizer.initial_guesses)
             cons_jac = constraint.jac(fit.minimizer.initial_guesses)
-            self.assertEqual(obj_val.shape, cons_val.shape)
+            self.assertEqual(cons_val.shape, (1,))
+            self.assertIsInstance(cons_val[0], float)
             self.assertEqual(obj_jac.shape, cons_jac.shape)
             self.assertEqual(obj_jac.shape, (2,))
 
