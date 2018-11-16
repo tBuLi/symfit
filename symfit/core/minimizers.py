@@ -2,8 +2,8 @@ import abc
 import sys
 from collections import namedtuple, Counter
 
-from scipy.optimize import minimize, differential_evolution, basinhopping
-import scipy.optimize as so
+from scipy.optimize import minimize, differential_evolution, basinhopping, NonlinearConstraint
+from scipy.optimize import BFGS as soBFGS
 import sympy
 import numpy as np
 
@@ -132,7 +132,6 @@ class GradientMinimizer(BaseMinimizer):
             self.jacobian = self._baseobjective_from_callable(self.jacobian)
             self.wrapped_jacobian = self.resize_jac(self.jacobian)
         else:
-#            self.jacobian = None
             self.wrapped_jacobian = None
 
     def resize_jac(self, func):
@@ -163,29 +162,9 @@ class HessianMinimizer(GradientMinimizer):
         super(HessianMinimizer, self).__init__(*args, **kwargs)
         if hessian is not None:
             hess_with_fixed_parameters = partial(hessian, **{p.name: p.value for p in self._fixed_params})
-            self.wrapped_hessian = self.resize_hess(hess_with_fixed_parameters)
+            self.wrapped_hessian = self.resize_jac(hess_with_fixed_parameters)
         else:
             self.wrapped_hessian = None
-
-    def resize_hess(self, func):
-        """
-        Removes values with identical indices to fixed parameters from the
-        output of func. func has to return the Hessian of a scalar function.
-
-        :param func: Hessian function to be wrapped. Is assumed to be the
-            Hessian of a scalar function.
-        :return: Hessian corresponding to non-fixed parameters only.
-        """
-        if func is None:
-            return None
-        @wraps(func)
-        def resized(*args, **kwargs):
-            out = func(*args, **kwargs)
-            # Make one dimensional, corresponding to a scalar function.
-            out = np.atleast_1d(np.squeeze(out))
-            mask = [p not in self._fixed_params for p in self.parameters]
-            return out[mask]
-        return resized
 
 
 class GlobalMinimizer(BaseMinimizer):
@@ -391,11 +370,6 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
     def __init__(self, *args, **kwargs):
         super(ScipyGradientMinimize, self).__init__(*args, **kwargs)
-<<<<<<< HEAD
-=======
-        self.has_jacobian = self.wrapped_jacobian is not None
-        self.wrapped_jacobian = self.list2kwargs(self.wrapped_jacobian)
->>>>>>> 821a77a... Take a broom through minimizer inheritence
 
     @keywordonly(jacobian=None)
     def execute(self, **minimize_options):
@@ -437,7 +411,7 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
             if jacobian is None:
                 jacobian = 'cs'
             if hessian is None:
-                hessian = so.BFGS(exception_strategy='damp_update')
+                hessian = soBFGS(exception_strategy='damp_update')
 
         if jacobian is None:
             jacobian = self.wrapped_jacobian
@@ -473,7 +447,6 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
             sympy.Eq: 'eq', sympy.Ge: 'ineq',
         }
 
-<<<<<<< HEAD
         for constraint in constraints:
             if isinstance(constraint, MinimizeModel):
                 # Typically the case when called by `Fit
@@ -507,85 +480,19 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
         return cons
 
 
-class BFGS(ScipyGradientMinimize):
-=======
-        for key, partialed_constraint in enumerate(constraints):
-            constraint_type = partialed_constraint.func.constraint_type
-            con = {
-                'type': types[constraint_type],
-                # Takes an nd.array of params and a partialed_constraint, and
-                # evaluates the constraint with these parameters.
-                # Wrap `c` so it is always called via keywords.
-                'fun': lambda p, c: self.list2kwargs(c)(list(p))[0],
-                'args': [partialed_constraint]
-            }
-            if isinstance(self, ScipyGradientMinimize):
-                # In the case of the jacobian, first eval_jacobian of the
-                # constraint has to be partialed since that has not been done
-                # yet. Then it is made callable by keywords only, and finally
-                # the shape of the jacobian is made to match the number of
-                # unfixed parameters in the call, len(p).
-                partialed_kwargs = partialed_constraint.keywords
-                con['jac'] = lambda p, c: self.resize_jac(self.list2kwargs(
-                        partial(c.func.eval_jacobian, **partialed_kwargs)
-                    ))(list(p))
-            cons.append(con)
-        cons = tuple(cons)
-        return cons
-
-class BFGS(ScipyGradientMinimize, BoundedMinimizer):
->>>>>>> 821a77a... Take a broom through minimizer inheritence
+class BFGS(ScipyGradientMinimize, GradientMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s BFGS algorithm.
     """
 
-<<<<<<< HEAD
-class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
-    """
-    A wrapper around :func:`scipy.optimize.differential_evolution`.
-    """
-    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
-                 recombination=0.95, polish=False, init='latinhypercube')
-    def execute(self, **de_options):
-        ans = differential_evolution(self.objective,
-                                     self.bounds,
-                                     **de_options)
-        return self._pack_output(ans)
 
-
-class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
-    """
-    Wrapper around :func:`scipy.optimize.minimize`'s SLSQP algorithm.
-    """
-    def execute(self, **minimize_options):
-        return super(SLSQP, self).execute(
-            bounds=self.bounds,
-            jacobian=self.wrapped_jacobian,
-            **minimize_options
-        )
-
-    def scipy_constraints(self, constraints):
-        """
-        Returns all constraints in a scipy compatible format.
-
-        :return: dict of scipy compatible constraints, including jacobian term.
-        """
-        # Take the normal scipy compatible constraints, and add jacobians.
-        scipy_constr = super(SLSQP, self).scipy_constraints(constraints)
-        for scipy_constraint in scipy_constr:
-            scipy_constraint['jac'] = self.resize_jac(
-                scipy_constraint['fun'].eval_jacobian
-            )
-        return scipy_constr
-
-=======
 class SLSQP(ScipyGradientMinimize, ScipyConstrainedMinimize, BoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s SLSQP algorithm.
     """
->>>>>>> 821a77a... Take a broom through minimizer inheritence
 
-class COBYLA(ScipyConstrainedMinimize, BoundedMinimizer):
+
+class COBYLA(ScipyConstrainedMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
@@ -598,7 +505,7 @@ class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
     def method_name(cls):
         return "L-BFGS-B"
 
-class NelderMead(ScipyMinimize, BoundedMinimizer):
+class NelderMead(ScipyMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s NelderMead algorithm.
     """
@@ -627,10 +534,10 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
                 ub = 0
             else:
                 ub = np.inf
-            tc_con = so.NonlinearConstraint(fun=partial(con['fun'], c=con['args'][0]),
-                                            lb=0, ub=ub,
-                                            jac=partial(con['jac'], c=con['args'][0]),
-                                            hess='cs')
+            tc_con = NonlinearConstraint(fun=partial(con['fun'], c=con['args'][0]),
+                                         lb=0, ub=ub,
+                                         jac=partial(con['jac'], c=con['args'][0]),
+                                         hess='cs')
             out.append(tc_con)
         return out
 
@@ -646,7 +553,7 @@ class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
                                      **de_options)
         return self._pack_output(ans)
 
-class BasinHopping(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
+class BasinHopping(ScipyMinimize, GlobalMinimizer):
     """
     Wrapper around :func:`scipy.optimize.basinhopping`'s basin-hopping algorithm.
 

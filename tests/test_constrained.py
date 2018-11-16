@@ -8,14 +8,9 @@ from symfit import (
     Fit, Equality, D, Model, log, FitResults, GreaterThan, Constraint
 )
 from symfit.distributions import Gaussian
-<<<<<<< HEAD
-from symfit.core.minimizers import SLSQP, MINPACK
-from symfit.core.support import key2str
-from symfit.core.objectives import MinimizeModel
-=======
 from symfit.core.minimizers import SLSQP, MINPACK, TrustConstr
-from symfit.core.support import partial
->>>>>>> 821a77a... Take a broom through minimizer inheritence
+from symfit.core.support import key2str, partial
+from symfit.core.objectives import MinimizeModel
 
 
 class TestConstrained(unittest.TestCase):
