@@ -29,6 +29,41 @@ else:
     import funcsigs as inspect_sig
 
 
+def variabletuple(typename, variables, *args, **kwargs):
+    """
+    Create a :func:`namedtuple` using :class:`~sympy.core.argument.Variable`'s
+    whoses names will be used as `field_names`.
+
+    The main reason for using this object is the `_asdict()` method: whereas a
+    ``namedtuple`` initiates such an :func:`collections.OrderedDict` with the
+    ``field_names`` as keys, this object returns a
+    :func:`collections.OrderedDict` which immidiatelly has the ``Variable``
+    objects as keys.
+
+    Example::
+
+        >>> x = Variable('x')
+        >>> Result = variabletuple('Result', [x])
+        >>> res = Result(5.0)
+        >>> res._asdict()
+        OrderedDict((x, 5.0))
+
+    :param typename: Name of the `variabletuple`.
+    :param variables: List of :class:`~sympy.core.argument.Variable`, to be used
+        as `field_names`
+    :param args: See :func:`collections.namedtuple`
+    :param kwargs: See :func:`collections.namedtuple`
+    :return: Type ``typename``
+    """
+    def _asdict(self):
+        return OrderedDict(zip(variables, self))
+
+    field_names = [var.name for var in variables]
+    named = namedtuple(typename, field_names, *args, **kwargs)
+    named._asdict = _asdict
+    return named
+
+
 class ModelError(Exception):
     """
     Raised when a problem occurs with a model.
