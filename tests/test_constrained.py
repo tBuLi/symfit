@@ -582,9 +582,6 @@ class TestConstrained(unittest.TestCase):
         constraint_kwargs = {
             phi2.name: phi2.value,
             phi1.name: phi1.value,
-            x.name: xdata,
-            y.name: ydata,
-            fit.model.sigmas[y].name: np.ones_like(ydata)
         }
         for index, constraint in enumerate(fit.minimizer.constraints):
             self.assertIsInstance(constraint, MinimizeModel)
@@ -596,10 +593,10 @@ class TestConstrained(unittest.TestCase):
             self.assertEqual(id(fit.objective.data),
                              id(constraint.data))
 
-            # Test if the data and fixed params have been partialed away
-            self.assertEqual(key2str(constraint.invariant_kwargs).keys(),
+            # Test if the fixed params have been partialed away
+            self.assertEqual(key2str(constraint._invariant_kwargs).keys(),
                              constraint_kwargs.keys())
-            self.assertEqual(key2str(fit.objective.invariant_kwargs).keys(),
+            self.assertEqual(key2str(fit.objective._invariant_kwargs).keys(),
                              objective_kwargs.keys())
 
         # Compare the shapes. The constraint shape should now be the same as
