@@ -56,12 +56,15 @@ class BaseMinimizer(object):
             # are still considered correct, and not doubly wrapped.
             return func
         else:
-            # Minimize the provided custom objective instead. This why want to
-            # minimize a CallableNumericalModel, thats what they are for.
-            from .fit import CallableNumericalModel
-            model = CallableNumericalModel(func,
-                                           params=self.parameters,
-                                           independent_vars=[])
+            from .fit import CallableNumericalModel, BaseModel
+            if isinstance(func, BaseModel):
+                model = func
+            else:
+                # Minimize the provided custom objective instead. This why want to
+                # minimize a CallableNumericalModel, thats what they are for.
+                model = CallableNumericalModel(func,
+                                               params=self.parameters,
+                                               independent_vars=[])
             return objective_type(model,
                                   data={y: None for y in model.dependent_vars})
 
