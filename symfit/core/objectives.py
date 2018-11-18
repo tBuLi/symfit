@@ -28,7 +28,8 @@ class BaseObjective(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in self.model)
+        return OrderedDict((var, self.data[var])
+                           for var in self.model.dependent_vars)
 
     @cached_property
     def independent_data(self):
@@ -54,7 +55,7 @@ class BaseObjective(object):
         sigmas = self.model.sigmas
         return OrderedDict(
             (sigmas[var], self.data[sigmas[var]]) for var in
-            self.model)
+            self.model.dependent_vars)
 
     @abc.abstractmethod
     def __call__(self, ordered_parameters=[], **parameters):
@@ -68,11 +69,15 @@ class BaseObjective(object):
         """
         # zip will stop when the shortest of the two is exhausted
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        parameters.update(self.invariant_kwargs)
-        result = self.model(**key2str(parameters))
-        return self._shape_dependent_data(result)
+        parameters.update(self._invariant_kwargs)
+        result = self.model(**key2str(parameters))._asdict()
+        # Return only the components corresponding to the dependent data.
+        return self._shape_of_dependent_data(
+            [comp for var, comp in result.items()
+             if var in self.model.dependent_vars]
+        )
 
-    def _shape_dependent_data(self, model_output, param_level=0):
+    def _shape_of_dependent_data(self, model_output, param_level=0):
         """
         In rare cases, the dependent data and the output of the model do not
         have the same shape. Think for example about :math:`y_i = a`. This
@@ -103,7 +108,7 @@ class BaseObjective(object):
         return shaped_result
 
     @cached_property
-    def invariant_kwargs(self):
+    def _invariant_kwargs(self):
         """
         Prepares the invariant kwargs to ``self.model`` which are not provided
         by the minimizers, and are the same for every iteration of the
@@ -143,9 +148,14 @@ class GradientObjective(BaseObjective):
         :return: evaluated jacobian
         """
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        parameters.update(self.invariant_kwargs)
-        result = self.model.eval_jacobian(**key2str(parameters))
-        return self._shape_dependent_data(result, param_level=1)
+        parameters.update(self._invariant_kwargs)
+        result = self.model.eval_jacobian(**key2str(parameters))._asdict()
+        # Return only the components corresponding to the dependent data.
+        return self._shape_of_dependent_data(
+            [comp for var, comp in result.items()
+             if var in self.model.dependent_vars],
+            param_level=1
+        )
 
 
 @add_metaclass(abc.ABCMeta)
@@ -164,9 +174,14 @@ class HessianObjective(GradientObjective):
         :return: evaluated hessian
         """
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        parameters.update(self.invariant_kwargs)
-        result = self.model.eval_hessian(**key2str(parameters))
-        return self._shape_dependent_data(result, param_level=2)
+        parameters.update(self._invariant_kwargs)
+        result = self.model.eval_hessian(**key2str(parameters))._asdict()
+        # Return only the components corresponding to the dependent data.
+        return self._shape_of_dependent_data(
+            [comp for var, comp in result.items()
+             if var in self.model.dependent_vars],
+            param_level=2
+        )
 
 
 class VectorLeastSquares(GradientObjective):
@@ -241,7 +256,7 @@ class LeastSquares(HessianObjective):
         )
 
         chi2 = [0 for _ in evaluated_func]
-        for index, (dep_var, dep_var_value) in enumerate(zip(self.model, evaluated_func)):
+        for index, (dep_var, dep_var_value) in enumerate(zip(self.model.dependent_vars, evaluated_func)):
             dep_data = self.dependent_data[dep_var]
             if dep_data is not None:
                 sigma = self.sigma_data[self.model.sigmas[dep_var]]
@@ -397,7 +412,7 @@ class MinimizeModel(HessianObjective):
     minimized. This is only supported for scalar models.
     """
     def __init__(self, model, *args, **kwargs):
-        if len(model) > 1:
+        if len(model.dependent_vars) > 1:
             raise TypeError('Only scalar functions are supported by {}'.format(self.__class__))
         super(MinimizeModel, self).__init__(model, *args, **kwargs)
 
