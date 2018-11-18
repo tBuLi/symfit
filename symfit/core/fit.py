@@ -827,23 +827,35 @@ class Constraint(Model):
     model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
     not just those present in the constraint.
     """
-    def __init__(self, constraint, model):
+    @keywordonly(params=None)
+    def __init__(self, constraint, model=None, **kwargs):
         """
         :param constraint: constraint that model should be subjected to.
-        :param model: A constraint is always tied to a model.
+        :param model: A constraint needs to be initiated with all the parameters
+            of the corresponiding model, either by providing the model or the
+            parameters.
+        :param params: list of parameters in case no ``model`` is provided.
         """
+        params = kwargs.pop('params')
         if isinstance(constraint, Relational):
             self.constraint_type = type(constraint)
-            if isinstance(model, BaseModel):
+            if model is None and params is not None:
+                pass
+            elif isinstance(model, BaseModel):
                 self.model = model
+                params = self.model.params
             else:
                 raise TypeError('The model argument must be of type Model.')
             super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
 
             # Update the signature to accept all vars and parms of the model
-            self.independent_vars = self.model.vars
-            self.params = self.model.params
+            self.params = params
             self.__signature__ = self._make_signature()
+            # Update the jacobian and hessian model as well
+            self.jacobian_model.params = params
+            self.hessian_model.params = params
+            self.jacobian_model.__signature__ = self.jacobian_model._make_signature()
+            self.hessian_model.__signature__ = self.hessian_model._make_signature()
         else:
             raise TypeError('Constraints have to be initiated with a subclass of sympy.Relational')
 
@@ -854,29 +866,6 @@ class Constraint(Model):
         """
         new_constraint = self.constraint_type( - self.model_dict[self.dependent_vars[0]])
         return self.__class__(new_constraint, self.model)
-
-    @property
-    def jacobian(self):
-        """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-            Partial derivatives are of the components of the function with respect to the Parameter's,
-            not the independent Variable's.
-        """
-        return [[sympy.diff(expr, param) for param in self.model.params] for expr in self.values()]
-
-    @cached_property
-    def numerical_components(self):
-        """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
-        """
-        return [sympy_to_py(expr, self.model.vars, self.model.params) for expr in self.values()]
-
-    @cached_property
-    def numerical_jacobian(self):
-        """
-        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
-        """
-        return [[sympy_to_py(partial_dv, self.model.vars, self.model.params) for partial_dv in row] for row in self.jacobian]
 
 
 class TakesData(object):
