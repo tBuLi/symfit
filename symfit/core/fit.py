@@ -9,10 +9,12 @@ from sympy.core.relational import Relational
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import odeint
+from toposort import toposort
 
 from symfit.core.argument import Parameter, Variable
 from .support import (
-    seperate_symbols, keywordonly, sympy_to_py, key2str, partial, cached_property
+    seperate_symbols, keywordonly, sympy_to_py, key2str, partial,
+    cached_property, D
 )
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
@@ -110,15 +112,15 @@ class BaseModel(Mapping):
         """
         return len(self.model_dict)
 
-    def __getitem__(self, dependent_var):
+    def __getitem__(self, var):
         """
         Returns the expression belonging to a given dependent variable.
 
-        :param dependent_var: Instance of ``Variable``
-        :type dependent_var: ``Variable``
-        :return: The expression belonging to ``dependent_var``
+        :param var: Instance of ``Variable``
+        :type var: ``Variable``
+        :return: The expression belonging to ``var``
         """
-        return self.model_dict[dependent_var]
+        return self.model_dict[var]
 
     def __iter__(self):
         """
@@ -168,23 +170,98 @@ class BaseModel(Mapping):
 
         :param model_dict: dict of (dependent_var, expression) pairs.
         """
-        sort_func = lambda symbol: str(symbol)
-        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
-        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
+        sort_func = lambda symbol: symbol.name
+        self.model_dict = OrderedDict(sorted(model_dict.items(),
+                                             key=lambda i: sort_func(i[0])))
+        # Everything at the bottom of the toposort is independent, at the top
+        # dependent, and the rest interdependent.
+        ordered = list(toposort(self.connectivity_mapping))
+        independent = ordered.pop(0)
+        self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
+        self.interdependent_vars = sorted(
+            [item for items in ordered for item in items],
+            key=sort_func
+        )
+        # `independent` contains both params and vars, needs to be separated
+        self.params = sorted(
+            [s for s in independent if isinstance(s, Parameter)],
+            key=sort_func
+        )
+        self.independent_vars = sorted(
+            [s for s in independent
+             if not isinstance(s, Parameter) and not s in self],
+            key=sort_func
+        )
 
-        # Extract all the params and vars as a sorted, unique list.
-        expressions = model_dict.values()
-        _params, self.independent_vars = set([]), set([])
-        for expression in expressions:
-            vars, params = seperate_symbols(expression)
-            _params.update(params)
-            self.independent_vars.update(vars)
-        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(_params, key=sort_func)
-        self.independent_vars = sorted(self.independent_vars, key=sort_func)
+        # Make Variable object corresponding to each depedent var.
+        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name))
+                       for var in self.dependent_vars}
 
-        # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+    @cached_property
+    def vars_as_functions(self):
+        """
+        :return: Turn the keys of this model into :mod:`~sympy.Function`
+            objects. This is done recursively so the chain rule can be applied
+            correctly. This is done on the basis of `connectivity_mapping`.
+
+            Example: for ``{y: a * x}`` this returns ``{y: y(x, a)}``.
+        """
+        functions = {}
+        # vars first, then params, and alphabetically within each group
+        key = lambda arg: [isinstance(arg, Parameter), str(arg)]
+        for symbol in self.ordered_symbols:
+            if symbol in self.connectivity_mapping:
+                connections = self.connectivity_mapping[symbol]
+                # Replace the connection by it's function if possible
+                connections = [functions.get(connection, connection)
+                               for connection in connections]
+                connections = sorted(connections, key=key)
+                functions[symbol] = sympy.Function(symbol.name)(*(connections))
+        return functions
+
+    @cached_property
+    def function_dict(self):
+        """
+        Equivalent to ``self.model_dict``, but with all variables replaced by
+        functions if applicable. Sorted by the evaluation order according to
+        ``self.ordered_symbols``, not alphabetical like ``self.model_dict``!
+        """
+        func_tuples = []
+        for var, func in self.vars_as_functions.items():
+            expr = self.model_dict[var].xreplace(self.vars_as_functions)
+            func_tuples.append((func, expr))
+        return OrderedDict(func_tuples)
+
+    @cached_property
+    def connectivity_mapping(self):
+        """
+        :return: This property returns a mapping of the interdepencies between
+            variables. This is essentially the dict representation of a
+            connectivity graph, because working with this dict results in
+            cleaner code. Treats variables and parameters on the same footing.
+        """
+        connectivity = {}
+        for var, expr in self.items():
+            vars, params = seperate_symbols(expr)
+            connectivity[var] = set(vars + params)
+        return connectivity
+
+    @property
+    def ordered_symbols(self):
+        """
+        :return: list of all symbols in this model, topologically sorted so they
+            can be evaluated in the correct order.
+
+            Within each group of equal priority symbols, we sort by the order of
+            the derivative.
+        """
+        key_func = lambda s: [isinstance(s, sympy.Derivative),
+                           isinstance(s, sympy.Derivative) and s.derivative_count]
+        symbols = []
+        for d in toposort(self.connectivity_mapping):
+            symbols.extend(sorted(d, key=key_func))
+
+        return symbols
 
     @cached_property
     def vars(self):
@@ -861,6 +938,7 @@ class TakesData(object):
 
         original_data = bound_arguments.arguments   # ordereddict of the data
         self.data = OrderedDict((var, original_data[var.name]) for var in self.model.vars)
+        self.data.update({var: None for var in self.model.interdependent_vars})
         # Change the type to array if no array operations are supported.
         # We don't want to break duck-typing, hence the try-except.
         for var, dataset in self.data.items():
@@ -910,7 +988,8 @@ class TakesData(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in self.model)
+        return OrderedDict((var, self.data[var])
+                           for var in self.model.dependent_vars)
 
     @property
     def independent_data(self):
@@ -933,7 +1012,8 @@ class TakesData(object):
         :rtype: collections.OrderedDict
         """
         sigmas = self.model.sigmas
-        return OrderedDict((sigmas[var], self.data[sigmas[var]]) for var in self.model)
+        return OrderedDict((sigmas[var], self.data[sigmas[var]])
+                           for var in self.model.dependent_vars)
 
     @property
     def data_shapes(self):
