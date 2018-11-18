@@ -659,7 +659,54 @@ class GradientModel(CallableModel, BaseGradientModel):
             Variable's. The return shape is a list over the models components,
             filled with tha symbolical jacobian for that component, as a list.
         """
-        return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
+        jac = []
+        for var, expr in self.items():
+            jac.append([])
+            for param in self.params:
+                partial_dv = D(var, param)
+                jac[-1].append(self.jacobian_model[partial_dv])
+        return jac
+
+    def eval_jacobian(self, *args, **kwargs):
+        """
+        :return: Jacobian evaluated at the specified point.
+        """
+        eval_jac_dict = self.jacobian_model(*args, **kwargs)._asdict()
+        # Take zero for component which are not present, happens for Constraints
+        jac = [[eval_jac_dict.get(D(var, param), 0)
+                for param in self.params]
+            for var in self
+        ]
+
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
+        for idx, comp in enumerate(jac):
+            jac[idx] = np.stack(np.broadcast_arrays(*comp))
+
+        Ans = variabletuple('Ans', self.keys())
+        return Ans(*jac)
+
+
+class Model(GradientModel):
+    """
+    Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
+    Models can be initiated from several objects::
+
+        a = Model({y: x**2})
+        b = Model(y=x**2)
+
+    Models are callable. The usual rules apply to the ordering of the arguments:
+
+    * first independent variables, then dependent variables, then parameters.
+    * within each of these groups they are ordered alphabetically.
+
+    Models are also iterable, behaving as their internal model_dict. In the example above,
+    a[y] returns x**2, len(a) == 1, y in a == True, etc.
+    """
+    def __init__(self, *args, **kwargs):
+        super(Model, self).__init__(*args, **kwargs)
+        self.hessian_model = hessian_from_model(self)
 
     @property
     def hessian(self):
@@ -671,136 +718,26 @@ class GradientModel(CallableModel, BaseGradientModel):
         return [[[sympy.diff(partial_dv, param) for param in self.params]
                  for partial_dv in comp] for comp in self.jacobian]
 
-    @property
-    def chi_squared(self):
-        """
-        :return: Symbolic :math:`\\chi^2`
-        """
-        return sum(((f - y)/self.sigmas[y])**2 for y, f in self.items())
-
-    @property
-    def chi(self):
-        """
-        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK
-            optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
-        """
-        return sympy.sqrt(self.chi_squared)
-
-    @property
-    def chi_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
-        This is because that's what leastsq needs.
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi, param)
-            jac.append(f)
-        return jac
-
-    @property
-    def chi_squared_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\chi^2` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi_squared, param)
-            jac.append(f)
-        return jac
-
-    # @property
-    # def ss_res(self):
-    #     """
-    #     :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
-    #     """
-    #     return sum((y - f)**2 for y, f in self.items())
-
-    @cached_property
-    def numerical_jacobian(self):
-        """
-        :return: lambda functions of the jacobian matrix of the function, which
-            can be used in numerical optimization.
-        """
-        return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
-
-    @cached_property
-    def numerical_hessian(self):
-        """
-        :return: lambda functions of the Hessian matrix of the function, which
-        can be used in numerical optimization.
-        """
-        return [[[sympy_to_py(second_order_pdv, self.independent_vars, self.params)
-                    for second_order_pdv in row]
-                for row in comp]
-            for comp in self.hessian]
-
-    @cached_property
-    def numerical_chi_squared(self):
-        """
-        :return: lambda function of the ``.chi_squared`` method, to be used in
-            numerical optimisation.
-        """
-        return sympy_to_py(self.chi_squared, self.vars, self.params)
-
-    @cached_property
-    def numerical_chi(self):
-        """
-        :return: lambda function of the ``.chi`` method, to be used in MINPACK
-            optimisation.
-        """
-        return sympy_to_py(self.chi, self.vars, self.params)
-
-    @cached_property
-    def numerical_chi_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi`` method, which
-            can be used in numerical optimization.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
-
-    @cached_property
-    def numerical_chi_squared_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi_squared`` method.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
-
-    def eval_jacobian(self, *args, **kwargs):
-        """
-        :return: Jacobian evaluated at the specified point.
-        """
-        # Evaluate the jacobian at specified points
-        jac = [[np.atleast_1d(partial_dv(*args, **kwargs))
-                for partial_dv in row]
-            for row in self.numerical_jacobian
-        ]
-        # Use numpy to broadcast these arrays together and then stack them along
-        # the parameter dimension. We do not include the component direction in
-        # this, because the components can have independent shapes.
-        for idx, comp in enumerate(jac):
-            jac[idx] = np.stack(np.broadcast_arrays(*comp))
-        return jac
-
     def eval_hessian(self, *args, **kwargs):
         """
         :return: Hessian evaluated at the specified point.
         """
-        hess = [[[np.atleast_1d(second_order_pdv(*args, **kwargs))
-                    for second_order_pdv in row]
-                for row in comp]
-            for comp in self.numerical_hessian
+        # Evaluate the hessian model and use the resulting Ans namedtuple as a
+        # dict. From this, take the relevant components.
+        eval_hess_dict = self.hessian_model(*args, **kwargs)._asdict()
+        hess = [[[eval_hess_dict.get(D(var, p1, p2), 0)
+                    for p2 in self.params]
+                for p1 in self.params]
+            for var in self
         ]
         # Use numpy to broadcast these arrays together and then stack them along
         # the parameter dimension. We do not include the component direction in
         # this, because the components can have independent shapes.
         for idx, comp in enumerate(hess):
             hess[idx] = np.stack(np.broadcast_arrays(*comp))
-        return hess
+
+        Ans = variabletuple('Ans', self.keys())
+        return Ans(*hess)
 
 
 class TaylorModel(Model):
