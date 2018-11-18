@@ -757,12 +757,12 @@ class TaylorModel(Model):
         model_dict = {}
         for (var, component), jacobian_vec in zip(model.items(), model.jacobian):
             linear = component.subs(params_0.items())
-            for (p, p0), jac in zip(params_0.items(), jacobian_vec): # params_0 is assumed OrderedDict!
+            # params_0 is assumed OrderedDict!
+            for (p, p0), jac in zip(params_0.items(), jacobian_vec):
                 linear += jac.subs(params_0.items()) * (p - p0)
             model_dict[var] = linear
         self.params_0 = params_0
         super(TaylorModel, self).__init__(model_dict)
-        # super(TaylorModel, self).__init__(**key2str(model_dict))
         self.model_dict_orig = copy.copy(self.model_dict)
 
     @property
@@ -812,6 +812,20 @@ class TaylorModel(Model):
         """
         sup = super(TaylorModel, self).__str__()
         return '@{} -> {}'.format(self.p0, sup)
+
+    def eval_jacobian(self, *args, **kwargs):
+        """
+        See :meth:`~symfit.core.fit.Model.eval_jacobian`.
+        """
+        kwargs.update(self.p0)
+        return super(TaylorModel, self).eval_jacobian(*args, **key2str(kwargs))
+
+    def eval_hessian(self, *args, **kwargs):
+        """
+        See :meth:`~symfit.core.fit.Model.eval_hessian`.
+        """
+        kwargs.update(self.p0)
+        return super(TaylorModel, self).eval_hessian(*args, **key2str(kwargs))
 
 
 class Constraint(Model):
@@ -1272,6 +1286,7 @@ class LinearLeastSquares(BaseFit):
             raise ModelError('This Model is non-linear. Please use NonLinearLeastSquares instead.')
         elif len(self.model) > 1:
             raise ModelError('Currently only scalar valued functions are supported.')
+        self.leastsquares_model = leastsquares_from_model(self.model)
 
     @staticmethod
     def is_linear(model):
@@ -1299,7 +1314,7 @@ class LinearLeastSquares(BaseFit):
         :return: dict containing parameters and their best-fit values.
         """
         terms_per_component = []
-        for expr in self.model.chi_squared_jacobian:
+        for expr in self.leastsquares_model.jacobian[0]:
             # Collect terms linear in the parameters. Returns a dict with parameters and
             # their prefactor as function of variables. Includes O(1)
             terms = sympy.collect(sympy.expand(expr), self.model.params, evaluate=False)
@@ -1337,18 +1352,14 @@ class LinearLeastSquares(BaseFit):
         # it has to be contracted with W, the weight matrix.
         kwargs = {p.name: float(value) for p, value in best_fit_params.items()}
         kwargs.update(self.independent_data)
-        # kwargs.update(self.data)
-        X = np.atleast_2d([
-            (np.ones(sigma.shape[0]) * comp(**key2str(kwargs))).flatten()
-            for comp in self.model.numerical_jacobian[0]
-        ])
-
+        X = np.atleast_2d(self.model.eval_jacobian(**key2str(kwargs))[0])
+        X = np.ones(sigma.shape[0]) * X
         cov_matrix = np.linalg.inv(X.dot(W).dot(X.T))
         if not self.absolute_sigma:
             kwargs.update(self.data)
             # Sum of squared residuals. To be honest, I'm not sure why ss_res does not give the
             # right result but by using the chi_squared the results are compatible with curve_fit.
-            S = np.sum(self.model.chi_squared(**key2str(kwargs)), dtype=float) / (len(W) - len(self.model.params))
+            S = np.sum(self.leastsquares_model(**key2str(kwargs)), dtype=float) / (len(W) - len(self.model.params))
             cov_matrix *= S
 
         return cov_matrix
@@ -1419,25 +1430,21 @@ class NonLinearLeastSquares(BaseFit):
         :param max_iter: Maximum number of iterations before giving up.
         :return: Instance of ``FitResults``.
         """
-        fit = LinearLeastSquares(self.model_appr, absolute_sigma=self.absolute_sigma, **key2str(self.data))
+        fit = LinearLeastSquares(self.model_appr,
+                                 absolute_sigma=self.absolute_sigma,
+                                 **key2str(self.data))
 
-        # if fit.is_linear(self.model):
-        #     return fit.execute()
-        # else:
+        kwargs = self.data.copy()
+        kwargs.update(dict(zip(self.model.params, self.initial_guesses)))
         i = 0
         S_k1 = np.sum(
-            self.model.numerical_chi_squared(
-                *self.data.values(),
-                **{p.name: float(value) for p, value in zip(self.model.params, self.initial_guesses)}
-            )
+            fit.leastsquares_model(**key2str(kwargs))
         )
         while i < max_iter:
             fit_params = fit.best_fit_params()
+            kwargs.update(fit_params)
             S_k2 = np.sum(
-                self.model.numerical_chi_squared(
-                    *self.data.values(),
-                    **{p.name: float(value) for p, value in fit_params.items()}
-                )
+                fit.leastsquares_model(**key2str(kwargs))
             )
             if not S_k1 < 0 and np.abs(S_k2 - S_k1) <= relative_error * np.abs(S_k1):
                 break
@@ -1445,6 +1452,7 @@ class NonLinearLeastSquares(BaseFit):
                 S_k1 = S_k2
                 # Update the model with a better approximation
                 self.model_appr.p0 = fit_params
+                fit.leastsquares_model = leastsquares_from_model(self.model_appr)
                 i += 1
 
         cov_matrix = fit.covariance_matrix(best_fit_params=fit_params)
