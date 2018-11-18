@@ -64,7 +64,8 @@ class TestMinimize(unittest.TestCase):
         # Normal symbolic fit
         a = Parameter('a', value=0, min=0.0, max=1000)
         b = Parameter('b', value=0, min=0.0, max=1000)
-        x = Variable()
+        x = Variable('x')
+        y = Variable('y')
         model = a * x + b
 
         fit = Fit(model, xdata, ydata, minimizer=BFGS)
@@ -76,7 +77,35 @@ class TestMinimize(unittest.TestCase):
         def chi_squared(a, b):
             return np.sum((ydata - f(xdata, a, b))**2)
 
-        fit_custom = BFGS(chi_squared, [a, b])
+        with warnings.catch_warnings(record=True) as w:
+            # Should raise a deprecation warning.
+            warnings.simplefilter("always")
+            fit_custom = BFGS(chi_squared, [a, b])
+            self.assertTrue(len(w) == 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+
+        fit_custom_result = fit_custom.execute()
+
+        self.assertIsInstance(fit_custom_result, FitResults)
+        self.assertAlmostEqual(fit_custom_result.value(a) / fit_result.value(a), 1.0, 5)
+        self.assertAlmostEqual(fit_custom_result.value(b) / fit_result.value(b), 1.0, 4)
+
+        # New preferred usage, multi component friendly.
+        with self.assertRaises(TypeError):
+            callable_model = CallableNumericalModel(
+                chi_squared,
+                connectivity_mapping={y: {a, b}}
+            )
+        callable_model = CallableNumericalModel(
+            {y: chi_squared},
+            connectivity_mapping={y: {a, b}}
+        )
+        self.assertEqual(callable_model.params, [a, b])
+        self.assertEqual(callable_model.independent_vars, [])
+        self.assertEqual(callable_model.dependent_vars, [y])
+        self.assertEqual(callable_model.interdependent_vars, [])
+        self.assertEqual(callable_model.connectivity_mapping, {y: {a, b}})
+        fit_custom = BFGS(callable_model, [a, b])
         fit_custom_result = fit_custom.execute()
 
         self.assertIsInstance(fit_custom_result, FitResults)

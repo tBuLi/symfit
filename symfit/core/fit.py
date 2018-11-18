@@ -394,6 +394,9 @@ class BaseNumericalModel(BaseModel):
                                          for var in model}
         elif connectivity_mapping:
             self.connectivity_mapping = connectivity_mapping
+            if not isinstance(model, Mapping):
+                raise TypeError('Please provide the model as a mapping, '
+                                'corresponding to `connectivity_mapping`.')
         else:
             raise TypeError('Provide either `connectivity_mapping` (preferred) '
                             'or `independent_vars` and `params` (deprecated).')
