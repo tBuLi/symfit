@@ -494,10 +494,18 @@ class BaseCallableModel(BaseModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
-        return Ans(*self.eval_components(**bound_arguments.arguments))
+        Ans = variabletuple('Ans', self)
+        return Ans(*self.eval_components(*args, **kwargs))
 
+
+class BaseGradientModel(BaseCallableModel):
+    """
+    Baseclass for models which have a gradient. Such models are expected to
+    implement an `eval_jacobian` function.
+
+    Any subclass of this baseclass which does not implement its own
+    `eval_jacobian` will inherit a finite difference gradient.
+    """
     @keywordonly(dx=1e-8)
     def finite_difference(self, *args, **kwargs):
         """
@@ -567,7 +575,8 @@ class BaseCallableModel(BaseModel):
         """
         :return: The jacobian matrix of the function.
         """
-        return self.finite_difference(*args, **kwargs)
+        Ans = variabletuple('Ans', self)
+        return Ans(*self.finite_difference(*args, **kwargs))
 
 
 class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
@@ -619,26 +628,29 @@ class CallableModel(BaseCallableModel):
         :return: lambda functions of each of the analytical components in
             model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
+        Ans = variabletuple('Ans', self.keys())
+        # All components must feature the independent vars and params, that's
+        # the API convention. But for those components which also contain
+        # interdependence, we add those vars
+        components = []
+        for var, expr in self.items():
+            dependencies = self.connectivity_mapping[var]
+            # vars first, then params, and alphabetically within each group
+            key = lambda arg: [isinstance(arg, Parameter), str(arg)]
+            ordered = sorted(dependencies, key=key)
+            components.append(sympy_to_py(expr, ordered, []))
+        return Ans(*components)
 
 
-class Model(CallableModel):
+class GradientModel(CallableModel, BaseGradientModel):
     """
-    Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
-    Models can be initiated from several objects::
-
-        a = Model({y: x**2})
-        b = Model(y=x**2)
-
-    Models are callable. The usual rules apply to the ordering of the arguments:
-
-    * first independent variables, then dependent variables, then parameters.
-    * within each of these groups they are ordered alphabetically.
-
-    Models are also iterable, behaving as their internal model_dict. In the example above,
-    a[y] returns x**2, len(a) == 1, y in a == True, etc.
+    Analytical model which has an analytically computed Jacobian.
     """
-    @property
+    def __init__(self, *args, **kwargs):
+        super(GradientModel, self).__init__(*args, **kwargs)
+        self.jacobian_model = jacobian_from_model(self)
+
+    @cached_property
     def jacobian(self):
         """
         :return: Jacobian filled with the symbolic expressions for all the
