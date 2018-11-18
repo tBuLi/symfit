@@ -1999,7 +1999,6 @@ def hessian_from_model(model):
         of ``model``.
     """
     jac_model = jacobian_from_model(model, as_functions=True)
-    print(jac_model)
     return jacobian_from_model(jac_model)
 
 def leastsquares_from_model(model):
