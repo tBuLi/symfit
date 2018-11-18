@@ -356,32 +356,56 @@ class BaseNumericalModel(BaseModel):
     ABC for Numerical Models. These are models whose components are generic
     python callables.
     """
-    def __init__(self, model, independent_vars, params):
+    @keywordonly(connectivity_mapping=None)
+    def __init__(self, model, independent_vars=None, params=None, **kwargs):
         """
         :param model: dict of ``callable``, where dependent variables are the
             keys. If instead of a dict a (sequence of) ``callable`` is provided,
             it will be turned into a dict automatically.
-        :param independent_vars: The independent variables of the model.
+        :param independent_vars: The independent variables of the  model.
+            (Deprecated, use ``connectivity_mapping`` instead.)
         :param params: The parameters of the model.
+            (Deprecated, use ``connectivity_mapping`` instead.)
+        :param connectivity_mapping: Mapping indicating the dependencies of
+            every variable in the model. For example, a model_dict
+            {y: a * x + b} has a connectivity_mapping {y: {x, a, b}}. Note that
+            the values of this dict have to be sets.
         """
-        self.independent_vars = sorted(independent_vars, key=str)
-        self.params = sorted(params, key=str)
+        connectivity_mapping = kwargs.pop('connectivity_mapping')
+        if connectivity_mapping is None and \
+                independent_vars is not None and params is not None:
+            # Make model into a mapping if needed.
+            if not isinstance(model, Mapping):
+                try:
+                    iter(model)
+                except TypeError:
+                    model = [model]  # make model iterable
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    model = {Variable(): expr for expr in model}
+            warnings.warn(DeprecationWarning(
+                '`independent_vars` and `params` have been deprecated.'
+                ' Use `connectivity_mapping` instead.'
+            ))
+            self.independent_vars = sorted(independent_vars, key=str)
+            self.params = sorted(params, key=str)
+            self.connectivity_mapping = {var: set(independent_vars + params)
+                                         for var in model}
+        elif connectivity_mapping:
+            self.connectivity_mapping = connectivity_mapping
+        else:
+            raise TypeError('Provide either `connectivity_mapping` (preferred) '
+                            'or `independent_vars` and `params` (deprecated).')
         super(BaseNumericalModel, self).__init__(model)
 
-    def _init_from_dict(self, model_dict):
-        """
-        Initiate self from a model_dict which has python callables as its values.
-        This init makes sure self.dependent_vars is available, the other are
-        set in __init__.
+    @property
+    def connectivity_mapping(self):
+        return self._connectivity_mapping
 
-        :param model_dict: dict of (dependent_var, callable) pairs.
-        """
-        sort_func = lambda symbol: str(symbol)
-        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
-        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
-
-        # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+    @connectivity_mapping.setter
+    def connectivity_mapping(self, value):
+        self._connectivity_mapping = value
 
     def __eq__(self, other):
         raise NotImplementedError(
