@@ -1176,11 +1176,12 @@ class HasCovarianceMatrix(TakesData):
         kwargs = key2str(best_fit_params)
         kwargs.update(key2str(self.independent_data))
 
-        jac = np.array(self.model.eval_jacobian(**kwargs))
+        jac = self.model.eval_jacobian(**kwargs)
         # Drop the axis which correspond to dependent vars which have been
-        # set to None
-        mask = [data is not None for data in self.dependent_data.values()]
-        jac = jac[mask]
+        # set to None. jac also contains interdependent_vars, hence the .get
+        mask = [self.dependent_data.get(var, None) is not None
+                for var in self.model.dependent_vars]
+        jac = np.array([comp for comp, relevant in zip(jac, mask) if relevant])
         W = W[mask]
         if jac.shape[0] == 0:
             return None
@@ -1240,21 +1241,11 @@ class HasCovarianceMatrix(TakesData):
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
         # Weigh each component with its respective weight.
-#        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
 
-        # Buil the inverse cov_matrix.
+        # Build the inverse cov_matrix.
         cov_matrix_inv = []
         cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
         cov_matrix = np.linalg.inv(cov_matrix_inv)
-#        # iterate along the parameters first
-#        for index, jac_w_p in enumerate(jac_weighed):
-#            cov_matrix_inv.append([])
-#            for jac_p in jac:
-#                # Now we have to dot product these guys properly.
-#                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
-#                cov_matrix_inv[index].append(dot)
-#
-#        cov_matrix = np.linalg.inv(cov_matrix_inv)
         return cov_matrix
 
 
@@ -1605,7 +1596,7 @@ class Fit(HasCovarianceMatrix):
             # that, otherwise we let the minimizer estimate it itself.
             # Hence the check of numerical_jacobian, as this is the
             # py function version of the analytical jacobian.
-            if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
+            if hasattr(self.model, 'eval_jacobian') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
 
         if issubclass(minimizer, ConstrainedMinimizer):
