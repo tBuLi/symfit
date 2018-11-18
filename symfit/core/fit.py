@@ -434,21 +434,38 @@ class BaseNumericalModel(BaseModel):
 
 class BaseCallableModel(BaseModel):
     """
-    Baseclass for callable models.
+    Baseclass for callable models. A callable model is expected to have
+    implemented a `__call__` method which evaluates the model.
     """
     def eval_components(self, *args, **kwargs):
         """
-        :return: lambda functions of each of the components in model_dict, to be
-            used in numerical calculation.
+        :return: evaluated lambda functions of each of the components in
+            model_dict, to be used in numerical calculation.
         """
-        return [np.atleast_1d(expr(*args, **kwargs)) for expr in self.numerical_components]
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        kwargs = bound_arguments.arguments  # Only work with kwargs
+        components = dict(zip(self, self.numerical_components))
+        # Evaluate the variables in topological order.
+        for symbol in self.ordered_symbols:
+            if symbol.name not in kwargs:
+                dependencies = self.connectivity_mapping[symbol]
+                dependencies_kwargs = {d.name: kwargs[d.name]
+                                       for d in dependencies}
+                kwargs[symbol.name] = components[symbol](**dependencies_kwargs)
 
-    @abstractmethod
+        return [np.atleast_1d(kwargs[var.name]) for var in self]
+
     def numerical_components(self):
         """
         :return: A list of callables corresponding to each of the components
             of the model.
         """
+        raise NotImplementedError(
+            ('No `numerical_components` is defined for object of type {}. '
+             'Implement either `numerical_components`, or change '
+             '`eval_components` so it no longer calls '
+             '`numerical_components`.').format(self.__class__)
+        )
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
