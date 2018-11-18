@@ -406,13 +406,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                 constraint = MinimizeModel(constraint, data={})
             elif isinstance(constraint, sympy.Rel):
                 from .fit import Constraint, CallableNumericalModel
-                # Todo: remove this CallableNumericalModel work around when
-                # either Constraint-obj are removed or a params arg is added.
-                constraint = Constraint(
-                    constraint,
-                    CallableNumericalModel({}, params=self.parameters,
-                                           independent_vars=[])
-                )
+                constraint = Constraint(constraint, params=self.parameters)
                 constraint_type = constraint.constraint_type
                 constraint = MinimizeModel(constraint, data={})
             else:
