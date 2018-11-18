@@ -2144,3 +2144,106 @@ class ODEModel(CallableModel):
         Ans = namedtuple('Ans', [var.name for var in self])
         ans = Ans(*self.eval_components(**bound_arguments.arguments))
         return ans
+
+
+def jacobian_from_model(model, as_functions=False):
+    """
+    Build a :class:`~symfit.core.fit.CallableModel` representing the Jacobian of
+    ``model``.
+
+    This function make sure the chain rule is correctly applied for
+    interdependent variables.
+
+    :param model: Any symbolical model-type.
+    :param as_functions: If `True`, the result is returned using
+        :class:`sympy.Function` where needed, e.g. {y(x, a): a * x} instead of
+        {y: a * x}.
+    :return: :class:`~symfit.core.fit.CallableModel` representing the Jacobian
+        of ``model``.
+    """
+    def partial_diff(var, *params):
+        """
+        Sympy does not handle repeated partial derivation correctly, e.g.
+        D(D(y, a), a) = D(y, a, a) but D(D(y, a), b) = 0.
+        Use this function instead to prevent evaluation to zero.
+        """
+        if isinstance(var, sympy.Derivative):
+            return sympy.Derivative(var.expr, *(var.variables + params))
+        else:
+            return D(var, *params)
+
+    def partial_subs(func, func2vars):
+        """
+        Partial-bug proof substitution. Works by making the substitutions on
+        the expression inside the derivative first, and then rebuilding the
+        derivative safely without evaluating it using `partial_diff`.
+        """
+        if isinstance(func, sympy.Derivative):
+            new_func = func.expr.xreplace(func2vars)
+            new_variables = tuple(var.xreplace(func2vars)
+                                  for var in func.variables)
+            return partial_diff(new_func, *new_variables)
+        else:
+            return func.xreplace(func2vars)
+
+    # Inverse dict so we can turn functions back into vars in the end
+    functions_as_vars = dict((v, k) for k, v in model.vars_as_functions.items())
+    # Create the jacobian components. The `vars` here in the model_dict are
+    # always of the type D(y, a), but the righthand-side might still contain
+    # functions instead of vars depending on the value of `as_functions`.
+    jac = {}
+    for func, expr in model.function_dict.items():
+        for param in model.params:
+            target = D(func, param)
+            dfdp = expr.diff(param)
+            if as_functions:
+                jac[partial_subs(target, functions_as_vars)] = dfdp
+            else:
+                # Turn Function objects back into Variables.
+                dfdp = dfdp.subs(functions_as_vars, evaluate=False)
+                jac[partial_subs(target, functions_as_vars)] = dfdp
+    # Next lines are needed for the Hessian, where the components of model still
+    # contain functions instead of vars.
+    if as_functions:
+        jac.update(model)
+    else:
+        jac.update({y: expr.subs(functions_as_vars, evaluate=False)
+                    for y, expr in model.items()})
+    return CallableModel(jac)
+
+def hessian_from_model(model):
+    """
+    Build a :class:`~symfit.core.fit.CallableModel` representing the Hessian of
+    ``model``.
+
+    This function make sure the chain rule is correctly applied for
+    interdependent variables.
+
+    :param model: Any symbolical model-type.
+    :return: :class:`~symfit.core.fit.CallableModel` representing the Hessian
+        of ``model``.
+    """
+    jac_model = jacobian_from_model(model, as_functions=True)
+    print(jac_model)
+    return jacobian_from_model(jac_model)
+
+def leastsquares_from_model(model):
+    """
+    Creates an analytical Least-Squares model for ``model``, which can be used
+    to solve analytical least-squares problems.
+
+    .. note: Currently only for use by :class:`LinearLeastSquares`, as no
+        analytical sum is included.
+
+    :param model: Any symbolical model-type.
+    :return: :class:`~symfit.core.fit.GradientModel` representing the :math:`\chi^2`
+        of ``model``.
+    """
+    chi2_expr = sum(((model[y] - y)**2 / model.sigmas[y]**2)
+                    for y in model.dependent_vars)
+    chi2 = Variable()
+    chi2_dict = {chi2: chi2_expr}
+    # Update it with any leftover interdependent variables we might need.
+    chi2_dict.update({var: expr for var, expr in model.items()
+                     if var not in model.dependent_vars})
+    return GradientModel(chi2_dict)
