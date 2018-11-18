@@ -1689,7 +1689,7 @@ def r_squared(model, fit_result, data):
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
     return 1 - SS_res/SS_tot
 
-class ODEModel(CallableModel):
+class ODEModel(BaseGradientModel):
     """
     Model build from a system of ODEs. When the model is called, the ODE is
     integrated using the LSODA package.
@@ -1718,6 +1718,7 @@ class ODEModel(CallableModel):
             key=sort_func
         )
         self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
+        self.interdependent_vars = []  # Not yet supported for ODEModels
         if not len(self.independent_vars):
             raise ModelError('ODEModel can only have one independent variable.')
 
@@ -1915,9 +1916,8 @@ class ODEModel(CallableModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
-        ans = Ans(*self.eval_components(**bound_arguments.arguments))
+        Ans = variabletuple('Ans', self)
+        ans = Ans(*self.eval_components(*args, **kwargs))
         return ans
 
 
