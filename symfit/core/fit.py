@@ -321,14 +321,20 @@ class BaseModel(Mapping):
         template = "{}({}; {}) = {}"
         parts = []
         for var, expr in self.items():
+            params_sorted = sorted((x for x in self.connectivity_mapping[var]
+                                    if isinstance(x, Parameter)),
+                                   key=lambda x: x.name)
+            vars_sorted = sorted((x for x in self.connectivity_mapping[var]
+                                  if x not in params_sorted),
+                                 key=lambda x: x.name)
             parts.append(template.format(
                     var,
-                    ", ".join(arg.name for arg in self.independent_vars),
-                    ", ".join(arg.name for arg in self.params),
+                    ', '.join([x.name for x in vars_sorted]),
+                    ', '.join([x.name for x in params_sorted]),
                     expr
                 )
             )
-        return "\n".join(parts)
+        return '[{}]'.format(",\n ".join(parts))
 
     def __getstate__(self):
         # Remove cached_property values from the state, they need to be
