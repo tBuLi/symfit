@@ -610,8 +610,8 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
     @cached_property
     def numerical_components(self):
         return [expr if not isinstance(expr, sympy.Expr) else
-                sympy_to_py(expr, self.independent_vars, self.params)
-                for expr in self.values()]
+                sympy_to_py(expr, self.connectivity_mapping[var], [])
+                for var, expr in self.items()]
 
 
 class CallableModel(BaseCallableModel):
