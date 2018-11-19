@@ -876,7 +876,7 @@ class Tests(unittest.TestCase):
 
     def test_non_boundaries(self):
         """
-        Make sure parameter boundaries are respected
+        Make sure parameter boundaries are not invented
         """
         x = Parameter('x')
         y = Variable('y')

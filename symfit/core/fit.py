@@ -1500,9 +1500,9 @@ class Fit(HasCovarianceMatrix):
             if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
         if issubclass(minimizer, HessianMinimizer):
-            # If an analytical version of the Jacobian exists we should use
+            # If an analytical version of the Hessian exists we should use
             # that, otherwise we let the minimizer estimate it itself.
-            # Hence the check of numerical_jacobian, as this is the
+            # Hence the check of numerical_hessian, as this is the
             # py function version of the analytical jacobian.
             if hasattr(self.model, 'numerical_hessian') and hasattr(self.objective, 'eval_hessian'):
                 minimizer_options['hessian'] = self.objective.eval_hessian
