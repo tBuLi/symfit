@@ -176,22 +176,16 @@ class BaseModel(Mapping):
         # Everything at the bottom of the toposort is independent, at the top
         # dependent, and the rest interdependent.
         ordered = list(toposort(self.connectivity_mapping))
-        independent = ordered.pop(0)
+        independent = sorted(ordered.pop(0), key=sort_func)
         self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
         self.interdependent_vars = sorted(
             [item for items in ordered for item in items],
             key=sort_func
         )
         # `independent` contains both params and vars, needs to be separated
-        self.params = sorted(
-            [s for s in independent if isinstance(s, Parameter)],
-            key=sort_func
-        )
-        self.independent_vars = sorted(
-            [s for s in independent
-             if not isinstance(s, Parameter) and not s in self],
-            key=sort_func
-        )
+        self.params = [s for s in independent if isinstance(s, Parameter)]
+        self.independent_vars = [s for s in independent
+                                 if not isinstance(s, Parameter) and not s in self]
 
         # Make Variable object corresponding to each depedent var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name))
