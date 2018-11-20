@@ -198,20 +198,24 @@ class BaseModel(Mapping):
             objects. This is done recursively so the chain rule can be applied
             correctly. This is done on the basis of `connectivity_mapping`.
 
-            Example: for ``{y: a * x}`` this returns ``{y: y(x, a)}``.
+            Example: for ``{y: a * x, z: y**2 + a}`` this returns
+            ``{y: y(x, a), z: z(y(x, a), a)}``.
         """
-        functions = {}
-        # vars first, then params, and alphabetically within each group
+        vars2functions = {}
         key = lambda arg: [isinstance(arg, Parameter), str(arg)]
+        # Iterate over all symbols in this model in topological order, turning
+        # each one into a function object recursively.
         for symbol in self.ordered_symbols:
             if symbol in self.connectivity_mapping:
-                connections = self.connectivity_mapping[symbol]
-                # Replace the connection by it's function if possible
-                connections = [functions.get(connection, connection)
-                               for connection in connections]
-                connections = sorted(connections, key=key)
-                functions[symbol] = sympy.Function(symbol.name)(*(connections))
-        return functions
+                dependencies = self.connectivity_mapping[symbol]
+                # Replace the dependency by it's function if possible
+                dependencies = [vars2functions.get(dependency, dependency)
+                               for dependency in dependencies]
+                # sort by vars first, then params, and alphabetically within
+                # each group
+                dependencies = sorted(dependencies, key=key)
+                vars2functions[symbol] = sympy.Function(symbol.name)(*dependencies)
+        return vars2functions
 
     @cached_property
     def function_dict(self):
@@ -252,8 +256,8 @@ class BaseModel(Mapping):
         key_func = lambda s: [isinstance(s, sympy.Derivative),
                            isinstance(s, sympy.Derivative) and s.derivative_count]
         symbols = []
-        for d in toposort(self.connectivity_mapping):
-            symbols.extend(sorted(d, key=key_func))
+        for symbol in toposort(self.connectivity_mapping):
+            symbols.extend(sorted(symbol, key=key_func))
 
         return symbols
 
@@ -315,6 +319,8 @@ class BaseModel(Mapping):
         template = "{}({}; {}) = {}"
         parts = []
         for var, expr in self.items():
+            # Print every component as a function of only the dependencies it
+            # has. We can deduce these from the connectivity mapping.
             params_sorted = sorted((x for x in self.connectivity_mapping[var]
                                     if isinstance(x, Parameter)),
                                    key=lambda x: x.name)
@@ -392,8 +398,7 @@ class BaseNumericalModel(BaseModel):
                 raise TypeError('Please provide the model as a mapping, '
                                 'corresponding to `connectivity_mapping`.')
         else:
-            raise TypeError('Provide either `connectivity_mapping` (preferred) '
-                            'or `independent_vars` and `params` (deprecated).')
+            raise TypeError('Please provide `connectivity_mapping`.')
         super(BaseNumericalModel, self).__init__(model)
 
     @property
@@ -658,10 +663,11 @@ class GradientModel(CallableModel, BaseGradientModel):
         """
         jac = []
         for var, expr in self.items():
-            jac.append([])
+            jac_row = []
             for param in self.params:
                 partial_dv = D(var, param)
-                jac[-1].append(self.jacobian_model[partial_dv])
+                jac_row.append(self.jacobian_model[partial_dv])
+            jac.append(jac_row)
         return jac
 
     def eval_jacobian(self, *args, **kwargs):
@@ -849,22 +855,21 @@ class Constraint(Model):
         """
         params = kwargs.pop('params')
         if isinstance(constraint, Relational):
+            super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
             self.constraint_type = type(constraint)
             if model is None and params is not None:
-                pass
+                self.params = params
             elif isinstance(model, BaseModel):
                 self.model = model
-                params = self.model.params
+                self.params = self.model.params
             else:
                 raise TypeError('The model argument must be of type Model.')
-            super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
 
-            # Update the signature to accept all vars and parms of the model
-            self.params = params
+            # Update the signature now that self.params has been updated.
             self.__signature__ = self._make_signature()
             # Update the jacobian and hessian model as well
-            self.jacobian_model.params = params
-            self.hessian_model.params = params
+            self.jacobian_model.params = self.params
+            self.hessian_model.params = self.params
             self.jacobian_model.__signature__ = self.jacobian_model._make_signature()
             self.hessian_model.__signature__ = self.hessian_model._make_signature()
         else:
@@ -1178,6 +1183,7 @@ class HasCovarianceMatrix(TakesData):
         # set to None. jac also contains interdependent_vars, hence the .get
         mask = [self.dependent_data.get(var, None) is not None
                 for var in self.model.dependent_vars]
+        # No masking possible because jac is a list, not an array
         jac = np.array([comp for comp, relevant in zip(jac, mask) if relevant])
         W = W[mask]
         if jac.shape[0] == 0:
@@ -1918,6 +1924,31 @@ class ODEModel(BaseGradientModel):
         return ans
 
 
+def _partial_diff(var, *params):
+    """
+    Sympy does not handle repeated partial derivation correctly, e.g.
+    D(D(y, a), a) = D(y, a, a) but D(D(y, a), b) = 0.
+    Use this function instead to prevent evaluation to zero.
+    """
+    if isinstance(var, sympy.Derivative):
+        return sympy.Derivative(var.expr, *(var.variables + params))
+    else:
+        return D(var, *params)
+
+def _partial_subs(func, func2vars):
+    """
+    Partial-bug proof substitution. Works by making the substitutions on
+    the expression inside the derivative first, and then rebuilding the
+    derivative safely without evaluating it using `_partial_diff`.
+    """
+    if isinstance(func, sympy.Derivative):
+        new_func = func.expr.xreplace(func2vars)
+        new_variables = tuple(var.xreplace(func2vars)
+                              for var in func.variables)
+        return _partial_diff(new_func, *new_variables)
+    else:
+        return func.xreplace(func2vars)
+
 def jacobian_from_model(model, as_functions=False):
     """
     Build a :class:`~symfit.core.fit.CallableModel` representing the Jacobian of
@@ -1933,31 +1964,6 @@ def jacobian_from_model(model, as_functions=False):
     :return: :class:`~symfit.core.fit.CallableModel` representing the Jacobian
         of ``model``.
     """
-    def partial_diff(var, *params):
-        """
-        Sympy does not handle repeated partial derivation correctly, e.g.
-        D(D(y, a), a) = D(y, a, a) but D(D(y, a), b) = 0.
-        Use this function instead to prevent evaluation to zero.
-        """
-        if isinstance(var, sympy.Derivative):
-            return sympy.Derivative(var.expr, *(var.variables + params))
-        else:
-            return D(var, *params)
-
-    def partial_subs(func, func2vars):
-        """
-        Partial-bug proof substitution. Works by making the substitutions on
-        the expression inside the derivative first, and then rebuilding the
-        derivative safely without evaluating it using `partial_diff`.
-        """
-        if isinstance(func, sympy.Derivative):
-            new_func = func.expr.xreplace(func2vars)
-            new_variables = tuple(var.xreplace(func2vars)
-                                  for var in func.variables)
-            return partial_diff(new_func, *new_variables)
-        else:
-            return func.xreplace(func2vars)
-
     # Inverse dict so we can turn functions back into vars in the end
     functions_as_vars = dict((v, k) for k, v in model.vars_as_functions.items())
     # Create the jacobian components. The `vars` here in the model_dict are
@@ -1969,11 +1975,11 @@ def jacobian_from_model(model, as_functions=False):
             target = D(func, param)
             dfdp = expr.diff(param)
             if as_functions:
-                jac[partial_subs(target, functions_as_vars)] = dfdp
+                jac[_partial_subs(target, functions_as_vars)] = dfdp
             else:
                 # Turn Function objects back into Variables.
                 dfdp = dfdp.subs(functions_as_vars, evaluate=False)
-                jac[partial_subs(target, functions_as_vars)] = dfdp
+                jac[_partial_subs(target, functions_as_vars)] = dfdp
     # Next lines are needed for the Hessian, where the components of model still
     # contain functions instead of vars.
     if as_functions:
