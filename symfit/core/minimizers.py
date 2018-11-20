@@ -60,11 +60,13 @@ class BaseMinimizer(object):
             if isinstance(func, BaseModel):
                 model = func
             else:
-                # Minimize the provided custom objective instead. This why want to
-                # minimize a CallableNumericalModel, thats what they are for.
-                model = CallableNumericalModel(func,
-                                               params=self.parameters,
-                                               independent_vars=[])
+                # Minimize the provided custom objective instead. We therefore
+                # wrap it into a CallableNumericalModel, thats what they are for
+                y = sympy.Dummy('y')
+                model = CallableNumericalModel(
+                    {y: func},
+                    connectivity_mapping={y: set(self.parameters)}
+                )
             return objective_type(model,
                                   data={y: None for y in model.dependent_vars})
 

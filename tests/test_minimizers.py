@@ -78,11 +78,11 @@ class TestMinimize(unittest.TestCase):
             return np.sum((ydata - f(xdata, a, b))**2)
 
         with warnings.catch_warnings(record=True) as w:
-            # Should raise a deprecation warning.
+            # Should no longer raise warnings, because internally we practice
+            # what we preach.
             warnings.simplefilter("always")
             fit_custom = BFGS(chi_squared, [a, b])
-            self.assertTrue(len(w) == 1)
-            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+            self.assertTrue(len(w) == 0)
 
         fit_custom_result = fit_custom.execute()
 
