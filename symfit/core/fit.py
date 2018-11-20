@@ -684,25 +684,12 @@ class GradientModel(CallableModel, BaseGradientModel):
         Ans = variabletuple('Ans', self.keys())
         return Ans(*jac)
 
-
-class Model(GradientModel):
+class HessianModel(GradientModel):
     """
-    Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
-    Models can be initiated from several objects::
-
-        a = Model({y: x**2})
-        b = Model(y=x**2)
-
-    Models are callable. The usual rules apply to the ordering of the arguments:
-
-    * first independent variables, then dependent variables, then parameters.
-    * within each of these groups they are ordered alphabetically.
-
-    Models are also iterable, behaving as their internal model_dict. In the example above,
-    a[y] returns x**2, len(a) == 1, y in a == True, etc.
+    Analytical model which has an analytically computed Hessian.
     """
     def __init__(self, *args, **kwargs):
-        super(Model, self).__init__(*args, **kwargs)
+        super(HessianModel, self).__init__(*args, **kwargs)
         self.hessian_model = hessian_from_model(self)
 
     @property
@@ -735,6 +722,36 @@ class Model(GradientModel):
 
         Ans = variabletuple('Ans', self.keys())
         return Ans(*hess)
+
+
+class Model(HessianModel):
+    """
+    Model represents a symbolic function and all it's derived properties such as
+    sum of squares, jacobian etc.
+    Models should be initiated from a dict::
+
+        a = Model({y: x**2})
+
+    Models are callable. The usual rules apply to the ordering of the arguments:
+
+    * first independent variables, then parameters.
+    * within each of these groups they are ordered alphabetically.
+
+    The output of a call to a model is a special kind of namedtuple::
+
+        >>> a(x=3)
+        Ans(y=9)
+
+    When turning this into a dict, however, the dict keys will be Variable
+    objects, not strings::
+
+        >>> a(x=3)._asdict()
+        OrderedDict(((y, 9),))
+
+    Models are also iterable, behaving as their internal model_dict. For
+    example, ``a[y]`` returns ``x**2``, ``len(a) == 1``,
+    ``y in a == True``, etc.
+    """
 
 
 class TaylorModel(Model):
