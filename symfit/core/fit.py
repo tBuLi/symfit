@@ -2029,7 +2029,7 @@ def leastsquares_from_model(model):
     """
     chi2_expr = sum(((model[y] - y)**2 / model.sigmas[y]**2)
                     for y in model.dependent_vars)
-    chi2 = Variable()
+    chi2 = sympy.Dummy('chi2')
     chi2_dict = {chi2: chi2_expr}
     # Update it with any leftover interdependent variables we might need.
     chi2_dict.update({var: expr for var, expr in model.items()
