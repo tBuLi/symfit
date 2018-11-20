@@ -99,11 +99,7 @@ class BaseModel(Mapping):
             # TODO: this will break upon deprecating the auto-generation of
             # names for Variables. At this time, a DummyVariable object
             # should be introduced to fulfill the same role.
-            # Also, catching the warnings should then be removed, as this is
-            # just to prevent the DeprecationWarning from appearing.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                model = {Variable(): expr for expr in model}
+            model = {Variable(): expr for expr in model}
         self._init_from_dict(model)
 
     def __len__(self):
@@ -381,9 +377,7 @@ class BaseNumericalModel(BaseModel):
                 except TypeError:
                     model = [model]  # make model iterable
 
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    model = {Variable(): expr for expr in model}
+                model = {Variable(): expr for expr in model}
             warnings.warn(DeprecationWarning(
                 '`independent_vars` and `params` have been deprecated.'
                 ' Use `connectivity_mapping` instead.'

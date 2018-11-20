@@ -218,18 +218,29 @@ class TestModel(unittest.TestCase):
         num_model = CallableNumericalModel(
             {y: a * x ** b}, independent_vars=[x], params=[a, b]
         )
+        connected_num_model = CallableNumericalModel(
+            {y: a * x ** b}, connectivity_mapping={y: {x, a, b}}
+        )
         # Test if lsoda args and kwargs are pickled too
         ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, 3, 4, some_kwarg=True)
-        for model in [exact_model, constraint, num_model, ode_model]:
+
+        models = [exact_model, constraint, num_model, ode_model,
+                  connected_num_model]
+        for model in models:
             new_model = pickle.loads(pickle.dumps(model))
             # Compare signatures
             self.assertEqual(model.__signature__, new_model.__signature__)
             # Trigger the cached vars.
-            model.vars, model.connectivity_mapping
-            new_model.vars, new_model.connectivity_mapping
+            model.vars
+            new_model.vars
+            # Explicitely make sure the connectivity mapping is identical.
+            self.assertEqual(model.connectivity_mapping,
+                             new_model.connectivity_mapping)
             if not isinstance(model, ODEModel):
-                model.function_dict, model.vars_as_functions
-                new_model.function_dict, new_model.vars_as_functions
+                model.function_dict
+                model.vars_as_functions
+                new_model.function_dict
+                new_model.vars_as_functions
             self.assertEqual(model.__dict__, new_model.__dict__)
 
     def test_MatrixSymbolModel(self):
@@ -380,10 +391,10 @@ class TestModel(unittest.TestCase):
         np.testing.assert_almost_equal(model(x=3, a=1, b=2),
                                        np.atleast_2d([7, 51]).T)
         np.testing.assert_almost_equal(model.eval_jacobian(x=3, a=1, b=2),
-                                       np.atleast_2d([[[9], [4]], [[128], [57]]]))
+                                       np.array([[[9], [4]], [[128], [57]]]))
         np.testing.assert_almost_equal(
             model.eval_hessian(x=3, a=1, b=2),
-            np.atleast_2d([[[[18], [0]], [[0], [2]]],
+            np.array([[[[18], [0]], [[0], [2]]],
                            [[[414], [73]], [[73], [60]]]]))
 
         self.assertEqual(model.__signature__, model.jacobian_model.__signature__)
