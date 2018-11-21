@@ -631,11 +631,8 @@ class TestConstrained(unittest.TestCase):
 
     def test_fixed_and_constrained_tc(self):
         """
-        Taken from #165. Fixing parameters and constraining others caused a
-        TypeError: missing a required argument: 'theta1', which was caused by a
-        mismatch in the shape of the initial guesses given and the number of
-        parameters constraints expected. The initial_guesses no longer contained
-        those corresponding to fixed parameters.
+        Taken from #165. Make sure the TrustConstr minimizer can deal with
+        constraints and fixed parameters.
         """
         phi1, phi2, theta1, theta2 = parameters('phi1, phi2, theta1, theta2')
         x, y = variables('x, y')
