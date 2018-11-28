@@ -1626,24 +1626,3 @@ def hessian_from_model(model):
     """
     jac_model = jacobian_from_model(model, as_functions=True)
     return jacobian_from_model(jac_model)
-
-def leastsquares_from_model(model):
-    """
-    Creates an analytical Least-Squares model for ``model``, which can be used
-    to solve analytical least-squares problems.
-
-    .. note: Currently only for use by :class:`LinearLeastSquares`, as no
-        analytical sum is included.
-
-    :param model: Any symbolical model-type.
-    :return: :class:`~symfit.core.fit.GradientModel` representing the :math:`\chi^2`
-        of ``model``.
-    """
-    chi2_expr = sum(((model[y] - y)**2 / model.sigmas[y]**2)
-                    for y in model.dependent_vars)
-    chi2 = sympy.Dummy('chi2')
-    chi2_dict = {chi2: chi2_expr}
-    # Update it with any leftover interdependent variables we might need.
-    chi2_dict.update({var: expr for var, expr in model.items()
-                     if var not in model.dependent_vars})
-    return GradientModel(chi2_dict)
