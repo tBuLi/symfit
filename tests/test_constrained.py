@@ -290,10 +290,17 @@ class TestConstrained(unittest.TestCase):
         vector models. This is done by using the typical angles of a triangle
         example. For completeness, we throw in covariance between the angles.
 
-        As it stands now, `Fit` is able to correctly
-        predict the values of the parameters an their standard deviations, but
-        it is not able to give the covariances. Those are therefore returned as
-        nan, to prevent people from citing them as 0.0.
+        As per 0.5.0 this test has been updated in an important way. Previously
+        the covariance matrix was estimated on a per component basis for global
+        fitting problems. This was incorrect, but no solution was possible at
+        the time. Now, we calculate the covariance matrix from the Hessian of
+        the function being optimized, and so now the covariance is calculated
+        correctly in those scenarios.
+
+        As a result for this particular test however, it means we lose
+        sensitivity to the error of each parameter separately. This makes sense,
+        since the uncertainty is now being spread out over the components. To
+        regain this, the user should just fit the components separately.
         """
         N = 10000
         a, b, c = parameters('a, b, c')
@@ -311,7 +318,6 @@ class TestConstrained(unittest.TestCase):
             a_i=xdata[0],
             b_i=xdata[1],
             c_i=xdata[2],
-            # absolute_sigma=False
         )
         fit_std = Fit(
             model=model,
@@ -319,10 +325,6 @@ class TestConstrained(unittest.TestCase):
             b_i=xdata[1],
             c_i=xdata[2],
             minimizer = MINPACK
-            # sigma_a_i=np.ones_like(xdata[0]),
-            # sigma_b_i=np.ones_like(xdata[0]),
-            # sigma_c_i=np.ones_like(xdata[0]),
-            # absolute_sigma=False
         )
         fit_new_result = fit.execute()
         std_result = fit_std.execute()
@@ -343,18 +345,16 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(fit_new_result.value(b), np.mean(xdata[1]), 4)
         self.assertAlmostEqual(fit_new_result.value(c), np.mean(xdata[2]), 4)
 
-        # Since no sigma were provided, absolute_sigma=False. Therefore the
-        # standard deviation doesn't match the expected value, but it does match the emperical value
-        self.assertAlmostEqual(fit_new_result.stdev(a)/(np.std(xdata[0], ddof=1)/np.sqrt(N)), 1.0, 3)
-        self.assertAlmostEqual(fit_new_result.stdev(b)/(np.std(xdata[1], ddof=1)/np.sqrt(N)), 1.0, 3)
-        self.assertAlmostEqual(fit_new_result.stdev(c)/(np.std(xdata[2], ddof=1)/np.sqrt(N)), 1.0, 3)
+        # All stdev's must be equal
+        self.assertAlmostEqual(fit_new_result.stdev(a)/fit_new_result.stdev(b), 1.0, 3)
+        self.assertAlmostEqual(fit_new_result.stdev(a)/fit_new_result.stdev(c), 1.0, 3)
         # Test for a miss on the exact value
         self.assertNotAlmostEqual(fit_new_result.stdev(a)/np.sqrt(pcov[0, 0]/N), 1.0, 3)
         self.assertNotAlmostEqual(fit_new_result.stdev(b)/np.sqrt(pcov[1, 1]/N), 1.0, 3)
         self.assertNotAlmostEqual(fit_new_result.stdev(c)/np.sqrt(pcov[2, 2]/N), 1.0, 3)
 
         # The standard object actually does not predict the right values for
-        # stdev, because its method for computing them apperantly does not allow
+        # stdev, because its method for computing them apparently does not allow
         # for vector valued functions.
         # So actually, for vector valued functions its better to use
         # Fit, though this does not give covariances.
