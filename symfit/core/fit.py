@@ -1057,30 +1057,30 @@ class HasCovarianceMatrix(TakesData):
         """
         cov_matrix = self._covariance_matrix(best_fit_params,
                                              objective=self.objective)
-        if cov_matrix is None:
-            # If the covariance matrix could not be computed, we try again by
-            # approximating the hessian with the jacobian.
-            if not isinstance(self.objective, HessianObjective) \
-                    or not isinstance(self.model, HessianModel):
-                # VectorLeastSquares should be turned into a LeastSquares for
-                # cov matrix calculation
-                if self.objective.__class__ is VectorLeastSquares:
-                    base = LeastSquares
-                else:
-                    base = self.objective.__class__
+        if cov_matrix is None or any(np.diag(cov_matrix) < 0):
+            # If the covariance matrix could not be computed or contains illegal
+            # values, we try again by approximating the hessian with the
+            # jacobian.
 
-                class HessApproximation(base, HessianObjectiveJacApprox):
-                    """
-                    Class which impersonates ``base``, but which returns zeros
-                    for the models Hessian. This will effectively result in the
-                    calculation of the approximate Hessian by calculating
-                    outer(J.T, J) when calling ``base.eval_hessian``.
-                    """
+            # VectorLeastSquares should be turned into a LeastSquares for
+            # cov matrix calculation
+            if self.objective.__class__ is VectorLeastSquares:
+                base = LeastSquares
+            else:
+                base = self.objective.__class__
 
-                objective = HessApproximation(self.objective.model,
-                                              self.objective.data)
-                cov_matrix = self._covariance_matrix(best_fit_params,
-                                                     objective=objective)
+            class HessApproximation(base, HessianObjectiveJacApprox):
+                """
+                Class which impersonates ``base``, but which returns zeros
+                for the models Hessian. This will effectively result in the
+                calculation of the approximate Hessian by calculating
+                outer(J.T, J) when calling ``base.eval_hessian``.
+                """
+
+            objective = HessApproximation(self.objective.model,
+                                          self.objective.data)
+            cov_matrix = self._covariance_matrix(best_fit_params,
+                                                 objective=objective)
 
         return cov_matrix
 
