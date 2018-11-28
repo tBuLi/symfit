@@ -404,55 +404,6 @@ class TestConstrained(unittest.TestCase):
         self.assertNotAlmostEqual(fit_result.stdev(b)/np.sqrt(pcov[1, 1]/N), 1.0, 1)
         self.assertNotAlmostEqual(fit_result.stdev(c)/np.sqrt(pcov[2, 2]/N), 1.0, 1)
 
-    def test_covariances(self):
-        """
-        Compare the equal and unequal length handeling of `HasCovarianceMatrix`.
-        If it works properly, the unequal length method should reduce to the
-        equal length one if called qith equal length data. Computing unequal
-        dataset length covariances remains something to be careful with, but
-        this backwards compatibility provides some validation.
-        """
-        N = 10000
-        a, b, c = parameters('a, b, c')
-        a_i, b_i, c_i = variables('a_i, b_i, c_i')
-
-        model = {a_i: a, b_i: b, c_i: c}
-
-        np.random.seed(1)
-        # Sample from a multivariate normal with correlation.
-        pcov = 1e-1 * np.array([[0.4, 0.3, 0.5], [0.3, 0.8, 0.4], [0.5, 0.4, 1.2]])
-        xdata = np.random.multivariate_normal([10, 100, 70], pcov, N).T
-
-        fit = Fit(
-            model=model,
-            a_i=xdata[0],
-            b_i=xdata[1],
-            c_i=xdata[2],
-            absolute_sigma=False
-        )
-        fit_result = fit.execute()
-
-        cov_equal = fit._cov_mat_equal_lenghts(fit_result.params)
-        cov_unequal = fit._cov_mat_unequal_lenghts(fit_result.params)
-        np.testing.assert_array_almost_equal(cov_equal, cov_unequal)
-
-        # Try with absolute_sigma=True
-        fit = Fit(
-            model=model,
-            a_i=xdata[0],
-            b_i=xdata[1],
-            c_i=xdata[2],
-            sigma_a_i=np.sqrt(pcov[0, 0]),
-            sigma_b_i=np.sqrt(pcov[1, 1]),
-            sigma_c_i=np.sqrt(pcov[2, 2]),
-            absolute_sigma=True
-        )
-        fit_result = fit.execute()
-
-        cov_equal = fit._cov_mat_equal_lenghts(fit_result.params)
-        cov_unequal = fit._cov_mat_unequal_lenghts(fit_result.params)
-        np.testing.assert_array_almost_equal(cov_equal, cov_unequal)
-
     def test_error_advanced(self):
         """
         Compare the error propagation of Fit against
