@@ -90,7 +90,7 @@ class TestObjectives(unittest.TestCase):
                          (2, 100))
         # Hessian no longer depends on the data, so its a scalar in the last dim
         self.assertEqual(model.eval_hessian(x=xdata, a=2, b=3)[0].shape,
-                         (2, 2, 1))
+                         (2, 2, 100))
         # Test exact chi2 shape
         self.assertEqual(eval_exact[0].shape, (1,))
         self.assertEqual(jac_exact[0].shape, (2, 1))
