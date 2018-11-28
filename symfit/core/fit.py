@@ -34,13 +34,13 @@ else:
 
 def variabletuple(typename, variables, *args, **kwargs):
     """
-    Create a :func:`namedtuple` using :class:`~sympy.core.argument.Variable`'s
+    Create a :func:`~collections.namedtuple` using :class:`~symfit.core.argument.Variable`'s
     whoses names will be used as `field_names`.
 
     The main reason for using this object is the `_asdict()` method: whereas a
-    ``namedtuple`` initiates such an :func:`collections.OrderedDict` with the
+    ``namedtuple`` initiates such an :class:`collections.OrderedDict` with the
     ``field_names`` as keys, this object returns a
-    :func:`collections.OrderedDict` which immidiatelly has the ``Variable``
+    :class:`collections.OrderedDict` which immediately has the ``Variable``
     objects as keys.
 
     Example::
@@ -52,10 +52,10 @@ def variabletuple(typename, variables, *args, **kwargs):
         OrderedDict((x, 5.0))
 
     :param typename: Name of the `variabletuple`.
-    :param variables: List of :class:`~sympy.core.argument.Variable`, to be used
+    :param variables: List of :class:`~symfit.core.argument.Variable`, to be used
         as `field_names`
-    :param args: See :func:`collections.namedtuple`
-    :param kwargs: See :func:`collections.namedtuple`
+    :param args: See :func:`~collections.namedtuple`
+    :param kwargs: See :func:`~collections.namedtuple`
     :return: Type ``typename``
     """
     def _asdict(self):
@@ -191,7 +191,8 @@ class BaseModel(Mapping):
     @cached_property
     def vars_as_functions(self):
         """
-        :return: Turn the keys of this model into :mod:`~sympy.Function`
+        :return: Turn the keys of this model into
+            :class:`~sympy.core.function.Function`
             objects. This is done recursively so the chain rule can be applied
             correctly. This is done on the basis of `connectivity_mapping`.
 
@@ -1582,8 +1583,8 @@ def jacobian_from_model(model, as_functions=False):
 
     :param model: Any symbolical model-type.
     :param as_functions: If `True`, the result is returned using
-        :class:`sympy.Function` where needed, e.g. {y(x, a): a * x} instead of
-        {y: a * x}.
+        :class:`sympy.core.function.Function` where needed, e.g.
+        ``{y(x, a): a * x}`` instead of ``{y: a * x}``.
     :return: :class:`~symfit.core.fit.CallableModel` representing the Jacobian
         of ``model``.
     """
