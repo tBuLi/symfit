@@ -7,6 +7,8 @@ from __future__ import print_function
 from collections import OrderedDict
 import sys
 import warnings
+import re
+import keyword
 
 import numpy as np
 from sympy.utilities.lambdify import lambdify
@@ -30,6 +32,19 @@ if sys.version_info >= (3, 5):
     from functools import partial
 else:
     from ._repeatable_partial import repeatable_partial as partial
+
+
+def isidentifier(s):
+    if hasattr(s, 'isidentifier'):
+        return s.isidentifier()
+    else:
+        # In py27 no such method exists, so we built one ourselves. Notice that
+        # this cannot be used by default because py3 supports unicode
+        # identifiers.
+        if s in keyword.kwlist:
+            return False
+        return re.match(r'^[a-z_][a-z0-9_]*$', s, re.I) is not None
+
 
 class deprecated(object):
     """
@@ -65,7 +80,7 @@ def seperate_symbols(func):
     params = []
     vars = []
     for symbol in func.free_symbols:
-        if not str(symbol).isidentifier():
+        if not isidentifier(str(symbol)):
             continue  # E.g. Indexed objects might print to A[i, j]
         if isinstance(symbol, Parameter):
             params.append(symbol)
