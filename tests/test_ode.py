@@ -2,7 +2,7 @@ from __future__ import division, print_function
 import unittest
 
 import numpy as np
-from symfit import parameters, variables, ODEModel, exp, Fit, D, Model
+from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel
 from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
 
@@ -114,7 +114,7 @@ class TestODE(unittest.TestCase):
         ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
 
         # Analytical solution
-        model = Model({a: 1 / (k * t + 1 / a0)})
+        model = GradientModel({a: 1 / (k * t + 1 / a0)})
         fit = Fit(model, t=tdata, a=adata)
         fit_result = fit.execute()
 

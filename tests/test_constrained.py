@@ -144,7 +144,6 @@ class TestConstrained(unittest.TestCase):
         # Analytical answer for mean of N(0,sigma):
         sigma_mu = sigma/N**0.5
 
-        # self.assertAlmostEqual(fit_result.value(a), mu, 5)
         self.assertAlmostEqual(fit_result.value(a), np.mean(yn), 5)
         self.assertAlmostEqual(fit_result.stdev(a), sigma_mu, 5)
 
@@ -479,6 +478,37 @@ class TestConstrained(unittest.TestCase):
         model = {z: a * log(b * x + c * y)}
 
         const_fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False)
+        self.assertEqual(len(const_fit.model(x=xdata, y=ydata, a=2, b=2, c=5)), 1)
+        self.assertEqual(
+            const_fit.model(x=xdata, y=ydata, a=2, b=2, c=5)[0].shape,
+            (10,)
+        )
+        self.assertEqual(len(const_fit.model.eval_jacobian(x=xdata, y=ydata, a=2, b=2, c=5)), 1)
+        self.assertEqual(
+            const_fit.model.eval_jacobian(x=xdata, y=ydata, a=2, b=2, c=5)[0].shape,
+            (3, 10)
+        )
+        self.assertEqual(len(const_fit.model.eval_hessian(x=xdata, y=ydata, a=2, b=2, c=5)), 1)
+        self.assertEqual(
+            const_fit.model.eval_hessian(x=xdata, y=ydata, a=2, b=2, c=5)[0].shape,
+            (3, 3, 10)
+        )
+
+        self.assertEqual(const_fit.objective(a=2, b=2, c=5).shape,
+                         tuple())
+        self.assertEqual(
+            const_fit.objective.eval_jacobian(a=2, b=2, c=5).shape,
+            (3,)
+        )
+        self.assertEqual(
+            const_fit.objective.eval_hessian(a=2, b=2, c=5).shape,
+            (3, 3)
+        )
+        self.assertNotEqual(
+            const_fit.objective.eval_hessian(a=2, b=2, c=5).dtype,
+            object
+        )
+
         const_result = const_fit.execute()
         fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False, minimizer=MINPACK)
         std_result = fit.execute()
@@ -489,9 +519,17 @@ class TestConstrained(unittest.TestCase):
         self.assertAlmostEqual(const_result.value(b), std_result.value(b), 4)
         self.assertAlmostEqual(const_result.value(c), std_result.value(c), 4)
 
-        self.assertAlmostEqual(const_result.stdev(a), std_result.stdev(a), 4)
-        self.assertAlmostEqual(const_result.stdev(b), std_result.stdev(b), 4)
-        self.assertAlmostEqual(const_result.stdev(c), std_result.stdev(c), 4)
+        # This used to be a tighter equality test, but since we now use the
+        # Hessian we actually get a more accurate value from the standard fit
+        # then for MINPACK. Hence we check if it is roughly equal, and if our
+        # stdev is greater than that of minpack.
+        self.assertAlmostEqual(const_result.stdev(a) / std_result.stdev(a), 1, 2)
+        self.assertAlmostEqual(const_result.stdev(b) / std_result.stdev(b), 1, 1)
+        self.assertAlmostEqual(const_result.stdev(c) / std_result.stdev(c), 1, 2)
+
+        self.assertGreaterEqual(const_result.stdev(a), std_result.stdev(a))
+        self.assertGreaterEqual(const_result.stdev(b), std_result.stdev(b))
+        self.assertGreaterEqual(const_result.stdev(c), std_result.stdev(c))
 
     def test_gaussian_2d_fitting(self):
         """

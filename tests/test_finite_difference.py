@@ -206,7 +206,8 @@ class FiniteDifferenceTests(unittest.TestCase):
         result = fit.execute()
 
         self.assertAlmostEqual(result.value(k), ode_result.value(k), places=4)
-        self.assertAlmostEqual(result.stdev(k), ode_result.stdev(k))
+        self.assertAlmostEqual(result.stdev(k) / ode_result.stdev(k), 1, 2)
+        self.assertGreaterEqual(result.stdev(k), ode_result.stdev(k))
 
     def _assert_equal(self, exact, approx, **kwargs):
         self.assertEqual(len(exact), len(approx))

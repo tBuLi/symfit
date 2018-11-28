@@ -6,7 +6,7 @@ import types
 from collections import OrderedDict
 
 import numpy as np
-from symfit import Variable, Parameter, Fit, FitResults, Model
+from symfit import Variable, Parameter, Fit, FitResults
 from symfit.distributions import Gaussian
 from symfit.core.minimizers import MINPACK
 
@@ -67,14 +67,14 @@ class TestFitResults(unittest.TestCase):
 
     def test_fitting_2(self):
         np.random.seed(4242)
-        mean = (0.3, 0.3) # x, y mean 0.6, 0.4
+        mean = (0.3, 0.3)  # x, y mean 0.6, 0.4
         cov = [
             [0.01**2, 0.4],
             [0.4, 0.01**2]
         ]
         data = np.random.multivariate_normal(mean, cov, 1000000)
-        mean = (0.7,0.7) # x, y mean 0.6, 0.4
-        cov = [[0.01**2,0],[0,0.01**2]]
+        mean = (0.7, 0.7)  # x, y mean 0.6, 0.4
+        cov = [[0.01**2, 0], [0, 0.01**2]]
         data_2 = np.random.multivariate_normal(mean, cov, 1000000)
         data = np.vstack((data, data_2))
 
