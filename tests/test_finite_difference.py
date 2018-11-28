@@ -193,6 +193,7 @@ class FiniteDifferenceTests(unittest.TestCase):
                                 initial={t: 0, v: 0, x: 1})
 
         t_data = np.linspace(0, 10, 250)
+        np.random.seed(2)
         noise = np.random.normal(1, 0.05, size=t_data.shape)
         x_data = ode_model(t=t_data, k=100).x * noise
 
