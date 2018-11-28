@@ -214,7 +214,7 @@ class VectorLeastSquares(GradientObjective):
         return np.sqrt(sum(result))
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
-        chi = self(ordered_parameters, flatten=False, **parameters)
+        chi = self(ordered_parameters, flatten_components=False, **parameters)
         evaluated_func = super(VectorLeastSquares, self).__call__(
             ordered_parameters, **parameters
         )
@@ -322,7 +322,7 @@ class LeastSquares(HessianObjective):
                 p1 = hess_comp * ((y - f) / sigma**2)[np.newaxis, np.newaxis, ...]
                 # Outer product
                 p2 = np.einsum('i...,j...->ij...', jac_comp, jac_comp)
-                p2 /= sigma[np.newaxis, np.newaxis, ...]**2
+                p2 = p2 / sigma[np.newaxis, np.newaxis, ...]**2
                 # We sum away everything except the matrices in the axes 0 & 1.
                 axes = tuple(range(2, len(p2.shape)))
                 result += 2 * np.sum(p2 - p1, axis=axes, keepdims=False)
