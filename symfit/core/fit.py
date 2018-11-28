@@ -21,7 +21,8 @@ from .minimizers import (
     ScipyMinimize, MINPACK, ChainedMinimizer, BasinHopping
 )
 from .objectives import (
-    LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
+    LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares,
+    LogLikelihood, HessianObjective, HessianObjectiveJacApprox
 )
 from .fit_results import FitResults
 
@@ -1009,6 +1010,43 @@ class HasCovarianceMatrix(TakesData):
     those, just variances. Therefore, take the result with a grain of salt for
     vector models.
     """
+    def _covariance_matrix(self, best_fit_params, objective):
+        # Helper function for self.covariance_matrix.
+        try:
+            hess = objective.eval_hessian(**key2str(best_fit_params))
+        except AttributeError:
+            # Some models do not have an eval_jacobian, in which case we give up
+            return None
+
+        try:
+            hess_inv = np.linalg.inv(hess)
+        except np.linalg.LinAlgError:
+            return None
+
+        if isinstance(objective, LogLikelihood):
+            # Loglikelihood is a special case that needs to be considered
+            # separately, see #138.
+            return hess_inv
+        elif isinstance(objective, LeastSquares):
+            # Calculate the covariance for a least squares method.
+            # https://www8.cs.umu.se/kurser/5DA001/HT07/lectures/lsq-handouts.pdf
+            # Residual sum of squares
+            rss = objective(**key2str(best_fit_params))
+            # Degrees of freedom
+            raw_dof = np.sum([np.product(shape) for shape in self.data_shapes[1]])
+            dof = raw_dof - len(self.model.params)
+            if self.absolute_sigma:
+                # When interpreting as measurement error, we do not rescale.
+                s2 = 1
+            else:
+                s2 = rss / dof
+            # Divide by two because the source uses different normalization
+            cov_mat = 2 * s2 * hess_inv
+            return cov_mat
+        else:
+            # We do not know how to handle with this situation.
+            return None
+
     def covariance_matrix(self, best_fit_params):
         """
         Given best fit parameters, this function finds the covariance matrix.
@@ -1017,161 +1055,33 @@ class HasCovarianceMatrix(TakesData):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :return: covariance matrix.
         """
-        if not hasattr(self.model, 'eval_jacobian'):
-            return None
-        if any(element is None for element in self.sigma_data.values()):
-            # If one of the sigma's was explicitly set to None, we are unable
-            # to determine the covariances.
-            return np.array(
-                [[float('nan') for p in self.model.params] for p in self.model.params]
-            )
-        try:
-            if isinstance(self.objective, LogLikelihood):
-                # Loglikelihood is a special case that needs to be considered
-                # separately, see #138
-                hess = self.objective.eval_hessian(**key2str(best_fit_params))
-                cov_mat = np.linalg.inv(hess)
-                return cov_mat
-            if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
-                # Shapes of all sigma data identical
-                return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
-            else:
-                return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
-        except np.linalg.LinAlgError:
-            return None
+        cov_matrix = self._covariance_matrix(best_fit_params,
+                                             objective=self.objective)
+        if cov_matrix is None:
+            # If the covariance matrix could not be computed, we try again by
+            # approximating the hessian with the jacobian.
+            if not isinstance(self.objective, HessianObjective) \
+                    or not isinstance(self.model, HessianModel):
+                # VectorLeastSquares should be turned into a LeastSquares for
+                # cov matrix calculation
+                if self.objective.__class__ is VectorLeastSquares:
+                    base = LeastSquares
+                else:
+                    base = self.objective.__class__
 
-    def _reduced_residual_ss(self, best_fit_params, flatten=False):
-        """
-        Calculate the residual Sum of Squares divided by the d.o.f..
+                class HessApproximation(base, HessianObjectiveJacApprox):
+                    """
+                    Class which impersonates ``base``, but which returns zeros
+                    for the models Hessian. This will effectively result in the
+                    calculation of the approximate Hessian by calculating
+                    outer(J.T, J) when calling ``base.eval_hessian``.
+                    """
 
-        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
-        :param flatten: when `True`, return the total sum of squares (SS).
-            If `False`, return the componentwise SS.
-        :return: The reduced residual sum of squares.
-        """
-        # popt = [best_fit_params[p.name] for p in self.model.params]
-        # Rescale the covariance matrix with the residual variance
-        if isinstance(self.objective, (VectorLeastSquares, LeastSquares)):
-            ss_res = self.objective(flatten_components=flatten,
-                                    **key2str(best_fit_params))
-        else:
-            ss_res = self.objective(**key2str(best_fit_params))
+                objective = HessApproximation(self.objective.model,
+                                              self.objective.data)
+                cov_matrix = self._covariance_matrix(best_fit_params,
+                                                     objective=objective)
 
-        if isinstance(self.objective, VectorLeastSquares):
-            ss_res = np.sum(ss_res**2)
-
-        degrees_of_freedom = 0 if flatten else []
-        for data in self.dependent_data.values():
-            if flatten:
-                if data is not None:
-                    degrees_of_freedom += np.product(data.shape)
-            else:
-                if data is not None:
-                    degrees_of_freedom.append(np.product(data.shape))
-                    # degrees_of_freedom = np.product(data.shape) - len(popt)
-                    # break
-                else: # the correspoding component in ss_res will be 0 so it is ok to add any non-zero number.
-                    degrees_of_freedom.append(len(best_fit_params) + 1)
-        degrees_of_freedom = np.array(degrees_of_freedom)
-        s_sq = ss_res / (degrees_of_freedom - len(best_fit_params))
-        # s_sq = ss_res / degrees_of_freedom
-
-        return s_sq
-
-    def _cov_mat_equal_lenghts(self, best_fit_params):
-        """
-        If all the data arrays are of equal size, use this method. This will
-        typically be the case, and this method is a lot faster because it allows
-        for numpy magic.
-
-        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
-        """
-        # Stack in a new dimension, and make this the first dim upon indexing.
-        sigma = np.concatenate([arr[np.newaxis, ...] for arr in self.sigma_data.values()], axis=0)
-
-        # Weight matrix. Since it should be a diagonal matrix, we just remember
-        # this and multiply it elementwise for efficiency.
-        # It is also rescaled by the reduced residual ss in case of absolute_sigma==False
-        if self.absolute_sigma:
-            W = 1/sigma**2
-        else:
-            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
-            W = 1/sigma**2/s_sq[:, np.newaxis]
-
-        kwargs = key2str(best_fit_params)
-        kwargs.update(key2str(self.independent_data))
-
-        jac = self.model.eval_jacobian(**kwargs)
-        # Drop the axis which correspond to dependent vars which have been
-        # set to None. jac also contains interdependent_vars, hence the .get
-        mask = [self.dependent_data.get(var, None) is not None
-                for var in self.model.dependent_vars]
-        # No masking possible because jac is a list, not an array
-        jac = np.array([comp for comp, relevant in zip(jac, mask) if relevant])
-        W = W[mask]
-        if jac.shape[0] == 0:
-            return None
-
-        # Order jacobian as param, component, datapoint
-        jac = np.swapaxes(jac, 0, 1)
-        if not self.independent_data:
-            jac = jac * np.ones_like(W)
-        # Dot away all but the parameter dimension!
-        try:
-            cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-        except ValueError as err:
-            # If this fails because the shape of the jacobian could not be
-            # properly estimated, then we remedy this. If not, the error is reraised.
-            if jac.shape[-1] == 1:
-                # Take the shape of the dependent data
-                dependent_shape = self.data_shapes[1][0]
-                # repeat the object along the last axis to match the shape
-                new_jac = np.repeat(jac, np.product(dependent_shape), -1)
-                jac = new_jac.reshape((jac.shape[0], jac.shape[1]) + dependent_shape)
-                cov_matrix_inv = np.tensordot(W * jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-            else:
-                raise err
-        cov_matrix = np.linalg.inv(cov_matrix_inv)
-        return cov_matrix
-
-    def _cov_mat_unequal_lenghts(self, best_fit_params):
-        """
-        If the data arrays are of unequal size, use this method. Less efficient
-        but more general than the method for equal size datasets.
-        """
-        sigma = list(self.sigma_data.values())
-        # Weight matrix. Since it should be a diagonal matrix, we just remember
-        # this and multiply it elementwise for efficiency.
-        if self.absolute_sigma:
-            W = [1/s**2 for s in sigma]
-        else:
-            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
-            # W = 1/sigma**2/s_sq[:, np.newaxis]
-            W = [1/s**2/res for s, res in zip(sigma, s_sq)]
-
-        kwargs = key2str(best_fit_params)
-        kwargs.update(key2str(self.independent_data))
-
-        jac = self.model.eval_jacobian(**kwargs)
-        data_len = max(j.shape[1] for j in jac)
-        data_len = max(data_len, max(len(w) for w in W))
-        W_full = np.zeros((len(W), data_len), dtype=float)
-        jac_full = np.zeros((len(jac), jac[0].shape[0], data_len), dtype=float)
-        for idx, (j, w) in enumerate(zip(jac, W)):
-            if not self.independent_data:
-                j = j * np.ones_like(w)
-            jac_full[idx, :, :j.shape[1]] = j
-            W_full[idx, :len(w)] = w
-        jac = jac_full
-        W = W_full
-        # Order jacobian as param, component, datapoint
-        jac = np.swapaxes(jac, 0, 1)
-        # Weigh each component with its respective weight.
-
-        # Build the inverse cov_matrix.
-        cov_matrix_inv = []
-        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-        cov_matrix = np.linalg.inv(cov_matrix_inv)
         return cov_matrix
 
 

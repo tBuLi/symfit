@@ -329,6 +329,39 @@ class LeastSquares(HessianObjective):
         return np.atleast_2d(np.squeeze(np.array(result)))
 
 
+class HessianObjectiveJacApprox(HessianObjective):
+    """
+    This object should only be used as a Mixin for covariance matrix estimation.
+    Since the covariance matrix for the least-squares method is proportional to
+    the Hessian of :math:`\chi^2`, this function attempts to return the Hessian
+    upon calculating ``eval_hessian``.
+
+    However, if the model does not have a Hessian defined through
+    ``eval_hessian``, we approximate the Hessian as :math:`J^{T}\cdot J`,
+    where :math:`J` is the Jacobian of the model. This approximation is valid
+    when, amongst other things, the residuals are sufficiently small. It can
+    therefore only be used after fitting, not during.
+
+    An objective which inherits from this object, will return zeros with the
+    shape of the hessian of the model, when ``eval_hessian`` is called. This
+    code injection will therefore result in the terms proportional to the
+    hessian of the model dropping out, which leaves the famous
+    :math:`J^{T}\cdot J` approximation.
+    """
+    def eval_hessian(self, ordered_parameters=[], **parameters):
+        """
+        :return: Zeros with the shape of the Hessian of the model.
+        """
+        result = super(HessianObjectiveJacApprox, self).__call__(
+            ordered_parameters, **parameters
+        )
+        num_params = len(self.model.params)
+        return [np.broadcast_to(
+                    np.zeros_like(comp),
+                    (num_params, num_params) + comp.shape
+                ) for comp in result]
+
+
 class LogLikelihood(HessianObjective):
     """
     Error function to be minimized by a minimizer in order to *maximize*
