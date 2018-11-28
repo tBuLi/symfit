@@ -961,7 +961,7 @@ class TakesData(object):
             if data is not None:
                 dependent_shapes.append(data.shape)
 
-        return list(set(independent_shapes)), list(set(independent_shapes))
+        return list(set(independent_shapes)), list(set(dependent_shapes))
 
     @property
     def initial_guesses(self):
