@@ -1019,7 +1019,8 @@ class HasCovarianceMatrix(TakesData):
             return None
 
         try:
-            hess_inv = np.linalg.inv(hess)
+            # The squeezing to a matrix is required for MinimizeModel objectives
+            hess_inv = np.linalg.inv(np.atleast_2d(np.squeeze(hess)))
         except np.linalg.LinAlgError:
             return None
 
@@ -1045,7 +1046,7 @@ class HasCovarianceMatrix(TakesData):
             return cov_mat
         else:
             # We do not know how to handle with this situation.
-            return None
+            return hess_inv
 
     def covariance_matrix(self, best_fit_params):
         """

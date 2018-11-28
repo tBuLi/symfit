@@ -109,13 +109,17 @@ class TestObjectives(unittest.TestCase):
 
         fit = Fit(chi2_exact, x=xdata, y=ydata, objective=MinimizeModel)
         fit_exact_result = fit.execute()
-        fit = Fit(model, x=xdata, y=ydata)
+        fit = Fit(model, x=xdata, y=ydata, absolute_sigma=True)
         fit_num_result = fit.execute()
         self.assertEqual(fit_exact_result.value(a), fit_num_result.value(a))
         self.assertEqual(fit_exact_result.value(b), fit_num_result.value(b))
-        # TODO: uncomment the next line. Currently doesn't work because the
-        # analytical model does not have a cov matrix for some reason.
-        # self.assertEqual(fit_exact_result, fit_num_result)
+        # For MinimizeModel objectives the inverse hessian is returned as the
+        # covariance matrix. This is correct up to a factor of sqrt(2) in the
+        # case of a chi2.
+        self.assertAlmostEqual(np.sqrt(2) * fit_exact_result.stdev(a),
+                               fit_num_result.stdev(a))
+        self.assertAlmostEqual(np.sqrt(2) * fit_exact_result.stdev(b),
+                               fit_num_result.stdev(b))
 
 
     def test_LogLikelihood(self):
@@ -180,9 +184,9 @@ class TestObjectives(unittest.TestCase):
         fit_num_result = fit.execute()
         self.assertEqual(fit_exact_result.value(a), fit_num_result.value(a))
         self.assertEqual(fit_exact_result.value(b), fit_num_result.value(b))
-        # TODO: uncomment the next line. Currently doesn't work because the
-        # analytical model does not have a cov matrix for some reason.
-        # self.assertEqual(fit_exact_result, fit_num_result)
+        self.assertEqual(fit_exact_result.stdev(a), fit_num_result.stdev(a))
+        self.assertEqual(fit_exact_result.stdev(b), fit_num_result.stdev(b))
+
 
 
 if __name__ == '__main__':
