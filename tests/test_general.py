@@ -12,9 +12,10 @@ from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
     parameters, Model, Eq, Ge, exp
 )
-from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
+from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
 from symfit.core.objectives import LogLikelihood
 from symfit.distributions import Gaussian, Exp
+from tests.test_minimizers import subclasses
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -869,10 +870,21 @@ class Tests(unittest.TestCase):
         y = Variable('y')
         model = Model({y: x**2})
 
-        fit = Fit(model)
-        fit_result = fit.execute()
-        self.assertGreaterEqual(fit_result.params['x'], 1.0)
-        self.assertLessEqual(fit_result.params['x'], 2.0)
+        bounded_minimizers = list(subclasses(BoundedMinimizer))
+        for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
+            if minimizer is DifferentialEvolution:
+                # Also needs a max
+                x.max = 10
+                fit_result = fit.execute()
+                x.max = None
+            elif minimizer is MINPACK:
+                pass  # Not a MINPACKable problem.
+            else:
+                fit_result = fit.execute()
+            self.assertGreaterEqual(fit_result.params['x'], 1.0)
+            self.assertLessEqual(fit_result.params['x'], 2.0)
+            self.assertEqual(fit.minimizer.bounds, [(1, None)])
 
     def test_non_boundaries(self):
         """
@@ -882,10 +894,14 @@ class Tests(unittest.TestCase):
         y = Variable('y')
         model = Model({y: x**2})
 
-        fit = Fit(model, minimizer=LBFGSB)
-        fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.params['x'], 0.0)
-        self.assertEqual(fit.minimizer.bounds, [(None, None)])
+        bounded_minimizers = list(subclasses(BoundedMinimizer))
+        bounded_minimizers = [minimizer for minimizer in bounded_minimizers
+                              if minimizer is not DifferentialEvolution]
+        for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
+            fit_result = fit.execute()
+            self.assertAlmostEqual(fit_result.params['x'], 0.0)
+            self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
         """
