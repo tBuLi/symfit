@@ -435,8 +435,8 @@ class Tests(unittest.TestCase):
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(A)/5, 1.0, 6)
-        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0, 6)
+        self.assertAlmostEqual(fit_result.value(A), 5.0)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0)
         self.assertAlmostEqual(fit_result.value(x0), 0.0)
         # raise Exception([i for i in fit_result.params])
         sexy = g(x=2.0, **fit_result.params)
@@ -617,7 +617,7 @@ class Tests(unittest.TestCase):
 
         self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
         self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
-        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 5)
+        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
 
     def test_evaluate_model(self):
         """

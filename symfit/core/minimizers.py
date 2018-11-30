@@ -156,7 +156,7 @@ class GradientMinimizer(BaseMinimizer):
 
 class HessianMinimizer(GradientMinimizer):
     """
-    ABC for Minizers that support the use of a Hessian.
+    ABC for Minimizer's that support the use of a Hessian.
     """
     @keywordonly(hessian=None)
     def __init__(self, *args, **kwargs):
