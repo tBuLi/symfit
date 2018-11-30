@@ -12,7 +12,7 @@ from symfit import (
     Model, FitResults, variables, CallableNumericalModel, Constraint
 )
 from symfit.core.minimizers import *
-from symfit.core.objectives import LeastSquares
+from symfit.core.objectives import LeastSquares, VectorLeastSquares
 
 # Defined at the global level because local functions can't be pickled.
 def f(x, a, b):
@@ -168,8 +168,12 @@ class TestMinimize(unittest.TestCase):
             )
             fit = Fit(model, x=xdata, y=ydata, minimizer=minimizer,
                       constraints=constraints)
-            self.assertIsInstance(fit.objective, LeastSquares)
-            self.assertIsInstance(fit.minimizer.objective, LeastSquares)
+            if minimizer is not MINPACK:
+                self.assertIsInstance(fit.objective, LeastSquares)
+                self.assertIsInstance(fit.minimizer.objective, LeastSquares)
+            else:
+                self.assertIsInstance(fit.objective, VectorLeastSquares)
+                self.assertIsInstance(fit.minimizer.objective, VectorLeastSquares)
 
             fit = fit.minimizer  # Just check if the minimizer pickles
             dump = pickle.dumps(fit)
