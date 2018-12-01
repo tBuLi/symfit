@@ -3,14 +3,18 @@ import unittest
 import sys
 
 import numpy as np
+from scipy.optimize import NonlinearConstraint, minimize
 from symfit import (
     variables, Variable, parameters, Parameter, ODEModel,
-    Fit, Equality, D, Model, log, FitResults, GreaterThan, Constraint
+    Fit, Equality, D, Model, log, FitResults, GreaterThan, Ge, Eq, Le
 )
 from symfit.distributions import Gaussian
-from symfit.core.minimizers import SLSQP, MINPACK, TrustConstr
-from symfit.core.support import key2str, partial
+from symfit.core.minimizers import (
+    SLSQP, MINPACK, TrustConstr, ScipyConstrainedMinimize, COBYLA
+)
+from symfit.core.support import key2str
 from symfit.core.objectives import MinimizeModel
+from tests.test_minimizers import subclasses
 
 
 class TestConstrained(unittest.TestCase):
@@ -706,6 +710,122 @@ class TestConstrained(unittest.TestCase):
             self.assertIsInstance(cons_val[0], float)
             self.assertEqual(obj_jac.shape, cons_jac.shape)
             self.assertEqual(obj_jac.shape, (2,))
+
+    def test_constrainedminimizers(self):
+        """
+        Compare the different constrained minimizers, to make sure all support
+        constraints, and converge to the same answer.
+        """
+        minimizers = list(subclasses(ScipyConstrainedMinimize))
+        x = Parameter('x', value=-1.0)
+        y = Parameter('y', value=1.0)
+        z = Variable('z')
+        model = Model({z: 2 * x * y + 2 * x - x ** 2 - 2 * y ** 2})
+
+        # First we try an unconstrained fit
+        results = []
+        for minimizer in minimizers:
+            fit = Fit(- model, minimizer=minimizer)
+            fit_result = fit.execute(tol=1e-15)
+            results.append(fit_result)
+
+        # Compare the parameter values.
+        for r1, r2 in zip(results[:-1], results[1:]):
+            self.assertAlmostEqual(r1.value(x), r2.value(x), 6)
+            self.assertAlmostEqual(r1.value(y), r2.value(y), 6)
+            np.testing.assert_almost_equal(r1.covariance_matrix,
+                                           r2.covariance_matrix)
+
+        constraints = [
+            Ge(y - 1, 0),  # y - 1 >= 0,
+            Eq(x ** 3 - y, 0),  # x**3 - y == 0,
+        ]
+
+        # Constrained fit.
+        results = []
+        for minimizer in minimizers:
+            if minimizer is COBYLA:
+                # COBYLA only supports inequility.
+                continue
+            fit = Fit(- model, constraints=constraints, minimizer=minimizer)
+            fit_result = fit.execute(tol=1e-15)
+            results.append(fit_result)
+
+        for r1, r2 in zip(results[:-1], results[1:]):
+            self.assertAlmostEqual(r1.value(x), r2.value(x), 6)
+            self.assertAlmostEqual(r1.value(y), r2.value(y), 6)
+            np.testing.assert_almost_equal(r1.covariance_matrix,
+                                           r2.covariance_matrix)
+
+    def test_trustconstr(self):
+        """
+        Solve the standard constrained example from
+        https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
+        using the trust-constr method.
+        """
+        def func(x, sign=1.0):
+            """ Objective function """
+            return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
+
+        def func_jac(x, sign=1.0):
+            """ Derivative of objective function """
+            dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
+            dfdx1 = sign*(2*x[0] - 4*x[1])
+            return np.array([ dfdx0, dfdx1 ])
+
+        def func_hess(x, sign=1.0):
+            """ Derivative of objective function """
+            dfdx2 = sign*(-2)
+            dfdxdy = sign * 2
+            dfdy2 = sign * (-4)
+            return np.array([[ dfdx2, dfdxdy ], [ dfdxdy, dfdy2 ]])
+
+        def cons_f(x):
+            return [x[1] - 1, x[0]**3 - x[1]]
+
+        def cons_J(x):
+            return [[0, 1], [3 * x[0] ** 2, -1]]
+
+        def cons_H(x, v):
+            return v[0] * np.array([[0, 0], [0, 0]]) + \
+                   v[1] * np.array([[6 * x[0], 0], [0, 0]])
+
+        # Unconstrained fit
+        res = minimize(func, [-1.0, 1.0], args=(-1.0,),
+                       jac=func_jac, hess=func_hess, method='trust-constr')
+        np.testing.assert_almost_equal(res.x, [2, 1])
+
+        # Constrained fit
+        nonlinear_constraint = NonlinearConstraint(cons_f, 0, [np.inf, 0],
+                                                   jac=cons_J, hess=cons_H)
+        res_constr = minimize(func, [-1.0, 1.0], args=(-1.0,), tol=1e-15,
+                       jac=func_jac, hess=func_hess, method='trust-constr',
+                       constraints=[nonlinear_constraint])
+        np.testing.assert_almost_equal(res_constr.x, [1, 1])
+
+        # Symfit equivalent code
+        x = Parameter('x', value=-1.0)
+        y = Parameter('y', value=1.0)
+        z = Variable('z')
+        model = Model({z: 2 * x * y + 2 * x - x ** 2 - 2 * y ** 2})
+
+        # Unconstrained fit first, see if we get the known result.
+        fit = Fit(-model, minimizer=TrustConstr)
+        fit_result = fit.execute()
+        np.testing.assert_almost_equal(list(fit_result.params.values()), [2, 1])
+
+        # Now we are ready for the constrained fit.
+        constraints = [
+            Le(- y + 1, 0),  # y - 1 >= 0,
+            Eq(x ** 3 - y, 0),  # x**3 - y == 0,
+        ]
+        fit = Fit(-model, constraints=constraints, minimizer=TrustConstr)
+        fit_result = fit.execute(tol=1e-15)
+
+        # Test if the constrained results are equal
+        np.testing.assert_almost_equal(list(fit_result.params.values()),
+                                       res_constr.x)
+
 
 if __name__ == '__main__':
     unittest.main()

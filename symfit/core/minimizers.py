@@ -186,7 +186,7 @@ class HessianMinimizer(GradientMinimizer):
             # Make two dimensional, corresponding to a scalar function.
             out = np.atleast_2d(np.squeeze(out))
             mask = [p not in self._fixed_params for p in self.parameters]
-            return out[mask, mask]
+            return np.atleast_2d(out[mask, mask])
         return resized
 
 
@@ -573,11 +573,10 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
                 ub = 0
             else:
                 ub = np.inf
-            tc_con = NonlinearConstraint(fun=con['fun'],
-                                         lb=0, ub=ub,
-                                         jac=con['jac'],
-                                         hess=con['hess'],
-                                         )
+            tc_con = NonlinearConstraint(
+                fun=con['fun'], lb=0, ub=ub, jac=con['jac'],
+                hess=lambda x, v: con['hess'](x) * v,
+            )
             out.append(tc_con)
         return out
 
