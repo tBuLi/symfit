@@ -12,9 +12,10 @@ from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
     parameters, Model, Eq, Ge, exp
 )
-from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
+from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
 from symfit.core.objectives import LogLikelihood
 from symfit.distributions import Gaussian, Exp
+from tests.test_minimizers import subclasses
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -435,8 +436,8 @@ class Tests(unittest.TestCase):
         fit = Fit(g, xdata, ydata)
         fit_result = fit.execute()
 
-        self.assertAlmostEqual(fit_result.value(A)/5, 1.0, 6)
-        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0, 6)
+        self.assertAlmostEqual(fit_result.value(A), 5.0)
+        self.assertAlmostEqual(np.abs(fit_result.value(sig)), 1.0)
         self.assertAlmostEqual(fit_result.value(x0), 0.0)
         # raise Exception([i for i in fit_result.params])
         sexy = g(x=2.0, **fit_result.params)
@@ -617,7 +618,7 @@ class Tests(unittest.TestCase):
 
         self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
         self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
-        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 5)
+        self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
 
     def test_evaluate_model(self):
         """
@@ -869,10 +870,21 @@ class Tests(unittest.TestCase):
         y = Variable('y')
         model = Model({y: x**2})
 
-        fit = Fit(model)
-        fit_result = fit.execute()
-        self.assertGreaterEqual(fit_result.params['x'], 1.0)
-        self.assertLessEqual(fit_result.params['x'], 2.0)
+        bounded_minimizers = list(subclasses(BoundedMinimizer))
+        for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
+            if minimizer is DifferentialEvolution:
+                # Also needs a max
+                x.max = 10
+                fit_result = fit.execute()
+                x.max = None
+            elif minimizer is MINPACK:
+                pass  # Not a MINPACKable problem.
+            else:
+                fit_result = fit.execute()
+            self.assertGreaterEqual(fit_result.params['x'], 1.0)
+            self.assertLessEqual(fit_result.params['x'], 2.0)
+            self.assertEqual(fit.minimizer.bounds, [(1, None)])
 
     def test_non_boundaries(self):
         """
@@ -882,10 +894,14 @@ class Tests(unittest.TestCase):
         y = Variable('y')
         model = Model({y: x**2})
 
-        fit = Fit(model, minimizer=LBFGSB)
-        fit_result = fit.execute()
-        self.assertAlmostEqual(fit_result.params['x'], 0.0)
-        self.assertEqual(fit.minimizer.bounds, [(None, None)])
+        bounded_minimizers = list(subclasses(BoundedMinimizer))
+        bounded_minimizers = [minimizer for minimizer in bounded_minimizers
+                              if minimizer is not DifferentialEvolution]
+        for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
+            fit_result = fit.execute()
+            self.assertAlmostEqual(fit_result.params['x'], 0.0)
+            self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
         """

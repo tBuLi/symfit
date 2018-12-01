@@ -12,7 +12,7 @@ from symfit import (
     Model, FitResults, variables, CallableNumericalModel, Constraint
 )
 from symfit.core.minimizers import *
-from symfit.core.support import partial
+from symfit.core.objectives import LeastSquares, VectorLeastSquares
 
 # Defined at the global level because local functions can't be pickled.
 def f(x, a, b):
@@ -129,8 +129,10 @@ class TestMinimize(unittest.TestCase):
         xdata = np.linspace(0, 10)
         ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
         fit = Fit({y: a * x + b}, x=xdata, y=ydata, minimizer=TrustConstr)
-        self.assertNotEqual(fit.minimizer.jacobian, None)
-        self.assertNotEqual(fit.minimizer.hessian, None)
+        self.assertIsInstance(fit.minimizer.objective, LeastSquares)
+        self.assertIsInstance(fit.minimizer.jacobian.__self__, LeastSquares)
+        self.assertIsInstance(fit.minimizer.hessian.__self__, LeastSquares)
+
         fit_result = fit.execute()
         self.assertAlmostEqual(fit_result.value(b), 1.0)
 
@@ -156,9 +158,7 @@ class TestMinimize(unittest.TestCase):
         constrained_minimizers = subclasses(ScipyConstrainedMinimize)
         # Test for all of them if they can be pickled.
         for minimizer in scipy_minimizers:
-            # TrustConstr's constraints are wildly different
-            # TODO: Actually fix the tests in that case
-            if minimizer in constrained_minimizers and not minimizer is TrustConstr:
+            if minimizer in constrained_minimizers:
                 constraints = [Ge(b, a)]
             else:
                 constraints = []
@@ -168,6 +168,13 @@ class TestMinimize(unittest.TestCase):
             )
             fit = Fit(model, x=xdata, y=ydata, minimizer=minimizer,
                       constraints=constraints)
+            if minimizer is not MINPACK:
+                self.assertIsInstance(fit.objective, LeastSquares)
+                self.assertIsInstance(fit.minimizer.objective, LeastSquares)
+            else:
+                self.assertIsInstance(fit.objective, VectorLeastSquares)
+                self.assertIsInstance(fit.minimizer.objective, VectorLeastSquares)
+
             fit = fit.minimizer  # Just check if the minimizer pickles
             dump = pickle.dumps(fit)
             pickled_fit = pickle.loads(dump)
@@ -203,10 +210,33 @@ class TestMinimize(unittest.TestCase):
                                     self.assertEqual(val1.model.__signature__,
                                                      val2.model.__signature__)
                                 elif key == 'wrapped_constraints':
-                                    self.assertEqual(val1['type'],
-                                                     val2['type'])
-                                    self.assertEqual(set(val1.keys()),
-                                                     set(val2.keys()))
+                                    if isinstance(val1, dict):
+                                        self.assertEqual(val1['type'],
+                                                         val2['type'])
+                                        self.assertEqual(set(val1.keys()),
+                                                         set(val2.keys()))
+                                    elif isinstance(val1, NonlinearConstraint):
+                                        # For trust-ncg we manually check if
+                                        # their dicts are equal, because no
+                                        # __eq__ is implemented on
+                                        # NonLinearConstraint
+                                        self.assertEqual(len(val1.__dict__),
+                                                         len(val2.__dict__))
+                                        for key in val1.__dict__:
+                                            try:
+                                                self.assertEqual(
+                                                    val1.__dict__[key],
+                                                    val2.__dict__[key]
+                                                )
+                                            except AssertionError:
+                                                self.assertIsInstance(
+                                                    val1.__dict__[key],
+                                                    val2.__dict__[key].__class__
+                                                )
+                                    else:
+                                        raise NotImplementedError(
+                                            'No such constraint type is known.'
+                                        )
                         elif key == '_pickle_kwargs':
                             FitResults._array_safe_dict_eq(value, new_value)
                         else:
