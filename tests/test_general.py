@@ -882,8 +882,8 @@ class Tests(unittest.TestCase):
                 pass  # Not a MINPACKable problem.
             else:
                 fit_result = fit.execute()
-            self.assertGreaterEqual(fit_result.params['x'], 1.0)
-            self.assertLessEqual(fit_result.params['x'], 2.0)
+                self.assertGreaterEqual(fit_result.params['x'], 1.0)
+                self.assertLessEqual(fit_result.params['x'], 2.0)
             self.assertEqual(fit.minimizer.bounds, [(1, None)])
 
     def test_non_boundaries(self):
