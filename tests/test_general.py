@@ -12,9 +12,10 @@ from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
     parameters, Model, Eq, Ge, exp
 )
-from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
+from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
 from symfit.core.objectives import LogLikelihood
 from symfit.distributions import Gaussian, Exp
+from tests.test_minimizers import subclasses
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig
@@ -554,6 +555,19 @@ class Tests(unittest.TestCase):
         model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
         self.assertEqual([[2, 3, 0], [0, 5, 0], [0, 0, 7]], model.jacobian)
 
+    def test_hessian_matrix(self):
+        """
+        The Hessian matrix of a model should be a 3D list (matrix) containing
+        all the 2nd partial derivatives.
+        """
+        a, b, c = parameters('a, b, c')
+        a_i, b_i, c_i = variables('a_i, b_i, c_i')
+
+        model = Model({a_i: 2 * a**2 + 3 * b, b_i: 5 * b**2, c_i: 7 * c*b})
+        self.assertEqual([[[4, 0, 0], [0, 0, 0], [0, 0, 0]],
+                          [[0, 0, 0], [0, 10, 0], [0, 0, 0]],
+                          [[0, 0, 0], [0, 0, 7], [0, 7, 0]]], model.hessian)
+
     def test_likelihood_fitting_exponential(self):
         """
         Fit using the likelihood method.
@@ -836,17 +850,58 @@ class Tests(unittest.TestCase):
         """
         xdata = np.arange(100)
         ydata = np.arange(100)
-        
+
         a, b, c, d = parameters('a, b, c, d')
         x, y = variables('x, y')
-        
+
         c.value = 4.0
         c.fixed = True
-        
+
         model_dict = {y: a * exp(-(x - b)**2 / (2 * c**2)) + d}
         fit = Fit(model_dict, x=xdata, y=ydata)
         fit_result = fit.execute()
         self.assertEqual(4.0, fit_result.params['c'])
+
+    def test_boundaries(self):
+        """
+        Make sure parameter boundaries are respected
+        """
+        x = Parameter('x', min=1)
+        y = Variable('y')
+        model = Model({y: x**2})
+
+        bounded_minimizers = list(subclasses(BoundedMinimizer))
+        for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
+            if minimizer is DifferentialEvolution:
+                # Also needs a max
+                x.max = 10
+                fit_result = fit.execute()
+                x.max = None
+            elif minimizer is MINPACK:
+                pass  # Not a MINPACKable problem.
+            else:
+                fit_result = fit.execute()
+                self.assertGreaterEqual(fit_result.params['x'], 1.0)
+                self.assertLessEqual(fit_result.params['x'], 2.0)
+            self.assertEqual(fit.minimizer.bounds, [(1, None)])
+
+    def test_non_boundaries(self):
+        """
+        Make sure parameter boundaries are not invented
+        """
+        x = Parameter('x')
+        y = Variable('y')
+        model = Model({y: x**2})
+
+        bounded_minimizers = list(subclasses(BoundedMinimizer))
+        bounded_minimizers = [minimizer for minimizer in bounded_minimizers
+                              if minimizer is not DifferentialEvolution]
+        for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
+            fit_result = fit.execute()
+            self.assertAlmostEqual(fit_result.params['x'], 0.0)
+            self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
         """

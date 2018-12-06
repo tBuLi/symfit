@@ -15,8 +15,8 @@ from .support import (
     seperate_symbols, keywordonly, sympy_to_py, key2str, partial, cached_property
 )
 from .minimizers import (
-    BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
-    ScipyMinimize, MINPACK, ChainedMinimizer, BasinHopping
+    BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, HessianMinimizer,
+    ConstrainedMinimizer, MINPACK, ChainedMinimizer, BasinHopping
 )
 from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
@@ -108,7 +108,7 @@ class BaseModel(Mapping):
                 if var_1 != var_2:
                     return False
                 else:
-                    if not self[var_1].expand() - other[var_2].expand() == 0:
+                    if not self[var_1].expand() == other[var_2].expand():
                         return False
             else:
                 return True
@@ -193,6 +193,13 @@ class BaseModel(Mapping):
             else:
                 return False
 
+    @property
+    def free_params(self):
+        """
+        :return: ordered list of the subset of variable params
+        """
+        return [p for p in self.params if not p.fixed]
+
     def __str__(self):
         """
         Printable representation of a Mapping model.
@@ -215,13 +222,15 @@ class BaseModel(Mapping):
         # Remove cached_property values from the state, they need to be
         # re-calculated after pickle.
         state = self.__dict__.copy()
+        del state['__signature__']
         for key in self.__dict__:
             if key.startswith(cached_property.base_str):
                 del state[key]
         return state
 
-    def __reduce__(self):
-        return (self.__class__, (self.model_dict,))
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.__signature__ = self._make_signature()
 
 
 class BaseNumericalModel(BaseModel):
@@ -231,7 +240,6 @@ class BaseNumericalModel(BaseModel):
     """
     def __init__(self, model, independent_vars, params):
         """
-
         :param model: dict of ``callable``, where dependent variables are the
             keys. If instead of a dict a (sequence of) ``callable`` is provided,
             it will be turned into a dict automatically.
@@ -274,14 +282,11 @@ class BaseNumericalModel(BaseModel):
 
     @property
     def shared_parameters(self):
+        """
+        BaseNumericalModel's cannot infer if parameters are shared.
+        """
         raise NotImplementedError(
             'Shared parameters can not be inferred for {}'.format(self.__class__.__name__)
-        )
-
-    def __reduce__(self):
-        return (
-            self.__class__,
-            (self.model_dict, self.independent_vars, self.params)
         )
 
 
@@ -291,9 +296,10 @@ class BaseCallableModel(BaseModel):
     """
     def eval_components(self, *args, **kwargs):
         """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
+        :return: lambda functions of each of the components in model_dict, to be
+            used in numerical calculation.
         """
-        return [expr(*args, **kwargs) for expr in self.numerical_components]
+        return [np.atleast_1d(expr(*args, **kwargs)) for expr in self.numerical_components]
 
     @abstractmethod
     def numerical_components(self):
@@ -452,7 +458,7 @@ class CallableModel(BaseCallableModel):
     def numerical_components(self):
         """
         :return: lambda functions of each of the analytical components in
-        model_dict, to be used in numerical calculation.
+            model_dict, to be used in numerical calculation.
         """
         return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
 
@@ -476,11 +482,23 @@ class Model(CallableModel):
     @property
     def jacobian(self):
         """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-          Partial derivatives are of the components of the function with respect to the Parameter's,
-          not the independent Variable's.
+        :return: Jacobian filled with the symbolic expressions for all the
+            partial derivatives. Partial derivatives are of the components of
+            the function with respect to the Parameter's, not the independent
+            Variable's. The return shape is a list over the models components,
+            filled with tha symbolical jacobian for that component, as a list.
         """
         return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
+
+    @property
+    def hessian(self):
+        """
+        :return: Hessian filled with the symbolic expressions for all the
+            second order partial derivatives. Partial derivatives are taken with
+            respect to the Parameter's, not the independent Variable's.
+        """
+        return [[[sympy.diff(partial_dv, param) for param in self.params]
+                 for partial_dv in comp] for comp in self.jacobian]
 
     @property
     def chi_squared(self):
@@ -492,7 +510,8 @@ class Model(CallableModel):
     @property
     def chi(self):
         """
-        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
+        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK
+            optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
         """
         return sympy.sqrt(self.chi_squared)
 
@@ -500,7 +519,8 @@ class Model(CallableModel):
     def chi_jacobian(self):
         """
         Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector! This is because that's what leastsq needs.
+        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
+        This is because that's what leastsq needs.
         """
         jac = []
         for param in self.params:
@@ -532,28 +552,43 @@ class Model(CallableModel):
     @cached_property
     def numerical_jacobian(self):
         """
-        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
+        :return: lambda functions of the jacobian matrix of the function, which
+            can be used in numerical optimization.
         """
         return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
 
     @cached_property
+    def numerical_hessian(self):
+        """
+        :return: lambda functions of the Hessian matrix of the function, which
+        can be used in numerical optimization.
+        """
+        return [[[sympy_to_py(second_order_pdv, self.independent_vars, self.params)
+                    for second_order_pdv in row]
+                for row in comp]
+            for comp in self.hessian]
+
+    @cached_property
     def numerical_chi_squared(self):
         """
-        :return: lambda function of the ``.chi_squared`` method, to be used in numerical optimisation.
+        :return: lambda function of the ``.chi_squared`` method, to be used in
+            numerical optimisation.
         """
         return sympy_to_py(self.chi_squared, self.vars, self.params)
 
     @cached_property
     def numerical_chi(self):
         """
-        :return: lambda function of the ``.chi`` method, to be used in MINPACK optimisation.
+        :return: lambda function of the ``.chi`` method, to be used in MINPACK
+            optimisation.
         """
         return sympy_to_py(self.chi, self.vars, self.params)
 
     @cached_property
     def numerical_chi_jacobian(self):
         """
-        :return: lambda functions of the jacobian of the ``.chi`` method, which can be used in numerical optimization.
+        :return: lambda functions of the jacobian of the ``.chi`` method, which
+            can be used in numerical optimization.
         """
         return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
 
@@ -569,45 +604,32 @@ class Model(CallableModel):
         :return: Jacobian evaluated at the specified point.
         """
         # Evaluate the jacobian at specified points
-        jac = [
-            [partial_dv(*args, **kwargs) for partial_dv in row ] for row in self.numerical_jacobian
+        jac = [[np.atleast_1d(partial_dv(*args, **kwargs))
+                for partial_dv in row]
+            for row in self.numerical_jacobian
         ]
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
         for idx, comp in enumerate(jac):
-            # Find out how many datapoints this component has. We need to do
-            # this with a try/except, since partial_derivative can be a number or
-            # a sequence. We ultimately want to make sure every evey component
-            # has this size, so component of the jacobian can be contracted properly.
-            data_len = 1
-            for partial_derivative in comp:
-                if hasattr(partial_derivative, 'shape') and partial_derivative.shape:
-                    # Last line is to descriminate against numpy.float of shape (,)
-                    shape = partial_derivative.shape
-                else:
-                    try:
-                        shape = len(partial_derivative)
-                    except TypeError: # Not iterable, so assume number
-                        shape = 1
-                if isinstance(shape, tuple):
-                    if isinstance(data_len, tuple):
-                        if len(shape) > len(data_len):
-                            data_len = shape
-
-                    else:
-                        data_len = shape
-                elif isinstance(data_len, tuple):
-                    # data_len is a tuple, but shape isn't. Prefer the tuple.
-                    pass
-                else:
-                    data_len = max(shape, data_len)
-            # And make everything in this component the same size, since some are
-            # numbers.
-            for jdx, partial_derivative in enumerate(comp):
-                # This is a no-op for elements of size `longest`.
-                jac[idx][jdx] = np.ones(data_len) * partial_derivative
-            # And lastly, turn jac into a list of 2D numpy arrays of shape
-            # (Nparams, Ndata)
-            jac[idx] = np.array(jac[idx], dtype=float)
+            jac[idx] = np.stack(np.broadcast_arrays(*comp))
         return jac
+
+    def eval_hessian(self, *args, **kwargs):
+        """
+        :return: Hessian evaluated at the specified point.
+        """
+        hess = [[[np.atleast_1d(second_order_pdv(*args, **kwargs))
+                    for second_order_pdv in row]
+                for row in comp]
+            for comp in self.numerical_hessian
+        ]
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
+        for idx, comp in enumerate(hess):
+            hess[idx] = np.stack(np.broadcast_arrays(*comp))
+        return hess
 
 
 class TaylorModel(Model):
@@ -709,6 +731,11 @@ class Constraint(Model):
             else:
                 raise TypeError('The model argument must be of type Model.')
             super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
+
+            # Update the signature to accept all vars and parms of the model
+            self.independent_vars = self.model.vars
+            self.params = self.model.params
+            self.__signature__ = self._make_signature()
         else:
             raise TypeError('Constraints have to be initiated with a subclass of sympy.Relational')
 
@@ -743,19 +770,6 @@ class Constraint(Model):
         """
         return [[sympy_to_py(partial_dv, self.model.vars, self.model.params) for partial_dv in row] for row in self.jacobian]
 
-    def _make_signature(self):
-        # Handle args and kwargs according to the allowed names.
-        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
-                for arg in self.model.vars + self.model.params
-        ]
-        return inspect_sig.Signature(parameters=parameters)
-
-    def __reduce__(self):
-        return (
-            self.__class__,
-            (self.constraint_type(list(self.values())[0]), self.model)
-        )
 
 class TakesData(object):
     """
@@ -972,14 +986,13 @@ class HasCovarianceMatrix(TakesData):
             return np.array(
                 [[float('nan') for p in self.model.params] for p in self.model.params]
             )
-        if isinstance(self.objective, LogLikelihood):
-            # Loglikelihood is a special case that needs to be considered
-            # separately, see #138
-            jac = self.objective.eval_jacobian(apply_func=lambda x: x, **key2str(best_fit_params))
-            cov_matrix_inv = np.tensordot(jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-            cov_mat = np.linalg.inv(cov_matrix_inv)
-            return cov_mat
         try:
+            if isinstance(self.objective, LogLikelihood):
+                # Loglikelihood is a special case that needs to be considered
+                # separately, see #138
+                hess = self.objective.eval_hessian(**key2str(best_fit_params))
+                cov_mat = np.linalg.inv(hess)
+                return cov_mat
             if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
                 # Shapes of all sigma data identical
                 return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
@@ -991,6 +1004,7 @@ class HasCovarianceMatrix(TakesData):
     def _reduced_residual_ss(self, best_fit_params, flatten=False):
         """
         Calculate the residual Sum of Squares divided by the d.o.f..
+
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :param flatten: when `True`, return the total sum of squares (SS).
             If `False`, return the componentwise SS.
@@ -1054,6 +1068,8 @@ class HasCovarianceMatrix(TakesData):
         mask = [data is not None for data in self.dependent_data.values()]
         jac = jac[mask]
         W = W[mask]
+        if jac.shape[0] == 0:
+            return None
 
         # Order jacobian as param, component, datapoint
         jac = np.swapaxes(jac, 0, 1)
@@ -1242,12 +1258,14 @@ class LinearLeastSquares(BaseFit):
         Execute an analytical (Linear) Least Squares Fit. This object works by symbolically
         solving when :math:`\\nabla \\chi^2 = 0`.
 
-        To perform this task the expression of :math:`\\nabla \\chi^2` is determined, ignoring that
-        :math:`\\chi^2` involves summing over all terms. Then the sum is performed by substituting
-        the variables by their respective data and summing all terms, while leaving the parameters
+        To perform this task the expression of :math:`\\nabla \\chi^2` is
+        determined, ignoring that :math:`\\chi^2` involves summing over all
+        terms. Then the sum is performed by substituting the variables by their
+        respective data and summing all terms, while leaving the parameters
         symbolic.
 
-        The resulting system of equations is then easily solved with ``sympy.solve``.
+        The resulting system of equations is then easily solved with
+        ``sympy.solve``.
 
         :return: ``FitResult``
         """
@@ -1481,14 +1499,23 @@ class Fit(HasCovarianceMatrix):
             # py function version of the analytical jacobian.
             if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
+        if issubclass(minimizer, HessianMinimizer):
+            # If an analytical version of the Hessian exists we should use
+            # that, otherwise we let the minimizer estimate it itself.
+            # Hence the check of numerical_hessian, as this is the
+            # py function version of the analytical jacobian.
+            if hasattr(self.model, 'numerical_hessian') and hasattr(self.objective, 'eval_hessian'):
+                minimizer_options['hessian'] = self.objective.eval_hessian
 
         if issubclass(minimizer, ConstrainedMinimizer):
-            # Minimizers are agnostic about data, they just know about
-            # objective functions. So we partial away the data at this point.
-            minimizer_options['constraints'] = [
-                partial(constraint, **key2str(self.data))
-                for constraint in self.constraints
-            ]
+            # set the constraints as MinimizeModel. The dependent vars of the
+            # constraint are set to None since their value is irrelevant.
+            constraint_objectives = []
+            for constraint in self.constraints:
+                data = self.data  # No copy, share state
+                data.update({var: None for var in constraint.dependent_vars})
+                constraint_objectives.append(MinimizeModel(constraint, data))
+            minimizer_options['constraints'] = constraint_objectives
         return minimizer(self.objective, self.model.params, **minimizer_options)
 
     def _init_constraints(self, constraints):
@@ -1496,7 +1523,8 @@ class Fit(HasCovarianceMatrix):
         Takes the user provided constraints and converts them to a list of
         :class:`~symfit.core.fit.Constraint` objects.
 
-        :param constraints: iterable of :class:`sympy.Relation` objects.
+        :param constraints: iterable of :class:`~sympy.core.relational.Relation`
+            objects.
         :return: list of :class:`~symfit.core.fit.Constraint` objects.
         """
         con_models = []
@@ -1842,17 +1870,6 @@ class ODEModel(CallableModel):
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
 
         self.__signature__ = self._make_signature()
-
-    def __reduce__(self):
-        if self.lsoda_kwargs:
-            from pickle import PicklingError
-            raise PicklingError(
-                '{} with lsoda_kwargs can not be pickled.'.format(self.__class__)
-            )
-        return (
-            self.__class__,
-            tuple([self.model_dict, self.initial] + list(self.lsoda_args))
-        )
 
     def __str__(self):
         """
