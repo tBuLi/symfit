@@ -356,11 +356,5 @@ class StrategynD:
 class InteractiveGuess2D(InteractiveGuess):
     @deprecated(InteractiveGuess)
     def __init__(self, *args, **kwargs):
-        #import warnings
         # Deprecated as of 01/06/2017
-        # Do an unspecified warnings.warn instead of raising a DeprecationWarning,
-        # because it won't show otherwise. Python hides DeprecationWarnings
-        # unless you run it with the appropriate flag.
-        #warnings.warn("InteractiveGuess2D is deprecated in favor of InteractiveGuess")
-        # raise DeprecationWarning("InteractiveGuess2D is deprecated in favor of InteractiveGuess")
         super(InteractiveGuess2D, self).__init__(*args, **kwargs)
