@@ -69,6 +69,7 @@ class Argument(Symbol):
 
     _lambdacode = _sympystr
     _numpycode = _sympystr
+    _pythoncode = _sympystr
 
 class Parameter(Argument):
     """
