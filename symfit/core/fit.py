@@ -1264,8 +1264,8 @@ class Fit(HasCovarianceMatrix):
                                                            constraint.constraint_type)
                     )
                 elif constraint.constraint_type is sympy.Le:
-                    assert len(constraint) == 1
-                    for var in constraint:
+                    assert len(constraint.dependent_vars) == 1
+                    for var in constraint.dependent_vars:
                         component = constraint[var]
                         con_models[index] = Constraint(
                             sympy.Ge(- component, 0),

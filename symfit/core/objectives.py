@@ -117,7 +117,7 @@ class BaseObjective(object):
         """
         kwargs = {p: p.value for p in self.model.params
                   if p not in self.model.free_params}
-        data_by_name = key2str(self.data)
+        data_by_name = key2str(self.independent_data)
         kwargs.update(
             {p: data_by_name[p] for p in
             self.model.__signature__.parameters if p in data_by_name}
@@ -206,7 +206,7 @@ class VectorLeastSquares(GradientObjective):
         result = []
 
         # zip together the dependent vars and evaluated component
-        for y, ans in zip(self.model, evaluated_func):
+        for y, ans in zip(self.model.dependent_vars, evaluated_func):
             if self.dependent_data[y] is not None:
                 result.append(((self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]]) ** 2)
                 if flatten_components: # Flattens *within* a component
@@ -223,7 +223,8 @@ class VectorLeastSquares(GradientObjective):
         )
 
         result = len(self.model.params) * [0.0]
-        for ans, y, row in zip(evaluated_func, self.model, evaluated_jac):
+        for ans, y, row in zip(evaluated_func, self.model.dependent_vars,
+                               evaluated_jac):
             if self.dependent_data[y] is not None:
                 for index, component in enumerate(row):
                     result[index] += component * (
@@ -283,7 +284,8 @@ class LeastSquares(HessianObjective):
         )
 
         result = 0
-        for var, f, jac_comp in zip(self.model, evaluated_func, evaluated_jac):
+        for var, f, jac_comp in zip(self.model.dependent_vars, evaluated_func,
+                                    evaluated_jac):
             y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if y is not None:
@@ -313,8 +315,9 @@ class LeastSquares(HessianObjective):
         )
 
         result = 0
-        for var, f, jac_comp, hess_comp in zip(self.model, evaluated_func,
-                                               evaluated_jac, evaluated_hess):
+        for var, f, jac_comp, hess_comp in zip(self.model.dependent_vars,
+                                               evaluated_func, evaluated_jac,
+                                               evaluated_hess):
             y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if y is not None:
