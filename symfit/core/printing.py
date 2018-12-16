@@ -67,3 +67,9 @@ class SymfitNumPyPrinter(NumPyPrinter):
                                         self._module_format('numpy.piecewise'),
                                         self._print(expr.args[0]),
                                         self._module_format('numpy.inf'))
+
+    def _print_Idx(self, expr):
+        """
+        Print ``Idx`` objects.
+        """
+        return "{0}".format(self._print(expr.args[0]))
