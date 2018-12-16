@@ -62,7 +62,7 @@ class BaseMinimizer(object):
             else:
                 # Minimize the provided custom objective instead. We therefore
                 # wrap it into a CallableNumericalModel, thats what they are for
-                y = sympy.Dummy('y')
+                y = sympy.Dummy()
                 model = CallableNumericalModel(
                     {y: func},
                     connectivity_mapping={y: set(self.parameters)}
