@@ -113,7 +113,6 @@ class InteractiveGuess(TakesData):
             # self.fig.show()  # Apparently this does something else,
             # see https://github.com/matplotlib/matplotlib/issues/6138
             plt.show(**kwargs)
-            #plt.close(self.fig)
 
     def _set_up_figure(self, x_mins, x_maxs, y_mins, y_maxs):
         """
@@ -208,7 +207,6 @@ class InteractiveGuess(TakesData):
             param.value = self._sliders[param].val
         for indep_var, dep_var in self._projections:
             self._update_specific_plot(indep_var, dep_var)
-        # self.fig.canvas.draw()  # Force redraw
 
     def _eval_model(self):
         """
