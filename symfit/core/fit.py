@@ -180,9 +180,9 @@ class BaseModel(Mapping):
             key=sort_func
         )
         # `independent` contains both params and vars, needs to be separated
+        self.independent_vars = [s for s in independent if
+                                 not isinstance(s, Parameter) and not s in self]
         self.params = [s for s in independent if isinstance(s, Parameter)]
-        self.independent_vars = [s for s in independent
-                                 if not isinstance(s, Parameter) and not s in self]
 
         # Make Variable object corresponding to each depedent var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name))
@@ -1243,7 +1243,7 @@ class Fit(HasCovarianceMatrix):
             # that, otherwise we let the minimizer estimate it itself.
             # Hence the check of numerical_jacobian, as this is the
             # py function version of the analytical jacobian.
-            if hasattr(self.model, 'eval_jacobian') and hasattr(self.objective, 'eval_jacobian'):
+            if hasattr(self.model, 'jacobian_model') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
 
         if issubclass(minimizer, ConstrainedMinimizer):
