@@ -81,6 +81,8 @@ class BaseModel(Mapping):
     or from an expression directly.
     Expressions are not enforced for ducktyping purposes.
     """
+    constraint_type = sympy.Eq
+
     def __init__(self, model):
         """
         Initiate a Model from a dict::
@@ -776,59 +778,6 @@ class Model(HessianModel):
     """
 
 
-class Constraint(Model):
-    """
-    Constraints are a special type of model in that they have a type: >=, == etc.
-    They are made to have lhs - rhs == 0 of the original expression.
-
-    For example, Eq(y + x, 4) -> Eq(y + x - 4, 0)
-
-    Since a constraint belongs to a certain model, it has to be initiated with knowledge of it's parent model.
-    This is important because all ``numerical_`` methods are done w.r.t. the parameters and variables of the parent
-    model, not the constraint! This is because the constraint might not have all the parameter or variables that the
-    model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
-    not just those present in the constraint.
-    """
-    @keywordonly(params=None)
-    def __init__(self, constraint, model=None, **kwargs):
-        """
-        :param constraint: constraint that model should be subjected to.
-        :param model: A constraint needs to be initiated with all the parameters
-            of the corresponiding model, either by providing the model or the
-            parameters.
-        :param params: list of parameters in case no ``model`` is provided.
-        """
-        params = kwargs.pop('params')
-        if isinstance(constraint, Relational):
-            super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
-            self.constraint_type = type(constraint)
-            if model is None and params is not None:
-                self.params = params
-            elif isinstance(model, BaseModel):
-                self.model = model
-                self.params = self.model.params
-            else:
-                raise TypeError('The model argument must be of type Model.')
-
-            # Update the signature now that self.params has been updated.
-            self.__signature__ = self._make_signature()
-            # Update the jacobian and hessian model as well
-            self.jacobian_model.params = self.params
-            self.hessian_model.params = self.params
-            self.jacobian_model.__signature__ = self.jacobian_model._make_signature()
-            self.hessian_model.__signature__ = self.hessian_model._make_signature()
-        else:
-            raise TypeError('Constraints have to be initiated with a subclass of sympy.Relational')
-
-    def __neg__(self):
-        """
-        :return: new model with opposite sign. Does not change the model in-place,
-            but returns a new copy.
-        """
-        new_constraint = self.constraint_type( - self.model_dict[self.dependent_vars[0]])
-        return self.__class__(new_constraint, self.model)
-
-
 class TakesData(object):
     """
     An base class for everything that takes data. Most importantly, it takes care
@@ -1163,10 +1112,22 @@ class Fit(HasCovarianceMatrix):
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
         constraints = named_data.pop('constraints')
+        # List of Constraint objects
+        if not isinstance(model, BaseModel):
+            model = Model(model)
+        self.constraints = self._init_constraints(constraints=constraints,
+                                                  model=model)
         super(Fit, self).__init__(model, *ordered_data, **named_data)
 
-        # List of Constraint objects
-        self.constraints = self._init_constraints(constraints=constraints)
+        # Update the data belonging to the constraints
+        for constraint in self.constraints:
+            for var in constraint.independent_vars:
+                if var.name in self.data:
+                    self.data[var] = self.data.pop(var.name)
+            # Set the dependent vars to None in the data
+            for var in constraint.dependent_vars:
+                self.data[var] = None
+                self.data[constraint.sigmas[var]] = None
 
         if objective is None:
             if minimizer is MINPACK:
@@ -1257,7 +1218,7 @@ class Fit(HasCovarianceMatrix):
             minimizer_options['constraints'] = constraint_objectives
         return minimizer(self.objective, self.model.params, **minimizer_options)
 
-    def _init_constraints(self, constraints):
+    def _init_constraints(self, constraints, model):
         """
         Takes the user provided constraints and converts them to a list of
         :class:`~symfit.core.fit.Constraint` objects.
@@ -1269,28 +1230,13 @@ class Fit(HasCovarianceMatrix):
         con_models = []
         if constraints:
             for constraint in constraints:
-                if isinstance(constraint, Constraint):
+                if isinstance(constraint, BaseModel):
                     con_models.append(constraint)
-                else:
-                    con_models.append(Constraint(constraint, self.model))
-            # Check if the type of each constraint is allowed.
-            allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
-            for index in range(len(con_models)):
-                constraint = con_models[index]
-                if constraint.constraint_type not in allowed_types:
-                    raise ModelError(
-                        'Only constraints of the type {} are allowed. A constraint'
-                        ' of type {} was provided.'.format(allowed_types,
-                                                           constraint.constraint_type)
-                    )
-                elif constraint.constraint_type is sympy.Le:
-                    assert len(constraint.dependent_vars) == 1
-                    for var in constraint.dependent_vars:
-                        component = constraint[var]
-                        con_models[index] = Constraint(
-                            sympy.Ge(- component, 0),
-                            model=constraint.model
-                        )
+            # Whatever is left is assumed to be a `Relational` (subclass).
+            con_models.extend(constraints_from_relations(
+                [rel for rel in constraints if not isinstance(rel, BaseModel)],
+                model=model
+            ))
         return con_models
 
     def execute(self, **minimize_options):
@@ -1649,3 +1595,80 @@ def hessian_from_model(model):
     """
     jac_model = jacobian_from_model(model, as_functions=True)
     return jacobian_from_model(jac_model)
+
+
+def prepare_constraint(relational, extra_params, model_type=CallableModel):
+    """
+    Based on a relational expression, return a Model representing the
+    constraint.
+
+    :param relational: Expression which is a subclass of :class:`~sympy.Rel`.
+    :param extra_params: Parameters for the constraint. Usually this should be
+        the parameters of the corresponding model.
+    :param model_type: Type of model for the constraint.
+    :return: Model representing the constraint.
+    """
+    allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
+    constraint_type = type(relational)
+    # Check if the type of each constraint is allowed.
+    if constraint_type not in allowed_types:
+        raise ModelError(
+            'Only constraints of the type {} are allowed. A constraint'
+            ' of type {} was provided.'.format(allowed_types,
+                                               constraint_type)
+        )
+    elif constraint_type is sympy.Le:
+        # We change this to a Ge
+        constraint = relational.rhs - relational.lhs
+        constraint_type = sympy.Ge
+    else:
+        constraint = relational.lhs - relational.rhs
+
+    if not issubclass(model_type, BaseNumericalModel):
+        constraint_model = model_type(constraint)
+    else:
+        y = Variable()
+        vars, params = seperate_symbols(constraint)
+        connectivity_mapping = {y: set(vars + params)}
+        constraint_model = model_type({y: constraint},
+                                      connectivity_mapping=connectivity_mapping)
+
+    constraint_model.params = extra_params
+    constraint_model.constraint_type = constraint_type
+    return constraint_model
+
+def constraints_from_relations(relationals, model):
+    """
+    Turn Relationals into models which can serve as constraints.
+
+    :param relationals:
+    :param model:
+    :return:
+    """
+    constraints = []
+    for relational in relationals:
+        constraint_model = prepare_constraint(relational, model.params,
+                                              model_type=model.__class__)
+        if any(var in model for var in constraint_model.independent_vars):
+            # This constraint depends on the output of the model, so we need to
+            # work the model into the constraint
+            model_dict = constraint_model.model_dict.copy()
+            constraint_type = constraint_model.constraint_type
+            for var in constraint_model.independent_vars:
+                if var in model:
+                    model_dict[var] = model[var]
+                    # Also add possible dependencies of this var
+                    for symbol in model.ordered_symbols:
+                        # Walk over all possible dependencies of this
+                        # variable until we no longer have dependencies.
+                        if symbol == var:
+                            break
+                        elif symbol in model:
+                            # Not everything in ordered_symbols is a key of model
+                            if symbol not in model_dict:
+                                model_dict[symbol] = model[symbol]
+            constraint_model = model.__class__(model_dict)
+            constraint_model.constraint_type = constraint_type
+
+        constraints.append(constraint_model)
+    return constraints
