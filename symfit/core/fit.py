@@ -465,6 +465,14 @@ class BaseCallableModel(BaseModel):
              '`numerical_components`.').format(self.__class__)
         )
 
+    def _get_params(self):
+        return self._params
+
+    def _set_params(self, value):
+        self._params = value
+        self.__signature__ = self._make_signature()
+    params = property(_get_params, _set_params)
+
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
         parameters = [
@@ -648,6 +656,12 @@ class GradientModel(CallableModel, BaseGradientModel):
         super(GradientModel, self).__init__(*args, **kwargs)
         self.jacobian_model = jacobian_from_model(self)
 
+    def _set_params(self, value):
+        super(GradientModel, self)._set_params(value)
+        if hasattr(self, 'jacobian_model'):
+            self.jacobian_model.params = value
+    params = property(CallableModel._get_params, _set_params)
+
     @cached_property
     def jacobian(self):
         """
@@ -693,6 +707,12 @@ class HessianModel(GradientModel):
     def __init__(self, *args, **kwargs):
         super(HessianModel, self).__init__(*args, **kwargs)
         self.hessian_model = hessian_from_model(self)
+
+    def _set_params(self, value):
+        super(HessianModel, self)._set_params(value)
+        if hasattr(self, 'hessian_model'):
+            self.hessian_model.params = value
+    params = property(GradientModel._get_params, _set_params)
 
     @property
     def hessian(self):
@@ -1611,7 +1631,9 @@ def jacobian_from_model(model, as_functions=False):
     else:
         jac.update({y: expr.subs(functions_as_vars, evaluate=False)
                     for y, expr in model.items()})
-    return CallableModel(jac)
+    jacobian_model = CallableModel(jac)
+    jacobian_model.params = model.params
+    return jacobian_model
 
 def hessian_from_model(model):
     """
