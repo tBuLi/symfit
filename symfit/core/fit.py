@@ -810,14 +810,7 @@ class TakesData(object):
             self.model = Model(model)
 
         # Handle ordered_data and named_data according to the allowed names.
-        var_names = [var.name for var in self.model.vars]
-        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            # inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
-            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=None)
-                for name in var_names
-        ]
-
-        signature = inspect_sig.Signature(parameters=parameters)
+        signature = self._make_signature()
         try:
             bound_arguments = signature.bind(*ordered_data, **named_data)
         except TypeError as err:
@@ -873,6 +866,18 @@ class TakesData(object):
                     break
             else:
                 self.absolute_sigma = False
+
+    def _make_signature(self):
+        var_names = [var.name for var in self.model.vars]
+        parameters = [
+            # Note that these are inspect_sig.Parameter's, not symfit parameters
+            inspect_sig.Parameter(name,
+                                  inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+                                  default=None)
+            for name in var_names
+        ]
+
+        return inspect_sig.Signature(parameters=parameters)
 
     @property
     def dependent_data(self):
@@ -1165,6 +1170,27 @@ class Fit(HasCovarianceMatrix):
             self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:
             self.minimizer = self._init_minimizer(minimizer)
+
+    def _make_signature(self):
+        signature = super(Fit, self)._make_signature()
+
+        var_names = [var.name for constraint in self.constraints
+                     for var in constraint.independent_vars]
+        var_names = set(var_names)
+        # Extra parameter objects due to vars of constraints.
+        extra_parameters = []
+        for var_name in var_names:
+            if var_name not in signature.parameters:
+                sig_param = inspect_sig.Parameter(
+                    var_name,
+                    inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+                    default=None
+                )
+                extra_parameters.append(sig_param)
+
+        extra_parameters.extend(list(signature.parameters.values()))
+        signature = signature.replace(parameters=extra_parameters)
+        return signature
 
     def _determine_minimizer(self):
         """
