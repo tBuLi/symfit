@@ -3,7 +3,7 @@ import symfit.core.operators
 
 # Expose useful objects.
 from symfit.core.fit import (
-    Fit, Model, Constraint, ODEModel, ModelError, CallableModel,
+    Fit, Model, ODEModel, ModelError, CallableModel,
     CallableNumericalModel, GradientModel
 )
 from symfit.core.fit_results import FitResults
