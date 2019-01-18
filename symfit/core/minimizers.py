@@ -405,12 +405,15 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                     raise AssertionError('The constraint should accept the same'
                                          ' parameters as used for the fit.')
                 constraint_type = constraint.constraint_type
-                constraint = MinimizeModel(constraint, data={})
+                constraint = MinimizeModel(constraint, data=self.objective.data)
             elif isinstance(constraint, sympy.Rel):
-                from .fit import Constraint, CallableNumericalModel
-                constraint = Constraint(constraint, params=self.parameters)
+                from .fit import prepare_constraint
+                constraint = prepare_constraint(
+                    constraint, self.parameters,
+                    model_type=self.objective.model.__class__
+                )
                 constraint_type = constraint.constraint_type
-                constraint = MinimizeModel(constraint, data={})
+                constraint = MinimizeModel(constraint, data=self.objective.data)
             else:
                 raise TypeError('Unknown type for a constraint.')
             cons.append({
