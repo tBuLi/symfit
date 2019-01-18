@@ -992,6 +992,9 @@ class HasCovarianceMatrix(TakesData):
         except AttributeError:
             # Some models do not have an eval_jacobian, in which case we give up
             return None
+        else:
+            if hess is None:
+                return hess
 
         try:
             # The squeezing to a matrix is required for MinimizeModel objectives
