@@ -463,9 +463,12 @@ class SLSQP(ScipyConstrainedMinimize, GradientMinimizer, BoundedMinimizer):
         # Take the normal scipy compatible constraints, and add jacobians.
         scipy_constr = super(SLSQP, self).scipy_constraints(constraints)
         for scipy_constraint in scipy_constr:
-            scipy_constraint['jac'] = self.resize_jac(
-                scipy_constraint['fun'].eval_jacobian
-            )
+            # Only if the model has a jacobian, does it make sense to pass one
+            # to the minimizer
+            if hasattr(scipy_constraint['fun'].model, 'eval_jacobian'):
+                scipy_constraint['jac'] = self.resize_jac(
+                    scipy_constraint['fun'].eval_jacobian
+                )
         return scipy_constr
 
 
