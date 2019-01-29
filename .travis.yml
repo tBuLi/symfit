@@ -16,12 +16,11 @@ install:
   - pip install --upgrade pip setuptools
   - pip install --upgrade pytest pytest-cov
   - pip install --upgrade sphinx==1.5.5
-  - pip install coveralls
   - pip install --only-binary numpy,scipy,matplotlib .[all]
   - echo $PATH
 # Run tests
 script:
-  - pytest . --cov=symfit/
+  - pytest --cov=symfit/
   - mkdir docs_build
   - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
       sphinx-build -nW -b html docs docs_build;
