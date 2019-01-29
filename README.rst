@@ -22,10 +22,11 @@ explain what it does, it's pythonic.
 .. code-block:: python
 
   from symfit import parameters, variables, Fit, Model
+  import numpy as np
    
-  xdata = [1.0, 2.0, 3.0, 4.0, 5.0]
-  ydata = [2.3, 3.3, 4.1, 5.5, 6.7]
-  yerr = [0.1, 0.1, 0.1, 0.1, 0.1]
+  xdata = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+  ydata = np.array([2.3, 3.3, 4.1, 5.5, 6.7])
+  yerr = np.array([0.1, 0.1, 0.1, 0.1, 0.1])
   
   a, b = parameters('a, b')
   x, y = variables('x, y')
@@ -69,6 +70,7 @@ I know what you are thinking. "What if I need to fit to a system of Ordinary Dif
 .. code-block:: python
 
   from symfit import variables, Parameter, ODEModel, Fit, D
+  import numpy as np
   
   tdata = np.array([10, 26, 44, 70, 120])
   adata = 10e-4 * np.array([44, 34, 27, 20, 14])
