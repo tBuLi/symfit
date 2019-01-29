@@ -1,5 +1,8 @@
 .. image:: https://zenodo.org/badge/24005390.svg
    :target: https://zenodo.org/badge/latestdoi/24005390
+.. image:: https://coveralls.io/repos/github/tBuLi/symfit/badge.svg?branch=master
+   :target: https://coveralls.io/github/tBuLi/symfit?branch=master
+
 
 Please cite this DOI if ``symfit`` benefited your publication. Building this has been a lot of work, and as young researchers your citation means a lot to us.
 Martin Roelfs & Peter C Kroon, symfit. doi:10.5281/zenodo.1133336
