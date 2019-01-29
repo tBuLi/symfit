@@ -14,7 +14,8 @@ before_install:
 install:
   # Upgrade pip to enable the --only-binary flag; setuptools for pbr.
   - pip install --upgrade pip setuptools
-  - pip install --upgrade pytest,pytest-cov
+  - pip install --upgrade pytest
+  - pip install pytest-cov
   - pip install --upgrade sphinx==1.5.5
   - pip install coveralls
   - pip install --only-binary numpy,scipy,matplotlib .[all]
