@@ -20,7 +20,7 @@ install:
   - echo $PATH
 # Run tests
 script:
-  - pytest --cov=symfit/
+  - pytest /symfit/ tests/ --cov=symfit/
   - mkdir docs_build
   - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
       sphinx-build -nW -b html docs docs_build;
