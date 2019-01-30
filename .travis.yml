@@ -4,7 +4,12 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
-  - "3.7"
+# Enable 3.7, see https://github.com/travis-ci/travis-ci/issues/9815
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+      sudo: true
 cache:
   - pip
 before_install:
