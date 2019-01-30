@@ -4,6 +4,7 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
 cache:
   - pip
 before_install:
@@ -17,10 +18,9 @@ install:
   - pip install --upgrade pytest pytest-cov
   - pip install --upgrade sphinx==1.5.5
   - pip install --only-binary numpy,scipy,matplotlib .[all]
-  - echo $PATH
 # Run tests
 script:
-  - pytest /symfit/ tests/ --cov=symfit/
+  - coverage run --source symfit -m pytest
   - mkdir docs_build
   - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
       sphinx-build -nW -b html docs docs_build;
