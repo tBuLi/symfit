@@ -10,12 +10,12 @@ except ImportError:
 import numpy as np
 
 from symfit import (
-    Fit, parameters, variables, Model, Constraint, ODEModel, D, Eq,
+    Fit, parameters, variables, Model, ODEModel, D, Eq,
     CallableModel, CallableNumericalModel, Inverse, MatrixSymbol, Symbol, sqrt,
     Function, diff
 )
 from symfit.core.fit import (
-    jacobian_from_model, hessian_from_model
+    jacobian_from_model, hessian_from_model, constraints_from_relations
 )
 
 class TestModel(unittest.TestCase):
@@ -67,14 +67,11 @@ class TestModel(unittest.TestCase):
             self.assertEqual(model[key], - model_neq[key])
 
         # Constraints
-        constraint = Constraint(Eq(a * x, 2), model)
+        constraint = constraints_from_relations([Eq(a * x, 2)], model)[0]
 
         constraint_neq = - constraint
         # for key in constraint:
         self.assertEqual(constraint[constraint.dependent_vars[0]], - constraint_neq[constraint_neq.dependent_vars[0]])
-
-        # On a constraint we expect the model to stay unchanged, not negated
-        self.assertEqual(id(constraint.model), id(model))
 
         # ODEModel
         odemodel = ODEModel({D(y_1, x): a * x}, initial={a: 1.0})
@@ -83,10 +80,6 @@ class TestModel(unittest.TestCase):
         for key in odemodel:
             self.assertEqual(odemodel[key], - odemodel_neq[key])
 
-        # On a constraint we expect the model to stay unchanged, not negated
-        self.assertEqual(id(constraint.model), id(model))
-
-        # raise NotImplementedError('')
 
     def test_CallableNumericalModel(self):
         x, y, z = variables('x, y, z')
@@ -134,7 +127,8 @@ class TestModel(unittest.TestCase):
 
         # Correct version of the previous model
         numerical_model = CallableNumericalModel(
-            {y: lambda x, a, b: a * x + b, z: lambda x, a, b: x**a}, [x], [a, b]
+            {y: lambda x, a, b: a * x + b, z: lambda x, a: x ** a},
+            connectivity_mapping={y: {a, b, x}, z: {x, a}}
         )
         # Correct version of the previous model
         mixed_model = CallableNumericalModel(
@@ -217,7 +211,7 @@ class TestModel(unittest.TestCase):
         a, b = parameters('a, b')
         x, y = variables('x, y')
         exact_model = Model({y: a * x ** b})
-        constraint = Constraint(Eq(a, b), exact_model)
+        constraint = constraints_from_relations([Eq(a, b)], exact_model)[0]
         num_model = CallableNumericalModel(
             {y: a * x ** b}, independent_vars=[x], params=[a, b]
         )
