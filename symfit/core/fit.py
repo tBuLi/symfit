@@ -81,9 +81,7 @@ class BaseModel(Mapping):
     or from an expression directly.
     Expressions are not enforced for ducktyping purposes.
     """
-    constraint_type = sympy.Eq
-
-    def __init__(self, model):
+    def __init__(self, model, constraint_type=None):
         """
         Initiate a Model from a dict::
 
@@ -92,6 +90,9 @@ class BaseModel(Mapping):
         Preferred way of initiating ``Model``, since now you know what the dependent variable is called.
 
         :param model: dict of ``Expr``, where dependent variables are the keys.
+        :param constraint_type: Optional: as what kind of constraint should this
+            model be interpreted when used as such? Is assumed to be a subclass
+            of :class:`~sympy.core.relational.Relational`.
         """
         if not isinstance(model, Mapping):
             try:
@@ -104,6 +105,10 @@ class BaseModel(Mapping):
             # should be introduced to fulfill the same role.
             model = {Variable(): expr for expr in model}
         self._init_from_dict(model)
+        if constraint_type is not None and len(self.dependent_vars) != 1:
+            raise ModelError('Only scalar models can be used as constraints.')
+        else:
+            self.constraint_type = constraint_type
 
     def __len__(self):
         """
@@ -397,7 +402,7 @@ class BaseNumericalModel(BaseModel):
                                 'corresponding to `connectivity_mapping`.')
         else:
             raise TypeError('Please provide `connectivity_mapping`.')
-        super(BaseNumericalModel, self).__init__(model)
+        super(BaseNumericalModel, self).__init__(model, **kwargs)
 
     @property
     def connectivity_mapping(self):
