@@ -1263,9 +1263,10 @@ class Fit(HasCovarianceMatrix):
         """
         con_models = []
         if constraints:
-            for constraint in constraints:
-                if isinstance(constraint, BaseModel):
-                    con_models.append(constraint)
+            con_models.extend(constraints_from_models(
+                [con for con in constraints if isinstance(con, BaseModel)],
+                model=model
+            ))
             # Whatever is left is assumed to be a `Relational` (subclass).
             con_models.extend(constraints_from_relations(
                 [rel for rel in constraints if not isinstance(rel, BaseModel)],
@@ -1631,14 +1632,12 @@ def hessian_from_model(model):
     return jacobian_from_model(jac_model)
 
 
-def prepare_constraint(relational, extra_params, model_type=CallableModel):
+def prepare_constraint(relational, model_type=CallableModel):
     """
     Based on a relational expression, return a Model representing the
     constraint.
 
     :param relational: Expression which is a subclass of :class:`~sympy.Rel`.
-    :param extra_params: Parameters for the constraint. Usually this should be
-        the parameters of the corresponding model.
     :param model_type: Type of model for the constraint.
     :return: Model representing the constraint.
     """
@@ -1667,30 +1666,32 @@ def prepare_constraint(relational, extra_params, model_type=CallableModel):
         constraint_model = model_type({y: constraint},
                                       connectivity_mapping=connectivity_mapping)
 
-    constraint_model.params = extra_params
     constraint_model.constraint_type = constraint_type
     return constraint_model
 
-def constraints_from_relations(relationals, model):
+def constraints_from_models(constraint_models, model):
     """
-    Turn Relationals into models which can serve as constraints.
+    Turn general models into models which can serve as constraints. This
+    function will replace the constraint models ``.params`` with those of
+    ``model``, and will take care of any dependencies the constraint might have
+    on components of the model.
 
-    :param relationals:
-    :param model:
-    :return:
+    :param constraint_models: Models which should act as constraints.
+    :param model: Model the constraints `belong` to.
+    :return: constraints specific to ``model``.
     """
-    constraints = []
-    for relational in relationals:
-        constraint_model = prepare_constraint(relational, model.params,
-                                              model_type=model.__class__)
+    wrapped_constr = []
+    for constraint_model in constraint_models:
         if any(var in model for var in constraint_model.independent_vars):
             # This constraint depends on the output of the model, so we need to
             # work the model into the constraint
             model_dict = constraint_model.model_dict.copy()
             constraint_type = constraint_model.constraint_type
+            connectivity_mapping = constraint_model.connectivity_mapping
             for var in constraint_model.independent_vars:
                 if var in model:
                     model_dict[var] = model[var]
+                    connectivity_mapping[var] = model.connectivity_mapping[var]
                     # Also add possible dependencies of this var
                     for symbol in model.ordered_symbols:
                         # Walk over all possible dependencies of this
@@ -1701,8 +1702,27 @@ def constraints_from_relations(relationals, model):
                             # Not everything in ordered_symbols is a key of model
                             if symbol not in model_dict:
                                 model_dict[symbol] = model[symbol]
-            constraint_model = model.__class__(model_dict)
+                                connectivity_mapping[symbol] = model.connectivity_mapping[symbol]
+            if issubclass(constraint_model.__class__, BaseNumericalModel):
+                constraint_model = constraint_model.__class__(
+                    model_dict, connectivity_mapping=connectivity_mapping)
+            else:
+                constraint_model = constraint_model.__class__(model_dict)
             constraint_model.constraint_type = constraint_type
+        constraint_model.params = model.params
+        wrapped_constr.append(constraint_model)
+    return wrapped_constr
 
-        constraints.append(constraint_model)
-    return constraints
+def constraints_from_relations(relationals, model):
+    """
+    Turn Relationals into models which can serve as constraints.
+
+    :param relationals:
+    :param model:
+    :return:
+    """
+    constraint_models = []
+    for relational in relationals:
+        constraint_model = prepare_constraint(relational, model_type=model.__class__)
+        constraint_models.append(constraint_model)
+    return constraints_from_models(constraint_models, model=model)
