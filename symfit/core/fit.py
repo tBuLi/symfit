@@ -237,11 +237,11 @@ class BaseModel(Mapping):
         functions if applicable. Sorted by the evaluation order according to
         ``self.ordered_symbols``, not alphabetical like ``self.model_dict``!
         """
-        func_tuples = []
+        func_dict = OrderedDict()
         for var, func in self.vars_as_functions.items():
             expr = self.model_dict[var].xreplace(self.vars_as_functions)
-            func_tuples.append((func, expr))
-        return OrderedDict(func_tuples)
+            func_dict[func] = expr
+        return func_dict
 
     @cached_property
     def connectivity_mapping(self):
@@ -1038,7 +1038,7 @@ class HasCovarianceMatrix(TakesData):
                 s2 = 1
             else:
                 s2 = rss / dof
-            # Divide by two because the source uses different normalization
+            # Multiply by two because the source uses different normalization
             cov_mat = 2 * s2 * hess_inv
             return cov_mat
         else:
@@ -1146,7 +1146,10 @@ class Fit(HasCovarianceMatrix):
                                                   model=model)
         super(Fit, self).__init__(model, *ordered_data, **named_data)
 
-        # Update the data belonging to the constraints
+        # Update the data belonging to the constraints. We do this by checking
+        # for the precense of data with the same name as one of the independent
+        # variables of the constraint. If present, we start addressing them by
+        # their Variable instead.
         for constraint in self.constraints:
             for var in constraint.independent_vars:
                 if var.name in self.data:
@@ -1196,12 +1199,12 @@ class Fit(HasCovarianceMatrix):
     def _make_signature(self):
         signature = super(Fit, self)._make_signature()
 
-        var_names = [var.name for constraint in self.constraints
-                     for var in constraint.independent_vars]
-        var_names = set(var_names)
+        var_names = {var.name for constraint in self.constraints
+                     for var in constraint.independent_vars}
         # Extra parameter objects due to vars of constraints.
         extra_parameters = []
         for var_name in var_names:
+            # inspect Parameters, not symfit Parameters
             if var_name not in signature.parameters:
                 sig_param = inspect_sig.Parameter(
                     var_name,
@@ -1360,7 +1363,7 @@ class ODEModel(BaseGradientModel):
             key=sort_func
         )
         self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
-        self.interdependent_vars = []  # Not yet supported for ODEModels
+        self.interdependent_vars = []  # TODO: add this support for ODEModels
         if not len(self.independent_vars):
             raise ModelError('ODEModel can only have one independent variable.')
 

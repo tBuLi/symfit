@@ -67,19 +67,19 @@ class TestFitResults(unittest.TestCase):
 
     def test_fitting_2(self):
         np.random.seed(4242)
-        mean = (0.3, 0.3)  # x, y mean 0.6, 0.4
+        mean = (0.33, 0.28)  # x, y mean 0.6, 0.4
         cov = [
-            [0.01**2, 0.4],
-            [0.4, 0.01**2]
+            [0.01**2, 0.39],
+            [0.41, 0.0101**2]
         ]
         data = np.random.multivariate_normal(mean, cov, 1000000)
-        mean = (0.7, 0.7)  # x, y mean 0.6, 0.4
-        cov = [[0.01**2, 0], [0, 0.01**2]]
+        mean = (0.68, 0.71)  # x, y mean 0.6, 0.4
+        cov = [[0.0102**2, 0.00], [1e-9, 0.010**2]]
         data_2 = np.random.multivariate_normal(mean, cov, 1000000)
         data = np.vstack((data, data_2))
 
         # Insert them as y,x here as np fucks up cartesian conventions.
-        ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=100, range=[[0.0, 1.0], [0.0, 1.0]])
+        ydata, xedges, yedges = np.histogram2d(data[:,1], data[:,0], bins=200, range=[[0.0, 1.0], [0.0, 1.0]])
         xcentres = (xedges[:-1] + xedges[1:]) / 2
         ycentres = (yedges[:-1] + yedges[1:]) / 2
 
