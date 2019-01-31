@@ -830,7 +830,13 @@ class TakesData(object):
                 bound_arguments.arguments[param.name] = param.default
 
         original_data = bound_arguments.arguments   # ordereddict of the data
-        self.data = OrderedDict((var, original_data[var.name]) for var in self.model.vars)
+        self.data = original_data.copy()
+        for var in self.model.vars:
+            # Identify data by their Variable, not their variable names.
+            # But anything that is not a part of model should not be thrown away
+            self.data[var] = self.data.pop(var.name)
+
+        # Interdependent vars are None by default
         self.data.update({var: None for var in self.model.interdependent_vars})
         # Change the type to array if no array operations are supported.
         # We don't want to break duck-typing, hence the try-except.
