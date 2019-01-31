@@ -196,9 +196,9 @@ class BaseModel(Mapping):
                            for var in self.dependent_vars)
             assert not any(isinstance(var, Parameter)
                            for var in self.interdependent_vars)
-        except AssertionError as err:
+        except AssertionError:
             raise ModelError('`Parameter`\'s can not feature in the role '
-                             'of `Variable`') from err
+                             'of `Variable`')
         # Make Variable object corresponding to each depedent var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name))
                        for var in self.dependent_vars}
