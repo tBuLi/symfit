@@ -3,15 +3,20 @@ import unittest
 import sys
 
 import numpy as np
+import sympy
+from scipy.integrate import simps
+
 from symfit import (
     variables, Variable, parameters, Parameter, ODEModel,
-    Fit, Equality, D, Model, log, FitResults, GreaterThan, Constraint
+    Fit, Equality, D, Model, log, FitResults, GreaterThan, Eq, Ge,
+    CallableNumericalModel, HadamardProduct
 )
 from symfit.distributions import Gaussian
 from symfit.core.minimizers import SLSQP, MINPACK
 from symfit.core.support import key2str
-from symfit.core.objectives import MinimizeModel
-
+from symfit.core.objectives import MinimizeModel, LogLikelihood
+from symfit.core.fit import ModelError
+from symfit import Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
 
 class TestConstrained(unittest.TestCase):
     """
@@ -614,6 +619,254 @@ class TestConstrained(unittest.TestCase):
             self.assertIsInstance(cons_val[0], float)
             self.assertEqual(obj_jac.shape, cons_jac.shape)
             self.assertEqual(obj_jac.shape, (2,))
+
+    def test_interdependency_constrained(self):
+        """
+        Test a model with interdependent components, and with constraints which
+        depend on the Model's output.
+        This is done in the MatrixSymbol formalism, using a Tikhonov
+        regularization as an example. In this, a matrix inverse has to be
+        calculated and is used multiple times. Therefore we split that term of
+        into a seperate component, so the inverse only has to be computed once
+        per model call.
+
+        See https://arxiv.org/abs/1901.05348 for a more detailed background.
+        """
+        N = Symbol('N', integer=True)
+        M = MatrixSymbol('M', N, N)
+        W = MatrixSymbol('W', N, N)
+        I = MatrixSymbol('I', N, N)
+        y = MatrixSymbol('y', N, 1)
+        c = MatrixSymbol('c', N, 1)
+        a, = parameters('a')
+        z, = variables('z')
+        i = Idx('i')
+
+        model_dict = {
+            W: Inverse(I + M / a ** 2),
+            c: - W * y,
+            z: sqrt(c.T * c)
+        }
+        # Sympy currently does not support derivatives of matrix expressions,
+        # so we use CallableModel instead of Model.
+        model = CallableModel(model_dict)
+
+        # Generate data
+        iden = np.eye(2)
+        M_mat = np.array([[2, 1], [3, 4]])
+        y_vec = np.array([[3], [5]])
+        eval_model = model(I=iden, M=M_mat, y=y_vec, a=0.1)
+        # Calculate the answers 'manually' so I know it was done properly
+        W_manual = np.linalg.inv(iden + M_mat / 0.1 ** 2)
+        c_manual = - np.atleast_2d(W_manual.dot(y_vec))
+        z_manual = np.atleast_1d(np.sqrt(c_manual.T.dot(c_manual)))
+
+        self.assertEqual(y_vec.shape, (2, 1))
+        self.assertEqual(M_mat.shape, (2, 2))
+        self.assertEqual(iden.shape, (2, 2))
+        self.assertEqual(W_manual.shape, (2, 2))
+        self.assertEqual(c_manual.shape, (2, 1))
+        self.assertEqual(z_manual.shape, (1, 1))
+        np.testing.assert_almost_equal(W_manual, eval_model.W)
+        np.testing.assert_almost_equal(c_manual, eval_model.c)
+        np.testing.assert_almost_equal(z_manual, eval_model.z)
+        fit = Fit(model, z=z_manual, I=iden, M=M_mat, y=y_vec)
+        fit_result = fit.execute()
+
+        # See if a == 0.1 was reconstructed properly. Since only a**2 features
+        # in the equations, we check for the absolute value. Setting a.min = 0.0
+        # is not appreciated by the Minimizer, it seems.
+        self.assertAlmostEqual(np.abs(fit_result.value(a)), 0.1)
+
+    def test_data_for_constraint(self):
+        """
+        Test the signature handling when constraints are at play. Constraints
+        should take seperate data, but still kwargs that are not found in either
+        the model nor the constraints should raise an error.
+        """
+        A, mu, sig = parameters('A, mu, sig')
+        x, y, Y = variables('x, y, Y')
+
+        model = Model({y: A * Gaussian(x, mu=mu, sig=sig)})
+        constraint = Model(Y, constraint_type=Eq)
+
+        np.random.seed(2)
+        xdata = np.random.normal(1.2, 2, 10)
+        ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))),
+                                     density=True)
+
+        # Allowed
+        fit = Fit(model, x=xdata, y=ydata, Y=2, constraints=[constraint])
+        fit = Fit(model, x=xdata, y=ydata)
+        fit = Fit(model, x=xdata, objective=LogLikelihood)
+
+        # Not allowed
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xdata, y=ydata, Y=2)
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xdata, y=ydata, Y=2, Z=3, constraints=[constraint])
+        # TODO: Uncomment these next lines when #214 has been fixed.
+        # with self.assertRaises(TypeError):
+        #     fit = Fit(model, x=xdata)
+        # with self.assertRaises(TypeError):
+        #     fit = Fit(model, x=xdata, y=ydata, objective=LogLikelihood)
+
+
+    def test_constrained_dependent_on_model(self):
+        """
+        For a simple Gaussian distribution, we test if Models of various types
+        can be used as constraints. Of particular interest are NumericalModels,
+        which can be used to fix the integral of the model during the fit to 1,
+        as it should be for a probability distribution.
+        :return:
+        """
+        A, mu, sig = parameters('A, mu, sig')
+        x, y, Y = variables('x, y, Y')
+        sig.min = 0.0
+
+        model = Model({y: A * Gaussian(x, mu=mu, sig=sig)})
+
+        # Generate data, 100 samples from a N(1.2, 2) distribution
+        np.random.seed(2)
+        xdata = np.random.normal(1.2, 2, 1000)
+        ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))), density=True)
+        xcentres = (xedges[1:] + xedges[:-1]) / 2
+
+        # Unconstrained fit
+        fit = Fit(model, x=xcentres, y=ydata)
+        unconstr_result = fit.execute()
+
+        # Constraints must be scalar models.
+        with self.assertRaises(ModelError):
+            Model([A - 1, sig - 1], constraint_type=Eq)
+        constraint_exact = Model(A * sqrt(2 * sympy.pi) * sig - 1)
+        # Only when explicitly asked, do models behave as constraints.
+        self.assertNotEqual(constraint_exact.constraint_type, Eq)
+
+        # Now lets make some valid constraints and see if they are respected!
+        # TODO: These should be symbolical integrals over `y` instead, but
+        # currently this is not converted into a numpy/scipy function.
+        constraint_model = Model(A - 1, constraint_type=Eq)
+        constraint_exact = Eq(A, 1)
+        constraint_num = CallableNumericalModel(
+            {Y: lambda x, y: simps(y, x) - 1},  # Integrate using simps
+            connectivity_mapping={Y: {x, y}},
+            constraint_type=Eq
+        )
+
+        # Test for all these different types of constraint.
+        for constraint in [constraint_model, constraint_exact, constraint_num]:
+            if not isinstance(constraint, Eq):
+                # Should pretend to be one when asked
+                self.assertEqual(constraint.constraint_type, Eq)
+
+            xcentres = (xedges[1:] + xedges[:-1]) / 2
+            fit = Fit(model, x=xcentres, y=ydata, constraints=[constraint])
+
+            # Test if conversion into a constraint was done properly
+            self.assertEqual(fit.model.params, fit.constraints[0].params)
+            if isinstance(constraint, CallableNumericalModel):
+                con_map = fit.constraints[0].connectivity_mapping
+                self.assertEqual(con_map, {Y: {x, y}, y: {x, mu, sig, A}})
+
+            # Finally, test if the constraint worked
+            fit_result = fit.execute(options={'eps': 1e-15, 'ftol': 1e-10})
+            unconstr_value = fit.minimizer.wrapped_constraints[0]['fun'](**unconstr_result.params)
+            constr_value = fit.minimizer.wrapped_constraints[0]['fun'](**fit_result.params)
+            self.assertAlmostEqual(constr_value[0], 0.0, 10)
+            # And if it was very poorly met before
+            self.assertNotAlmostEqual(unconstr_value[0], 0.0, 2)
+
+    def test_constrained_dependent_on_matrixmodel(self):
+        """
+        Similar to test_constrained_dependent_on_model, but now using
+        MatrixSymbols. This is much more powerful, since now the constraint can
+        really be written down as a symbolical one as well.
+        """
+        A, mu, sig = parameters('A, mu, sig')
+        M = symbols('M', integer=True)  # Number of measurements
+
+        # Create vectors for all the quantities
+        x = MatrixSymbol('x', M, 1)
+        dx = MatrixSymbol('dx', M, 1)
+        y = MatrixSymbol('y', M, 1)
+        I = MatrixSymbol('I', M, 1)  # 'identity' vector
+        Y = MatrixSymbol('Y', 1, 1)
+        B = MatrixSymbol('B', M, 1)
+        i = Idx('i', M)
+
+        # Looks overly complicated, but it's just a simple Gaussian
+        model = CallableModel(
+            {y: A * sympy.exp(- HadamardProduct(B, B) / (2 * sig**2))
+                    /sympy.sqrt(2*sympy.pi*sig**2),
+             B: (x - mu * I)}
+        )
+        self.assertEqual(model.independent_vars, [I, x])
+        self.assertEqual(model.dependent_vars, [y])
+        self.assertEqual(model.interdependent_vars, [B])
+        self.assertEqual(model.params, [A, mu, sig])
+
+        # Generate data, sample from a N(1.2, 2) distribution. Has to be 2D.
+        np.random.seed(2)
+        xdata = np.random.normal(1.2, 2, size=10000)
+        ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))), density=True)
+        xcentres = np.atleast_2d((xedges[1:] + xedges[:-1]) / 2).T
+        xdiff = np.atleast_2d((xedges[1:] - xedges[:-1])).T
+        ydata = np.atleast_2d(ydata).T
+        Idata = np.ones_like(xcentres)
+
+        self.assertEqual(xcentres.shape, (int(np.sqrt(len(xdata))), 1))
+        self.assertEqual(xdiff.shape, (int(np.sqrt(len(xdata))), 1))
+        self.assertEqual(ydata.shape, (int(np.sqrt(len(xdata))), 1))
+
+        fit = Fit(model, x=xcentres, y=ydata, I=Idata)
+        unconstr_result = fit.execute()
+
+        constraint = CallableModel(
+            {Y: Sum(y[i, 0] * dx[i, 0], i) - 1},
+            constraint_type=Eq
+        )
+        self.assertEqual(constraint.independent_vars, [M, dx, y])
+        self.assertEqual(constraint.dependent_vars, [Y])
+        self.assertEqual(constraint.interdependent_vars, [])
+        self.assertEqual(constraint.params, [])
+        self.assertEqual(constraint.constraint_type, Eq)
+
+        # Provide the extra data needed for the constraints as well
+        fit = Fit(model, x=xcentres, y=ydata, dx=xdiff, M=len(xcentres),
+                  I=Idata, constraints=[constraint])
+
+        # After treatment, our constraint should have `y` & `b` dependencies
+        self.assertEqual(fit.constraints[0].independent_vars, [I, M, dx, x])
+        self.assertEqual(fit.constraints[0].dependent_vars, [Y])
+        self.assertEqual(fit.constraints[0].interdependent_vars, [B, y])
+        self.assertEqual(fit.constraints[0].params, [A, mu, sig])
+        self.assertEqual(fit.constraints[0].constraint_type, Eq)
+
+        self.assertEqual(set(k for k, v in fit.data.items() if v is not None),
+                         {x, y, dx, M, I, fit.model.sigmas[y]})
+        # These belong to internal variables
+        self.assertEqual(set(k for k, v in fit.data.items() if v is None),
+                         {B, constraint.sigmas[Y], Y})
+
+        constr_result = fit.execute()
+        # The constraint should not be met for the unconstrained fit
+        self.assertNotAlmostEqual(
+            fit.minimizer.wrapped_constraints[0]['fun'](
+                **unconstr_result.params
+            )[0], 0, 3
+        )
+        # And at high precision with constraint
+        self.assertAlmostEqual(
+            fit.minimizer.wrapped_constraints[0]['fun'](
+                **constr_result.params
+            )[0], 0, 8
+        )
+
+        # Constraining will negatively effect the R^2 value, but...
+        self.assertLess(constr_result.r_squared, unconstr_result.r_squared)
+        # both should be pretty good
+        self.assertGreater(constr_result.r_squared, 0.99)
 
 if __name__ == '__main__':
     unittest.main()

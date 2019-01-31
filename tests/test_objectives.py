@@ -7,7 +7,7 @@ import numpy as np
 
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
-    Model, FitResults, variables, CallableNumericalModel, Constraint, Idx,
+    Model, FitResults, variables, CallableNumericalModel, Idx,
     IndexedBase, symbols, Sum, log
 )
 from symfit.core.objectives import (
