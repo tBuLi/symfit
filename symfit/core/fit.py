@@ -1654,7 +1654,8 @@ def prepare_constraint(relational, model_type=CallableModel):
     Based on a relational expression, return a Model representing the
     constraint.
 
-    :param relational: Expression which is a subclass of :class:`~sympy.Rel`.
+    :param relational: Expression which is a subclass of
+        :class:`~sympy.core.relational.Relational`.
     :param model_type: Type of model for the constraint.
     :return: Model representing the constraint.
     """
