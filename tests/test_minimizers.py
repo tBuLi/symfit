@@ -9,10 +9,10 @@ import multiprocessing as mp
 
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
-    Model, FitResults, variables, CallableNumericalModel, Constraint
+    Model, FitResults, variables, CallableNumericalModel
 )
 from symfit.core.minimizers import *
-from symfit.core.support import partial
+from symfit.core.objectives import LeastSquares, MinimizeModel
 
 # Defined at the global level because local functions can't be pickled.
 def f(x, a, b):
@@ -275,18 +275,44 @@ class TestMinimize(unittest.TestCase):
         b.fixed = True
 
         model = Model({z: a * x**2 - b * y**2 + c})
+        # Generate data, z has to be scalar for MinimizeModel to be happy
+        xdata = 3 #np.linspace(0, 10)
+        ydata = 5 # np.linspace(0, 10)
+        zdata = model(a=2, b=3, c=5, x=xdata, y=ydata).z
+        data_dict = {x: xdata, y: ydata, z: zdata}
+
         # Equivalent ways of defining the same constraint
+        constraint_model = Model(a - c, constraint_type=Eq)
+        constraint_model.params = model.params
         constraints = [
-            Eq(a, c), MinimizeModel(Constraint(Eq(a, c), model=model), data={}),
-            Constraint(Eq(a, c), model=model)
+            Eq(a, c),
+            MinimizeModel(constraint_model, data=data_dict),
+            constraint_model
         ]
-        fit = SLSQP(MinimizeModel(model, data={}), parameters=[a, b, c],
-                    constraints=constraints)
+
+        objective = MinimizeModel(model, data=data_dict)
+        for constraint in constraints:
+            fit = SLSQP(objective, parameters=[a, b, c],
+                        constraints=[constraint])
+            wrapped_constr = fit.wrapped_constraints[0]['fun'].model
+            self.assertIsInstance(wrapped_constr, Model)
+            self.assertEqual(wrapped_constr.params, model.params)
+            self.assertEqual(wrapped_constr.jacobian_model.params, model.params)
+            self.assertEqual(wrapped_constr.hessian_model.params, model.params)
+            # Set the data for the dependent var of the constraint to None
+            # Normally this is handled by Fit because here we interact with the
+            # Minimizer directly, it is up to us.
+            constraint_var = fit.wrapped_constraints[0]['fun'].model.dependent_vars[0]
+            objective.data[constraint_var] = None
+            fit.execute()
+
         # No scipy style dicts allowed.
         with self.assertRaises(TypeError):
             fit = SLSQP(MinimizeModel(model, data={}),
                         parameters=[a, b, c],
-                        constraints=[{'type': 'eq', 'fun': lambda a, b, c: a - c}]
+                        constraints=[
+                            {'type': 'eq', 'fun': lambda a, b, c: a - c}
+                        ]
             )
 
 if __name__ == '__main__':
