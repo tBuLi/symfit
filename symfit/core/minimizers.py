@@ -409,9 +409,10 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
             elif isinstance(constraint, sympy.Rel):
                 from .fit import prepare_constraint
                 constraint = prepare_constraint(
-                    constraint, self.parameters,
+                    constraint,
                     model_type=self.objective.model.__class__
                 )
+                constraint.params = self.parameters
                 constraint_type = constraint.constraint_type
                 constraint = MinimizeModel(constraint, data=self.objective.data)
             else:
