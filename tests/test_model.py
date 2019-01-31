@@ -15,7 +15,8 @@ from symfit import (
     Function, diff
 )
 from symfit.core.fit import (
-    jacobian_from_model, hessian_from_model, constraints_from_relations
+    jacobian_from_model, hessian_from_model, constraints_from_relations,
+    ModelError
 )
 
 class TestModel(unittest.TestCase):
@@ -293,6 +294,25 @@ class TestModel(unittest.TestCase):
 
         # TODO: add constraints to Matrix model. But since Matrix expressions
         # can not yet be derived, this needs #154 to be solved first.
+
+    def test_interdependency_invalid(self):
+        """
+        Create an invalid model with interdependency.
+        """
+        a, b, c = parameters('a, b, c')
+        x, y, z = variables('x, y, z')
+
+        with self.assertRaises(ModelError):
+            # Invalid, parameters can not be keys
+            model_dict = {
+                c: a ** 3 * x + b ** 2,
+                z: c ** 2 + a * b
+            }
+            model = Model(model_dict)
+        with self.assertRaises(ModelError):
+            # Invalid, parameters can not be keys
+            model_dict = {c: a ** 3 * x + b ** 2}
+            model = Model(model_dict)
 
 
     def test_interdependency(self):

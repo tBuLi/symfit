@@ -191,6 +191,14 @@ class BaseModel(Mapping):
                                  not isinstance(s, Parameter) and not s in self]
         self.params = [s for s in independent if isinstance(s, Parameter)]
 
+        try:
+            assert not any(isinstance(var, Parameter)
+                           for var in self.dependent_vars)
+            assert not any(isinstance(var, Parameter)
+                           for var in self.interdependent_vars)
+        except AssertionError as err:
+            raise ModelError('`Parameter`\'s can not feature in the role '
+                             'of `Variable`') from err
         # Make Variable object corresponding to each depedent var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name))
                        for var in self.dependent_vars}
