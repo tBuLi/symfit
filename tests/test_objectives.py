@@ -19,14 +19,20 @@ from symfit.distributions import Exp
 
 # Overwrite the way Sum is printed by numpy just while testing. Is not
 # general enough to be moved to SymfitNumPyPrinter, but has to be used
-# in this test. This way of sommung complety ignores the summation indices and
+# in this test. This way of summing completely ignores the summation indices and
 # the dimensions, and instead just flattens everything to a scalar. Only used
 # in this test to build the analytical equivalents of our LeastSquares
 # and LogLikelihood
-def _print_Sum(self, expr):
+class FlattenSum(Sum):
+    """
+    Just a sum which is printed differently: by flattening the whole array and
+    summing it. Used in tests only.
+    """
+
+def _print_FlattenSum(self, expr):
     return "%s(%s)" % (self._module_format('numpy.sum'),
                        self._print(expr.function))
-SymfitNumPyPrinter._print_Sum = _print_Sum
+SymfitNumPyPrinter._print_FlattenSum = _print_FlattenSum
 
 
 class TestObjectives(unittest.TestCase):
@@ -75,7 +81,7 @@ class TestObjectives(unittest.TestCase):
             x: xdata, y: ydata, model.sigmas[y]: np.ones_like(xdata)
         })
         chi2_exact = Model(
-            {X2: Sum(((a * x ** 2 + b * x) - y) ** 2, i)})
+            {X2: FlattenSum(((a * x ** 2 + b * x) - y) ** 2, i)})
 
         eval_exact = chi2_exact(x=xdata, y=ydata, a=2, b=3)
         jac_exact = chi2_exact.eval_jacobian(x=xdata, y=ydata, a=2, b=3)
@@ -140,7 +146,7 @@ class TestObjectives(unittest.TestCase):
         # designed to find the maximum when used with a *minimizer*, so it has
         # opposite sign. Also test MinimizeModel at the same time.
         logL_model = Model({y: pdf})
-        logL_exact = Model({y: - Sum(log(pdf), i)})
+        logL_exact = Model({y: - FlattenSum(log(pdf), i)})
         logL_numerical = LogLikelihood(logL_model, {x: xdata, y: None})
         logL_minmodel = MinimizeModel(logL_exact, data={x: xdata, y: None})
 
