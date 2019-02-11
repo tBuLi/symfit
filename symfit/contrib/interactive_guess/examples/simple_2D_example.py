@@ -5,7 +5,7 @@ Created on Mon Dec  7 11:28:58 2015
 @author: peterkroon
 """
 from symfit import Variable, Parameter, exp, Fit, Model
-from symfit.contrib.interactive_guess import InteractiveGuess2D
+from symfit.contrib.interactive_guess import InteractiveGuess
 import numpy as np
 
 
@@ -23,7 +23,7 @@ model = Model({y: distr(x, k, x0)})
 x_data = np.linspace(0, 2.5, 50)
 y_data = model(x=x_data, k=1000, x0=1).y
 
-guess = InteractiveGuess2D(model, x=x_data, y=y_data)
+guess = InteractiveGuess(model, x=x_data, y=y_data, n_points=150)
 guess.execute()
 print(guess)
 

@@ -32,3 +32,4 @@ initial values.
 
     ex_interactive_guesses_ODE
     ex_interactive_guesses_vector_2D
+    ex_interactive_guesses_nD

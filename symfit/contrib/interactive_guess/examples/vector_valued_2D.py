@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from symfit import Variable, Parameter, Fit, Model
-from symfit.contrib.interactive_guess import InteractiveGuess2D
+from symfit.contrib.interactive_guess import InteractiveGuess
 import numpy as np
 
 
@@ -22,7 +22,7 @@ data = model(x=x_data, k=1000, x0=1)
 y1_data = data.y1
 y2_data = data.y2
 
-guess = InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
+guess = InteractiveGuess(model, x=x_data, y1=y1_data, y2=y2_data, n_points=250)
 guess.execute()
 print(guess)
 
