@@ -17,8 +17,8 @@ from .support import (
     cached_property, D
 )
 from .minimizers import (
-    BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, ConstrainedMinimizer,
-    ScipyMinimize, MINPACK, ChainedMinimizer, BasinHopping
+    BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, HessianMinimizer,
+    ConstrainedMinimizer, MINPACK, ChainedMinimizer, BasinHopping
 )
 from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares,
@@ -1257,6 +1257,13 @@ class Fit(HasCovarianceMatrix):
             # py function version of the analytical jacobian.
             if hasattr(self.model, 'jacobian_model') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
+        if issubclass(minimizer, HessianMinimizer):
+            # If an analytical version of the Hessian exists we should use
+            # that, otherwise we let the minimizer estimate it itself.
+            # Hence the check of numerical_hessian, as this is the
+            # py function version of the analytical jacobian.
+            if hasattr(self.model, 'numerical_hessian') and hasattr(self.objective, 'eval_hessian'):
+                minimizer_options['hessian'] = self.objective.eval_hessian
 
         if issubclass(minimizer, ConstrainedMinimizer):
             # set the constraints as MinimizeModel. The dependent vars of the

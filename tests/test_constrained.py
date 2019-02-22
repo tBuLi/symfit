@@ -5,18 +5,23 @@ import sys
 import numpy as np
 import sympy
 from scipy.integrate import simps
+from scipy.optimize import NonlinearConstraint, minimize
 
 from symfit import (
     variables, Variable, parameters, Parameter, ODEModel,
-    Fit, Equality, D, Model, log, FitResults, GreaterThan, Eq, Ge,
+    Fit, Equality, D, Model, log, FitResults, GreaterThan, Eq, Ge, Le,
     CallableNumericalModel, HadamardProduct
 )
 from symfit.distributions import Gaussian
-from symfit.core.minimizers import SLSQP, MINPACK
+from symfit.core.minimizers import (
+    SLSQP, MINPACK, TrustConstr, ScipyConstrainedMinimize, COBYLA
+)
 from symfit.core.support import key2str
 from symfit.core.objectives import MinimizeModel, LogLikelihood
 from symfit.core.fit import ModelError
 from symfit import Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
+from tests.test_minimizers import subclasses
+
 
 class TestConstrained(unittest.TestCase):
     """
@@ -867,6 +872,199 @@ class TestConstrained(unittest.TestCase):
         self.assertLess(constr_result.r_squared, unconstr_result.r_squared)
         # both should be pretty good
         self.assertGreater(constr_result.r_squared, 0.99)
+
+    def test_fixed_and_constrained_tc(self):
+        """
+        Taken from #165. Make sure the TrustConstr minimizer can deal with
+        constraints and fixed parameters.
+        """
+        phi1, phi2, theta1, theta2 = parameters('phi1, phi2, theta1, theta2')
+        x, y = variables('x, y')
+
+        model_dict = {y: (1 + x * theta1 + theta2 * x ** 2) / (
+                    1 + phi1 * x * theta1 + phi2 * theta2 * x ** 2)}
+        constraints = [GreaterThan(theta1, theta2)]
+
+        xdata = np.array(
+            [0., 0.000376, 0.000752, 0.0015, 0.00301, 0.00601, 0.00902])
+        ydata = np.array(
+            [1., 1.07968041, 1.08990638, 1.12151629, 1.13068452, 1.15484109,
+             1.19883952])
+
+        phi1.value = 0.845251484373516
+        phi1.fixed = True
+
+        phi2.value = 0.7105427053026403
+        phi2.fixed = True
+
+        fit = Fit(model_dict, x=xdata, y=ydata,
+                  constraints=constraints, minimizer=TrustConstr)
+        fit_result_tc = fit.execute()
+        # The data and fixed parameters should be partialed away.
+        objective_kwargs = {
+            phi2.name: phi2.value,
+            phi1.name: phi1.value,
+            x.name: xdata,
+        }
+        constraint_kwargs = {
+            phi2.name: phi2.value,
+            phi1.name: phi1.value,
+        }
+        for index, constraint in enumerate(fit.minimizer.constraints):
+            self.assertIsInstance(constraint, MinimizeModel)
+            self.assertEqual(constraint.model, fit.constraints[index])
+            self.assertEqual(constraint.data, fit.data)
+            self.assertEqual(constraint.data, fit.objective.data)
+
+            # Data should be the same memory location so they can share state.
+            self.assertEqual(id(fit.objective.data),
+                             id(constraint.data))
+
+            # Test if the data and fixed params have been partialed away
+            self.assertEqual(key2str(constraint._invariant_kwargs).keys(),
+                             constraint_kwargs.keys())
+            self.assertEqual(key2str(fit.objective._invariant_kwargs).keys(),
+                             objective_kwargs.keys())
+
+        # Compare the shapes. The constraint shape should now be the same as
+        # that of the objective
+        obj_val = fit.minimizer.objective(fit.minimizer.initial_guesses)
+        obj_jac = fit.minimizer.wrapped_jacobian(fit.minimizer.initial_guesses)
+        with self.assertRaises(TypeError):
+            len(obj_val)  # scalars don't have lengths
+        self.assertEqual(len(obj_jac), 2)
+
+        for index, constraint in enumerate(fit.minimizer.wrapped_constraints):
+            self.assertTrue(callable(constraint.fun))
+            self.assertTrue(callable(constraint.jac))
+
+            # The argument should be the partialed Constraint object
+            self.assertEqual(constraint.fun, fit.minimizer.constraints[index])
+            self.assertIsInstance(constraint.fun, MinimizeModel)
+
+            # Test the shapes
+            cons_val = constraint.fun(fit.minimizer.initial_guesses)
+            cons_jac = constraint.jac(fit.minimizer.initial_guesses)
+            self.assertEqual(cons_val.shape, (1,))
+            self.assertIsInstance(cons_val[0], float)
+            self.assertEqual(obj_jac.shape, cons_jac.shape)
+            self.assertEqual(obj_jac.shape, (2,))
+
+    def test_constrainedminimizers(self):
+        """
+        Compare the different constrained minimizers, to make sure all support
+        constraints, and converge to the same answer.
+        """
+        minimizers = list(subclasses(ScipyConstrainedMinimize))
+        x = Parameter('x', value=-1.0)
+        y = Parameter('y', value=1.0)
+        z = Variable('z')
+        model = Model({z: 2 * x * y + 2 * x - x ** 2 - 2 * y ** 2})
+
+        # First we try an unconstrained fit
+        results = []
+        for minimizer in minimizers:
+            fit = Fit(- model, minimizer=minimizer)
+            fit_result = fit.execute(tol=1e-15)
+            results.append(fit_result)
+
+        # Compare the parameter values.
+        for r1, r2 in zip(results[:-1], results[1:]):
+            self.assertAlmostEqual(r1.value(x), r2.value(x), 6)
+            self.assertAlmostEqual(r1.value(y), r2.value(y), 6)
+            np.testing.assert_almost_equal(r1.covariance_matrix,
+                                           r2.covariance_matrix)
+
+        constraints = [
+            Ge(y - 1, 0),  # y - 1 >= 0,
+            Eq(x ** 3 - y, 0),  # x**3 - y == 0,
+        ]
+
+        # Constrained fit.
+        results = []
+        for minimizer in minimizers:
+            if minimizer is COBYLA:
+                # COBYLA only supports inequility.
+                continue
+            fit = Fit(- model, constraints=constraints, minimizer=minimizer)
+            fit_result = fit.execute(tol=1e-15)
+            results.append(fit_result)
+
+        for r1, r2 in zip(results[:-1], results[1:]):
+            self.assertAlmostEqual(r1.value(x), r2.value(x), 6)
+            self.assertAlmostEqual(r1.value(y), r2.value(y), 6)
+            np.testing.assert_almost_equal(r1.covariance_matrix,
+                                           r2.covariance_matrix)
+
+    def test_trustconstr(self):
+        """
+        Solve the standard constrained example from
+        https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
+        using the trust-constr method.
+        """
+        def func(x, sign=1.0):
+            """ Objective function """
+            return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
+
+        def func_jac(x, sign=1.0):
+            """ Derivative of objective function """
+            dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
+            dfdx1 = sign*(2*x[0] - 4*x[1])
+            return np.array([ dfdx0, dfdx1 ])
+
+        def func_hess(x, sign=1.0):
+            """ Derivative of objective function """
+            dfdx2 = sign*(-2)
+            dfdxdy = sign * 2
+            dfdy2 = sign * (-4)
+            return np.array([[ dfdx2, dfdxdy ], [ dfdxdy, dfdy2 ]])
+
+        def cons_f(x):
+            return [x[1] - 1, x[0]**3 - x[1]]
+
+        def cons_J(x):
+            return [[0, 1], [3 * x[0] ** 2, -1]]
+
+        def cons_H(x, v):
+            return v[0] * np.array([[0, 0], [0, 0]]) + \
+                   v[1] * np.array([[6 * x[0], 0], [0, 0]])
+
+        # Unconstrained fit
+        res = minimize(func, [-1.0, 1.0], args=(-1.0,),
+                       jac=func_jac, hess=func_hess, method='trust-constr')
+        np.testing.assert_almost_equal(res.x, [2, 1])
+
+        # Constrained fit
+        nonlinear_constraint = NonlinearConstraint(cons_f, 0, [np.inf, 0],
+                                                   jac=cons_J, hess=cons_H)
+        res_constr = minimize(func, [-1.0, 1.0], args=(-1.0,), tol=1e-15,
+                       jac=func_jac, hess=func_hess, method='trust-constr',
+                       constraints=[nonlinear_constraint])
+        np.testing.assert_almost_equal(res_constr.x, [1, 1])
+
+        # Symfit equivalent code
+        x = Parameter('x', value=-1.0)
+        y = Parameter('y', value=1.0)
+        z = Variable('z')
+        model = Model({z: 2 * x * y + 2 * x - x ** 2 - 2 * y ** 2})
+
+        # Unconstrained fit first, see if we get the known result.
+        fit = Fit(-model, minimizer=TrustConstr)
+        fit_result = fit.execute()
+        np.testing.assert_almost_equal(list(fit_result.params.values()), [2, 1])
+
+        # Now we are ready for the constrained fit.
+        constraints = [
+            Le(- y + 1, 0),  # y - 1 >= 0,
+            Eq(x ** 3 - y, 0),  # x**3 - y == 0,
+        ]
+        fit = Fit(-model, constraints=constraints, minimizer=TrustConstr)
+        fit_result = fit.execute(tol=1e-15)
+
+        # Test if the constrained results are equal
+        np.testing.assert_almost_equal(list(fit_result.params.values()),
+                                       res_constr.x)
+
 
 if __name__ == '__main__':
     unittest.main()
