@@ -882,11 +882,11 @@ class Tests(unittest.TestCase):
                 fit_result = fit.execute()
                 x.max = None
             elif minimizer is MINPACK:
-                pass  # Not a MINPACKable problem.
+                pass  # Not a MINPACKable problem because it only has a param
             else:
                 fit_result = fit.execute()
-                self.assertGreaterEqual(fit_result.params['x'], 1.0)
-                self.assertLessEqual(fit_result.params['x'], 2.0)
+                self.assertGreaterEqual(fit_result.value(x), 1.0)
+                self.assertLessEqual(fit_result.value(x), 2.0)
             self.assertEqual(fit.minimizer.bounds, [(1, None)])
 
     def test_non_boundaries(self):
@@ -901,9 +901,12 @@ class Tests(unittest.TestCase):
         bounded_minimizers = [minimizer for minimizer in bounded_minimizers
                               if minimizer is not DifferentialEvolution]
         for minimizer in bounded_minimizers:
-            fit = Fit(model, minimizer=minimizer)
-            fit_result = fit.execute()
-            self.assertAlmostEqual(fit_result.params['x'], 0.0)
+            if minimizer is MINPACK:
+                pass  # Not a MINPACKable problem because it only has a param
+            else:
+                fit = Fit(model, minimizer=minimizer)
+                fit_result = fit.execute()
+                self.assertAlmostEqual(fit_result.value(x), 0.0)
             self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
