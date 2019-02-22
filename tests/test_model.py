@@ -228,10 +228,10 @@ class TestModel(unittest.TestCase):
             new_model = pickle.loads(pickle.dumps(model))
             # Compare signatures
             self.assertEqual(model.__signature__, new_model.__signature__)
-            # Trigger the cached vars.
+            # Trigger the cached vars because we compare `__dict__` s
             model.vars
             new_model.vars
-            # Explicitely make sure the connectivity mapping is identical.
+            # Explicitly make sure the connectivity mapping is identical.
             self.assertEqual(model.connectivity_mapping,
                              new_model.connectivity_mapping)
             if not isinstance(model, ODEModel):

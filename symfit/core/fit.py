@@ -486,7 +486,7 @@ class BaseCallableModel(BaseModel):
     def _set_params(self, value):
         self._params = value
         self.__signature__ = self._make_signature()
-    params = property(_get_params, _set_params)
+    params = property(_get_params, _set_params)  # Properties cannot use `super`
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
@@ -675,6 +675,7 @@ class GradientModel(CallableModel, BaseGradientModel):
         super(GradientModel, self)._set_params(value)
         if hasattr(self, 'jacobian_model'):
             self.jacobian_model.params = value
+    # Properties cannot use `super` unless when used in this way
     params = property(CallableModel._get_params, _set_params)
 
     @cached_property
@@ -727,6 +728,7 @@ class HessianModel(GradientModel):
         super(HessianModel, self)._set_params(value)
         if hasattr(self, 'hessian_model'):
             self.hessian_model.params = value
+    # Properties cannot use `super` unless when used in this way
     params = property(GradientModel._get_params, _set_params)
 
     @property
@@ -1055,10 +1057,9 @@ class HasCovarianceMatrix(TakesData):
         """
         cov_matrix = self._covariance_matrix(best_fit_params,
                                              objective=self.objective)
-        if cov_matrix is None or any(np.diag(cov_matrix) < 0):
-            # If the covariance matrix could not be computed or contains illegal
-            # values, we try again by approximating the hessian with the
-            # jacobian.
+        if cov_matrix is None:
+            # If the covariance matrix could not be computed we try again by
+            # approximating the hessian with the jacobian.
 
             # VectorLeastSquares should be turned into a LeastSquares for
             # cov matrix calculation

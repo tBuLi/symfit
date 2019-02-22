@@ -67,7 +67,7 @@ class TestFitResults(unittest.TestCase):
 
     def test_fitting_2(self):
         np.random.seed(4242)
-        mean = (0.33, 0.28)  # x, y mean 0.6, 0.4
+        mean = (0.33, 0.28)  # x, y mean 0.3, 0.3
         cov = [
             [0.01**2, 0.39],
             [0.41, 0.0101**2]
@@ -87,21 +87,21 @@ class TestFitResults(unittest.TestCase):
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
         # xdata = np.dstack((xx, yy)).T
 
-        x = Variable()
-        y = Variable()
+        x = Variable('x')
+        y = Variable('y')
 
-        x0_1 = Parameter(value=0.7, min=0.6, max=0.8)
-        sig_x_1 = Parameter(value=0.1, min=0.0, max=0.2)
-        y0_1 = Parameter(value=0.7, min=0.6, max=0.8)
-        sig_y_1 = Parameter(value=0.1, min=0.0, max=0.2)
-        A_1 = Parameter()
+        x0_1 = Parameter('x0_1', value=0.7, min=0.6, max=0.8)
+        sig_x_1 = Parameter('sig_x_1', value=0.01, min=0.0, max=0.2)
+        y0_1 = Parameter('y0_1', value=0.7, min=0.6, max=0.8)
+        sig_y_1 = Parameter('sig_y_1', value=0.01, min=0.0, max=0.2)
+        A_1 = Parameter('A_1')
         g_1 = A_1 * Gaussian(x, x0_1, sig_x_1) * Gaussian(y, y0_1, sig_y_1)
 
-        x0_2 = Parameter(value=0.3, min=0.2, max=0.4)
-        sig_x_2 = Parameter(value=0.1, min=0.0, max=0.2)
-        y0_2 = Parameter(value=0.3, min=0.2, max=0.4)
-        sig_y_2 = Parameter(value=0.1, min=0.0, max=0.2)
-        A_2 = Parameter()
+        x0_2 = Parameter('x0_2', value=0.3, min=0.2, max=0.4)
+        sig_x_2 = Parameter('sig_x_2', value=0.01, min=0.0, max=0.2)
+        y0_2 = Parameter('y0_2', value=0.3, min=0.2, max=0.4)
+        sig_y_2 = Parameter('sig_y_2', value=0.01, min=0.0, max=0.2)
+        A_2 = Parameter('A_2')
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
 
         model = g_1 + g_2

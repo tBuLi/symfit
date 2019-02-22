@@ -391,6 +391,8 @@ class keywordonly(object):
 
 
 def D(*args, **kwargs):
+    # ToDo: Investigate sympy's inheritance properly to see if I can give a
+    # .name atribute to Derivative objects or subclasses.
     return sympy.Derivative(*args, **kwargs)
 
 def name(self):
