@@ -901,10 +901,10 @@ class Tests(unittest.TestCase):
         bounded_minimizers = [minimizer for minimizer in bounded_minimizers
                               if minimizer is not DifferentialEvolution]
         for minimizer in bounded_minimizers:
+            fit = Fit(model, minimizer=minimizer)
             if minimizer is MINPACK:
                 pass  # Not a MINPACKable problem because it only has a param
             else:
-                fit = Fit(model, minimizer=minimizer)
                 fit_result = fit.execute()
                 self.assertAlmostEqual(fit_result.value(x), 0.0)
             self.assertEqual(fit.minimizer.bounds, [(None, None)])

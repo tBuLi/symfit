@@ -186,7 +186,6 @@ class TestMinimize(unittest.TestCase):
         scipy_minimizers.append(chained_minimizer)
         constrained_minimizers = subclasses(ScipyConstrainedMinimize)
         # Test for all of them if they can be pickled.
-        scipy_minimizers = [TrustConstr]
         for minimizer in scipy_minimizers:
             if minimizer in constrained_minimizers:
                 constraints = [Ge(b, a)]
