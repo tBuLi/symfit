@@ -124,13 +124,6 @@ class BaseObjective(object):
         )
         return kwargs
 
-    def _clear_cache(self):
-        """
-        Clear cached properties. Should preferably be called after every
-        minimization precedure to clean the pallette.
-        """
-        del self.invariant_kwargs
-
 
 @add_metaclass(abc.ABCMeta)
 class GradientObjective(BaseObjective):
