@@ -479,7 +479,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
 
         :param constraints: List of either MinimizeModel instances (this is what
           is provided by :class:`~symfit.core.fit.Fit`),
-          :class:`~symfit.core.fit.Constraint`, or
+          :class:`~symfit.core.fit.BaseModel`, or
           :class:`sympy.core.relational.Relational`.
         :return: dict of scipy compatible statements.
         """
@@ -493,7 +493,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                 # Typically the case when called by `Fit
                 constraint_type = constraint.model.constraint_type
             elif hasattr(constraint, 'constraint_type'):
-                # Constraint object, not provided by `Fit`. Do the best we can.
+                # Model object, not provided by `Fit`. Do the best we can.
                 if self.parameters != constraint.params:
                     raise AssertionError('The constraint should accept the same'
                                          ' parameters as used for the fit.')

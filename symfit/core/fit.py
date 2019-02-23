@@ -1280,7 +1280,8 @@ class Fit(HasCovarianceMatrix):
     def _init_constraints(self, constraints, model):
         """
         Takes the user provided constraints and converts them to a list of
-        :class:`~symfit.core.fit.Constraint` objects.
+        ``type(model)`` objects, which are extended to also have the
+         parameters of ``model``.
 
         :param constraints: iterable of :class:`~sympy.core.relational.Relation`
             objects.
