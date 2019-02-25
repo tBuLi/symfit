@@ -335,10 +335,6 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`. Note that your `method` will
             usually be filled by a specific subclass.
         """
-        # TODO: Find a better place for this.
-        if bounds is None and isinstance(self, BoundedMinimizer):
-            bounds = self.bounds
-
         ans = minimize(
             self.objective,
             self.initial_guesses,
@@ -536,7 +532,7 @@ class COBYLA(ScipyConstrainedMinimize, BaseMinimizer):
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
 
-class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
+class LBFGSB(ScipyGradientMinimize, ScipyBoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s LBFGSB algorithm.
     """
@@ -557,7 +553,7 @@ class Powell(ScipyMinimize, BaseMinimizer):
     Wrapper around :func:`scipy.optimize.minimize`'s Powell algorithm.
     """
 
-class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimizer):
+class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, ScipyBoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s Trust-Constr algorithm.
     """
@@ -640,7 +636,7 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
                                                 hessian=hessian,
                                                 **minimize_options)
 
-class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
+class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
     """
     A wrapper around :func:`scipy.optimize.differential_evolution`.
     """
@@ -750,7 +746,7 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
         return self._pack_output(ans)
 
 
-class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
+class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
     """
     Wrapper to scipy's implementation of MINPACK, since it is the industry
     standard.
