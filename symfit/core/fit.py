@@ -182,7 +182,7 @@ class BaseModel(Mapping):
             turned into a model.
         :param dependency_model: An instance of (a subclass of)
             :class:`~symfit.core.fit.BaseModel`, which contains components on
-             which the param ``model`` depends.
+            which the param ``model`` depends.
         :param init_kwargs: Any kwargs to be passed on to the standard
             init method of this class.
         :return: A stand-alone :class:`~symfit.core.fit.BaseModel` subclass.
