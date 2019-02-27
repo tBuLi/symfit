@@ -331,7 +331,7 @@ class TestMinimize(unittest.TestCase):
         data_dict = {x: xdata, y: ydata, z: zdata}
 
         # Equivalent ways of defining the same constraint
-        constraint_model = Model(a - c, constraint_type=Eq)
+        constraint_model = Model.as_constraint(a - c, model, constraint_type=Eq)
         constraint_model.params = model.params
         constraints = [
             Eq(a, c),

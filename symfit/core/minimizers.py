@@ -496,13 +496,10 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                 constraint_type = constraint.constraint_type
                 constraint = MinimizeModel(constraint, data=self.objective.data)
             elif isinstance(constraint, sympy.Rel):
-                from .fit import prepare_constraint
-                constraint = prepare_constraint(
-                    constraint,
-                    model_type=self.objective.model.__class__
+                constraint_type = constraint.__class__
+                constraint = self.objective.model.__class__.as_constraint(
+                    constraint, self.objective.model
                 )
-                constraint.params = self.parameters
-                constraint_type = constraint.constraint_type
                 constraint = MinimizeModel(constraint, data=self.objective.data)
             else:
                 raise TypeError('Unknown type for a constraint.')

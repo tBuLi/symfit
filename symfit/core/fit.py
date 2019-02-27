@@ -81,7 +81,7 @@ class BaseModel(Mapping):
     or from an expression directly.
     Expressions are not enforced for ducktyping purposes.
     """
-    def __init__(self, model, constraint_type=None):
+    def __init__(self, model):
         """
         Initiate a Model from a dict::
 
@@ -90,9 +90,6 @@ class BaseModel(Mapping):
         Preferred way of initiating ``Model``, since now you know what the dependent variable is called.
 
         :param model: dict of ``Expr``, where dependent variables are the keys.
-        :param constraint_type: Optional: as what kind of constraint should this
-            model be interpreted when used as such? Is assumed to be a subclass
-            of :class:`~sympy.core.relational.Relational`.
         """
         if not isinstance(model, Mapping):
             try:
@@ -105,10 +102,118 @@ class BaseModel(Mapping):
             # should be introduced to fulfill the same role.
             model = {Variable(): expr for expr in model}
         self._init_from_dict(model)
-        if constraint_type is not None and len(self.dependent_vars) != 1:
+
+    @classmethod
+    def as_constraint(cls, constraint, model, constraint_type=None, **init_kwargs):
+        """
+        Initiate a Model which should serve as a constraint. Such a
+        constraint-model should be initiated with knowledge of another
+        ``BaseModel``, from which it will take its parameters::
+
+            model = Model({y: a * x + b})
+            constraint = Model.as_constraint(Eq(a, 1), model)
+
+        ``constraint.params`` will be ``[a, b]`` instead of ``[a]``.
+
+        :param constraint: An ``Expr``, a mapping or iterable of ``Expr``, or a
+            ``Relational``.
+        :param model: An instance of (a subclass of)
+            :class:`~symfit.core.fit.BaseModel`.
+        :param constraint_type: Optional: as what kind of constraint should this
+            model be interpreted when used as such? Required when ``constraint``
+            is not a :class:`~sympy.core.relational.Relational`.
+        :param kwargs: Any additional keyword arguments which will be passed on
+            to the init method.
+        """
+        allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
+
+        if isinstance(constraint, Relational):
+            constraint_type = constraint.__class__
+            constraint = constraint.lhs - constraint.rhs
+        elif constraint_type is None:
+            raise TypeError('Please provide a ``constraint_type``.')
+
+        # Initiate the constraint model, in such a way that we take care
+        # of any dependencies
+        self = cls.with_dependencies(constraint,
+                                     dependency_model=model,
+                                     **init_kwargs)
+
+        # Check if the constraint_type is allowed, and flip the sign if needed
+        if constraint_type not in allowed_types:
+            raise ModelError(
+                'Only constraints of the type {} are allowed. A constraint'
+                ' of type {} was provided.'.format(allowed_types,
+                                                   constraint_type)
+            )
+        elif constraint_type is sympy.Le:
+            # We change this to a Ge and flip the sign
+            self = - self
+            constraint_type = sympy.Ge
+
+        self.constraint_type = constraint_type
+
+        if len(self.dependent_vars) != 1:
             raise ModelError('Only scalar models can be used as constraints.')
+
+        # self.params has to be a subset of model.params
+        if set(self.params) <= set(model.params):
+            self.params = model.params
         else:
-            self.constraint_type = constraint_type
+            raise ModelError('The parameters of ``constraint`` have to be a '
+                             'subset of those of ``model``.')
+
+        return self
+
+    @classmethod
+    def with_dependencies(cls, model, dependency_model, **init_kwargs):
+        """
+        Initiate a model whose components depend on another model. For example::
+
+            >>> x, y, z = variables('x, y, z')
+            >>> dependency_model = Model({y: x**2})
+            >>> model_dict = {z: y**2}
+            >>> model = Model.with_dependencies(model_dict, dependency_model)
+            >>> print(model)
+            [y(x; ) = x**2,
+             z(y; ) = y**2]
+
+        :param model: The ``Expr`` or mapping/iterable of ``Expr`` to be
+            turned into a model.
+        :param dependency_model: An instance of (a subclass of)
+            :class:`~symfit.core.fit.BaseModel`, which contains components on
+             which the param ``model`` depends.
+        :param init_kwargs: Any kwargs to be passed on to the standard
+            init method of this class.
+        :return: A stand-alone :class:`~symfit.core.fit.BaseModel` subclass.
+        """
+        model = cls(model, **init_kwargs)  # Initiate model into an instance.
+        if any(var in dependency_model for var in model.independent_vars):
+            # This model depends on the output of the dependency_model,
+            # so we need to work those components into the model_dict.
+            model_dict = model.model_dict.copy()
+            # This is the case for BaseNumericalModel's
+            connectivity_mapping = init_kwargs.get('connectivity_mapping',
+                                                   model.connectivity_mapping)
+            for var in model.independent_vars:
+                if var in dependency_model:
+                    # Add this var and all its dependencies.
+                    # Walk over all possible dependencies of this
+                    # variable until we no longer have dependencies.
+                    for symbol in dependency_model.ordered_symbols:
+                        # Not everything in ordered_symbols is a key of
+                        # model, think e.g. parameters
+                        if symbol in dependency_model:
+                            if symbol not in model_dict:
+                                model_dict[symbol] = dependency_model[symbol]
+                                connectivity_mapping[symbol] = dependency_model.connectivity_mapping[symbol]
+                        if symbol == var:
+                            break
+            # connectivity_mapping in init_kwargs has been updated if it was
+            # present, since python is pass by reference.
+            model = cls(model_dict, **init_kwargs)
+        return model
+
 
     def __len__(self):
         """
@@ -1140,6 +1245,7 @@ class Fit(HasCovarianceMatrix):
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
         constraints = named_data.pop('constraints')
+        constraints = [] if constraints is None else constraints
         # List of Constraint objects
         if not isinstance(model, BaseModel):
             model = Model(model)
@@ -1148,7 +1254,7 @@ class Fit(HasCovarianceMatrix):
         super(Fit, self).__init__(model, *ordered_data, **named_data)
 
         # Update the data belonging to the constraints. We do this by checking
-        # for the precense of data with the same name as one of the independent
+        # for the presence of data with the same name as one of the independent
         # variables of the constraint. If present, we start addressing them by
         # their Variable instead.
         for constraint in self.constraints:
@@ -1288,16 +1394,24 @@ class Fit(HasCovarianceMatrix):
         :return: list of :class:`~symfit.core.fit.Constraint` objects.
         """
         con_models = []
-        if constraints:
-            con_models.extend(constraints_from_models(
-                [con for con in constraints if isinstance(con, BaseModel)],
-                model=model
-            ))
-            # Whatever is left is assumed to be a `Relational` (subclass).
-            con_models.extend(constraints_from_relations(
-                [rel for rel in constraints if not isinstance(rel, BaseModel)],
-                model=model
-            ))
+        for constraint in constraints:
+            if hasattr(constraint, 'constraint_type'):
+                con_models.append(constraint)
+            else:
+                if isinstance(model, BaseNumericalModel):
+                    # Numerical models need to be provided with a connectivity
+                    # mapping, so we cannot use the type of model. Instead,
+                    # use the bare minimum for an analytical model for the
+                    # constraint. ToDo: once GradientNumericalModel etc are
+                    # introduced, pick the corresponding analytical model for
+                    # the constraint.
+                    con_models.append(
+                        CallableModel.as_constraint(constraint, model)
+                    )
+                else:
+                    con_models.append(
+                        model.__class__.as_constraint(constraint, model)
+                    )
         return con_models
 
     def execute(self, **minimize_options):
@@ -1656,100 +1770,3 @@ def hessian_from_model(model):
     """
     jac_model = jacobian_from_model(model, as_functions=True)
     return jacobian_from_model(jac_model)
-
-
-def prepare_constraint(relational, model_type=CallableModel):
-    """
-    Based on a relational expression, return a Model representing the
-    constraint.
-
-    :param relational: Expression which is a subclass of
-        :class:`~sympy.core.relational.Relational`.
-    :param model_type: Type of model for the constraint.
-    :return: Model representing the constraint.
-    """
-    allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
-    constraint_type = type(relational)
-    # Check if the type of each constraint is allowed.
-    if constraint_type not in allowed_types:
-        raise ModelError(
-            'Only constraints of the type {} are allowed. A constraint'
-            ' of type {} was provided.'.format(allowed_types,
-                                               constraint_type)
-        )
-    elif constraint_type is sympy.Le:
-        # We change this to a Ge
-        constraint = relational.rhs - relational.lhs
-        constraint_type = sympy.Ge
-    else:
-        constraint = relational.lhs - relational.rhs
-
-    if not issubclass(model_type, BaseNumericalModel):
-        constraint_model = model_type(constraint)
-    else:
-        y = Variable()
-        vars, params = seperate_symbols(constraint)
-        connectivity_mapping = {y: set(vars + params)}
-        constraint_model = model_type({y: constraint},
-                                      connectivity_mapping=connectivity_mapping)
-
-    constraint_model.constraint_type = constraint_type
-    return constraint_model
-
-def constraints_from_models(constraint_models, model):
-    """
-    Turn general models into models which can serve as constraints. This
-    function will replace the constraint models ``.params`` with those of
-    ``model``, and will take care of any dependencies the constraint might have
-    on components of the model.
-
-    :param constraint_models: Models which should act as constraints.
-    :param model: Model the constraints `belong` to.
-    :return: constraints specific to ``model``.
-    """
-    wrapped_constr = []
-    for constraint_model in constraint_models:
-        if any(var in model for var in constraint_model.independent_vars):
-            # This constraint depends on the output of the model, so we need to
-            # work the model into the constraint
-            model_dict = constraint_model.model_dict.copy()
-            constraint_type = constraint_model.constraint_type
-            connectivity_mapping = constraint_model.connectivity_mapping
-            for var in constraint_model.independent_vars:
-                if var in model:
-                    model_dict[var] = model[var]
-                    connectivity_mapping[var] = model.connectivity_mapping[var]
-                    # Also add possible dependencies of this var
-                    for symbol in model.ordered_symbols:
-                        # Walk over all possible dependencies of this
-                        # variable until we no longer have dependencies.
-                        if symbol == var:
-                            break
-                        elif symbol in model:
-                            # Not everything in ordered_symbols is a key of model
-                            if symbol not in model_dict:
-                                model_dict[symbol] = model[symbol]
-                                connectivity_mapping[symbol] = model.connectivity_mapping[symbol]
-            if issubclass(constraint_model.__class__, BaseNumericalModel):
-                constraint_model = constraint_model.__class__(
-                    model_dict, connectivity_mapping=connectivity_mapping)
-            else:
-                constraint_model = constraint_model.__class__(model_dict)
-            constraint_model.constraint_type = constraint_type
-        constraint_model.params = model.params
-        wrapped_constr.append(constraint_model)
-    return wrapped_constr
-
-def constraints_from_relations(relationals, model):
-    """
-    Turn Relationals into models which can serve as constraints.
-
-    :param relationals:
-    :param model:
-    :return:
-    """
-    constraint_models = []
-    for relational in relationals:
-        constraint_model = prepare_constraint(relational, model_type=model.__class__)
-        constraint_models.append(constraint_model)
-    return constraints_from_models(constraint_models, model=model)

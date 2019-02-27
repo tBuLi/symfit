@@ -15,8 +15,7 @@ from symfit import (
     Function, diff
 )
 from symfit.core.fit import (
-    jacobian_from_model, hessian_from_model, constraints_from_relations,
-    ModelError
+    jacobian_from_model, hessian_from_model, ModelError
 )
 
 class TestModel(unittest.TestCase):
@@ -68,7 +67,7 @@ class TestModel(unittest.TestCase):
             self.assertEqual(model[key], - model_neq[key])
 
         # Constraints
-        constraint = constraints_from_relations([Eq(a * x, 2)], model)[0]
+        constraint = Model.as_constraint(Eq(a * x, 2), model)
 
         constraint_neq = - constraint
         # for key in constraint:
@@ -212,7 +211,7 @@ class TestModel(unittest.TestCase):
         a, b = parameters('a, b')
         x, y = variables('x, y')
         exact_model = Model({y: a * x ** b})
-        constraint = constraints_from_relations([Eq(a, b)], exact_model)[0]
+        constraint = Model.as_constraint(Eq(a, b), exact_model)
         num_model = CallableNumericalModel(
             {y: a * x ** b}, independent_vars=[x], params=[a, b]
         )

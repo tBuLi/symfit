@@ -19,7 +19,9 @@ from symfit.core.minimizers import (
 from symfit.core.support import key2str
 from symfit.core.objectives import MinimizeModel, LogLikelihood
 from symfit.core.fit import ModelError
-from symfit import Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
+from symfit import (
+    Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
+)
 from tests.test_minimizers import subclasses
 
 
@@ -693,7 +695,7 @@ class TestConstrained(unittest.TestCase):
         x, y, Y = variables('x, y, Y')
 
         model = Model({y: A * Gaussian(x, mu=mu, sig=sig)})
-        constraint = Model(Y, constraint_type=Eq)
+        constraint = Model.as_constraint(Y, model, constraint_type=Eq)
 
         np.random.seed(2)
         xdata = np.random.normal(1.2, 2, 10)
@@ -727,6 +729,7 @@ class TestConstrained(unittest.TestCase):
         """
         A, mu, sig = parameters('A, mu, sig')
         x, y, Y = variables('x, y, Y')
+        i = Idx('i', (0, 1000))
         sig.min = 0.0
 
         model = Model({y: A * Gaussian(x, mu=mu, sig=sig)})
@@ -743,18 +746,23 @@ class TestConstrained(unittest.TestCase):
 
         # Constraints must be scalar models.
         with self.assertRaises(ModelError):
-            Model([A - 1, sig - 1], constraint_type=Eq)
-        constraint_exact = Model(A * sqrt(2 * sympy.pi) * sig - 1)
+            Model.as_constraint([A - 1, sig - 1], model, constraint_type=Eq)
+        constraint_exact = Model.as_constraint(
+            A * sqrt(2 * sympy.pi) * sig - 1, model, constraint_type=Eq
+        )
         # Only when explicitly asked, do models behave as constraints.
-        self.assertNotEqual(constraint_exact.constraint_type, Eq)
+        self.assertTrue(hasattr(constraint_exact, 'constraint_type'))
+        self.assertEqual(constraint_exact.constraint_type, Eq)
+        self.assertFalse(hasattr(model, 'constraint_type'))
 
         # Now lets make some valid constraints and see if they are respected!
-        # TODO: These should be symbolical integrals over `y` instead, but
-        # currently this is not converted into a numpy/scipy function.
-        constraint_model = Model(A - 1, constraint_type=Eq)
+        # TODO: These first two should be symbolical integrals over `y` instead,
+        # but currently this is not converted into a numpy/scipy function. So instead the first two are not valid constraints.
+        constraint_model = Model.as_constraint(A - 1, model, constraint_type=Eq)
         constraint_exact = Eq(A, 1)
-        constraint_num = CallableNumericalModel(
+        constraint_num = CallableNumericalModel.as_constraint(
             {Y: lambda x, y: simps(y, x) - 1},  # Integrate using simps
+            model=model,
             connectivity_mapping={Y: {x, y}},
             constraint_type=Eq
         )
@@ -762,17 +770,31 @@ class TestConstrained(unittest.TestCase):
         # Test for all these different types of constraint.
         for constraint in [constraint_model, constraint_exact, constraint_num]:
             if not isinstance(constraint, Eq):
-                # Should pretend to be one when asked
                 self.assertEqual(constraint.constraint_type, Eq)
 
             xcentres = (xedges[1:] + xedges[:-1]) / 2
             fit = Fit(model, x=xcentres, y=ydata, constraints=[constraint])
-
             # Test if conversion into a constraint was done properly
-            self.assertEqual(fit.model.params, fit.constraints[0].params)
+            fit_constraint = fit.constraints[0]
+            self.assertEqual(fit.model.params, fit_constraint.params)
+            self.assertEqual(fit_constraint.constraint_type, Eq)
+
+            con_map = fit_constraint.connectivity_mapping
             if isinstance(constraint, CallableNumericalModel):
-                con_map = fit.constraints[0].connectivity_mapping
                 self.assertEqual(con_map, {Y: {x, y}, y: {x, mu, sig, A}})
+                self.assertEqual(fit_constraint.independent_vars, [x])
+                self.assertEqual(fit_constraint.dependent_vars, [Y])
+                self.assertEqual(fit_constraint.interdependent_vars, [y])
+                self.assertEqual(fit_constraint.params, [A, mu, sig])
+            else:
+                # ToDo: if these constraints can somehow be written as integrals
+                # depending on y and x this if/else should be removed.
+                self.assertEqual(con_map,
+                                 {fit_constraint.dependent_vars[0]: {A}})
+                self.assertEqual(fit_constraint.independent_vars, [])
+                self.assertEqual(len(fit_constraint.dependent_vars), 1)
+                self.assertEqual(fit_constraint.interdependent_vars, [])
+                self.assertEqual(fit_constraint.params, [A, mu, sig])
 
             # Finally, test if the constraint worked
             fit_result = fit.execute(options={'eps': 1e-15, 'ftol': 1e-10})
@@ -827,14 +849,20 @@ class TestConstrained(unittest.TestCase):
         fit = Fit(model, x=xcentres, y=ydata, I=Idata)
         unconstr_result = fit.execute()
 
-        constraint = CallableModel(
+        constraint = CallableModel({Y: Sum(y[i, 0] * dx[i, 0], i) - 1})
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xcentres, y=ydata, dx=xdiff, M=len(xcentres),
+                      I=Idata, constraints=[constraint])
+
+        constraint = CallableModel.as_constraint(
             {Y: Sum(y[i, 0] * dx[i, 0], i) - 1},
+            model=model,
             constraint_type=Eq
         )
-        self.assertEqual(constraint.independent_vars, [M, dx, y])
+        self.assertEqual(constraint.independent_vars, [I, M, dx, x])
         self.assertEqual(constraint.dependent_vars, [Y])
-        self.assertEqual(constraint.interdependent_vars, [])
-        self.assertEqual(constraint.params, [])
+        self.assertEqual(constraint.interdependent_vars, [B, y])
+        self.assertEqual(constraint.params, [A, mu, sig])
         self.assertEqual(constraint.constraint_type, Eq)
 
         # Provide the extra data needed for the constraints as well
