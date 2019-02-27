@@ -1753,7 +1753,6 @@ def jacobian_from_model(model, as_functions=False):
         jac.update({y: expr.subs(functions_as_vars, evaluate=False)
                     for y, expr in model.items()})
     jacobian_model = CallableModel(jac)
-    jacobian_model.params = model.params
     return jacobian_model
 
 def hessian_from_model(model):
