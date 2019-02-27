@@ -801,8 +801,8 @@ class TestConstrained(unittest.TestCase):
             unconstr_value = fit.minimizer.wrapped_constraints[0]['fun'](**unconstr_result.params)
             constr_value = fit.minimizer.wrapped_constraints[0]['fun'](**fit_result.params)
             self.assertAlmostEqual(constr_value[0], 0.0, 10)
-            # And if it was very poorly met before
-            self.assertNotAlmostEqual(unconstr_value[0], 0.0, 2)
+        # And if it was very poorly met before
+        self.assertNotAlmostEqual(unconstr_value[0], 0.0, 2)
 
     def test_constrained_dependent_on_matrixmodel(self):
         """

@@ -449,7 +449,7 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
     def scipy_constraints(self, constraints):
         cons = super(ScipyHessianMinimize, self).scipy_constraints(constraints)
         for con in cons:
-            # Only if the model has a jacobian, does it make sense to pass one
+            # Only if the model has a hessian, does it make sense to pass one
             # to the minimizer
             if hasattr(con['fun'].model, 'eval_hessian'):
                 con['hess'] = self.resize_hess(con['fun'].eval_hessian)

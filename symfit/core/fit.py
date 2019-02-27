@@ -807,7 +807,8 @@ class GradientModel(CallableModel, BaseGradientModel):
         """
         eval_jac_dict = self.jacobian_model(*args, **kwargs)._asdict()
         # Take zero for component which are not present, happens for Constraints
-        jac = [[eval_jac_dict.get(D(var, param), 0) * np.ones_like(eval_jac_dict[var])
+        jac = [[np.broadcast_to(eval_jac_dict.get(D(var, param), 0),
+                                eval_jac_dict[var].shape)
                 for param in self.params]
             for var in self
         ]
@@ -853,7 +854,8 @@ class HessianModel(GradientModel):
         # Evaluate the hessian model and use the resulting Ans namedtuple as a
         # dict. From this, take the relevant components.
         eval_hess_dict = self.hessian_model(*args, **kwargs)._asdict()
-        hess = [[[eval_hess_dict.get(D(var, p1, p2), 0) * np.ones_like(eval_hess_dict[var])
+        hess = [[[np.broadcast_to(eval_hess_dict.get(D(var, p1, p2), 0),
+                                  eval_hess_dict[var].shape)
                     for p2 in self.params]
                 for p1 in self.params]
             for var in self
@@ -1116,7 +1118,7 @@ class HasCovarianceMatrix(TakesData):
         try:
             hess = objective.eval_hessian(**key2str(best_fit_params))
         except AttributeError:
-            # Some models do not have an eval_jacobian, in which case we give up
+            # Some models do not have an eval_hessian, in which case we give up
             return None
         else:
             if hess is None:
@@ -1146,6 +1148,7 @@ class HasCovarianceMatrix(TakesData):
             else:
                 s2 = rss / dof
             # Multiply by two because the source uses different normalization
+            # ToDo: divide by two in the objective instead
             cov_mat = 2 * s2 * hess_inv
             return cov_mat
         else:
