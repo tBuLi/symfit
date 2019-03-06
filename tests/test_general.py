@@ -14,7 +14,7 @@ from symfit import (
 )
 from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
 from symfit.core.objectives import LogLikelihood
-from symfit.distributions import Gaussian, Exp
+from symfit.distributions import Gaussian, Exp, BivariateGaussian
 from tests.test_minimizers import subclasses
 
 if sys.version_info >= (3, 0):
@@ -619,6 +619,39 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(mu) / mean, 1, 6)
         self.assertAlmostEqual(fit_result.stdev(mu) / mean_stdev, 1, 3)
         self.assertAlmostEqual(fit_result.value(sig) / np.std(xdata), 1, 6)
+
+    def test_likelihood_fitting_bivariate_gaussian(self):
+        """
+        Fit using the likelihood method.
+        """
+        # Make variables and parameters
+        x = Variable('x')
+        y = Variable('y')
+        x0 = Parameter('x0', value=0.6, min=0.5, max=0.7)
+        sig_x = Parameter('sig_x', value=0.1, max=1.0)
+        y0 = Parameter('y0', value=0.7, min=0.6, max=0.9)
+        sig_y = Parameter('sig_y', value=0.05, max=1.0)
+        rho = Parameter('rho', value=0.001, min=-1, max=1)
+
+        pi = BivariateGaussian(x=x, mu_x=x0, sig_x=sig_x, y=y, mu_y=y0,
+                               sig_y=sig_y, rho=rho)
+
+        # Draw 10000 samples from a bivariate distribution
+        mean = [0.59, 0.8]
+        r = 0.6
+        cov = np.array([[0.11 ** 2, 0.11 * 0.23 * r],
+                        [0.11 * 0.23 * r, 0.23 ** 2]])
+        np.random.seed(42)
+        xdata, ydata = np.random.multivariate_normal(mean, cov, 100000).T
+
+        fit = Fit(pi, x=xdata, y=ydata, objective=LogLikelihood)
+        fit_result = fit.execute()
+
+        self.assertAlmostEqual(fit_result.value(x0) / mean[0], 1, 2)
+        self.assertAlmostEqual(fit_result.value(y0) / mean[1], 1, 2)
+        self.assertAlmostEqual(fit_result.value(sig_x) / np.sqrt(cov[0, 0]), 1, 2)
+        self.assertAlmostEqual(fit_result.value(sig_y) / np.sqrt(cov[1, 1]), 1, 2)
+        self.assertAlmostEqual(fit_result.value(rho) / r, 1, 2)
 
     def test_evaluate_model(self):
         """

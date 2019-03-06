@@ -18,6 +18,27 @@ def Gaussian(x, mu, sig):
     """
     return sympy.exp(-(x - mu)**2/(2*sig**2))/sympy.sqrt(2*sympy.pi*sig**2)
 
+def BivariateGaussian(x, y, mu_x, mu_y, sig_x, sig_y, rho):
+    """
+    Bivariate Gaussian pdf.
+
+    :param x: :class:`symfit.core.argument.Variable`
+    :param y: :class:`symfit.core.argument.Variable`
+    :param mu_x: :class:`symfit.core.argument.Parameter` for the mean of `x`
+    :param mu_y: :class:`symfit.core.argument.Parameter` for the mean of `y`
+    :param sig_x: :class:`symfit.core.argument.Parameter` for the standard
+        deviation of `x`
+    :param sig_y: :class:`symfit.core.argument.Parameter` for the standard
+        deviation of `y`
+    :param rho: :class:`symfit.core.argument.Parameter` for the correlation
+        between `x` and `y`.
+    :return: sympy expression for a Bivariate Gaussian pdf.
+    """
+    exponent = - 1 / (2 * (1 - rho**2))
+    exponent *= (x - mu_x)**2 / sig_x**2 + (y - mu_y)**2 / sig_y**2 \
+                - 2 * rho * (x - mu_x) * (y - mu_y) / (sig_x * sig_y)
+    return sympy.exp(exponent) / (2 * sympy.pi * sig_x * sig_y * sympy.sqrt(1 - rho**2))
+
 def Exp(x, l):
     """
     Exponential Distribution pdf.
