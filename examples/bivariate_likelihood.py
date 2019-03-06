@@ -24,3 +24,4 @@ xdata, ydata = np.random.multivariate_normal(mean, cov, 100000).T
 
 fit = Fit(pdf, x=xdata, y=ydata, objective=LogLikelihood)
 fit_result = fit.execute()
+print(fit_result)
