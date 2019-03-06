@@ -2,9 +2,13 @@ Example: Likelihood fitting a Bivariate Gaussian
 ================================================
 
 In this example, we shall perform likelihood fitting to a `bivariate normal
-distrubtion <http://mathworld.wolfram.com/BivariateNormalDistribution.html>`_,
+distribution <http://mathworld.wolfram.com/BivariateNormalDistribution.html>`_,
 to demonstrate how ``symfit``'s API can easily be used to perform likelihood
 fitting on multivariate problems.
+
+In this example, we sample from a bivariate normal distribution with a
+significant correlation of :math:`\rho = 0.6` between :math:`x` and :math:`y`.
+We see that this is extracted from the data relatively straightforwardly.
 
 .. literalinclude:: ../../examples/bivariate_likelihood.py
     :language: python

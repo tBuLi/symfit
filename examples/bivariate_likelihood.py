@@ -16,9 +16,9 @@ pdf = BivariateGaussian(x=x, mu_x=x0, sig_x=sig_x, y=y, mu_y=y0,
 
 # Draw 100000 samples from a bivariate distribution
 mean = [0.59, 0.8]
-r = 0.6
-cov = np.array([[0.11 ** 2, 0.11 * 0.23 * r],
-                [0.11 * 0.23 * r, 0.23 ** 2]])
+corr = 0.6
+cov = np.array([[0.11 ** 2, 0.11 * 0.23 * corr],
+                [0.11 * 0.23 * corr, 0.23 ** 2]])
 np.random.seed(42)
 xdata, ydata = np.random.multivariate_normal(mean, cov, 100000).T
 
