@@ -633,10 +633,10 @@ class Tests(unittest.TestCase):
         sig_y = Parameter('sig_y', value=0.05, max=1.0)
         rho = Parameter('rho', value=0.001, min=-1, max=1)
 
-        pi = BivariateGaussian(x=x, mu_x=x0, sig_x=sig_x, y=y, mu_y=y0,
+        pdf = BivariateGaussian(x=x, mu_x=x0, sig_x=sig_x, y=y, mu_y=y0,
                                sig_y=sig_y, rho=rho)
 
-        # Draw 10000 samples from a bivariate distribution
+        # Draw 100000 samples from a bivariate distribution
         mean = [0.59, 0.8]
         r = 0.6
         cov = np.array([[0.11 ** 2, 0.11 * 0.23 * r],
@@ -644,7 +644,7 @@ class Tests(unittest.TestCase):
         np.random.seed(42)
         xdata, ydata = np.random.multivariate_normal(mean, cov, 100000).T
 
-        fit = Fit(pi, x=xdata, y=ydata, objective=LogLikelihood)
+        fit = Fit(pdf, x=xdata, y=ydata, objective=LogLikelihood)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(x0) / mean[0], 1, 2)
