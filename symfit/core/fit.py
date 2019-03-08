@@ -442,7 +442,7 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
     @cached_property
     def numerical_components(self):
         return [expr if not isinstance(expr, sympy.Expr) else
-                sympy_to_py(expr, self.independent_vars, self.params)
+                sympy_to_py(expr, self.independent_vars + self.params)
                 for expr in self.values()]
 
 
@@ -460,7 +460,7 @@ class CallableModel(BaseCallableModel):
         :return: lambda functions of each of the analytical components in
             model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
+        return [sympy_to_py(expr, self.independent_vars + self.params) for expr in self.values()]
 
 
 class Model(CallableModel):
@@ -555,7 +555,7 @@ class Model(CallableModel):
         :return: lambda functions of the jacobian matrix of the function, which
             can be used in numerical optimization.
         """
-        return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
+        return [[sympy_to_py(partial_dv, self.independent_vars + self.params) for partial_dv in row] for row in self.jacobian]
 
     @cached_property
     def numerical_hessian(self):
@@ -563,7 +563,7 @@ class Model(CallableModel):
         :return: lambda functions of the Hessian matrix of the function, which
         can be used in numerical optimization.
         """
-        return [[[sympy_to_py(second_order_pdv, self.independent_vars, self.params)
+        return [[[sympy_to_py(second_order_pdv, self.independent_vars + self.params)
                     for second_order_pdv in row]
                 for row in comp]
             for comp in self.hessian]
@@ -574,7 +574,7 @@ class Model(CallableModel):
         :return: lambda function of the ``.chi_squared`` method, to be used in
             numerical optimisation.
         """
-        return sympy_to_py(self.chi_squared, self.vars, self.params)
+        return sympy_to_py(self.chi_squared, self.vars + self.params)
 
     @cached_property
     def numerical_chi(self):
@@ -582,7 +582,7 @@ class Model(CallableModel):
         :return: lambda function of the ``.chi`` method, to be used in MINPACK
             optimisation.
         """
-        return sympy_to_py(self.chi, self.vars, self.params)
+        return sympy_to_py(self.chi, self.vars + self.params)
 
     @cached_property
     def numerical_chi_jacobian(self):
@@ -590,14 +590,14 @@ class Model(CallableModel):
         :return: lambda functions of the jacobian of the ``.chi`` method, which
             can be used in numerical optimization.
         """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
+        return [sympy_to_py(component, self.vars + self.params) for component in self.chi_jacobian]
 
     @cached_property
     def numerical_chi_squared_jacobian(self):
         """
         :return: lambda functions of the jacobian of the ``.chi_squared`` method.
         """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
+        return [sympy_to_py(component, self.vars + self.params) for component in self.chi_squared_jacobian]
 
     def eval_jacobian(self, *args, **kwargs):
         """
@@ -761,14 +761,14 @@ class Constraint(Model):
         """
         :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(expr, self.model.vars, self.model.params) for expr in self.values()]
+        return [sympy_to_py(expr, self.model.vars + self.model.params) for expr in self.values()]
 
     @cached_property
     def numerical_jacobian(self):
         """
         :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
         """
-        return [[sympy_to_py(partial_dv, self.model.vars, self.model.params) for partial_dv in row] for row in self.jacobian]
+        return [[sympy_to_py(partial_dv, self.model.vars + self.model.params) for partial_dv in row] for row in self.jacobian]
 
 
 class TakesData(object):
@@ -1927,7 +1927,7 @@ class ODEModel(CallableModel):
             but to `D(y, t) = ...`. The system spanned by these component
             therefore still needs to be integrated.
         """
-        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params)
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars + self.params)
                 for expr in self.values()]
 
     @cached_property
@@ -1944,7 +1944,7 @@ class ODEModel(CallableModel):
         """
         return [
             [sympy_to_py(
-                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params
+                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars + self.params
                 ) for var in self.dependent_vars
             ] for _, expr in self.items()
         ]

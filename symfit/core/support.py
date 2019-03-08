@@ -78,18 +78,53 @@ def seperate_symbols(func):
     vars.sort(key=lambda symbol: symbol.name)
     return vars, params
 
-def sympy_to_py(func, vars, params):
+def sympy_to_py(func, args):
     """
     Turn a symbolic expression into a Python lambda function,
     which has the names of the variables and parameters as it's argument names.
 
     :param func: sympy expression
-    :param vars: variables in this model
-    :param params: parameters in this model
-    :return: lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars
-        first, then params.
+    :param args: variables and parameters in this model
+    :return: lambda function to be used for numerical evaluation of the model.
     """
-    return lambdify((vars + params), func, printer=SymfitNumPyPrinter, dummify=False)
+    lambdafunc = lambdify((args), func, printer=SymfitNumPyPrinter,
+                          dummify=False)
+    # Check if the names of the lambda function are what we expect
+    signature = inspect_sig.signature(lambdafunc)
+    sig_parameters = OrderedDict(signature.parameters)
+    for arg, lambda_arg in zip(args, sig_parameters):
+        if arg.name != lambda_arg:
+            break
+    else:  # Lambdifying succesful!
+        return lambdafunc
+
+    # If we are here (very rare), then one of the lambda arg is still a Dummy.
+    # In this case we will manually handle the naming.
+    lambda_names = sig_parameters.keys()
+    arg_names = [arg.name for arg in args]
+    conversion = dict(zip(arg_names, lambda_names))
+
+    # Wrap the lambda such that arg names are translated into the correct dummy
+    # symbol names
+    @wraps(lambdafunc)
+    def wrapped_lambdafunc(*ordered_args, **kwargs):
+        converted_kwargs = {conversion[k]: v for k, v in kwargs.items()}
+        return lambdafunc(*ordered_args, **converted_kwargs)
+
+    # Update the signature of wrapped_lambdafunc to math our args
+    new_sig_parameters = OrderedDict()
+    for arg_name, dummy_name in conversion.items():
+        if arg_name == dummy_name:  # Already has the correct name
+            new_sig_parameters[arg_name] = sig_parameters[arg_name]
+        else:  # Change the dummy inspect.Parameter to the correct name
+            param = sig_parameters[dummy_name]
+            param = param.replace(name=arg_name)
+            new_sig_parameters[arg_name] = param
+
+    wrapped_lambdafunc.__signature__ = signature.replace(
+        parameters=new_sig_parameters.values()
+    )
+    return wrapped_lambdafunc
 
 def sympy_to_scipy(func, vars, params):
     """

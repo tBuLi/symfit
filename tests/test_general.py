@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit, minimize
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge, exp
+    parameters, Model, Eq, Ge, exp, integrate, oo
 )
 from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
 from symfit.core.objectives import LogLikelihood
@@ -652,6 +652,12 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(fit_result.value(sig_x) / np.sqrt(cov[0, 0]), 1, 2)
         self.assertAlmostEqual(fit_result.value(sig_y) / np.sqrt(cov[1, 1]), 1, 2)
         self.assertAlmostEqual(fit_result.value(rho) / r, 1, 2)
+
+        marginal = integrate(pdf, (y, -oo, oo), conds='none')
+        fit = Fit(marginal, x=xdata, objective=LogLikelihood)
+        with self.assertRaises(NameError):
+            # Should raise a NameError, not a TypeError, see #219
+            fit.execute()
 
     def test_evaluate_model(self):
         """

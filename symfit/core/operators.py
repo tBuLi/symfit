@@ -73,7 +73,7 @@ def call(self, *values, **named_values):
     """
     independent_vars, params = seperate_symbols(self)
     # Convert to a pythonic function
-    func = sympy_to_py(self, independent_vars, params)
+    func = sympy_to_py(self, independent_vars + params)
 
     # Handle args and kwargs according to the allowed names.
     parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
