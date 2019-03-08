@@ -119,9 +119,10 @@ class BaseModel(Mapping):
             ``Relational``.
         :param model: An instance of (a subclass of)
             :class:`~symfit.core.fit.BaseModel`.
-        :param constraint_type: Optional: as what kind of constraint should this
-            model be interpreted when used as such? Required when ``constraint``
-            is not a :class:`~sympy.core.relational.Relational`.
+        :param constraint_type: When ``constraint`` is not
+            a :class:`~sympy.core.relational.Relational`, a
+            :class:`~sympy.core.relational.Relational` has to be provided
+             explicitly.
         :param kwargs: Any additional keyword arguments which will be passed on
             to the init method.
         """
@@ -130,8 +131,6 @@ class BaseModel(Mapping):
         if isinstance(constraint, Relational):
             constraint_type = constraint.__class__
             constraint = constraint.lhs - constraint.rhs
-        elif constraint_type is None:
-            raise TypeError('Please provide a ``constraint_type``.')
 
         # Initiate the constraint model, in such a way that we take care
         # of any dependencies
@@ -210,7 +209,9 @@ class BaseModel(Mapping):
                         if symbol == var:
                             break
             # connectivity_mapping in init_kwargs has been updated if it was
-            # present, since python is pass by reference.
+            # present, since python is pass by reference. If it wasn't present,
+            # we are dealing with a type of model that will build its own
+            # connectivity_mapping upon init.
             model = cls(model_dict, **init_kwargs)
         return model
 
