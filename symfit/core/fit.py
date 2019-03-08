@@ -261,12 +261,12 @@ class BaseModel(Mapping):
 
     def __neg__(self):
         """
-        :return: new model with opposite sign. Does not change the model in-place,
-            but returns a new copy.
+        :return: new model with opposite sign. Does not change the model
+            in-place, but returns a new copy.
         """
         new_model_dict = self.model_dict.copy()
-        for key in new_model_dict:
-            new_model_dict[key] *= -1
+        for var in self.dependent_vars:
+            new_model_dict[var] *= -1
         return self.__class__(new_model_dict)
 
     def _init_from_dict(self, model_dict):

@@ -51,7 +51,6 @@ class TestModel(unittest.TestCase):
         self.assertEqual(model.dependent_vars, list(model.keys()))
 
 
-    # @unittest.skip('This might not be wise. What do we expect happens when we negate a model?')
     def test_neg(self):
         """
         Test negation of all model types
@@ -62,23 +61,37 @@ class TestModel(unittest.TestCase):
         model_dict = {y_2: a * x ** 2, y_1: 2 * x * b}
         model = Model(model_dict)
 
-        model_neq  = - model
+        model_neg = - model
         for key in model:
-            self.assertEqual(model[key], - model_neq[key])
+            self.assertEqual(model[key], - model_neg[key])
 
         # Constraints
         constraint = Model.as_constraint(Eq(a * x, 2), model)
 
-        constraint_neq = - constraint
+        constraint_neg = - constraint
         # for key in constraint:
-        self.assertEqual(constraint[constraint.dependent_vars[0]], - constraint_neq[constraint_neq.dependent_vars[0]])
+        self.assertEqual(constraint[constraint.dependent_vars[0]], - constraint_neg[constraint_neg.dependent_vars[0]])
 
         # ODEModel
         odemodel = ODEModel({D(y_1, x): a * x}, initial={a: 1.0})
 
-        odemodel_neq = - odemodel
+        odemodel_neg = - odemodel
         for key in odemodel:
-            self.assertEqual(odemodel[key], - odemodel_neq[key])
+            self.assertEqual(odemodel[key], - odemodel_neg[key])
+
+        # For models with interdependency, negation should only change the
+        # dependent components.
+        model_dict = {x: y_1**2, y_1: a * y_2 + b}
+        model = Model(model_dict)
+
+        model_neg = - model
+        for key in model:
+            if key in model.dependent_vars:
+                self.assertEqual(model[key], - model_neg[key])
+            elif key in model.interdependent_vars:
+                self.assertEqual(model[key], model_neg[key])
+            else:
+                raise Exception('There should be no such variable')
 
 
     def test_CallableNumericalModel(self):
