@@ -19,6 +19,17 @@ paper.
     ex_ODEModel
     ex_CallableNumericalModel
 
+Objective Examples
+------------------
+
+These are examples on how to use a different objective function from the
+standard least-squares objective, such as likelihood fitting.
+
+.. toctree::
+    :maxdepth: 1
+
+    ex_bivariate_likelihood
+
 Interactive Guess Module
 ------------------------
 
