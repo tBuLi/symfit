@@ -850,7 +850,7 @@ class TestConstrained(unittest.TestCase):
         unconstr_result = fit.execute()
 
         constraint = CallableModel({Y: Sum(y[i, 0] * dx[i, 0], i) - 1})
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ModelError):
             fit = Fit(model, x=xcentres, y=ydata, dx=xdiff, M=len(xcentres),
                       I=Idata, constraints=[constraint])
 
