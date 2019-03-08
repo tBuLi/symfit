@@ -48,7 +48,7 @@ class BaseMinimizer(object):
         default.
 
         :param func: Callable. If already an instance of BaseObjective, it is
-            returned immidiatelly. If not, it is turned into a BaseObjective of
+            returned immediately. If not, it is turned into a BaseObjective of
             type ``objective_type``.
         :param objective_type:
         :return:
