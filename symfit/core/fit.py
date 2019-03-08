@@ -134,9 +134,9 @@ class BaseModel(Mapping):
 
         # Initiate the constraint model, in such a way that we take care
         # of any dependencies
-        self = cls.with_dependencies(constraint,
-                                     dependency_model=model,
-                                     **init_kwargs)
+        instance = cls.with_dependencies(constraint,
+                                         dependency_model=model,
+                                         **init_kwargs)
 
         # Check if the constraint_type is allowed, and flip the sign if needed
         if constraint_type not in allowed_types:
@@ -147,25 +147,25 @@ class BaseModel(Mapping):
             )
         elif constraint_type is sympy.Le:
             # We change this to a Ge and flip the sign
-            self = - self
+            instance = - instance
             constraint_type = sympy.Ge
 
-        self.constraint_type = constraint_type
+        instance.constraint_type = constraint_type
 
-        if len(self.dependent_vars) != 1:
+        if len(instance.dependent_vars) != 1:
             raise ModelError('Only scalar models can be used as constraints.')
 
         # self.params has to be a subset of model.params
-        if set(self.params) <= set(model.params):
-            self.params = model.params
+        if set(instance.params) <= set(model.params):
+            instance.params = model.params
         else:
             raise ModelError('The parameters of ``constraint`` have to be a '
                              'subset of those of ``model``.')
 
-        return self
+        return instance
 
     @classmethod
-    def with_dependencies(cls, model, dependency_model, **init_kwargs):
+    def with_dependencies(cls, model_expr, dependency_model, **init_kwargs):
         """
         Initiate a model whose components depend on another model. For example::
 
@@ -177,16 +177,16 @@ class BaseModel(Mapping):
             [y(x; ) = x**2,
              z(y; ) = y**2]
 
-        :param model: The ``Expr`` or mapping/iterable of ``Expr`` to be
+        :param model_expr: The ``Expr`` or mapping/iterable of ``Expr`` to be
             turned into a model.
         :param dependency_model: An instance of (a subclass of)
             :class:`~symfit.core.fit.BaseModel`, which contains components on
-            which the param ``model`` depends.
+            which the argument ``model_expr`` depends.
         :param init_kwargs: Any kwargs to be passed on to the standard
             init method of this class.
         :return: A stand-alone :class:`~symfit.core.fit.BaseModel` subclass.
         """
-        model = cls(model, **init_kwargs)  # Initiate model into an instance.
+        model = cls(model_expr, **init_kwargs)  # Initiate model instance.
         if any(var in dependency_model for var in model.independent_vars):
             # This model depends on the output of the dependency_model,
             # so we need to work those components into the model_dict.
