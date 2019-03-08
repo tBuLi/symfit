@@ -122,7 +122,7 @@ class BaseModel(Mapping):
         :param constraint_type: When ``constraint`` is not
             a :class:`~sympy.core.relational.Relational`, a
             :class:`~sympy.core.relational.Relational` has to be provided
-             explicitly.
+            explicitly.
         :param kwargs: Any additional keyword arguments which will be passed on
             to the init method.
         """
