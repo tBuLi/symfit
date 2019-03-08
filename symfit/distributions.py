@@ -36,7 +36,7 @@ def BivariateGaussian(x, y, mu_x, mu_y, sig_x, sig_y, rho):
     """
     exponent = - 1 / (2 * (1 - rho**2))
     exponent *= (x - mu_x)**2 / sig_x**2 + (y - mu_y)**2 / sig_y**2 \
-                - 2 * rho * (x - mu_x) * (x - mu_x) / (sig_x * sig_y)
+                - 2 * rho * (x - mu_x) * (y - mu_y) / (sig_x * sig_y)
     return sympy.exp(exponent) / (2 * sympy.pi * sig_x * sig_y * sympy.sqrt(1 - rho**2))
 
 def Exp(x, l):

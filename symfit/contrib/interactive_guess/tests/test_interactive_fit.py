@@ -36,7 +36,7 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         model = {y: distr(x, k, x0)}
         x_data = np.linspace(0, 2.5, 50)
         y_data = model[y](x=x_data, k=1000, x0=1)
-        cls.guess = interactive_guess.InteractiveGuess2D(model, x=x_data, y=y_data)
+        cls.guess = interactive_guess.InteractiveGuess(model, x=x_data, y=y_data)
 #        plt.close(cls.fit.fig)
 
     def test_number_of_sliders(self):
@@ -125,7 +125,7 @@ class VectorValuedTest(unittest.TestCase):
         x_data = np.linspace(0, 2.5, 50)
         y1_data = model[y1](x=x_data, k=1000, x0=1)
         y2_data = model[y2](x=x_data, k=1000, x0=1)
-        cls.guess = interactive_guess.InteractiveGuess2D(model, x=x_data, y1=y1_data, y2=y2_data)
+        cls.guess = interactive_guess.InteractiveGuess(model, x=x_data, y1=y1_data, y2=y2_data)
 #        plt.close(cls.fit.fig)
 
     def test_number_of_projections(self):
@@ -145,7 +145,6 @@ class VectorValuedTest(unittest.TestCase):
             self.assertEqual(plot.axes.get_title(), plotlabel)
 
 
-@unittest.skip("3D problems are not yet supported")
 class Gaussian3DInteractiveFitTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -160,20 +159,21 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
 
         # Make a valid grid to match ydata
         xx, yy = np.meshgrid(xcentres, ycentres, sparse=False)
-        xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
+#        xdata = np.dstack((xx, yy)).T # T because np fucks up conventions.
 
-        x0 = Parameter(value=0.6)
-        sig_x = Parameter(value=0.2, min=0.0)
-        x = Variable()
-        y0 = Parameter(value=0.4)
-        sig_y = Parameter(value=0.1, min=0.0)
-        A = Parameter()
-        y = Variable()
-        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
+        x0 = Parameter('x0', value=0.6)
+        sig_x = Parameter('sig_x', value=0.2, min=0.0)
+        x = Variable('x')
+        y0 = Parameter('y0', value=0.4)
+        sig_y = Parameter('sig_y', value=0.1, min=0.0)
+        A = Parameter('A')
+        y = Variable('y')
+        z = Variable('z')
+        g = {z: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)}
         cls.g = g
-        cls.xdata = xdata
-        cls.ydata = ydata
-        cls.guess = interactive_guess.InteractiveGuess2D(g, xdata, ydata)
+#        cls.xdata = xdata
+#        cls.ydata = ydata
+        cls.guess = interactive_guess.InteractiveGuess(g, x=xx.flatten(), y=yy.flatten(), z=ydata.flatten())
         
 #        plt.close(cls.fit.fig)
 
@@ -185,9 +185,12 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
 
     def test_plot_titles(self):
         for proj in self.guess._projections:
-            plot = self.guess._plots[proj]
-            self.assertEqual(plot.axes.get_title(),
-                             "{} {}".format(proj[0].name, proj[1].name))
+            x, y = proj
+            plot = self.guess._plots[proj][0]
+            plotlabel = '${}({}) = {}$'.format(latex(y, mode='plain'),
+                                               latex(x.name, mode='plain'),
+                                               latex(self.guess.model[y], mode='plain'))
+            self.assertEqual(plot.axes.get_title(), plotlabel)
 
 
 if __name__ == '__main__':

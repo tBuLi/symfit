@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from symfit import variables, Parameter, Fit, D, ODEModel
 import numpy as np
-from symfit.contrib.interactive_guess import InteractiveGuess2D
+from symfit.contrib.interactive_guess import InteractiveGuess
 
 
 # First order reaction kinetics. Data taken from
@@ -19,7 +19,7 @@ A, t = variables('A, t')
 k = Parameter('k')
 model = ODEModel({D(A, t): - k * A}, initial={t: tdata[0], A: concentration[0]})
 
-guess = InteractiveGuess2D(model, A=concentration, t=tdata, n_points=250)
+guess = InteractiveGuess(model, A=concentration, t=tdata, n_points=250)
 guess.execute()
 print(guess)
 
