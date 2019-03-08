@@ -16,7 +16,7 @@ install:
   - pip install --upgrade pip setuptools
   - pip install --upgrade pytest coveralls
   - pip install --upgrade sphinx==1.5.5
-  - pip install --upgrade numpy,scipy,matplotlib .[all]
+  - pip install --upgrade numpy scipy matplotlib .[all]
 # Run tests
 script:
   - coverage run --source symfit -m py.test
