@@ -232,10 +232,11 @@ class VectorLeastSquares(GradientObjective):
 class LeastSquares(HessianObjective):
     """
     Objective representing the least-squares deviation of a model, defined as
-    :math:`\\frac{1}{2} \\sum_{i} \\sum_{x_i} \\frac{r_i(x_i)^2}{\\sigma_i(x_i)^2}`,
-    where :math:`i` sums over all components of the model, :math:`x_i`
-    indicates all the data associated with the :math:`i` th component, and
-    :math:`\\sigma_i(x_i)` indicates the associated standard deviations.
+    :math:`S = \\frac{1}{2} \\sum_{i} \\sum_{x_i} \\frac{r_i(x_i, \\vec{p})^2}{\\sigma_i(x_i)^2}`,
+    where :math:`i` ranges over all components of the model,
+    :math:`r_i(x_i, \\vec{p})` is the residue of the :math:`i`-th component,
+    :math:`x_i` indicates all the data associated with the :math:`i`-th
+    component, and :math:`\\sigma_i(x_i)` indicates the associated standard deviations.
 
     The data for each component does not have to be the same, and it does not
     have to have the same shape. The only thing that matters is that within each
@@ -246,9 +247,9 @@ class LeastSquares(HessianObjective):
         """
         :param ordered_parameters: See ``parameters``.
         :param parameters: values of the
-            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\chi^2` at.
-        :param flatten_components: if `True`, return the total :math:`\chi^2`. If
-            `False`, return the :math:`\chi^2` per component of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`S` at.
+        :param flatten_components: if `True`, return the total :math:`S`. If
+            `False`, return the :math:`S` per component of the
             :class:`~symfit.core.fit.BaseModel`.
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
@@ -270,12 +271,12 @@ class LeastSquares(HessianObjective):
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
-        Jacobian of :math:`\\chi^2` in the
-        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} \\chi^2`).
+        Jacobian of :math:`S` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} S`).
 
         :param parameters: values of the
-            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
-        :return: `np.array` of length equal to the number of parameters..
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} S` at.
+        :return: ``np.array`` of length equal to the number of parameters..
         """
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
@@ -298,12 +299,12 @@ class LeastSquares(HessianObjective):
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
         """
-        Hessian of :math:`\\chi^2` in the
-        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p}^2 \\chi^2`).
+        Hessian of :math:`S` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p}^2 S`).
 
         :param parameters: values of the
-            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
-        :return: `np.array` of length equal to the number of parameters..
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} S` at.
+        :return: ``np.array`` of length equal to the number of parameters..
         """
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
@@ -337,7 +338,7 @@ class HessianObjectiveJacApprox(HessianObjective):
     """
     This object should only be used as a Mixin for covariance matrix estimation.
     Since the covariance matrix for the least-squares method is proportional to
-    the Hessian of :math:`\chi^2`, this function attempts to return the Hessian
+    the Hessian of :math:`S`, this function attempts to return the Hessian
     upon calculating ``eval_hessian``.
 
     However, if the model does not have a Hessian defined through
