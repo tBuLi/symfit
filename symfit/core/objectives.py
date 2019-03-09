@@ -232,10 +232,10 @@ class VectorLeastSquares(GradientObjective):
 class LeastSquares(HessianObjective):
     """
     Objective representing the least-squares deviation of a model, defined as
-    :math:`\frac{1}{2} \sum_{i} \sum{x_i} \frac{r_i(x_i)^2}{\sigma_i(x_i)^2}`,
+    :math:`\\frac{1}{2} \\sum_{i} \\sum_{x_i} \\frac{r_i(x_i)^2}{\\sigma_i(x_i)^2}`,
     where :math:`i` sums over all components of the model, :math:`x_i`
-    indicates all the data associated with the :math:`i`-th component, and
-    :math:`\sigma_i(x_i)` indicates the associated standard deviations.
+    indicates all the data associated with the :math:`i` th component, and
+    :math:`\\sigma_i(x_i)` indicates the associated standard deviations.
 
     The data for each component does not have to be the same, and it does not
     have to have the same shape. The only thing that matters is that within each
