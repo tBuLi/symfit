@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit, minimize
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge, exp
+    parameters, Model, Eq, Ge, exp, GradientModel
 )
 from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
 from symfit.core.objectives import LogLikelihood
@@ -729,7 +729,6 @@ class Tests(unittest.TestCase):
         ]
         xdata, ydata, zdata = [np.array(data) for data in zip(*data)]
         xy = np.vstack((xdata, ydata))
-        # z = np.array(z)
         errors = np.array([.4, .4, .2, .4, .1, .3, .1, .2, .2, .2])
 
         # raise Exception(xy, z)
@@ -741,34 +740,38 @@ class Tests(unittest.TestCase):
         z = Variable('z')
         model = {z: a * log(b * x + c * y)}
 
-        # fit = Fit(model, xy, z, absolute_sigma=False)
-        fit = Fit(model, xdata, ydata, zdata, absolute_sigma=False)
-        # fit = Fit(model, x=xdata, y=ydata, z=zdata, absolute_sigma=False)
+        # Use a gradient model because Mathematica uses the Hessian
+        # approximation instead of the exact Hessian.
+        model = GradientModel(model)
+        fit = Fit(model, x=xdata, y=ydata, z=zdata, absolute_sigma=False)
         fit_result = fit.execute()
 
         # Same as Mathematica default behavior.
-        self.assertAlmostEqual(fit_result.value(a), 2.9956, 4)
-        self.assertAlmostEqual(fit_result.value(b), 0.563212, 4)
-        self.assertAlmostEqual(fit_result.value(c), 3.59732, 4)
-        self.assertAlmostEqual(fit_result.stdev(a), 0.278304, 4)
-        self.assertAlmostEqual(fit_result.stdev(b), 0.224107, 4)
-        self.assertAlmostEqual(fit_result.stdev(c), 0.980352, 4)
+        self.assertAlmostEqual(fit_result.value(a) / 2.9956, 1, 4)
+        self.assertAlmostEqual(fit_result.value(b) / 0.563212, 1, 4)
+        self.assertAlmostEqual(fit_result.value(c) / 3.59732, 1, 4)
+        self.assertAlmostEqual(fit_result.stdev(a) / 0.278304, 1, 4)
+        self.assertAlmostEqual(fit_result.stdev(b) / 0.224107, 1, 4)
+        self.assertAlmostEqual(fit_result.stdev(c) / 0.980352, 1, 4)
 
         fit = Fit(model, xdata, ydata, zdata, absolute_sigma=True)
         fit_result = fit.execute()
         # Same as Mathematica in Measurement error mode, but without suplying
         # any errors.
-        self.assertAlmostEqual(fit_result.value(a), 2.9956, 4)
-        self.assertAlmostEqual(fit_result.value(b), 0.563212, 4)
-        self.assertAlmostEqual(fit_result.value(c), 3.59732, 4)
-        self.assertAlmostEqual(fit_result.stdev(a), 0.643259, 4)
-        self.assertAlmostEqual(fit_result.stdev(b), 0.517992, 4)
-        self.assertAlmostEqual(fit_result.stdev(c), 2.26594, 4)
+        self.assertAlmostEqual(fit_result.value(a) / 2.9956, 1, 4)
+        self.assertAlmostEqual(fit_result.value(b) / 0.563212, 1, 4)
+        self.assertAlmostEqual(fit_result.value(c) / 3.59732, 1, 4)
+        self.assertAlmostEqual(fit_result.stdev(a) / 0.643259, 1, 4)
+        self.assertAlmostEqual(fit_result.stdev(b) / 0.517992, 1, 4)
+        self.assertAlmostEqual(fit_result.stdev(c) / 2.26594, 1, 4)
 
         fit = Fit(model, xdata, ydata, zdata, sigma_z=errors)
         fit_result = fit.execute()
 
-        popt, pcov, infodict, errmsg, ier = curve_fit(lambda x_vec, a, b, c: a * np.log(b * x_vec[0] + c * x_vec[1]), xy, zdata, sigma=errors, absolute_sigma=True, full_output=True)
+        popt, pcov, infodict, errmsg, ier = curve_fit(
+            lambda x_vec, a, b, c: a * np.log(b * x_vec[0] + c * x_vec[1]),
+            xy, zdata, sigma=errors, absolute_sigma=True, full_output=True
+        )
 
         # Same as curve_fit?
         self.assertAlmostEqual(fit_result.value(a), popt[0], 4)
@@ -912,11 +915,11 @@ class Tests(unittest.TestCase):
                 fit_result = fit.execute()
                 x.max = None
             elif minimizer is MINPACK:
-                pass  # Not a MINPACKable problem.
+                pass  # Not a MINPACKable problem because it only has a param
             else:
                 fit_result = fit.execute()
-                self.assertGreaterEqual(fit_result.params['x'], 1.0)
-                self.assertLessEqual(fit_result.params['x'], 2.0)
+                self.assertGreaterEqual(fit_result.value(x), 1.0)
+                self.assertLessEqual(fit_result.value(x), 2.0)
             self.assertEqual(fit.minimizer.bounds, [(1, None)])
 
     def test_non_boundaries(self):
@@ -932,8 +935,11 @@ class Tests(unittest.TestCase):
                               if minimizer is not DifferentialEvolution]
         for minimizer in bounded_minimizers:
             fit = Fit(model, minimizer=minimizer)
-            fit_result = fit.execute()
-            self.assertAlmostEqual(fit_result.params['x'], 0.0)
+            if minimizer is MINPACK:
+                pass  # Not a MINPACKable problem because it only has a param
+            else:
+                fit_result = fit.execute()
+                self.assertAlmostEqual(fit_result.value(x), 0.0)
             self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):

@@ -87,34 +87,6 @@ knowledge of geometry is respected despite my sloppy measurements.
   right `Minimizer` based on the problem you present it with.
   See :class:`~symfit.core.fit.Fit` for more.
 
-(Non)LinearLeastSquares
------------------------
-The :class:`~symfit.core.fit.LinearLeastSquares` implements the analytical
-solution to Least Squares fitting. When your model is linear in it's parameters,
-consider using this rather than the default
-:class:`~symfit.core.fit.Fit` since this gives the exact
-solution in one step, no iteration and no guesses needed.
-
-:class:`~symfit.core.fit.NonLinearLeastSquares` is the generalization to
-non-linear models. It works by approximating the model by a linear one around
-the value of your guesses and repeating that process iteratively. This process
-is therefore very sensitive to getting good initial guesses.
-
-Notes on these objects:
-
-- Use :class:`~symfit.core.fit.NonLinearLeastSquares` instead of
-  :class:`~symfit.core.fit.LinearLeastSquares` unless you have a reason not to.
-  :class:`~symfit.core.fit.NonLinearLeastSquares` will behave exactly the same
-  as :class:`~symfit.core.fit.LinearLeastSquares` when the model is linear.
-- Bounds are currently ignored by both. This is because for linear models there
-  can only be one solution.
-  For non-linear models it simply hasn't been considered yet.
-- When performance matters, use :class:`~symfit.core.fit.Fit`
-  instead of :class:`~symfit.core.fit.NonLinearLeastSquares`.
-  These analytical objects are implemented in pure python and are therefore
-  massively outgunned by :class:`~symfit.core.fit.Fit` which is ultimately a
-  wrapper to efficient numerical methods such as MINPACK of BFGS implemented in
-  Fortran.
 
 Likelihood
 ----------

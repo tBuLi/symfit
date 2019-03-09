@@ -64,6 +64,12 @@ class Argument(Symbol):
                       if hasattr(self, slot)})
         return state
 
+    def _sympystr(self, printer, *args, **kwargs):
+        return printer.doprint(self.name)
+
+    _lambdacode = _sympystr
+    _numpycode = _sympystr
+    _pythoncode = _sympystr
 
 class Parameter(Argument):
     """
@@ -115,9 +121,3 @@ class Variable(Argument):
     # Variable index to be assigned to generated nameless variables
     _argument_name = 'var'
     __slots__ = ()
-
-    def _numpycode(self, printer):
-        return printer.doprint(self.name)
-
-    _lambdacode = _numpycode
-    _sympystr = _numpycode

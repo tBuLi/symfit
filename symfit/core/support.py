@@ -7,13 +7,15 @@ from __future__ import print_function
 from collections import OrderedDict
 import sys
 import warnings
+import re
+import keyword
 
 import numpy as np
 from sympy.utilities.lambdify import lambdify
 import sympy
 
 from sympy.tensor import Idx
-from sympy import symbols
+from sympy import symbols, MatrixExpr
 from sympy.core.expr import Expr
 
 from symfit.core.argument import Parameter, Variable
@@ -30,6 +32,19 @@ if sys.version_info >= (3, 5):
     from functools import partial
 else:
     from ._repeatable_partial import repeatable_partial as partial
+
+
+def isidentifier(s):
+    if hasattr(s, 'isidentifier'):
+        return s.isidentifier()
+    else:
+        # In py27 no such method exists, so we built one ourselves. Notice that
+        # this cannot be used by default because py3 supports unicode
+        # identifiers.
+        if s in keyword.kwlist:
+            return False
+        return re.match(r'^[a-z_][a-z0-9_]*$', s, re.I) is not None
+
 
 class deprecated(object):
     """
@@ -65,15 +80,27 @@ def seperate_symbols(func):
     params = []
     vars = []
     for symbol in func.free_symbols:
+        if not isidentifier(str(symbol)):
+            continue  # E.g. Indexed objects might print to A[i, j]
         if isinstance(symbol, Parameter):
             params.append(symbol)
         elif isinstance(symbol, Idx):
             # Idx objects are not seen as parameters or vars.
             pass
-        elif isinstance(symbol, Expr):
+        elif isinstance(symbol, (MatrixExpr, Expr)):
             vars.append(symbol)
         else:
             raise TypeError('model contains an unknown symbol type, {}'.format(type(symbol)))
+
+    for der in func.atoms(sympy.Derivative):
+        # Used by jacobians and hessians, where derivatives are treated as
+        # Variables. This way of writing it is purposefully discriminatory
+        # against derivatives wrt variables, since such derivatives should be
+        # performed explicitly in the case of jacs/hess, and are treated
+        # differently in the case of ODEModels.
+        if der.expr in vars and all(isinstance(s, Parameter) for s in der.variables):
+            vars.append(der)
+
     params.sort(key=lambda symbol: symbol.name)
     vars.sort(key=lambda symbol: symbol.name)
     return vars, params
@@ -89,6 +116,12 @@ def sympy_to_py(func, vars, params):
     :return: lambda function to be used for numerical evaluation of the model. Ordering of the arguments will be vars
         first, then params.
     """
+    # replace the derivatives with printable variables.
+    derivatives = {var: Variable(var.name) for var in vars
+                   if isinstance(var, sympy.Derivative)}
+    func = func.xreplace(derivatives)
+    vars = [derivatives[var] if isinstance(var, sympy.Derivative) else var
+            for var in vars]
     return lambdify((vars + params), func, printer=SymfitNumPyPrinter, dummify=False)
 
 def sympy_to_scipy(func, vars, params):
@@ -357,8 +390,20 @@ class keywordonly(object):
         return wrapped_func
 
 
-class D(sympy.Derivative):
+def D(*args, **kwargs):
+    # ToDo: Investigate sympy's inheritance properly to see if I can give a
+    # .name atribute to Derivative objects or subclasses.
+    return sympy.Derivative(*args, **kwargs)
+
+def name(self):
     """
-    Convenience wrapper for ``sympy.Derivative``. Used most notably in defining
-    ``ODEModel``'s.
+    Save name which can be used for alphabetic sorting and can be turned
+    into a kwarg.
     """
+    base_str = 'd{}{}_'.format(self.derivative_count if
+                               self.derivative_count > 1 else '', self.expr)
+    for var, count in self.variable_count:
+        base_str += 'd{}{}'.format(var,  count if count > 1 else '')
+    return base_str
+
+sympy.Derivative.name = property(name)

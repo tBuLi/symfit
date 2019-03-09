@@ -28,7 +28,8 @@ class BaseObjective(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in self.model)
+        return OrderedDict((var, self.data[var])
+                           for var in self.model.dependent_vars)
 
     @cached_property
     def independent_data(self):
@@ -54,7 +55,7 @@ class BaseObjective(object):
         sigmas = self.model.sigmas
         return OrderedDict(
             (sigmas[var], self.data[sigmas[var]]) for var in
-            self.model)
+            self.model.dependent_vars)
 
     @abc.abstractmethod
     def __call__(self, ordered_parameters=[], **parameters):
@@ -68,11 +69,15 @@ class BaseObjective(object):
         """
         # zip will stop when the shortest of the two is exhausted
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        parameters.update(self.invariant_kwargs)
-        result = self.model(**key2str(parameters))
-        return self._shape_dependent_data(result)
+        parameters.update(self._invariant_kwargs)
+        result = self.model(**key2str(parameters))._asdict()
+        # Return only the components corresponding to the dependent data.
+        return self._shape_of_dependent_data(
+            [comp for var, comp in result.items()
+             if var in self.model.dependent_vars]
+        )
 
-    def _shape_dependent_data(self, model_output, param_level=0):
+    def _shape_of_dependent_data(self, model_output, param_level=0):
         """
         In rare cases, the dependent data and the output of the model do not
         have the same shape. Think for example about :math:`y_i = a`. This
@@ -103,7 +108,7 @@ class BaseObjective(object):
         return shaped_result
 
     @cached_property
-    def invariant_kwargs(self):
+    def _invariant_kwargs(self):
         """
         Prepares the invariant kwargs to ``self.model`` which are not provided
         by the minimizers, and are the same for every iteration of the
@@ -112,19 +117,12 @@ class BaseObjective(object):
         """
         kwargs = {p: p.value for p in self.model.params
                   if p not in self.model.free_params}
-        data_by_name = key2str(self.data)
+        data_by_name = key2str(self.independent_data)
         kwargs.update(
             {p: data_by_name[p] for p in
             self.model.__signature__.parameters if p in data_by_name}
         )
         return kwargs
-
-    def _clear_cache(self):
-        """
-        Clear cached properties. Should preferably be called after every
-        minimization precedure to clean the pallette.
-        """
-        del self.invariant_kwargs
 
 
 @add_metaclass(abc.ABCMeta)
@@ -143,9 +141,14 @@ class GradientObjective(BaseObjective):
         :return: evaluated jacobian
         """
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        parameters.update(self.invariant_kwargs)
-        result = self.model.eval_jacobian(**key2str(parameters))
-        return self._shape_dependent_data(result, param_level=1)
+        parameters.update(self._invariant_kwargs)
+        result = self.model.eval_jacobian(**key2str(parameters))._asdict()
+        # Return only the components corresponding to the dependent data.
+        return self._shape_of_dependent_data(
+            [comp for var, comp in result.items()
+             if var in self.model.dependent_vars],
+            param_level=1
+        )
 
 
 @add_metaclass(abc.ABCMeta)
@@ -164,9 +167,14 @@ class HessianObjective(GradientObjective):
         :return: evaluated hessian
         """
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        parameters.update(self.invariant_kwargs)
-        result = self.model.eval_hessian(**key2str(parameters))
-        return self._shape_dependent_data(result, param_level=2)
+        parameters.update(self._invariant_kwargs)
+        result = self.model.eval_hessian(**key2str(parameters))._asdict()
+        # Return only the components corresponding to the dependent data.
+        return self._shape_of_dependent_data(
+            [comp for var, comp in result.items()
+             if var in self.model.dependent_vars],
+            param_level=2
+        )
 
 
 class VectorLeastSquares(GradientObjective):
@@ -191,7 +199,7 @@ class VectorLeastSquares(GradientObjective):
         result = []
 
         # zip together the dependent vars and evaluated component
-        for y, ans in zip(self.model, evaluated_func):
+        for y, ans in zip(self.model.dependent_vars, evaluated_func):
             if self.dependent_data[y] is not None:
                 result.append(((self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]]) ** 2)
                 if flatten_components: # Flattens *within* a component
@@ -199,7 +207,7 @@ class VectorLeastSquares(GradientObjective):
         return np.sqrt(sum(result))
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
-        chi = self(ordered_parameters, flatten=False, **parameters)
+        chi = self(ordered_parameters, flatten_components=False, **parameters)
         evaluated_func = super(VectorLeastSquares, self).__call__(
             ordered_parameters, **parameters
         )
@@ -208,7 +216,8 @@ class VectorLeastSquares(GradientObjective):
         )
 
         result = len(self.model.params) * [0.0]
-        for ans, y, row in zip(evaluated_func, self.model, evaluated_jac):
+        for ans, y, row in zip(evaluated_func, self.model.dependent_vars,
+                               evaluated_jac):
             if self.dependent_data[y] is not None:
                 for index, component in enumerate(row):
                     result[index] += component * (
@@ -222,16 +231,25 @@ class VectorLeastSquares(GradientObjective):
 
 class LeastSquares(HessianObjective):
     """
-    Objective representing the :math:`\chi^2` of a model.
+    Objective representing the least-squares deviation of a model, defined as
+    :math:`S = \\frac{1}{2} \\sum_{i} \\sum_{x_i} \\frac{r_i(x_i, \\vec{p})^2}{\\sigma_i(x_i)^2}`,
+    where :math:`i` ranges over all components of the model,
+    :math:`r_i(x_i, \\vec{p})` is the residue of the :math:`i`-th component,
+    :math:`x_i` indicates all the data associated with the :math:`i`-th
+    component, and :math:`\\sigma_i(x_i)` indicates the associated standard deviations.
+
+    The data for each component does not have to be the same, and it does not
+    have to have the same shape. The only thing that matters is that within each
+    component the shapes have to be compatible.
     """
     @keywordonly(flatten_components=True)
     def __call__(self, ordered_parameters=[], **parameters):
         """
         :param ordered_parameters: See ``parameters``.
         :param parameters: values of the
-            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\chi^2` at.
-        :param flatten_components: if `True`, return the total :math:`\chi^2`. If
-            `False`, return the :math:`\chi^2` per component of the
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`S` at.
+        :param flatten_components: if `True`, return the total :math:`S`. If
+            `False`, return the :math:`S` per component of the
             :class:`~symfit.core.fit.BaseModel`.
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
@@ -241,7 +259,7 @@ class LeastSquares(HessianObjective):
         )
 
         chi2 = [0 for _ in evaluated_func]
-        for index, (dep_var, dep_var_value) in enumerate(zip(self.model, evaluated_func)):
+        for index, (dep_var, dep_var_value) in enumerate(zip(self.model.dependent_vars, evaluated_func)):
             dep_data = self.dependent_data[dep_var]
             if dep_data is not None:
                 sigma = self.sigma_data[self.model.sigmas[dep_var]]
@@ -249,16 +267,16 @@ class LeastSquares(HessianObjective):
                     (dep_var_value - dep_data) ** 2 / sigma ** 2
                 )
         chi2 = np.sum(chi2) if flatten_components else chi2
-        return chi2
+        return chi2 / 2
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
-        Jacobian of :math:`\\chi^2` in the
-        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} \\chi^2`).
+        Jacobian of :math:`S` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p} S`).
 
         :param parameters: values of the
-            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
-        :return: `np.array` of length equal to the number of parameters..
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} S` at.
+        :return: ``np.array`` of length equal to the number of parameters..
         """
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
@@ -268,24 +286,25 @@ class LeastSquares(HessianObjective):
         )
 
         result = 0
-        for var, f, jac_comp in zip(self.model, evaluated_func, evaluated_jac):
+        for var, f, jac_comp in zip(self.model.dependent_vars, evaluated_func,
+                                    evaluated_jac):
             y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if y is not None:
                 sigma = self.sigma_data[sigma_var]
                 pre_sum = jac_comp * ((y - f) / sigma**2)[np.newaxis, ...]
                 axes = tuple(range(1, len(pre_sum.shape)))
-                result -= 2 * np.sum(pre_sum, axis=axes, keepdims=False)
+                result -= np.sum(pre_sum, axis=axes, keepdims=False)
         return np.atleast_1d(np.squeeze(np.array(result)))
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
         """
-        Hessian of :math:`\\chi^2` in the
-        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p}^2 \\chi^2`).
+        Hessian of :math:`S` in the
+        :class:`~symfit.core.argument.Parameter`'s (:math:`\\nabla_\\vec{p}^2 S`).
 
         :param parameters: values of the
-            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} \\chi^2` at.
-        :return: `np.array` of length equal to the number of parameters..
+            :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`\\nabla_\\vec{p} S` at.
+        :return: ``np.array`` of length equal to the number of parameters..
         """
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
@@ -298,8 +317,9 @@ class LeastSquares(HessianObjective):
         )
 
         result = 0
-        for var, f, jac_comp, hess_comp in zip(self.model, evaluated_func,
-                                               evaluated_jac, evaluated_hess):
+        for var, f, jac_comp, hess_comp in zip(self.model.dependent_vars,
+                                               evaluated_func, evaluated_jac,
+                                               evaluated_hess):
             y = self.dependent_data[var]
             sigma_var = self.model.sigmas[var]
             if y is not None:
@@ -307,11 +327,44 @@ class LeastSquares(HessianObjective):
                 p1 = hess_comp * ((y - f) / sigma**2)[np.newaxis, np.newaxis, ...]
                 # Outer product
                 p2 = np.einsum('i...,j...->ij...', jac_comp, jac_comp)
-                p2 /= sigma[np.newaxis, np.newaxis, ...]**2
+                p2 = p2 / sigma[np.newaxis, np.newaxis, ...]**2
                 # We sum away everything except the matrices in the axes 0 & 1.
                 axes = tuple(range(2, len(p2.shape)))
-                result += 2 * np.sum(p2 - p1, axis=axes, keepdims=False)
+                result += np.sum(p2 - p1, axis=axes, keepdims=False)
         return np.atleast_2d(np.squeeze(np.array(result)))
+
+
+class HessianObjectiveJacApprox(HessianObjective):
+    """
+    This object should only be used as a Mixin for covariance matrix estimation.
+    Since the covariance matrix for the least-squares method is proportional to
+    the Hessian of :math:`S`, this function attempts to return the Hessian
+    upon calculating ``eval_hessian``.
+
+    However, if the model does not have a Hessian defined through
+    ``eval_hessian``, we approximate the Hessian as :math:`J^{T}\cdot J`,
+    where :math:`J` is the Jacobian of the model. This approximation is valid
+    when, amongst other things, the residuals are sufficiently small. It can
+    therefore only be used after fitting, not during.
+
+    An objective which inherits from this object, will return zeros with the
+    shape of the hessian of the model, when ``eval_hessian`` is called. This
+    code injection will therefore result in the terms proportional to the
+    hessian of the model dropping out, which leaves the famous
+    :math:`J^{T}\cdot J` approximation.
+    """
+    def eval_hessian(self, ordered_parameters=[], **parameters):
+        """
+        :return: Zeros with the shape of the Hessian of the model.
+        """
+        result = super(HessianObjectiveJacApprox, self).__call__(
+            ordered_parameters, **parameters
+        )
+        num_params = len(self.model.params)
+        return [np.broadcast_to(
+                    np.zeros_like(comp),
+                    (num_params, num_params) + comp.shape
+                ) for comp in result]
 
 
 class LogLikelihood(HessianObjective):
@@ -397,7 +450,7 @@ class MinimizeModel(HessianObjective):
     minimized. This is only supported for scalar models.
     """
     def __init__(self, model, *args, **kwargs):
-        if len(model) > 1:
+        if len(model.dependent_vars) > 1:
             raise TypeError('Only scalar functions are supported by {}'.format(self.__class__))
         super(MinimizeModel, self).__init__(model, *args, **kwargs)
 

@@ -9,17 +9,20 @@ from sympy.core.relational import Relational
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import odeint
+from toposort import toposort
 
 from symfit.core.argument import Parameter, Variable
 from .support import (
-    seperate_symbols, keywordonly, sympy_to_py, key2str, partial, cached_property
+    seperate_symbols, keywordonly, sympy_to_py, key2str, partial,
+    cached_property, D
 )
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, HessianMinimizer,
     ConstrainedMinimizer, MINPACK, ChainedMinimizer, BasinHopping
 )
 from .objectives import (
-    LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares, LogLikelihood
+    LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares,
+    LogLikelihood, HessianObjective, HessianObjectiveJacApprox
 )
 from .fit_results import FitResults
 
@@ -27,6 +30,41 @@ if sys.version_info >= (3,0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
+
+
+def variabletuple(typename, variables, *args, **kwargs):
+    """
+    Create a :func:`~collections.namedtuple` using :class:`~symfit.core.argument.Variable`'s
+    whoses names will be used as `field_names`.
+
+    The main reason for using this object is the `_asdict()` method: whereas a
+    ``namedtuple`` initiates such an :class:`collections.OrderedDict` with the
+    ``field_names`` as keys, this object returns a
+    :class:`collections.OrderedDict` which immediately has the ``Variable``
+    objects as keys.
+
+    Example::
+
+        >>> x = Variable('x')
+        >>> Result = variabletuple('Result', [x])
+        >>> res = Result(5.0)
+        >>> res._asdict()
+        OrderedDict((x, 5.0))
+
+    :param typename: Name of the `variabletuple`.
+    :param variables: List of :class:`~symfit.core.argument.Variable`, to be used
+        as `field_names`
+    :param args: See :func:`~collections.namedtuple`
+    :param kwargs: See :func:`~collections.namedtuple`
+    :return: Type ``typename``
+    """
+    def _asdict(self):
+        return OrderedDict(zip(variables, self))
+
+    field_names = [var.name for var in variables]
+    named = namedtuple(typename, field_names, *args, **kwargs)
+    named._asdict = _asdict
+    return named
 
 
 class ModelError(Exception):
@@ -62,12 +100,121 @@ class BaseModel(Mapping):
             # TODO: this will break upon deprecating the auto-generation of
             # names for Variables. At this time, a DummyVariable object
             # should be introduced to fulfill the same role.
-            # Also, catching the warnings should then be removed, as this is
-            # just to prevent the DeprecationWarning from appearing.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                model = {Variable(): expr for expr in model}
+            model = {Variable(): expr for expr in model}
         self._init_from_dict(model)
+
+    @classmethod
+    def as_constraint(cls, constraint, model, constraint_type=None, **init_kwargs):
+        """
+        Initiate a Model which should serve as a constraint. Such a
+        constraint-model should be initiated with knowledge of another
+        ``BaseModel``, from which it will take its parameters::
+
+            model = Model({y: a * x + b})
+            constraint = Model.as_constraint(Eq(a, 1), model)
+
+        ``constraint.params`` will be ``[a, b]`` instead of ``[a]``.
+
+        :param constraint: An ``Expr``, a mapping or iterable of ``Expr``, or a
+            ``Relational``.
+        :param model: An instance of (a subclass of)
+            :class:`~symfit.core.fit.BaseModel`.
+        :param constraint_type: When ``constraint`` is not
+            a :class:`~sympy.core.relational.Relational`, a
+            :class:`~sympy.core.relational.Relational` has to be provided
+            explicitly.
+        :param kwargs: Any additional keyword arguments which will be passed on
+            to the init method.
+        """
+        allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
+
+        if isinstance(constraint, Relational):
+            constraint_type = constraint.__class__
+            constraint = constraint.lhs - constraint.rhs
+
+        # Initiate the constraint model, in such a way that we take care
+        # of any dependencies
+        instance = cls.with_dependencies(constraint,
+                                         dependency_model=model,
+                                         **init_kwargs)
+
+        # Check if the constraint_type is allowed, and flip the sign if needed
+        if constraint_type not in allowed_types:
+            raise ModelError(
+                'Only constraints of the type {} are allowed. A constraint'
+                ' of type {} was provided.'.format(allowed_types,
+                                                   constraint_type)
+            )
+        elif constraint_type is sympy.Le:
+            # We change this to a Ge and flip the sign
+            instance = - instance
+            constraint_type = sympy.Ge
+
+        instance.constraint_type = constraint_type
+
+        if len(instance.dependent_vars) != 1:
+            raise ModelError('Only scalar models can be used as constraints.')
+
+        # self.params has to be a subset of model.params
+        if set(instance.params) <= set(model.params):
+            instance.params = model.params
+        else:
+            raise ModelError('The parameters of ``constraint`` have to be a '
+                             'subset of those of ``model``.')
+
+        return instance
+
+    @classmethod
+    def with_dependencies(cls, model_expr, dependency_model, **init_kwargs):
+        """
+        Initiate a model whose components depend on another model. For example::
+
+            >>> x, y, z = variables('x, y, z')
+            >>> dependency_model = Model({y: x**2})
+            >>> model_dict = {z: y**2}
+            >>> model = Model.with_dependencies(model_dict, dependency_model)
+            >>> print(model)
+            [y(x; ) = x**2,
+             z(y; ) = y**2]
+
+        :param model_expr: The ``Expr`` or mapping/iterable of ``Expr`` to be
+            turned into a model.
+        :param dependency_model: An instance of (a subclass of)
+            :class:`~symfit.core.fit.BaseModel`, which contains components on
+            which the argument ``model_expr`` depends.
+        :param init_kwargs: Any kwargs to be passed on to the standard
+            init method of this class.
+        :return: A stand-alone :class:`~symfit.core.fit.BaseModel` subclass.
+        """
+        model = cls(model_expr, **init_kwargs)  # Initiate model instance.
+        if any(var in dependency_model for var in model.independent_vars):
+            # This model depends on the output of the dependency_model,
+            # so we need to work those components into the model_dict.
+            model_dict = model.model_dict.copy()
+            # This is the case for BaseNumericalModel's
+            connectivity_mapping = init_kwargs.get('connectivity_mapping',
+                                                   model.connectivity_mapping)
+            for var in model.independent_vars:
+                if var in dependency_model:
+                    # Add this var and all its dependencies.
+                    # Walk over all possible dependencies of this
+                    # variable until we no longer have dependencies.
+                    for symbol in dependency_model.ordered_symbols:
+                        # Not everything in ordered_symbols is a key of
+                        # model, think e.g. parameters
+                        if symbol in dependency_model:
+                            if symbol not in model_dict:
+                                model_dict[symbol] = dependency_model[symbol]
+                                connectivity_mapping[symbol] = dependency_model.connectivity_mapping[symbol]
+                        if symbol == var:
+                            break
+            # connectivity_mapping in init_kwargs has been updated if it was
+            # present, since python is pass by reference. If it wasn't present,
+            # we are dealing with a type of model that will build its own
+            # connectivity_mapping upon init.
+            model = cls(model_dict, **init_kwargs)
+        return model
+
 
     def __len__(self):
         """
@@ -75,15 +222,15 @@ class BaseModel(Mapping):
         """
         return len(self.model_dict)
 
-    def __getitem__(self, dependent_var):
+    def __getitem__(self, var):
         """
         Returns the expression belonging to a given dependent variable.
 
-        :param dependent_var: Instance of ``Variable``
-        :type dependent_var: ``Variable``
-        :return: The expression belonging to ``dependent_var``
+        :param var: Instance of ``Variable``
+        :type var: ``Variable``
+        :return: The expression belonging to ``var``
         """
-        return self.model_dict[dependent_var]
+        return self.model_dict[var]
 
     def __iter__(self):
         """
@@ -115,12 +262,12 @@ class BaseModel(Mapping):
 
     def __neg__(self):
         """
-        :return: new model with opposite sign. Does not change the model in-place,
-            but returns a new copy.
+        :return: new model with opposite sign. Does not change the model
+            in-place, but returns a new copy.
         """
         new_model_dict = self.model_dict.copy()
-        for key in new_model_dict:
-            new_model_dict[key] *= -1
+        for var in self.dependent_vars:
+            new_model_dict[var] *= -1
         return self.__class__(new_model_dict)
 
     def _init_from_dict(self, model_dict):
@@ -133,23 +280,105 @@ class BaseModel(Mapping):
 
         :param model_dict: dict of (dependent_var, expression) pairs.
         """
-        sort_func = lambda symbol: str(symbol)
-        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
-        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
+        sort_func = lambda symbol: symbol.name
+        self.model_dict = OrderedDict(sorted(model_dict.items(),
+                                             key=lambda i: sort_func(i[0])))
+        # Everything at the bottom of the toposort is independent, at the top
+        # dependent, and the rest interdependent.
+        ordered = list(toposort(self.connectivity_mapping))
+        independent = sorted(ordered.pop(0), key=sort_func)
+        self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
+        self.interdependent_vars = sorted(
+            [item for items in ordered for item in items],
+            key=sort_func
+        )
+        # `independent` contains both params and vars, needs to be separated
+        self.independent_vars = [s for s in independent if
+                                 not isinstance(s, Parameter) and not s in self]
+        self.params = [s for s in independent if isinstance(s, Parameter)]
 
-        # Extract all the params and vars as a sorted, unique list.
-        expressions = model_dict.values()
-        _params, self.independent_vars = set([]), set([])
-        for expression in expressions:
-            vars, params = seperate_symbols(expression)
-            _params.update(params)
-            self.independent_vars.update(vars)
-        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(_params, key=sort_func)
-        self.independent_vars = sorted(self.independent_vars, key=sort_func)
+        try:
+            assert not any(isinstance(var, Parameter)
+                           for var in self.dependent_vars)
+            assert not any(isinstance(var, Parameter)
+                           for var in self.interdependent_vars)
+        except AssertionError:
+            raise ModelError('`Parameter`\'s can not feature in the role '
+                             'of `Variable`')
+        # Make Variable object corresponding to each depedent var.
+        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name))
+                       for var in self.dependent_vars}
 
-        # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+    @cached_property
+    def vars_as_functions(self):
+        """
+        :return: Turn the keys of this model into
+            :class:`~sympy.core.function.Function`
+            objects. This is done recursively so the chain rule can be applied
+            correctly. This is done on the basis of `connectivity_mapping`.
+
+            Example: for ``{y: a * x, z: y**2 + a}`` this returns
+            ``{y: y(x, a), z: z(y(x, a), a)}``.
+        """
+        vars2functions = {}
+        key = lambda arg: [isinstance(arg, Parameter), str(arg)]
+        # Iterate over all symbols in this model in topological order, turning
+        # each one into a function object recursively.
+        for symbol in self.ordered_symbols:
+            if symbol in self.connectivity_mapping:
+                dependencies = self.connectivity_mapping[symbol]
+                # Replace the dependency by it's function if possible
+                dependencies = [vars2functions.get(dependency, dependency)
+                               for dependency in dependencies]
+                # sort by vars first, then params, and alphabetically within
+                # each group
+                dependencies = sorted(dependencies, key=key)
+                vars2functions[symbol] = sympy.Function(symbol.name)(*dependencies)
+        return vars2functions
+
+    @cached_property
+    def function_dict(self):
+        """
+        Equivalent to ``self.model_dict``, but with all variables replaced by
+        functions if applicable. Sorted by the evaluation order according to
+        ``self.ordered_symbols``, not alphabetical like ``self.model_dict``!
+        """
+        func_dict = OrderedDict()
+        for var, func in self.vars_as_functions.items():
+            expr = self.model_dict[var].xreplace(self.vars_as_functions)
+            func_dict[func] = expr
+        return func_dict
+
+    @cached_property
+    def connectivity_mapping(self):
+        """
+        :return: This property returns a mapping of the interdepencies between
+            variables. This is essentially the dict representation of a
+            connectivity graph, because working with this dict results in
+            cleaner code. Treats variables and parameters on the same footing.
+        """
+        connectivity = {}
+        for var, expr in self.items():
+            vars, params = seperate_symbols(expr)
+            connectivity[var] = set(vars + params)
+        return connectivity
+
+    @property
+    def ordered_symbols(self):
+        """
+        :return: list of all symbols in this model, topologically sorted so they
+            can be evaluated in the correct order.
+
+            Within each group of equal priority symbols, we sort by the order of
+            the derivative.
+        """
+        key_func = lambda s: [isinstance(s, sympy.Derivative),
+                           isinstance(s, sympy.Derivative) and s.derivative_count]
+        symbols = []
+        for symbol in toposort(self.connectivity_mapping):
+            symbols.extend(sorted(symbol, key=key_func))
+
+        return symbols
 
     @cached_property
     def vars(self):
@@ -209,14 +438,22 @@ class BaseModel(Mapping):
         template = "{}({}; {}) = {}"
         parts = []
         for var, expr in self.items():
+            # Print every component as a function of only the dependencies it
+            # has. We can deduce these from the connectivity mapping.
+            params_sorted = sorted((x for x in self.connectivity_mapping[var]
+                                    if isinstance(x, Parameter)),
+                                   key=lambda x: x.name)
+            vars_sorted = sorted((x for x in self.connectivity_mapping[var]
+                                  if x not in params_sorted),
+                                 key=lambda x: x.name)
             parts.append(template.format(
                     var,
-                    ", ".join(arg.name for arg in self.independent_vars),
-                    ", ".join(arg.name for arg in self.params),
+                    ', '.join([x.name for x in vars_sorted]),
+                    ', '.join([x.name for x in params_sorted]),
                     expr
                 )
             )
-        return "\n".join(parts)
+        return '[{}]'.format(",\n ".join(parts))
 
     def __getstate__(self):
         # Remove cached_property values from the state, they need to be
@@ -238,32 +475,56 @@ class BaseNumericalModel(BaseModel):
     ABC for Numerical Models. These are models whose components are generic
     python callables.
     """
-    def __init__(self, model, independent_vars, params):
+    @keywordonly(connectivity_mapping=None)
+    def __init__(self, model, independent_vars=None, params=None, **kwargs):
         """
         :param model: dict of ``callable``, where dependent variables are the
             keys. If instead of a dict a (sequence of) ``callable`` is provided,
             it will be turned into a dict automatically.
-        :param independent_vars: The independent variables of the model.
+        :param independent_vars: The independent variables of the  model.
+            (Deprecated, use ``connectivity_mapping`` instead.)
         :param params: The parameters of the model.
+            (Deprecated, use ``connectivity_mapping`` instead.)
+        :param connectivity_mapping: Mapping indicating the dependencies of
+            every variable in the model. For example, a model_dict
+            {y: a * x + b} has a connectivity_mapping {y: {x, a, b}}. Note that
+            the values of this dict have to be sets.
         """
-        self.independent_vars = sorted(independent_vars, key=str)
-        self.params = sorted(params, key=str)
-        super(BaseNumericalModel, self).__init__(model)
+        connectivity_mapping = kwargs.pop('connectivity_mapping')
+        if connectivity_mapping is None and \
+                independent_vars is not None and params is not None:
+            # Make model into a mapping if needed.
+            if not isinstance(model, Mapping):
+                try:
+                    iter(model)
+                except TypeError:
+                    model = [model]  # make model iterable
 
-    def _init_from_dict(self, model_dict):
-        """
-        Initiate self from a model_dict which has python callables as its values.
-        This init makes sure self.dependent_vars is available, the other are
-        set in __init__.
+                model = {Variable(): expr for expr in model}
+            warnings.warn(DeprecationWarning(
+                '`independent_vars` and `params` have been deprecated.'
+                ' Use `connectivity_mapping` instead.'
+            ))
+            self.independent_vars = sorted(independent_vars, key=str)
+            self.params = sorted(params, key=str)
+            self.connectivity_mapping = {var: set(independent_vars + params)
+                                         for var in model}
+        elif connectivity_mapping:
+            self.connectivity_mapping = connectivity_mapping
+            if not isinstance(model, Mapping):
+                raise TypeError('Please provide the model as a mapping, '
+                                'corresponding to `connectivity_mapping`.')
+        else:
+            raise TypeError('Please provide `connectivity_mapping`.')
+        super(BaseNumericalModel, self).__init__(model, **kwargs)
 
-        :param model_dict: dict of (dependent_var, callable) pairs.
-        """
-        sort_func = lambda symbol: str(symbol)
-        self.model_dict = OrderedDict(sorted(model_dict.items(), key=lambda i: sort_func(i[0])))
-        self.dependent_vars = sorted(model_dict.keys(), key=sort_func)
+    @property
+    def connectivity_mapping(self):
+        return self._connectivity_mapping
 
-        # Make Variable object corresponding to each var.
-        self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
+    @connectivity_mapping.setter
+    def connectivity_mapping(self, value):
+        self._connectivity_mapping = value
 
     def __eq__(self, other):
         raise NotImplementedError(
@@ -292,21 +553,46 @@ class BaseNumericalModel(BaseModel):
 
 class BaseCallableModel(BaseModel):
     """
-    Baseclass for callable models.
+    Baseclass for callable models. A callable model is expected to have
+    implemented a `__call__` method which evaluates the model.
     """
     def eval_components(self, *args, **kwargs):
         """
-        :return: lambda functions of each of the components in model_dict, to be
-            used in numerical calculation.
+        :return: evaluated lambda functions of each of the components in
+            model_dict, to be used in numerical calculation.
         """
-        return [np.atleast_1d(expr(*args, **kwargs)) for expr in self.numerical_components]
+        bound_arguments = self.__signature__.bind(*args, **kwargs)
+        kwargs = bound_arguments.arguments  # Only work with kwargs
+        components = dict(zip(self, self.numerical_components))
+        # Evaluate the variables in topological order.
+        for symbol in self.ordered_symbols:
+            if symbol.name not in kwargs:
+                dependencies = self.connectivity_mapping[symbol]
+                dependencies_kwargs = {d.name: kwargs[d.name]
+                                       for d in dependencies}
+                kwargs[symbol.name] = components[symbol](**dependencies_kwargs)
 
-    @abstractmethod
+        return [np.atleast_1d(kwargs[var.name]) for var in self]
+
     def numerical_components(self):
         """
         :return: A list of callables corresponding to each of the components
             of the model.
         """
+        raise NotImplementedError(
+            ('No `numerical_components` is defined for object of type {}. '
+             'Implement either `numerical_components`, or change '
+             '`eval_components` so it no longer calls '
+             '`numerical_components`.').format(self.__class__)
+        )
+
+    def _get_params(self):
+        return self._params
+
+    def _set_params(self, value):
+        self._params = value
+        self.__signature__ = self._make_signature()
+    params = property(_get_params, _set_params)  # Properties cannot use `super`
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
@@ -335,10 +621,18 @@ class BaseCallableModel(BaseModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
-        return Ans(*self.eval_components(**bound_arguments.arguments))
+        Ans = variabletuple('Ans', self)
+        return Ans(*self.eval_components(*args, **kwargs))
 
+
+class BaseGradientModel(BaseCallableModel):
+    """
+    Baseclass for models which have a gradient. Such models are expected to
+    implement an `eval_jacobian` function.
+
+    Any subclass of this baseclass which does not implement its own
+    `eval_jacobian` will inherit a finite difference gradient.
+    """
     @keywordonly(dx=1e-8)
     def finite_difference(self, *args, **kwargs):
         """
@@ -408,7 +702,8 @@ class BaseCallableModel(BaseModel):
         """
         :return: The jacobian matrix of the function.
         """
-        return self.finite_difference(*args, **kwargs)
+        Ans = variabletuple('Ans', self)
+        return Ans(*self.finite_difference(*args, **kwargs))
 
 
 class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
@@ -442,8 +737,8 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
     @cached_property
     def numerical_components(self):
         return [expr if not isinstance(expr, sympy.Expr) else
-                sympy_to_py(expr, self.independent_vars, self.params)
-                for expr in self.values()]
+                sympy_to_py(expr, self.connectivity_mapping[var], [])
+                for var, expr in self.items()]
 
 
 class CallableModel(BaseCallableModel):
@@ -460,26 +755,36 @@ class CallableModel(BaseCallableModel):
         :return: lambda functions of each of the analytical components in
             model_dict, to be used in numerical calculation.
         """
-        return [sympy_to_py(expr, self.independent_vars, self.params) for expr in self.values()]
+        Ans = variabletuple('Ans', self.keys())
+        # All components must feature the independent vars and params, that's
+        # the API convention. But for those components which also contain
+        # interdependence, we add those vars
+        components = []
+        for var, expr in self.items():
+            dependencies = self.connectivity_mapping[var]
+            # vars first, then params, and alphabetically within each group
+            key = lambda arg: [isinstance(arg, Parameter), str(arg)]
+            ordered = sorted(dependencies, key=key)
+            components.append(sympy_to_py(expr, ordered, []))
+        return Ans(*components)
 
 
-class Model(CallableModel):
+class GradientModel(CallableModel, BaseGradientModel):
     """
-    Model represents a symbolic function and all it's derived properties such as sum of squares, jacobian etc.
-    Models can be initiated from several objects::
-
-        a = Model({y: x**2})
-        b = Model(y=x**2)
-
-    Models are callable. The usual rules apply to the ordering of the arguments:
-
-    * first independent variables, then dependent variables, then parameters.
-    * within each of these groups they are ordered alphabetically.
-
-    Models are also iterable, behaving as their internal model_dict. In the example above,
-    a[y] returns x**2, len(a) == 1, y in a == True, etc.
+    Analytical model which has an analytically computed Jacobian.
     """
-    @property
+    def __init__(self, *args, **kwargs):
+        super(GradientModel, self).__init__(*args, **kwargs)
+        self.jacobian_model = jacobian_from_model(self)
+
+    def _set_params(self, value):
+        super(GradientModel, self)._set_params(value)
+        if hasattr(self, 'jacobian_model'):
+            self.jacobian_model.params = value
+    # Properties cannot use `super` unless when used in this way
+    params = property(CallableModel._get_params, _set_params)
+
+    @cached_property
     def jacobian(self):
         """
         :return: Jacobian filled with the symbolic expressions for all the
@@ -488,7 +793,50 @@ class Model(CallableModel):
             Variable's. The return shape is a list over the models components,
             filled with tha symbolical jacobian for that component, as a list.
         """
-        return [[sympy.diff(expr, param) for param in self.params] for expr in self.values()]
+        jac = []
+        for var, expr in self.items():
+            jac_row = []
+            for param in self.params:
+                partial_dv = D(var, param)
+                jac_row.append(self.jacobian_model[partial_dv])
+            jac.append(jac_row)
+        return jac
+
+    def eval_jacobian(self, *args, **kwargs):
+        """
+        :return: Jacobian evaluated at the specified point.
+        """
+        eval_jac_dict = self.jacobian_model(*args, **kwargs)._asdict()
+        # Take zero for component which are not present, happens for Constraints
+        jac = [[np.broadcast_to(eval_jac_dict.get(D(var, param), 0),
+                                eval_jac_dict[var].shape)
+                for param in self.params]
+            for var in self
+        ]
+
+        # Use numpy to broadcast these arrays together and then stack them along
+        # the parameter dimension. We do not include the component direction in
+        # this, because the components can have independent shapes.
+        for idx, comp in enumerate(jac):
+            jac[idx] = np.stack(np.broadcast_arrays(*comp))
+
+        Ans = variabletuple('Ans', self.keys())
+        return Ans(*jac)
+
+class HessianModel(GradientModel):
+    """
+    Analytical model which has an analytically computed Hessian.
+    """
+    def __init__(self, *args, **kwargs):
+        super(HessianModel, self).__init__(*args, **kwargs)
+        self.hessian_model = hessian_from_model(self)
+
+    def _set_params(self, value):
+        super(HessianModel, self)._set_params(value)
+        if hasattr(self, 'hessian_model'):
+            self.hessian_model.params = value
+    # Properties cannot use `super` unless when used in this way
+    params = property(GradientModel._get_params, _set_params)
 
     @property
     def hessian(self):
@@ -500,275 +848,57 @@ class Model(CallableModel):
         return [[[sympy.diff(partial_dv, param) for param in self.params]
                  for partial_dv in comp] for comp in self.jacobian]
 
-    @property
-    def chi_squared(self):
-        """
-        :return: Symbolic :math:`\\chi^2`
-        """
-        return sum(((f - y)/self.sigmas[y])**2 for y, f in self.items())
-
-    @property
-    def chi(self):
-        """
-        :return: Symbolic Square root of :math:`\\chi^2`. Required for MINPACK
-            optimization only. Denoted as :math:`\\sqrt(\\chi^2)`
-        """
-        return sympy.sqrt(self.chi_squared)
-
-    @property
-    def chi_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\sqrt(\\chi^2)` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
-        This is because that's what leastsq needs.
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi, param)
-            jac.append(f)
-        return jac
-
-    @property
-    def chi_squared_jacobian(self):
-        """
-        Return a symbolic jacobian of the :math:`\\chi^2` function.
-        Vector of derivatives w.r.t. each parameter. Not a Matrix but a vector!
-        """
-        jac = []
-        for param in self.params:
-            # Differentiate to every param
-            f = sympy.diff(self.chi_squared, param)
-            jac.append(f)
-        return jac
-
-    # @property
-    # def ss_res(self):
-    #     """
-    #     :return: Residual sum of squares. Similar to chi_squared, but without considering weights.
-    #     """
-    #     return sum((y - f)**2 for y, f in self.items())
-
-    @cached_property
-    def numerical_jacobian(self):
-        """
-        :return: lambda functions of the jacobian matrix of the function, which
-            can be used in numerical optimization.
-        """
-        return [[sympy_to_py(partial_dv, self.independent_vars, self.params) for partial_dv in row] for row in self.jacobian]
-
-    @cached_property
-    def numerical_hessian(self):
-        """
-        :return: lambda functions of the Hessian matrix of the function, which
-        can be used in numerical optimization.
-        """
-        return [[[sympy_to_py(second_order_pdv, self.independent_vars, self.params)
-                    for second_order_pdv in row]
-                for row in comp]
-            for comp in self.hessian]
-
-    @cached_property
-    def numerical_chi_squared(self):
-        """
-        :return: lambda function of the ``.chi_squared`` method, to be used in
-            numerical optimisation.
-        """
-        return sympy_to_py(self.chi_squared, self.vars, self.params)
-
-    @cached_property
-    def numerical_chi(self):
-        """
-        :return: lambda function of the ``.chi`` method, to be used in MINPACK
-            optimisation.
-        """
-        return sympy_to_py(self.chi, self.vars, self.params)
-
-    @cached_property
-    def numerical_chi_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi`` method, which
-            can be used in numerical optimization.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_jacobian]
-
-    @cached_property
-    def numerical_chi_squared_jacobian(self):
-        """
-        :return: lambda functions of the jacobian of the ``.chi_squared`` method.
-        """
-        return [sympy_to_py(component, self.vars, self.params) for component in self.chi_squared_jacobian]
-
-    def eval_jacobian(self, *args, **kwargs):
-        """
-        :return: Jacobian evaluated at the specified point.
-        """
-        # Evaluate the jacobian at specified points
-        jac = [[np.atleast_1d(partial_dv(*args, **kwargs))
-                for partial_dv in row]
-            for row in self.numerical_jacobian
-        ]
-        # Use numpy to broadcast these arrays together and then stack them along
-        # the parameter dimension. We do not include the component direction in
-        # this, because the components can have independent shapes.
-        for idx, comp in enumerate(jac):
-            jac[idx] = np.stack(np.broadcast_arrays(*comp))
-        return jac
-
     def eval_hessian(self, *args, **kwargs):
         """
         :return: Hessian evaluated at the specified point.
         """
-        hess = [[[np.atleast_1d(second_order_pdv(*args, **kwargs))
-                    for second_order_pdv in row]
-                for row in comp]
-            for comp in self.numerical_hessian
+        # Evaluate the hessian model and use the resulting Ans namedtuple as a
+        # dict. From this, take the relevant components.
+        eval_hess_dict = self.hessian_model(*args, **kwargs)._asdict()
+        hess = [[[np.broadcast_to(eval_hess_dict.get(D(var, p1, p2), 0),
+                                  eval_hess_dict[var].shape)
+                    for p2 in self.params]
+                for p1 in self.params]
+            for var in self
         ]
         # Use numpy to broadcast these arrays together and then stack them along
         # the parameter dimension. We do not include the component direction in
         # this, because the components can have independent shapes.
         for idx, comp in enumerate(hess):
             hess[idx] = np.stack(np.broadcast_arrays(*comp))
-        return hess
+
+        Ans = variabletuple('Ans', self.keys())
+        return Ans(*hess)
 
 
-class TaylorModel(Model):
+class Model(HessianModel):
     """
-    A first-order Taylor expansion of a model around given parameter values (:math:`p_0`).
-    Is used by NonLinearLeastSquares. Currently only a first order expansion is implemented.
+    Model represents a symbolic function and all it's derived properties such as
+    sum of squares, jacobian etc.
+    Models should be initiated from a dict::
+
+        a = Model({y: x**2})
+
+    Models are callable. The usual rules apply to the ordering of the arguments:
+
+    * first independent variables, then parameters.
+    * within each of these groups they are ordered alphabetically.
+
+    The output of a call to a model is a special kind of namedtuple::
+
+        >>> a(x=3)
+        Ans(y=9)
+
+    When turning this into a dict, however, the dict keys will be Variable
+    objects, not strings::
+
+        >>> a(x=3)._asdict()
+        OrderedDict(((y, 9),))
+
+    Models are also iterable, behaving as their internal model_dict. For
+    example, ``a[y]`` returns ``x**2``, ``len(a) == 1``,
+    ``y in a == True``, etc.
     """
-    def __init__(self, model):
-        """
-        Make a first order Taylor expansion of ``model``.
-
-        :param model: Instance of ``Model``
-        """
-        params_0 = OrderedDict(
-            [(p, Parameter(name='{}_0'.format(p.name))) for p in model.params]
-        )
-        model_dict = {}
-        for (var, component), jacobian_vec in zip(model.items(), model.jacobian):
-            linear = component.subs(params_0.items())
-            for (p, p0), jac in zip(params_0.items(), jacobian_vec): # params_0 is assumed OrderedDict!
-                linear += jac.subs(params_0.items()) * (p - p0)
-            model_dict[var] = linear
-        self.params_0 = params_0
-        super(TaylorModel, self).__init__(model_dict)
-        # super(TaylorModel, self).__init__(**key2str(model_dict))
-        self.model_dict_orig = copy.copy(self.model_dict)
-
-    @property
-    def params(self):
-        """
-        params returns only the `free` parameters. Strictly speaking, the expression for a
-        ``TaylorModel`` contains both the parameters :math:`\\vec{p}` and :math:`\\vec{p_0}`
-        around which to expand, but params should only give :math:`\\vec{p}`. To get a
-        mapping to the :math:`\\vec{p_0}`, use ``.params_0``.
-        """
-        return [p for p in self._params if p not in self.params_0.values()]
-
-    @params.setter
-    def params(self, items):
-        self._params = items
-
-    @property
-    def p0(self):
-        """
-        Property of the :math:`p_0` around which to expand. Should be set by the names of
-        the parameters themselves.
-
-        Example::
-
-            a = Parameter()
-            x, y = variables('x, y')
-            model = TaylorModel({y: sin(a * x)})
-
-            model.p0 = {a: 0.0}
-
-        """
-        return self._p0
-
-    @p0.setter
-    def p0(self, expand_at):
-        self._p0 = {self.params_0[p]: float(value) for p, value in expand_at.items()}
-        for var in self.model_dict_orig:
-            self.model_dict[var] = self.model_dict_orig[var].subs(self.p0.items())
-
-    def __str__(self):
-        """
-        When printing a TaylorModel, the point around which the expansion took place is included.
-
-        For example, a Taylor expansion of {y: sin(w * x)} at w = 0 would be printed as::
-
-            @{w: 0.0} -> y(x; w) = w*x
-        """
-        sup = super(TaylorModel, self).__str__()
-        return '@{} -> {}'.format(self.p0, sup)
-
-
-class Constraint(Model):
-    """
-    Constraints are a special type of model in that they have a type: >=, == etc.
-    They are made to have lhs - rhs == 0 of the original expression.
-
-    For example, Eq(y + x, 4) -> Eq(y + x - 4, 0)
-
-    Since a constraint belongs to a certain model, it has to be initiated with knowledge of it's parent model.
-    This is important because all ``numerical_`` methods are done w.r.t. the parameters and variables of the parent
-    model, not the constraint! This is because the constraint might not have all the parameter or variables that the
-    model has, but in order to compute for example the Jacobian we still want to derive w.r.t. all the parameters,
-    not just those present in the constraint.
-    """
-    def __init__(self, constraint, model):
-        """
-        :param constraint: constraint that model should be subjected to.
-        :param model: A constraint is always tied to a model.
-        """
-        if isinstance(constraint, Relational):
-            self.constraint_type = type(constraint)
-            if isinstance(model, BaseModel):
-                self.model = model
-            else:
-                raise TypeError('The model argument must be of type Model.')
-            super(Constraint, self).__init__(constraint.lhs - constraint.rhs)
-
-            # Update the signature to accept all vars and parms of the model
-            self.independent_vars = self.model.vars
-            self.params = self.model.params
-            self.__signature__ = self._make_signature()
-        else:
-            raise TypeError('Constraints have to be initiated with a subclass of sympy.Relational')
-
-    def __neg__(self):
-        """
-        :return: new model with opposite sign. Does not change the model in-place,
-            but returns a new copy.
-        """
-        new_constraint = self.constraint_type( - self.model_dict[self.dependent_vars[0]])
-        return self.__class__(new_constraint, self.model)
-
-    @property
-    def jacobian(self):
-        """
-        :return: Jacobian 'Matrix' filled with the symbolic expressions for all the partial derivatives.
-            Partial derivatives are of the components of the function with respect to the Parameter's,
-            not the independent Variable's.
-        """
-        return [[sympy.diff(expr, param) for param in self.model.params] for expr in self.values()]
-
-    @cached_property
-    def numerical_components(self):
-        """
-        :return: lambda functions of each of the components in model_dict, to be used in numerical calculation.
-        """
-        return [sympy_to_py(expr, self.model.vars, self.model.params) for expr in self.values()]
-
-    @cached_property
-    def numerical_jacobian(self):
-        """
-        :return: lambda functions of the jacobian matrix of the function, which can be used in numerical optimization.
-        """
-        return [[sympy_to_py(partial_dv, self.model.vars, self.model.params) for partial_dv in row] for row in self.jacobian]
 
 
 class TakesData(object):
@@ -803,14 +933,7 @@ class TakesData(object):
             self.model = Model(model)
 
         # Handle ordered_data and named_data according to the allowed names.
-        var_names = [var.name for var in self.model.vars]
-        parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            # inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=1 if name.startswith('sigma_') else None)
-            inspect_sig.Parameter(name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD, default=None)
-                for name in var_names
-        ]
-
-        signature = inspect_sig.Signature(parameters=parameters)
+        signature = self._make_signature()
         try:
             bound_arguments = signature.bind(*ordered_data, **named_data)
         except TypeError as err:
@@ -825,7 +948,14 @@ class TakesData(object):
                 bound_arguments.arguments[param.name] = param.default
 
         original_data = bound_arguments.arguments   # ordereddict of the data
-        self.data = OrderedDict((var, original_data[var.name]) for var in self.model.vars)
+        self.data = original_data.copy()
+        for var in self.model.vars:
+            # Identify data by their Variable, not their variable names.
+            # But anything that is not a part of model should not be thrown away
+            self.data[var] = self.data.pop(var.name)
+
+        # Interdependent vars are None by default
+        self.data.update({var: None for var in self.model.interdependent_vars})
         # Change the type to array if no array operations are supported.
         # We don't want to break duck-typing, hence the try-except.
         for var, dataset in self.data.items():
@@ -866,6 +996,18 @@ class TakesData(object):
             else:
                 self.absolute_sigma = False
 
+    def _make_signature(self):
+        var_names = [var.name for var in self.model.vars]
+        parameters = [
+            # Note that these are inspect_sig.Parameter's, not symfit parameters
+            inspect_sig.Parameter(name,
+                                  inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+                                  default=None)
+            for name in var_names
+        ]
+
+        return inspect_sig.Signature(parameters=parameters)
+
     @property
     def dependent_data(self):
         """
@@ -875,7 +1017,8 @@ class TakesData(object):
                  variable names as key, data as value.
         :rtype: collections.OrderedDict
         """
-        return OrderedDict((var, self.data[var]) for var in self.model)
+        return OrderedDict((var, self.data[var])
+                           for var in self.model.dependent_vars)
 
     @property
     def independent_data(self):
@@ -898,7 +1041,8 @@ class TakesData(object):
         :rtype: collections.OrderedDict
         """
         sigmas = self.model.sigmas
-        return OrderedDict((sigmas[var], self.data[sigmas[var]]) for var in self.model)
+        return OrderedDict((sigmas[var], self.data[sigmas[var]])
+                           for var in self.model.dependent_vars)
 
     @property
     def data_shapes(self):
@@ -922,7 +1066,7 @@ class TakesData(object):
             if data is not None:
                 dependent_shapes.append(data.shape)
 
-        return list(set(independent_shapes)), list(set(independent_shapes))
+        return list(set(independent_shapes)), list(set(dependent_shapes))
 
     @property
     def initial_guesses(self):
@@ -970,254 +1114,42 @@ class HasCovarianceMatrix(TakesData):
     those, just variances. Therefore, take the result with a grain of salt for
     vector models.
     """
-    def covariance_matrix(self, best_fit_params):
-        """
-        Given best fit parameters, this function finds the covariance matrix.
-        This matrix gives the (co)variance in the parameters.
-
-        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
-        :return: covariance matrix.
-        """
-        if not hasattr(self.model, 'eval_jacobian'):
-            return None
-        if any(element is None for element in self.sigma_data.values()):
-            # If one of the sigma's was explicitly set to None, we are unable
-            # to determine the covariances.
-            return np.array(
-                [[float('nan') for p in self.model.params] for p in self.model.params]
-            )
+    def _covariance_matrix(self, best_fit_params, objective):
+        # Helper function for self.covariance_matrix.
         try:
-            if isinstance(self.objective, LogLikelihood):
-                # Loglikelihood is a special case that needs to be considered
-                # separately, see #138
-                hess = self.objective.eval_hessian(**key2str(best_fit_params))
-                cov_mat = np.linalg.inv(hess)
-                return cov_mat
-            if len(set(arr.shape for arr in self.sigma_data.values())) == 1:
-                # Shapes of all sigma data identical
-                return self._cov_mat_equal_lenghts(best_fit_params=best_fit_params)
-            else:
-                return self._cov_mat_unequal_lenghts(best_fit_params=best_fit_params)
+            hess = objective.eval_hessian(**key2str(best_fit_params))
+        except AttributeError:
+            # Some models do not have an eval_hessian, in which case we give up
+            return None
+        else:
+            if hess is None:
+                return hess
+
+        try:
+            # The squeezing to a matrix is required for MinimizeModel objectives
+            hess_inv = np.linalg.inv(np.atleast_2d(np.squeeze(hess)))
         except np.linalg.LinAlgError:
             return None
 
-    def _reduced_residual_ss(self, best_fit_params, flatten=False):
-        """
-        Calculate the residual Sum of Squares divided by the d.o.f..
-
-        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
-        :param flatten: when `True`, return the total sum of squares (SS).
-            If `False`, return the componentwise SS.
-        :return: The reduced residual sum of squares.
-        """
-        # popt = [best_fit_params[p.name] for p in self.model.params]
-        # Rescale the covariance matrix with the residual variance
-        if isinstance(self.objective, (VectorLeastSquares, LeastSquares)):
-            ss_res = self.objective(flatten_components=flatten,
-                                    **key2str(best_fit_params))
-        else:
-            ss_res = self.objective(**key2str(best_fit_params))
-
-        if isinstance(self.objective, VectorLeastSquares):
-            ss_res = np.sum(ss_res**2)
-
-        degrees_of_freedom = 0 if flatten else []
-        for data in self.dependent_data.values():
-            if flatten:
-                if data is not None:
-                    degrees_of_freedom += np.product(data.shape)
+        if isinstance(objective, LeastSquares):
+            # Calculate the covariance for a least squares method.
+            # https://www8.cs.umu.se/kurser/5DA001/HT07/lectures/lsq-handouts.pdf
+            # Residual sum of squares
+            rss = 2 * objective(**key2str(best_fit_params))
+            # Degrees of freedom
+            raw_dof = np.sum([np.product(shape) for shape in self.data_shapes[1]])
+            dof = raw_dof - len(self.model.params)
+            if self.absolute_sigma:
+                # When interpreting as measurement error, we do not rescale.
+                s2 = 1
             else:
-                if data is not None:
-                    degrees_of_freedom.append(np.product(data.shape))
-                    # degrees_of_freedom = np.product(data.shape) - len(popt)
-                    # break
-                else: # the correspoding component in ss_res will be 0 so it is ok to add any non-zero number.
-                    degrees_of_freedom.append(len(best_fit_params) + 1)
-        degrees_of_freedom = np.array(degrees_of_freedom)
-        s_sq = ss_res / (degrees_of_freedom - len(best_fit_params))
-        # s_sq = ss_res / degrees_of_freedom
-
-        return s_sq
-
-    def _cov_mat_equal_lenghts(self, best_fit_params):
-        """
-        If all the data arrays are of equal size, use this method. This will
-        typically be the case, and this method is a lot faster because it allows
-        for numpy magic.
-
-        :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
-        """
-        # Stack in a new dimension, and make this the first dim upon indexing.
-        sigma = np.concatenate([arr[np.newaxis, ...] for arr in self.sigma_data.values()], axis=0)
-
-        # Weight matrix. Since it should be a diagonal matrix, we just remember
-        # this and multiply it elementwise for efficiency.
-        # It is also rescaled by the reduced residual ss in case of absolute_sigma==False
-        if self.absolute_sigma:
-            W = 1/sigma**2
+                s2 = rss / dof
+            cov_mat = s2 * hess_inv
+            return cov_mat
         else:
-            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
-            W = 1/sigma**2/s_sq[:, np.newaxis]
-
-        kwargs = key2str(best_fit_params)
-        kwargs.update(key2str(self.independent_data))
-
-        jac = np.array(self.model.eval_jacobian(**kwargs))
-        # Drop the axis which correspond to dependent vars which have been
-        # set to None
-        mask = [data is not None for data in self.dependent_data.values()]
-        jac = jac[mask]
-        W = W[mask]
-        if jac.shape[0] == 0:
-            return None
-
-        # Order jacobian as param, component, datapoint
-        jac = np.swapaxes(jac, 0, 1)
-        if not self.independent_data:
-            jac = jac * np.ones_like(W)
-        # Dot away all but the parameter dimension!
-        try:
-            cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-        except ValueError as err:
-            # If this fails because the shape of the jacobian could not be
-            # properly estimated, then we remedy this. If not, the error is reraised.
-            if jac.shape[-1] == 1:
-                # Take the shape of the dependent data
-                dependent_shape = self.data_shapes[1][0]
-                # repeat the object along the last axis to match the shape
-                new_jac = np.repeat(jac, np.product(dependent_shape), -1)
-                jac = new_jac.reshape((jac.shape[0], jac.shape[1]) + dependent_shape)
-                cov_matrix_inv = np.tensordot(W * jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-            else:
-                raise err
-        cov_matrix = np.linalg.inv(cov_matrix_inv)
-        return cov_matrix
-
-    def _cov_mat_unequal_lenghts(self, best_fit_params):
-        """
-        If the data arrays are of unequal size, use this method. Less efficient
-        but more general than the method for equal size datasets.
-        """
-        sigma = list(self.sigma_data.values())
-        # Weight matrix. Since it should be a diagonal matrix, we just remember
-        # this and multiply it elementwise for efficiency.
-        if self.absolute_sigma:
-            W = [1/s**2 for s in sigma]
-        else:
-            s_sq = self._reduced_residual_ss(best_fit_params, flatten=False)
-            # W = 1/sigma**2/s_sq[:, np.newaxis]
-            W = [1/s**2/res for s, res in zip(sigma, s_sq)]
-
-        kwargs = key2str(best_fit_params)
-        kwargs.update(key2str(self.independent_data))
-
-        jac = self.model.eval_jacobian(**kwargs)
-        data_len = max(j.shape[1] for j in jac)
-        data_len = max(data_len, max(len(w) for w in W))
-        W_full = np.zeros((len(W), data_len), dtype=float)
-        jac_full = np.zeros((len(jac), jac[0].shape[0], data_len), dtype=float)
-        for idx, (j, w) in enumerate(zip(jac, W)):
-            if not self.independent_data:
-                j = j * np.ones_like(w)
-            jac_full[idx, :, :j.shape[1]] = j
-            W_full[idx, :len(w)] = w
-        jac = jac_full
-        W = W_full
-        # Order jacobian as param, component, datapoint
-        jac = np.swapaxes(jac, 0, 1)
-        # Weigh each component with its respective weight.
-#        jac_weighed = [[j * w for j, w in zip(row, W)] for row in jac]
-
-        # Buil the inverse cov_matrix.
-        cov_matrix_inv = []
-        cov_matrix_inv = np.tensordot(W*jac, jac, (range(1, jac.ndim), range(1, jac.ndim)))
-        cov_matrix = np.linalg.inv(cov_matrix_inv)
-#        # iterate along the parameters first
-#        for index, jac_w_p in enumerate(jac_weighed):
-#            cov_matrix_inv.append([])
-#            for jac_p in jac:
-#                # Now we have to dot product these guys properly.
-#                dot = np.sum([np.sum(a * b) for a, b in zip(jac_w_p, jac_p)])
-#                cov_matrix_inv[index].append(dot)
-#
-#        cov_matrix = np.linalg.inv(cov_matrix_inv)
-        return cov_matrix
-
-
-class LinearLeastSquares(BaseFit):
-    """
-    Experimental. Solves the linear least squares problem analytically. Involves no iterations
-    or approximations, and therefore gives the best possible fit to the data.
-
-    The ``Model`` provided has to be linear.
-
-    Currently, since this object still has to mature, it suffers from the following limitations:
-
-    * It does not check if the model can be linearized by a simple substitution.
-      For example, exp(a * x) -> b * exp(x). You will have to do this manually.
-    * Does not use bounds or guesses on the ``Parameter``'s. Then again, it doesn't have to,
-      since you have an exact solution. No guesses required.
-    * It only works with scalar functions. This is strictly enforced.
-
-    .. _Blobel: http://www.desy.de/~blobel/blobel_leastsq.pdf
-    .. _Wiki: https://en.wikipedia.org/wiki/Linear_least_squares_(mathematics)
-    """
-    def __init__(self, *args, **kwargs):
-        """
-        :raises: ``ModelError`` in case of a non-linear model or when a vector
-            valued function is provided.
-        """
-        super(LinearLeastSquares, self).__init__(*args, **kwargs)
-        if not self.is_linear(self.model):
-            raise ModelError('This Model is non-linear. Please use NonLinearLeastSquares instead.')
-        elif len(self.model) > 1:
-            raise ModelError('Currently only scalar valued functions are supported.')
-
-    @staticmethod
-    def is_linear(model):
-        """
-        Test whether model is of linear form in it's parameters.
-
-        Currently this function does not recognize if a model can be considered linear
-        by a simple substitution, such as exp(k x) = k' exp(x).
-
-        .. _Wiki: https://en.wikipedia.org/wiki/Linear_least_squares_(mathematics)
-
-        :param model: ``Model`` instance
-        :return: True or False
-        """
-        terms = {}
-        for var, expr in model.items():
-            terms.update(sympy.collect(sympy.expand(expr), model.params, evaluate=False))
-        difference = set(terms.keys()) ^ set(model.params) # Symmetric difference
-        return not difference or difference == {1}  # Either no difference or it still contains O(1) terms
-
-    def best_fit_params(self):
-        """
-        Fits to the data and returns the best fit parameters.
-
-        :return: dict containing parameters and their best-fit values.
-        """
-        terms_per_component = []
-        for expr in self.model.chi_squared_jacobian:
-            # Collect terms linear in the parameters. Returns a dict with parameters and
-            # their prefactor as function of variables. Includes O(1)
-            terms = sympy.collect(sympy.expand(expr), self.model.params, evaluate=False)
-            # Evaluate every term separately and 'sum out' the variables. This results in
-            # a system that is very easy to solve.
-            for param in terms:
-                terms[param] = np.sum(terms[param](**key2str(self.data)))
-
-            terms_per_component.append(terms)
-
-        # Reconstruct the linear system.
-        system = [sum(factor*param for param, factor in terms.items()) for terms in terms_per_component]
-        sol = sympy.solve(system, self.model.params, dict=True)
-        try:
-            assert len(sol) == 1 # Future Homer should think about what to do with multiple/no solutions
-        except AssertionError:
-            raise Exception('Got an unexpected number of solutions:', len(sol))
-        return sol[0] # Dict of param: value pairs.
+            # The inverse hessian is the covariance matrix for Loglikelihood and
+            # also for objectives in general.
+            return hess_inv
 
     def covariance_matrix(self, best_fit_params):
         """
@@ -1227,139 +1159,34 @@ class LinearLeastSquares(BaseFit):
         :param best_fit_params: ``dict`` of best fit parameters as given by .best_fit_params()
         :return: covariance matrix.
         """
-        # The rest of this method is concerned with determining the covariance matrix
-        # Weight matrix. Diagonal matrix for now.
-        sigma = list(self.sigma_data.values())[0]
-        W = np.diag(1/sigma.flatten()**2)
+        cov_matrix = self._covariance_matrix(best_fit_params,
+                                             objective=self.objective)
+        if cov_matrix is None:
+            # If the covariance matrix could not be computed we try again by
+            # approximating the hessian with the jacobian.
 
-        # Calculate the covariance matrix from the Jacobian X @ best_params.
-        # In X, we do NOT sum over the components by design. This is because
-        # it has to be contracted with W, the weight matrix.
-        kwargs = {p.name: float(value) for p, value in best_fit_params.items()}
-        kwargs.update(self.independent_data)
-        # kwargs.update(self.data)
-        X = np.atleast_2d([
-            (np.ones(sigma.shape[0]) * comp(**key2str(kwargs))).flatten()
-            for comp in self.model.numerical_jacobian[0]
-        ])
+            # VectorLeastSquares should be turned into a LeastSquares for
+            # cov matrix calculation
+            if self.objective.__class__ is VectorLeastSquares:
+                base = LeastSquares
+            else:
+                base = self.objective.__class__
 
-        cov_matrix = np.linalg.inv(X.dot(W).dot(X.T))
-        if not self.absolute_sigma:
-            kwargs.update(self.data)
-            # Sum of squared residuals. To be honest, I'm not sure why ss_res does not give the
-            # right result but by using the chi_squared the results are compatible with curve_fit.
-            S = np.sum(self.model.chi_squared(**key2str(kwargs)), dtype=float) / (len(W) - len(self.model.params))
-            cov_matrix *= S
+            class HessApproximation(base, HessianObjectiveJacApprox):
+                """
+                Class which impersonates ``base``, but which returns zeros
+                for the models Hessian. This will effectively result in the
+                calculation of the approximate Hessian by calculating
+                outer(J.T, J) when calling ``base.eval_hessian``.
+                """
+
+            objective = HessApproximation(self.objective.model,
+                                          self.objective.data)
+            cov_matrix = self._covariance_matrix(best_fit_params,
+                                                 objective=objective)
 
         return cov_matrix
 
-    def execute(self):
-        """
-        Execute an analytical (Linear) Least Squares Fit. This object works by symbolically
-        solving when :math:`\\nabla \\chi^2 = 0`.
-
-        To perform this task the expression of :math:`\\nabla \\chi^2` is
-        determined, ignoring that :math:`\\chi^2` involves summing over all
-        terms. Then the sum is performed by substituting the variables by their
-        respective data and summing all terms, while leaving the parameters
-        symbolic.
-
-        The resulting system of equations is then easily solved with
-        ``sympy.solve``.
-
-        :return: ``FitResult``
-        """
-        # Obtain the best fit params first.
-        best_fit_params = self.best_fit_params()
-        cov_matrix = self.covariance_matrix(best_fit_params=best_fit_params)
-
-        self._fit_results = FitResults(
-            model=self.model,
-            popt=[best_fit_params[param] for param in self.model.params],
-            covariance_matrix=cov_matrix,
-            infodic={'nfev': 0},
-            mesg='',
-            ier=0,
-        )
-        self._fit_results.gof_qualifiers['r_squared'] = \
-            r_squared(self.model, self._fit_results, self.data)
-        return self._fit_results
-
-
-class NonLinearLeastSquares(BaseFit):
-    """
-    Experimental.
-    Implements non-linear least squares [wiki_nllsq]_. Works by a two step process:
-    First the model is linearised by doing a first order taylor expansion
-    around the guesses for the parameters.
-    Then a LinearLeastSquares fit is performed. This is iterated until
-    a fit of sufficient quality is obtained.
-
-    Sensitive to good initial guesses. Providing good initial guesses is a must.
-
-    .. [wiki_nllsq] https://en.wikipedia.org/wiki/Non-linear_least_squares
-    """
-    def __init__(self, *args, **kwargs):
-        super(NonLinearLeastSquares, self).__init__(*args, **kwargs)
-        # Make an approximation of model at the initial guesses
-        # self.model_appr = self.linearize(self.model, {p: p.value for p in self.model.params})
-        self.model_appr = TaylorModel(self.model)
-        # Set initial expansion point
-        self.model_appr.p0 = {
-            param: value for param, value in zip(self.model_appr.params, self.initial_guesses)
-        }
-
-    def execute(self, relative_error=1e-8, max_iter=500):
-        """
-        Perform a non-linear least squares fit.
-
-        :param relative_error: Relative error between the sum of squares
-            of subsequent itterations. Once smaller than the value specified,
-            the fit is considered complete.
-        :param max_iter: Maximum number of iterations before giving up.
-        :return: Instance of ``FitResults``.
-        """
-        fit = LinearLeastSquares(self.model_appr, absolute_sigma=self.absolute_sigma, **key2str(self.data))
-
-        # if fit.is_linear(self.model):
-        #     return fit.execute()
-        # else:
-        i = 0
-        S_k1 = np.sum(
-            self.model.numerical_chi_squared(
-                *self.data.values(),
-                **{p.name: float(value) for p, value in zip(self.model.params, self.initial_guesses)}
-            )
-        )
-        while i < max_iter:
-            fit_params = fit.best_fit_params()
-            S_k2 = np.sum(
-                self.model.numerical_chi_squared(
-                    *self.data.values(),
-                    **{p.name: float(value) for p, value in fit_params.items()}
-                )
-            )
-            if not S_k1 < 0 and np.abs(S_k2 - S_k1) <= relative_error * np.abs(S_k1):
-                break
-            else:
-                S_k1 = S_k2
-                # Update the model with a better approximation
-                self.model_appr.p0 = fit_params
-                i += 1
-
-        cov_matrix = fit.covariance_matrix(best_fit_params=fit_params)
-
-        self._fit_results = FitResults(
-            model=self.model,
-            popt=[float(fit_params[param]) for param in self.model.params],
-            covariance_matrix=cov_matrix,
-            infodic={'nfev': i},
-            mesg='',
-            ier=0,
-        )
-        self._fit_results.gof_qualifiers['r_squared'] = \
-            r_squared(self.model, self._fit_results, self.data)
-        return self._fit_results
 
 class Fit(HasCovarianceMatrix):
     """
@@ -1417,22 +1244,38 @@ class Fit(HasCovarianceMatrix):
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
         constraints = named_data.pop('constraints')
+        constraints = [] if constraints is None else constraints
+        # List of Constraint objects
+        if not isinstance(model, BaseModel):
+            model = Model(model)
+        self.constraints = self._init_constraints(constraints=constraints,
+                                                  model=model)
         super(Fit, self).__init__(model, *ordered_data, **named_data)
 
-        # List of Constraint objects
-        self.constraints = self._init_constraints(constraints=constraints)
+        # Update the data belonging to the constraints. We do this by checking
+        # for the presence of data with the same name as one of the independent
+        # variables of the constraint. If present, we start addressing them by
+        # their Variable instead.
+        for constraint in self.constraints:
+            for var in constraint.independent_vars:
+                if var.name in self.data:
+                    self.data[var] = self.data.pop(var.name)
+            # Set the dependent vars to None in the data
+            for var in constraint.dependent_vars:
+                self.data[var] = None
+                self.data[constraint.sigmas[var]] = None
 
         if objective is None:
+            if minimizer is MINPACK:
+                # MINPACK is considered a special snowflake, as its API has to be
+                # considered seperately and has its own non standard objective function.
+                objective = VectorLeastSquares
             # Param only scalar Model -> the model is the objective.
-            if len(self.model.independent_vars) == 0 and len(self.model) == 1:
+            elif len(self.model.independent_vars) == 0 and len(self.model) == 1:
                 # No data provided means a simple minimization of the Model parameters
                 # is requested, not a fit.
                 if all(value is None for value in self.data.values()):
                     objective = MinimizeModel
-            elif minimizer is MINPACK:
-                # MINPACK is considered a special snowflake, as its API has to be
-                # considered seperately and has its own non standard objective function.
-                objective = VectorLeastSquares
 
         if objective is None:
             objective = LeastSquares
@@ -1458,6 +1301,27 @@ class Fit(HasCovarianceMatrix):
             self.minimizer = self._init_minimizer(ChainedMinimizer, minimizers=minimizers)
         else:
             self.minimizer = self._init_minimizer(minimizer)
+
+    def _make_signature(self):
+        signature = super(Fit, self)._make_signature()
+
+        var_names = {var.name for constraint in self.constraints
+                     for var in constraint.independent_vars}
+        # Extra parameter objects due to vars of constraints.
+        extra_parameters = []
+        for var_name in var_names:
+            # inspect Parameters, not symfit Parameters
+            if var_name not in signature.parameters:
+                sig_param = inspect_sig.Parameter(
+                    var_name,
+                    inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+                    default=None
+                )
+                extra_parameters.append(sig_param)
+
+        extra_parameters.extend(list(signature.parameters.values()))
+        signature = signature.replace(parameters=extra_parameters)
+        return signature
 
     def _determine_minimizer(self):
         """
@@ -1495,16 +1359,16 @@ class Fit(HasCovarianceMatrix):
         if issubclass(minimizer, GradientMinimizer):
             # If an analytical version of the Jacobian exists we should use
             # that, otherwise we let the minimizer estimate it itself.
-            # Hence the check of numerical_jacobian, as this is the
+            # Hence the check of jacobian_model, as this is the
             # py function version of the analytical jacobian.
-            if hasattr(self.model, 'numerical_jacobian') and hasattr(self.objective, 'eval_jacobian'):
+            if hasattr(self.model, 'jacobian_model') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
         if issubclass(minimizer, HessianMinimizer):
             # If an analytical version of the Hessian exists we should use
             # that, otherwise we let the minimizer estimate it itself.
-            # Hence the check of numerical_hessian, as this is the
-            # py function version of the analytical jacobian.
-            if hasattr(self.model, 'numerical_hessian') and hasattr(self.objective, 'eval_hessian'):
+            # Hence the check of hessian_model, as this is the
+            # py function version of the analytical hessian.
+            if hasattr(self.model, 'hessian_model') and hasattr(self.objective, 'eval_hessian'):
                 minimizer_options['hessian'] = self.objective.eval_hessian
 
         if issubclass(minimizer, ConstrainedMinimizer):
@@ -1518,40 +1382,35 @@ class Fit(HasCovarianceMatrix):
             minimizer_options['constraints'] = constraint_objectives
         return minimizer(self.objective, self.model.params, **minimizer_options)
 
-    def _init_constraints(self, constraints):
+    def _init_constraints(self, constraints, model):
         """
         Takes the user provided constraints and converts them to a list of
-        :class:`~symfit.core.fit.Constraint` objects.
+        ``type(model)`` objects, which are extended to also have the
+         parameters of ``model``.
 
         :param constraints: iterable of :class:`~sympy.core.relational.Relation`
             objects.
         :return: list of :class:`~symfit.core.fit.Constraint` objects.
         """
         con_models = []
-        if constraints:
-            for constraint in constraints:
-                if isinstance(constraint, Constraint):
-                    con_models.append(constraint)
-                else:
-                    con_models.append(Constraint(constraint, self.model))
-            # Check if the type of each constraint is allowed.
-            allowed_types = [sympy.Eq, sympy.Ge, sympy.Le]
-            for index in range(len(con_models)):
-                constraint = con_models[index]
-                if constraint.constraint_type not in allowed_types:
-                    raise ModelError(
-                        'Only constraints of the type {} are allowed. A constraint'
-                        ' of type {} was provided.'.format(allowed_types,
-                                                           constraint.constraint_type)
+        for constraint in constraints:
+            if hasattr(constraint, 'constraint_type'):
+                con_models.append(constraint)
+            else:
+                if isinstance(model, BaseNumericalModel):
+                    # Numerical models need to be provided with a connectivity
+                    # mapping, so we cannot use the type of model. Instead,
+                    # use the bare minimum for an analytical model for the
+                    # constraint. ToDo: once GradientNumericalModel etc are
+                    # introduced, pick the corresponding analytical model for
+                    # the constraint.
+                    con_models.append(
+                        CallableModel.as_constraint(constraint, model)
                     )
-                elif constraint.constraint_type is sympy.Le:
-                    assert len(constraint) == 1
-                    for var in constraint:
-                        component = constraint[var]
-                        con_models[index] = Constraint(
-                            sympy.Ge(- component, 0),
-                            model=constraint.model
-                        )
+                else:
+                    con_models.append(
+                        model.__class__.as_constraint(constraint, model)
+                    )
         return con_models
 
     def execute(self, **minimize_options):
@@ -1577,219 +1436,6 @@ class Fit(HasCovarianceMatrix):
         minimizer_ans.gof_qualifiers['r_squared'] = r_squared(self.model, minimizer_ans, self.data)
         return minimizer_ans
 
-# class LagrangeMultipliers:
-#     """
-#     Class to analytically solve a function subject to constraints using Karush Kuhn Tucker.
-#     http://en.wikipedia.org/wiki/Karush-Kuhn-Tucker_conditions
-#     """
-#
-#     def __init__(self, model, constraints):
-#         self.model = model
-#         # Seperate the constraints into equality and inequality constraint of the type <=.
-#         self.equalities, self.lesser_thans = self.seperate_constraints(constraints)
-#         self.model.vars, self.model.params = seperate_symbols(self.model)
-#
-#     @property
-#     @cache
-#     def lagrangian(self):
-#         L = self.model
-#
-#         # Add equility constraints to the Lagrangian
-#         for constraint, l_i in zip(self.equalities, self.l_params):
-#             L += l_i * constraint
-#
-#         # Add inequility constraints to the Lagrangian
-#         for constraint, u_i in zip(self.lesser_thans, self.u_params):
-#             L += u_i * constraint
-#
-#         return L
-#
-#     @property
-#     @cache
-#     def l_params(self):
-#         """
-#         :return: Lagrange multipliers for every constraint.
-#         """
-#         return [Parameter(name='l_{}'.format(index)) for index in range(len(self.equalities))]
-#
-#     @property
-#     @cache
-#     def u_params(self):
-#         """
-#         :return: Lagrange multipliers for every inequality constraint.
-#         """
-#         return [Parameter(name='u_{}'.format(index)) for index in range(len(self.lesser_thans))]
-#
-#     @property
-#     @cache
-#     def all_params(self):
-#         """
-#         :return: All parameters. The convention is first the model parameters,
-#         then lagrange multipliers for equality constraints, then inequility.
-#         """
-#         return self.model.params + self.l_params + self.u_params
-#
-#     @property
-#     @cache
-#     def extrema(self):
-#         """
-#         :return: list namedtuples of all extrema of self.model, where value = f(x1, ..., xn).
-#         """
-#         # Prepare the Extremum namedtuple for this number of variables.
-#         field_names = [p.name for p in self.model.params] + ['value']
-#         Extremum = namedtuple('Extremum', field_names)
-#
-#         # Calculate the function value at each solution.
-#         values = [self.model.subs(sol) for sol in self.solutions]
-#
-#         # Build the output list of namedtuples
-#         extrema_list = []
-#         for value, solution in zip(values, self.solutions):
-#             # Prepare an Extrumum tuple for every extremum.
-#             ans = {'value': value}
-#             for param in self.model.params:
-#                 ans[param.name] = solution[param]
-#             extrema_list.append(Extremum(**ans))
-#         return extrema_list
-#
-#     @property
-#     @cache
-#     def solutions(self):
-#         """
-#         Do analytical optimization. This finds ALL solutions for the system.
-#         Nomenclature: capital L is the Lagrangian, l the Lagrange multiplier.
-#         :return: a list of dicts containing the values for all parameters,
-#         including the Lagrange multipliers l_i and u_i.
-#         """
-#         # primal feasibility; pretend they are all equality constraints.
-#         grad_L = [sympy.diff(self.lagrangian, p) for p in self.all_params]
-#         solutions = sympy.solve(grad_L, self.all_params, dict=True)
-#         print(grad_L, solutions, self.all_params)
-#
-#         if self.u_params:
-#             # The smaller than constraints also have trivial solutions when u_i == 0.
-#             # These are not automatically found by sympy in the previous process.
-#             # Therefore we must now evaluate the gradient for these points manually.
-#             u_zero = dict((u_i, 0) for u_i in self.u_params)
-#             # We need to consider all combinations of u_i == 0 possible, of all lengths possible.
-#             for number_of_zeros in range(1, len(u_zero) + 1):
-#                 for zeros in itertools.combinations(u_zero.items(), number_of_zeros):  # zeros is a tuple of (Symbol, 0) tuples.
-#                     # get a unique set of symbols.
-#                     symbols = set(self.all_params) - set(symbol for symbol, _ in zeros)
-#                     # differentiate w.r.t. these symbols only.
-#                     relevant_grad_L = [sympy.diff(self.lagrangian, p) for p in symbols]
-#
-#                     solution = sympy.solve([grad.subs(zeros) for grad in relevant_grad_L], symbols, dict=True)
-#                     for item in solution:
-#                         item.update(zeros)  # include the zeros themselves.
-#
-#                     solutions += solution
-#
-#         return self.sanitise(solutions)
-#
-#     def sanitise(self, solutions):
-#         """
-#         Returns only solutions which are valid. This is an unfortunate consequence of the KKT method;
-#         KKT parameters are not guaranteed to respect each other. However, it is easy to check this.
-#         There are two things to check:
-#         - all KKT parameters should be greater equal zero.
-#         - all constraints should be met by the solutions.
-#         :param solutions: a list of dicts, where each dict contains the coordinates of a saddle point of the lagrangian.
-#         :return: bool
-#         """
-#         # All the inequality multipliers u_i must be greater or equal 0
-#         final_solutions = []
-#         for saddle_point in solutions:
-#             for u_i in self.u_params:
-#                 if saddle_point[u_i] < 0:
-#                     break
-#             else:
-#                 final_solutions.append(saddle_point)
-#
-#         # we have to dubble check all if all our conditions are met because
-#         # This is not garanteed with inequility constraints.
-#         solutions = []
-#         for solution in final_solutions:
-#             for constraint in self.lesser_thans:
-#                 test = constraint.subs(solution)
-#                 if test > 0:
-#                     break
-#             else:
-#                 solutions.append(solution)
-#
-#         return solutions
-#
-#
-#
-#     @staticmethod
-#     def seperate_constraints(constraints):
-#         """
-#         We follow the definitions given here:
-#         http://en.wikipedia.org/wiki/Karush-Kuhn-Tucker_conditions
-#
-#         IMPORTANT: <= and < are considered the same! The same goes for > and >=.
-#         Strict inequalities of the type != are not currently supported.
-#
-#         :param constraints list: list of constraints.
-#         :return: g_i are <= 0 constraints, h_j are equals 0 constraints.
-#         """
-#         equalities = []
-#         lesser_thans = []
-#         for constraint in constraints:
-#             if isinstance(constraint, sympy.Eq):
-#                 equalities.append(constraint.lhs - constraint.rhs)
-#             elif isinstance(constraint, (sympy.Le, sympy.Lt)):
-#                 lesser_thans.append(constraint.lhs - constraint.rhs)
-#             elif isinstance(constraint, (sympy.Ge, sympy.Gt)):
-#                 lesser_thans.append(-1 * (constraint.lhs - constraint.rhs))
-#             else:
-#                 raise TypeError('Constraints of type {} are not supported by this solver.'.format(type(constraint)))
-#         return equalities, lesser_thans
-#
-# class ConstrainedFit(BaseFit):
-#     """
-#     Finds the analytical best fit parameters, combining data with LagrangeMultipliers
-#     for the best result, if available.
-#     """
-#     def __init__(self, model, x, y, constraints=None, *args, **kwargs):
-#         constraints = constraints if constraints is not None else []
-#         value = Variable()
-#         chi2 = (model - value)**2
-#         self.analytic_fit = LagrangeMultipliers(chi2, constraints)
-#         self.xdata = x
-#         self.ydata = y
-#         super(ConstrainedFit, self).__init__(chi2)
-#
-#     def execute(self):
-#         print('here:', self.analytic_fit.solutions)
-#         import inspect
-#         for extremum in self.analytic_fit.extrema:
-#             popt, pcov  = [], []
-#             for param in self.model.params:
-#                 # Retrieve the expression for this param.
-#                 expr = getattr(extremum, param.name)
-#                 py_expr = sympy_to_py(expr, self.model.vars, [])
-#                 values = py_expr(*self.xdata)
-#                 popt.append(np.average(values))
-#                 pcov.append(np.var(values, ddof=len(self.model.vars)))
-#             print(popt, pcov)
-#
-#             residuals = self.scipy_func(self.xdata, popt)
-#
-#             fit_results = FitResults(
-#                 params=self.model.params,
-#                 popt=popt,
-#                 pcov=pcov,
-#                 infodic={},
-#                 mesg='',
-#                 ier=0,
-#                 r_squared=r_squared(residuals, self.ydata),
-#             )
-#             print(fit_results)
-#         print(self.analytic_fit.extrema)
-#
-#     def error(self, p, func, x, y):
-#         pass
 
 def r_squared(model, fit_result, data):
     """
@@ -1810,7 +1456,7 @@ def r_squared(model, fit_result, data):
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
     return 1 - SS_res/SS_tot
 
-class ODEModel(CallableModel):
+class ODEModel(BaseGradientModel):
     """
     Model build from a system of ODEs. When the model is called, the ODE is
     integrated using the LSODA package.
@@ -1839,6 +1485,7 @@ class ODEModel(CallableModel):
             key=sort_func
         )
         self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
+        self.interdependent_vars = []  # TODO: add this support for ODEModels
         if not len(self.independent_vars):
             raise ModelError('ODEModel can only have one independent variable.')
 
@@ -2036,7 +1683,88 @@ class ODEModel(CallableModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        bound_arguments = self.__signature__.bind(*args, **kwargs)
-        Ans = namedtuple('Ans', [var.name for var in self])
-        ans = Ans(*self.eval_components(**bound_arguments.arguments))
+        Ans = variabletuple('Ans', self)
+        ans = Ans(*self.eval_components(*args, **kwargs))
         return ans
+
+
+def _partial_diff(var, *params):
+    """
+    Sympy does not handle repeated partial derivation correctly, e.g.
+    D(D(y, a), a) = D(y, a, a) but D(D(y, a), b) = 0.
+    Use this function instead to prevent evaluation to zero.
+    """
+    if isinstance(var, sympy.Derivative):
+        return sympy.Derivative(var.expr, *(var.variables + params))
+    else:
+        return D(var, *params)
+
+def _partial_subs(func, func2vars):
+    """
+    Partial-bug proof substitution. Works by making the substitutions on
+    the expression inside the derivative first, and then rebuilding the
+    derivative safely without evaluating it using `_partial_diff`.
+    """
+    if isinstance(func, sympy.Derivative):
+        new_func = func.expr.xreplace(func2vars)
+        new_variables = tuple(var.xreplace(func2vars)
+                              for var in func.variables)
+        return _partial_diff(new_func, *new_variables)
+    else:
+        return func.xreplace(func2vars)
+
+def jacobian_from_model(model, as_functions=False):
+    """
+    Build a :class:`~symfit.core.fit.CallableModel` representing the Jacobian of
+    ``model``.
+
+    This function make sure the chain rule is correctly applied for
+    interdependent variables.
+
+    :param model: Any symbolical model-type.
+    :param as_functions: If `True`, the result is returned using
+        :class:`sympy.core.function.Function` where needed, e.g.
+        ``{y(x, a): a * x}`` instead of ``{y: a * x}``.
+    :return: :class:`~symfit.core.fit.CallableModel` representing the Jacobian
+        of ``model``.
+    """
+    # Inverse dict so we can turn functions back into vars in the end
+    functions_as_vars = dict((v, k) for k, v in model.vars_as_functions.items())
+    # Create the jacobian components. The `vars` here in the model_dict are
+    # always of the type D(y, a), but the righthand-side might still contain
+    # functions instead of vars depending on the value of `as_functions`.
+    jac = {}
+    for func, expr in model.function_dict.items():
+        for param in model.params:
+            target = D(func, param)
+            dfdp = expr.diff(param)
+            if as_functions:
+                jac[_partial_subs(target, functions_as_vars)] = dfdp
+            else:
+                # Turn Function objects back into Variables.
+                dfdp = dfdp.subs(functions_as_vars, evaluate=False)
+                jac[_partial_subs(target, functions_as_vars)] = dfdp
+    # Next lines are needed for the Hessian, where the components of model still
+    # contain functions instead of vars.
+    if as_functions:
+        jac.update(model)
+    else:
+        jac.update({y: expr.subs(functions_as_vars, evaluate=False)
+                    for y, expr in model.items()})
+    jacobian_model = CallableModel(jac)
+    return jacobian_model
+
+def hessian_from_model(model):
+    """
+    Build a :class:`~symfit.core.fit.CallableModel` representing the Hessian of
+    ``model``.
+
+    This function make sure the chain rule is correctly applied for
+    interdependent variables.
+
+    :param model: Any symbolical model-type.
+    :return: :class:`~symfit.core.fit.CallableModel` representing the Hessian
+        of ``model``.
+    """
+    jac_model = jacobian_from_model(model, as_functions=True)
+    return jacobian_from_model(jac_model)
