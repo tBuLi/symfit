@@ -81,7 +81,7 @@ class TestObjectives(unittest.TestCase):
             x: xdata, y: ydata, model.sigmas[y]: np.ones_like(xdata)
         })
         chi2_exact = Model(
-            {X2: FlattenSum(((a * x ** 2 + b * x) - y) ** 2, i)})
+            {X2: FlattenSum(0.5 * ((a * x ** 2 + b * x) - y) ** 2, i)})
 
         eval_exact = chi2_exact(x=xdata, y=ydata, a=2, b=3)
         jac_exact = chi2_exact.eval_jacobian(x=xdata, y=ydata, a=2, b=3)
@@ -118,12 +118,9 @@ class TestObjectives(unittest.TestCase):
         fit_num_result = fit.execute()
         self.assertEqual(fit_exact_result.value(a), fit_num_result.value(a))
         self.assertEqual(fit_exact_result.value(b), fit_num_result.value(b))
-        # For MinimizeModel objectives the inverse hessian is returned as the
-        # covariance matrix. This is correct up to a factor of sqrt(2) in the
-        # case of a chi2.
-        self.assertAlmostEqual(np.sqrt(2) * fit_exact_result.stdev(a),
+        self.assertAlmostEqual(fit_exact_result.stdev(a),
                                fit_num_result.stdev(a))
-        self.assertAlmostEqual(np.sqrt(2) * fit_exact_result.stdev(b),
+        self.assertAlmostEqual(fit_exact_result.stdev(b),
                                fit_num_result.stdev(b))
 
 

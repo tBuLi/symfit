@@ -1131,15 +1131,11 @@ class HasCovarianceMatrix(TakesData):
         except np.linalg.LinAlgError:
             return None
 
-        if isinstance(objective, LogLikelihood):
-            # Loglikelihood is a special case that needs to be considered
-            # separately, see #138.
-            return hess_inv
-        elif isinstance(objective, LeastSquares):
+        if isinstance(objective, LeastSquares):
             # Calculate the covariance for a least squares method.
             # https://www8.cs.umu.se/kurser/5DA001/HT07/lectures/lsq-handouts.pdf
             # Residual sum of squares
-            rss = objective(**key2str(best_fit_params))
+            rss = 2 * objective(**key2str(best_fit_params))
             # Degrees of freedom
             raw_dof = np.sum([np.product(shape) for shape in self.data_shapes[1]])
             dof = raw_dof - len(self.model.params)
@@ -1148,12 +1144,11 @@ class HasCovarianceMatrix(TakesData):
                 s2 = 1
             else:
                 s2 = rss / dof
-            # Multiply by two because the source uses different normalization
-            # ToDo: divide by two in the objective instead
-            cov_mat = 2 * s2 * hess_inv
+            cov_mat = s2 * hess_inv
             return cov_mat
         else:
-            # We do not know how to handle with this situation.
+            # The inverse hessian is the covariance matrix for Loglikelihood and
+            # also for objectives in general.
             return hess_inv
 
     def covariance_matrix(self, best_fit_params):

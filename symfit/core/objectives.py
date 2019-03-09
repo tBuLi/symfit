@@ -231,7 +231,15 @@ class VectorLeastSquares(GradientObjective):
 
 class LeastSquares(HessianObjective):
     """
-    Objective representing the :math:`\chi^2` of a model.
+    Objective representing the least-squares deviation of a model, defined as
+    :math:`\frac{1}{2} \sum_{i} \sum{x_i} \frac{r_i(x_i)^2}{\sigma_i(x_i)^2}`,
+    where :math:`i` sums over all components of the model, :math:`x_i`
+    indicates all the data associated with the :math:`i`-th component, and
+    :math:`\sigma_i(x_i)` indicates the associated standard deviations.
+
+    The data for each component does not have to be the same, and it does not
+    have to have the same shape. The only thing that matters is that within each
+    component the shapes have to be compatible.
     """
     @keywordonly(flatten_components=True)
     def __call__(self, ordered_parameters=[], **parameters):
@@ -258,7 +266,7 @@ class LeastSquares(HessianObjective):
                     (dep_var_value - dep_data) ** 2 / sigma ** 2
                 )
         chi2 = np.sum(chi2) if flatten_components else chi2
-        return chi2
+        return chi2 / 2
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
@@ -285,7 +293,7 @@ class LeastSquares(HessianObjective):
                 sigma = self.sigma_data[sigma_var]
                 pre_sum = jac_comp * ((y - f) / sigma**2)[np.newaxis, ...]
                 axes = tuple(range(1, len(pre_sum.shape)))
-                result -= 2 * np.sum(pre_sum, axis=axes, keepdims=False)
+                result -= np.sum(pre_sum, axis=axes, keepdims=False)
         return np.atleast_1d(np.squeeze(np.array(result)))
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
@@ -321,7 +329,7 @@ class LeastSquares(HessianObjective):
                 p2 = p2 / sigma[np.newaxis, np.newaxis, ...]**2
                 # We sum away everything except the matrices in the axes 0 & 1.
                 axes = tuple(range(2, len(p2.shape)))
-                result += 2 * np.sum(p2 - p1, axis=axes, keepdims=False)
+                result += np.sum(p2 - p1, axis=axes, keepdims=False)
         return np.atleast_2d(np.squeeze(np.array(result)))
 
 
