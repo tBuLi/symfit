@@ -68,7 +68,7 @@ class TestGlobalOptGaussian(unittest.TestCase):
         # On to the main event
         fit = Fit(self.model, self.xx, self.yy, self.ydata,
                   minimizer=DifferentialEvolution)
-        fit_result = fit.execute(polish=True, seed=0, tol=1e-4, maxiter=50)
+        fit_result = fit.execute(polish=True, seed=0, tol=1e-4, maxiter=100)
         # Global minimizers are really bad at finding local minima though, so
         # roughly equal is good enough.
         self.assertAlmostEqual(fit_result.value(self.x0_1), 0.4, 1)

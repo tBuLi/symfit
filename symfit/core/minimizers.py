@@ -2,7 +2,9 @@ import abc
 import sys
 from collections import namedtuple, Counter
 
-from scipy.optimize import minimize, differential_evolution, basinhopping, NonlinearConstraint
+from scipy.optimize import (
+    minimize, differential_evolution, basinhopping, NonlinearConstraint
+)
 from scipy.optimize import BFGS as soBFGS
 import sympy
 import numpy as np
@@ -46,7 +48,7 @@ class BaseMinimizer(object):
         default.
 
         :param func: Callable. If already an instance of BaseObjective, it is
-            returned immidiatelly. If not, it is turned into a BaseObjective of
+            returned immediately. If not, it is turned into a BaseObjective of
             type ``objective_type``.
         :param objective_type:
         :return:
@@ -57,12 +59,17 @@ class BaseMinimizer(object):
             # are still considered correct, and not doubly wrapped.
             return func
         else:
-            # Minimize the provided custom objective instead. This why want to
-            # minimize a CallableNumericalModel, thats what they are for.
-            from .fit import CallableNumericalModel
-            model = CallableNumericalModel(func,
-                                           params=self.parameters,
-                                           independent_vars=[])
+            from .fit import CallableNumericalModel, BaseModel
+            if isinstance(func, BaseModel):
+                model = func
+            else:
+                # Minimize the provided custom objective instead. We therefore
+                # wrap it into a CallableNumericalModel, thats what they are for
+                y = sympy.Dummy()
+                model = CallableNumericalModel(
+                    {y: func},
+                    connectivity_mapping={y: set(self.parameters)}
+                )
             return objective_type(model,
                                   data={y: None for y in model.dependent_vars})
 
@@ -328,10 +335,6 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`. Note that your `method` will
             usually be filled by a specific subclass.
         """
-        # TODO: Find a better place for this.
-        if bounds is None and isinstance(self, BoundedMinimizer):
-            bounds = self.bounds
-
         ans = minimize(
             self.objective,
             self.initial_guesses,
@@ -411,10 +414,22 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     def scipy_constraints(self, constraints):
         cons = super(ScipyGradientMinimize, self).scipy_constraints(constraints)
         for con in cons:
-            # FIXME: Just assume that because the objective has a jac, so do
-            # all the constraints
-            con['jac'] = self.resize_jac(con['fun'].eval_jacobian)
+            # Only if the model has a jacobian, does it make sense to pass one
+            # to the minimizer
+            if hasattr(con['fun'].model, 'eval_jacobian'):
+                con['jac'] = self.resize_jac(con['fun'].eval_jacobian)
+            else:
+                con['jac'] = None
         return cons
+
+
+class ScipyBoundedMinimizer(ScipyMinimize, BoundedMinimizer):
+    """
+    Base class for :func:`scipy.optimize.minimize`'s bounded-minimizers.
+    """
+    def execute(self, **minimize_options):
+        return super(ScipyBoundedMinimizer, self).execute(bounds=self.bounds,
+                                                          **minimize_options)
 
 
 class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
@@ -433,11 +448,15 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
 
     def scipy_constraints(self, constraints):
         cons = super(ScipyHessianMinimize, self).scipy_constraints(constraints)
-        # FIXME: Just assume that because the objective has a hess, so do
-        # all the constraints
         for con in cons:
-            con['hess'] = self.resize_hess(con['fun'].eval_hessian)
+            # Only if the model has a hessian, does it make sense to pass one
+            # to the minimizer
+            if hasattr(con['fun'].model, 'eval_hessian'):
+                con['hess'] = self.resize_hess(con['fun'].eval_hessian)
+            else:
+                con['hess'] = None
         return cons
+
 
 class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
     """
@@ -456,7 +475,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
 
         :param constraints: List of either MinimizeModel instances (this is what
           is provided by :class:`~symfit.core.fit.Fit`),
-          :class:`~symfit.core.fit.Constraint`, or
+          :class:`~symfit.core.fit.BaseModel`, or
           :class:`sympy.core.relational.Relational`.
         :return: dict of scipy compatible statements.
         """
@@ -470,23 +489,18 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
                 # Typically the case when called by `Fit
                 constraint_type = constraint.model.constraint_type
             elif hasattr(constraint, 'constraint_type'):
-                # Constraint object, not provided by `Fit`. Do the best we can.
+                # Model object, not provided by `Fit`. Do the best we can.
                 if self.parameters != constraint.params:
                     raise AssertionError('The constraint should accept the same'
                                          ' parameters as used for the fit.')
                 constraint_type = constraint.constraint_type
-                constraint = MinimizeModel(constraint, data={})
+                constraint = MinimizeModel(constraint, data=self.objective.data)
             elif isinstance(constraint, sympy.Rel):
-                from .fit import Constraint, CallableNumericalModel
-                # Todo: remove this CallableNumericalModel work around when
-                # either Constraint-obj are removed or a params arg is added.
-                constraint = Constraint(
-                    constraint,
-                    CallableNumericalModel({}, params=self.parameters,
-                                           independent_vars=[])
+                constraint_type = constraint.__class__
+                constraint = self.objective.model.__class__.as_constraint(
+                    constraint, self.objective.model
                 )
-                constraint_type = constraint.constraint_type
-                constraint = MinimizeModel(constraint, data={})
+                constraint = MinimizeModel(constraint, data=self.objective.data)
             else:
                 raise TypeError('Unknown type for a constraint.')
             con = {
@@ -504,7 +518,7 @@ class BFGS(ScipyGradientMinimize):
     """
 
 
-class SLSQP(ScipyGradientMinimize, ScipyConstrainedMinimize, BoundedMinimizer):
+class SLSQP(ScipyGradientMinimize, ScipyConstrainedMinimize, ScipyBoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s SLSQP algorithm.
     """
@@ -515,7 +529,7 @@ class COBYLA(ScipyConstrainedMinimize, BaseMinimizer):
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
 
-class LBFGSB(ScipyGradientMinimize, BoundedMinimizer):
+class LBFGSB(ScipyGradientMinimize, ScipyBoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s LBFGSB algorithm.
     """
@@ -536,7 +550,7 @@ class Powell(ScipyMinimize, BaseMinimizer):
     Wrapper around :func:`scipy.optimize.minimize`'s Powell algorithm.
     """
 
-class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimizer):
+class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, ScipyBoundedMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s Trust-Constr algorithm.
     """
@@ -554,6 +568,7 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
         :return: tuple of jacobian_method, hessian_method
         """
         if self.jacobian is not None and self.hessian is None:
+            jacobian = None
             hessian = 'cs'
         elif self.jacobian is None and self.hessian is None:
             jacobian = 'cs'
@@ -565,18 +580,22 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
 
     def scipy_constraints(self, constraints):
         cons = super(TrustConstr, self).scipy_constraints(constraints)
-        # TODO: If no hessian/jac for this model, assume no hessian/jac for the
-        # constraints, and do things with self._get_jacobian_hessian_strategy
         out = []
         for con in cons:
             if con['type'] == 'eq':
                 ub = 0
             else:
                 ub = np.inf
-            tc_con = NonlinearConstraint(
-                fun=con['fun'], lb=0, ub=ub, jac=con['jac'],
-                hess=lambda x, v: con['hess'](x) * v,
-            )
+
+            nonlinearconstr_kwargs = {
+                'fun': con['fun'], 'lb': 0, 'ub': ub,
+            }
+            # If None is given to NonlinearConstraint it'll throw a hissy fit.
+            if con['hess'] is not None:
+                nonlinearconstr_kwargs['hess'] = lambda x, v: con['hess'](x) * v
+            if con['jac'] is not None:
+                nonlinearconstr_kwargs['jac'] = con['jac']
+            tc_con = NonlinearConstraint(**nonlinearconstr_kwargs)
             out.append(tc_con)
         return out
 
@@ -614,7 +633,7 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, BoundedMinimiz
                                                 hessian=hessian,
                                                 **minimize_options)
 
-class DifferentialEvolution(ScipyMinimize, GlobalMinimizer, BoundedMinimizer):
+class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
     """
     A wrapper around :func:`scipy.optimize.differential_evolution`.
     """
@@ -724,7 +743,7 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
         return self._pack_output(ans)
 
 
-class MINPACK(ScipyMinimize, GradientMinimizer, BoundedMinimizer):
+class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
     """
     Wrapper to scipy's implementation of MINPACK, since it is the industry
     standard.
