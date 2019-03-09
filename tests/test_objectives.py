@@ -184,10 +184,10 @@ class TestObjectives(unittest.TestCase):
         fit_exact_result = fit.execute()
         fit = Fit(logL_model, x=xdata, objective=LogLikelihood)
         fit_num_result = fit.execute()
-        self.assertEqual(fit_exact_result.value(a), fit_num_result.value(a))
-        self.assertEqual(fit_exact_result.value(b), fit_num_result.value(b))
-        self.assertEqual(fit_exact_result.stdev(a), fit_num_result.stdev(a))
-        self.assertEqual(fit_exact_result.stdev(b), fit_num_result.stdev(b))
+        self.assertAlmostEqual(fit_exact_result.value(a), fit_num_result.value(a))
+        self.assertAlmostEqual(fit_exact_result.value(b), fit_num_result.value(b))
+        self.assertAlmostEqual(fit_exact_result.stdev(a), fit_num_result.stdev(a))
+        self.assertAlmostEqual(fit_exact_result.stdev(b), fit_num_result.stdev(b))
 
 
 

@@ -737,7 +737,7 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
     @cached_property
     def numerical_components(self):
         return [expr if not isinstance(expr, sympy.Expr) else
-                sympy_to_py(expr, self.connectivity_mapping[var], [])
+                sympy_to_py(expr, self.connectivity_mapping[var])
                 for var, expr in self.items()]
 
 
@@ -765,7 +765,7 @@ class CallableModel(BaseCallableModel):
             # vars first, then params, and alphabetically within each group
             key = lambda arg: [isinstance(arg, Parameter), str(arg)]
             ordered = sorted(dependencies, key=key)
-            components.append(sympy_to_py(expr, ordered, []))
+            components.append(sympy_to_py(expr, ordered))
         return Ans(*components)
 
 
@@ -1574,7 +1574,7 @@ class ODEModel(BaseGradientModel):
             but to `D(y, t) = ...`. The system spanned by these component
             therefore still needs to be integrated.
         """
-        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars, self.params)
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars + self.params)
                 for expr in self.values()]
 
     @cached_property
@@ -1591,7 +1591,7 @@ class ODEModel(BaseGradientModel):
         """
         return [
             [sympy_to_py(
-                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars, self.params
+                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars + self.params
                 ) for var in self.dependent_vars
             ] for _, expr in self.items()
         ]
