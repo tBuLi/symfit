@@ -377,6 +377,8 @@ class ScipyMinimize(object):
             mesg=ans.message,
             ier=ans.nit if hasattr(ans, 'nit') else None,
             objective_value=ans.fun,
+            objective=self.objective,
+            minimizer=self
         )
 
         if 'hess_inv' in ans:
@@ -773,6 +775,8 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
             mesg=mesg,
             ier=ier,
             chi_squared=np.sum(infodic['fvec']**2),
+            objective=self.objective,
+            minimizer=self
         )
 
         return FitResults(**fit_results)

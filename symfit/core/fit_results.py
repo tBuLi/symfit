@@ -16,7 +16,7 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.fit.Model`'s.
     """
-    def __init__(self, model, popt, covariance_matrix, infodic, mesg, ier, **gof_qualifiers):
+    def __init__(self, model, popt, covariance_matrix, infodic, mesg, ier, minimizer, objective, **gof_qualifiers):
         """
         Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
 
@@ -26,6 +26,8 @@ class FitResults(object):
         :param infodic: dict with fitting info.
         :param mesg: Status message.
         :param ier: Number of iterations.
+        :param minimizer: Minimizer instance used.
+        :param objective: Objective function which was optimized.
         :param gof_qualifiers: Any remaining keyword arguments should be
           Goodness of fit (g.o.f.) qualifiers.
         """
@@ -35,6 +37,8 @@ class FitResults(object):
         self.iterations = ier
         self.model = model
         self.gof_qualifiers = gof_qualifiers
+        self.minimizer = minimizer
+        self.objective = objective
 
         self._popt = popt
         self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
@@ -55,6 +59,8 @@ class FitResults(object):
 
         res += 'Fitting status message: {}\n'.format(self.status_message)
         res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
+        res += 'Objective:              {}\n'.format(self.objective)
+        res += 'Minimizer               {}\n'.format(self.minimizer)
         try:
             res += 'Regression Coefficient: {}\n'.format(self.r_squared)
         except AttributeError:
@@ -135,7 +141,10 @@ class FitResults(object):
         """
         for key in one_dict:
             try:
-                assert one_dict[key] == other_dict[key]
+                if key == 'objective' or key == 'minimizer':
+                    assert one_dict[key].__class__ == other_dict[key].__class__
+                else:
+                    assert one_dict[key] == other_dict[key]
             except ValueError as err:
                 # When dealing with arrays, we need to use numpy for comparison
                 if isinstance(one_dict[key], dict):
