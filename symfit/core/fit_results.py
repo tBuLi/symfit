@@ -10,20 +10,19 @@ class FitResults(object):
     - R squared (Regression coefficient.) or other fit quality qualifiers.
     - fitting status message
     - covariance matrix
+    - objective and minimizer used.
 
     Contains the attribute `params`, which is an
     :class:`~collections.OrderedDict` containing all the parameter names and
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.fit.Model`'s.
     """
-    def __init__(self, model, popt, covariance_matrix, infodic, mesg, ier, minimizer, objective, **gof_qualifiers):
+    def __init__(self, model, popt, covariance_matrix, infodict, mesg, ier, minimizer, objective, **gof_qualifiers):
         """
-        Excuse the ugly names of most of these variables, they are inherited from scipy. Will be changed.
-
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param pcov: covariance matrix.
-        :param infodic: dict with fitting info.
+        :param infodict: dict with fitting info.
         :param mesg: Status message.
         :param ier: Number of iterations.
         :param minimizer: Minimizer instance used.
@@ -32,7 +31,7 @@ class FitResults(object):
           Goodness of fit (g.o.f.) qualifiers.
         """
         # Validate the types in rough way
-        self.infodict = infodic
+        self.infodict = infodict
         self.status_message = mesg
         self.iterations = ier
         self.model = model
