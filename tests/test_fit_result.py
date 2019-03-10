@@ -8,46 +8,36 @@ from collections import OrderedDict
 import numpy as np
 from symfit import Variable, Parameter, Fit, FitResults, GradientModel
 from symfit.distributions import Gaussian, BivariateGaussian
-from symfit.core.minimizers import MINPACK
+from symfit.core.minimizers import MINPACK, BaseMinimizer
+from symfit.core.objectives import BaseObjective
 
 class TestFitResults(unittest.TestCase):
     """
     Tests for the FitResults object.
     """
+    def setUp(self):
+        xdata = np.linspace(1, 10, 10)
+        ydata = 3 * xdata ** 2
 
-    def test_read_only_results(self):
-        """
-        Fit results should be read-only. Let's try to break this!
-        """
-        xdata = np.linspace(1,10,10)
-        ydata = 3*xdata**2
-
-        a = Parameter(value=3.0, min=2.75)
-        b = Parameter(value=2.0, max=2.75)
+        a = Parameter('a')  # 3.1, min=2.5, max=3.5
+        b = Parameter('b')
         x = Variable('x')
-        new = a*x**b
+        y = Variable('y')
+        new = {y: a * x ** b}
+        self.params = [a, b]
 
-        fit = Fit(new, xdata, ydata)
-        # raise Exception(fit.partial_chi(3, 2), [component(3, 2) for component in fit.partial_chi_jacobian])
-        # raise Exception(fit.model.chi_jacobian)
-        fit_result = fit.execute()
+        fit = Fit(new, x=xdata, y=ydata)
+        self.fit_result = fit.execute()
 
-        self.assertTrue(isinstance(fit_result.params, OrderedDict))
-        # Should no longer be read-only, so setable. Should not raise an error
-        fit_result.params = 'hello'
-        self.assertTrue(isinstance(fit_result.params, str))
+    def test_params_type(self):
+        """
+        FitResults.params should be an OrderedDict
+        """
+        self.assertTrue(isinstance(self.fit_result.params, OrderedDict))
 
     def test_fitting(self):
-        xdata = np.linspace(1,10,10)
-        ydata = 3*xdata**2
-
-        a = Parameter() #3.1, min=2.5, max=3.5
-        b = Parameter()
-        x = Variable()
-        new = a*x**b
-
-        fit = Fit(new, xdata, ydata, minimizer=MINPACK)
-        fit_result = fit.execute()
+        a, b = self.params
+        fit_result = self.fit_result
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.value(a), 3.0)
         self.assertAlmostEqual(fit_result.value(b), 2.0)
@@ -56,14 +46,8 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(fit_result.stdev(b), float)
 
         self.assertIsInstance(fit_result.r_squared, float)
-        self.assertEqual(fit_result.r_squared, 1.0)  # by definition since there's no fuzzyness
-
-        # Test several illegal ways to access the data.
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_fdska'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'c'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_stdev'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
+        # by definition since there's no fuzzyness
+        self.assertEqual(fit_result.r_squared, 1.0)
 
     def test_fitting_2(self):
         np.random.seed(43)
@@ -131,26 +115,16 @@ class TestFitResults(unittest.TestCase):
 
     def test_minimizer_included(self):
         """"The minimizer used should be included in the results."""
-        return NotImplementedError()
+        self.assertIsInstance(self.fit_result.minimizer, BaseMinimizer)
 
     def test_objective_included(self):
         """"The objective used should be included in the results."""
-        return NotImplementedError()
+        self.assertIsInstance(self.fit_result.objective, BaseObjective)
 
     def test_pickle(self):
-        xdata = np.linspace(1, 10, 10)
-        ydata = 3 * xdata ** 2
-
-        a = Parameter('a')  # 3.1, min=2.5, max=3.5
-        b = Parameter('b')
-        x = Variable('x')
-        y = Variable('y')
-        new = {y: a * x ** b}
-
-        fit = Fit(new, x=xdata, y=ydata)
-        fit_result = fit.execute()
-        new_result = pickle.loads(pickle.dumps(fit_result))
-        self.assertEqual(fit_result.__dict__.keys(), new_result.__dict__.keys())
+        new_result = pickle.loads(pickle.dumps(self.fit_result))
+        self.assertEqual(self.fit_result.__dict__.keys(),
+                         new_result.__dict__.keys())
 
 if __name__ == '__main__':
     unittest.main()
