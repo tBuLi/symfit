@@ -1,14 +1,12 @@
 from __future__ import division, print_function
 import unittest
 import pickle
-import sympy
-import types
 from collections import OrderedDict
 
 import numpy as np
-from symfit import Variable, Parameter, Fit, FitResults, GradientModel
-from symfit.distributions import Gaussian, BivariateGaussian
-from symfit.core.minimizers import MINPACK, BaseMinimizer
+from symfit import Variable, Parameter, Fit, FitResults
+from symfit.distributions import BivariateGaussian
+from symfit.core.minimizers import BaseMinimizer
 from symfit.core.objectives import BaseObjective
 
 class TestFitResults(unittest.TestCase):
@@ -36,6 +34,9 @@ class TestFitResults(unittest.TestCase):
         self.assertTrue(isinstance(self.fit_result.params, OrderedDict))
 
     def test_fitting(self):
+        """
+        Test if the fitting worked in the first place.
+        """
         a, b = self.params
         fit_result = self.fit_result
         self.assertIsInstance(fit_result, FitResults)
