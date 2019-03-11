@@ -747,7 +747,7 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
         :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
         # These are the corresponding names for OptimizeResult
-        output_names = ['x', 'hess_inv', 'infodic', 'message', 'nit']
+        output_names = ['x', 'hess_inv', 'infodic', 'message', 'status']
         full_output = leastsqbound(
             self.objective,
             # Dfun=self.jacobian,
@@ -756,9 +756,10 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
             full_output=True,
             **minpack_options
         )
-        # TODO: unpack all information into OptRes correctly.
         ans = OptimizeResult(zip(output_names, full_output))
         ans['fun'] = ans.infodic['fvec']
+        ans['success'] = 1 <= ans.status <= 4  # These codes are successful
+        ans['nfev'] = ans.infodic['nfev']
 
         fit_results = dict(
             model=DummyModel(params=self.params),
