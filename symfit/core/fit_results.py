@@ -173,6 +173,17 @@ class FitResults(object):
     def __eq__(self, other):
         return FitResults._array_safe_dict_eq(self.__dict__, other.__dict__)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['minimizer'] = (type(state['minimizer']),
+                              state['minimizer'].objective,
+                              state['minimizer'].parameters)
+        return state
+
+    def __setstate__(self, state):
+        min_class, objective, parameters = state['minimizer']
+        state['minimizer'] = min_class(objective, parameters)
+        self.__dict__.update(state)
 
     def _gof_qualifiers(self):
         """
