@@ -5,7 +5,6 @@ import numpy as np
 from symfit.core.objectives import (
     LeastSquares, VectorLeastSquares, LogLikelihood
 )
-from symfit.core.support import cached_property
 
 class FitResults(object):
     """
@@ -28,8 +27,7 @@ class FitResults(object):
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param covariance_matrix: covariance matrix.
-        :param minimizer_output: Raw output as given by the minimizer. This is
-            assumed to be a :class:`~scipy.optimize.OptimizeResult` instance.
+        :param minimizer_output: Raw output as given by the minimizer.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
         """
@@ -45,18 +43,15 @@ class FitResults(object):
         self.covariance_matrix = covariance_matrix
         self.gof_qualifiers = self._gof_qualifiers()
 
-    @cached_property
+    @property
     def iterations(self):
-        if hasattr(self.minimizer_output, 'nit'):
-            return self.minimizer_output.nit
-        else:
-            return None
+        return self.minimizer_output.get('nit', None)
 
-    @cached_property
+    @property
     def status_message(self):
         return self.minimizer_output.message
 
-    @cached_property
+    @property
     def infodict(self):
         return self.minimizer_output.infodic
 
@@ -199,7 +194,6 @@ class FitResults(object):
 
         gof_qualifiers['objective_value'] = self.minimizer_output.fun
         if isinstance(self.objective, (LeastSquares, VectorLeastSquares)):
-            from symfit.core.fit import r_squared
             R2 = r_squared(self.objective.model, fit_result=self,
                            data=self.objective.data)
             gof_qualifiers['r_squared'] = R2
@@ -214,5 +208,25 @@ class FitResults(object):
         elif isinstance(self.objective, LogLikelihood):
             # We undo the minus sign we have included to maximize likelihood
             gof_qualifiers['log_likelihood'] = - gof_qualifiers['objective_value']
-            gof_qualifiers['likelihood'] = np.exp(- gof_qualifiers['objective_value'])
+            gof_qualifiers['likelihood'] = np.exp(gof_qualifiers['log_likelihood'])
         return gof_qualifiers
+
+
+def r_squared(model, fit_result, data):
+    """
+    Calculates the coefficient of determination, R^2, for the fit.
+
+    (Is not defined properly for vector valued functions.)
+
+    :param model: Model instance
+    :param fit_result: FitResults instance
+    :param data: data with which the fit was performed.
+    """
+    # First filter out the dependent vars
+    y_is = [data[var] for var in model if var in data]
+    x_is = [value for var, value in data.items() if var.name in model.__signature__.parameters]
+    y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
+    f_is = model(*x_is, **fit_result.params)
+    SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
+    SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
+    return 1 - SS_res/SS_tot
