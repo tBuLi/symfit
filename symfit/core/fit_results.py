@@ -29,7 +29,7 @@ class FitResults(object):
         :param popt: best fit parameters, same ordering as in model.params.
         :param covariance_matrix: covariance matrix.
         :param minimizer_output: Raw output as given by the minimizer. This is
-            assumed to be a :class:`~scipy.optimize.OptimizationResult` instance.
+            assumed to be a :class:`~scipy.optimize.OptimizeResult` instance.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
         """
