@@ -3,13 +3,14 @@ import sys
 from collections import namedtuple, Counter
 
 from scipy.optimize import (
-    minimize, differential_evolution, basinhopping, NonlinearConstraint
+    minimize, differential_evolution, basinhopping, NonlinearConstraint,
+    OptimizeResult
 )
 from scipy.optimize import BFGS as soBFGS
 import sympy
 import numpy as np
 
-from .support import key2str, keywordonly, partial
+from .support import keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
@@ -270,7 +271,7 @@ class ChainedMinimizer(BaseMinimizer):
         # TODO: Compile all previous results in one, instead of just the
         # number of function evaluations. But there's some code down the
         # line that expects scalars.
-        final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
+        final.minimizer_output['nit'] = sum(ans.iterations for ans in answers)
         return final
 
     def _make_signature(self):
@@ -356,11 +357,6 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`
         :returns: :class:`~symfit.core.fit_results.FitResults`
         """
-        # Build infodic
-        infodic = {
-            'nfev': ans.nfev,
-        }
-
         best_vals = []
         found = iter(np.atleast_1d(ans.x))
         for param in self.parameters:
@@ -373,19 +369,11 @@ class ScipyMinimize(object):
             model=DummyModel(params=self.parameters),
             popt=best_vals,
             covariance_matrix=None,
-            infodic=infodic,
-            mesg=ans.message,
-            ier=ans.nit if hasattr(ans, 'nit') else None,
-            objective_value=ans.fun,
+            minimizer_output=ans,
             objective=self.objective,
             minimizer=self
         )
 
-        if 'hess_inv' in ans:
-            try:
-                fit_results['hessian_inv'] = ans.hess_inv.todense()
-            except AttributeError:
-                fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
 
     @classmethod
@@ -758,7 +746,9 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
         """
         :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
-        popt, pcov, infodic, mesg, ier = leastsqbound(
+        # These are the corresponding names for OptimizeResult
+        output_names = ['x', 'hess_inv', 'infodic', 'message', 'nit']
+        full_output = leastsqbound(
             self.objective,
             # Dfun=self.jacobian,
             x0=self.initial_guesses,
@@ -766,15 +756,15 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
             full_output=True,
             **minpack_options
         )
+        # TODO: unpack all information into OptRes correctly.
+        ans = OptimizeResult(zip(output_names, full_output))
+        ans['fun'] = ans.infodic['fvec']
 
         fit_results = dict(
             model=DummyModel(params=self.params),
-            popt=popt,
+            popt=ans.x,
             covariance_matrix=None,
-            infodic=infodic,
-            mesg=mesg,
-            ier=ier,
-            chi_squared=np.sum(infodic['fvec']**2),
+            minimizer_output=ans,
             objective=self.objective,
             minimizer=self
         )

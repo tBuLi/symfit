@@ -4,10 +4,13 @@ import pickle
 from collections import OrderedDict
 
 import numpy as np
+from scipy.optimize import OptimizeResult
 from symfit import Variable, Parameter, Fit, FitResults
 from symfit.distributions import BivariateGaussian
-from symfit.core.minimizers import BaseMinimizer
-from symfit.core.objectives import BaseObjective
+from symfit.core.minimizers import BaseMinimizer, MINPACK
+from symfit.core.objectives import (
+    LogLikelihood, LeastSquares, VectorLeastSquares
+)
 
 class TestFitResults(unittest.TestCase):
     """
@@ -17,7 +20,7 @@ class TestFitResults(unittest.TestCase):
         xdata = np.linspace(1, 10, 10)
         ydata = 3 * xdata ** 2
 
-        a = Parameter('a')  # 3.1, min=2.5, max=3.5
+        a = Parameter('a')
         b = Parameter('b')
         x = Variable('x')
         y = Variable('y')
@@ -26,12 +29,20 @@ class TestFitResults(unittest.TestCase):
 
         fit = Fit(new, x=xdata, y=ydata)
         self.fit_result = fit.execute()
+        fit = Fit(new, x=xdata, y=ydata, minimizer=MINPACK)
+        self.minpack_result = fit.execute()
+        fit = Fit(new, x=xdata, objective=LogLikelihood)
+        self.likelihood_result = fit.execute()
 
     def test_params_type(self):
-        """
-        FitResults.params should be an OrderedDict
-        """
-        self.assertTrue(isinstance(self.fit_result.params, OrderedDict))
+        self.assertIsInstance(self.fit_result.params, OrderedDict)
+
+    def test_minimizer_output_type(self):
+        self.assertIsInstance(self.fit_result.minimizer_output, OptimizeResult)
+        self.assertIsInstance(self.minpack_result.minimizer_output,
+                              OptimizeResult)
+        self.assertIsInstance(self.likelihood_result.minimizer_output,
+                              OptimizeResult)
 
     def test_fitting(self):
         """
@@ -120,12 +131,36 @@ class TestFitResults(unittest.TestCase):
 
     def test_objective_included(self):
         """"The objective used should be included in the results."""
-        self.assertIsInstance(self.fit_result.objective, BaseObjective)
+        self.assertIsInstance(self.fit_result.objective, LeastSquares)
+        self.assertIsInstance(self.minpack_result.objective, VectorLeastSquares)
+        self.assertIsInstance(self.likelihood_result.objective, LogLikelihood)
 
     def test_pickle(self):
         new_result = pickle.loads(pickle.dumps(self.fit_result))
         self.assertEqual(self.fit_result.__dict__.keys(),
                          new_result.__dict__.keys())
+
+    def test_gof_presence(self):
+        """
+        Test if the expected goodness of fit estimators are present.
+        """
+        self.assertTrue(hasattr(self.fit_result, 'objective_value'))
+        self.assertTrue(hasattr(self.fit_result, 'r_squared'))
+        self.assertTrue(hasattr(self.fit_result, 'chi_squared'))
+        self.assertFalse(hasattr(self.fit_result, 'log_likelihood'))
+        self.assertFalse(hasattr(self.fit_result, 'likelihood'))
+
+        self.assertTrue(hasattr(self.minpack_result, 'objective_value'))
+        self.assertTrue(hasattr(self.minpack_result, 'r_squared'))
+        self.assertTrue(hasattr(self.minpack_result, 'chi_squared'))
+        self.assertFalse(hasattr(self.minpack_result, 'log_likelihood'))
+        self.assertFalse(hasattr(self.minpack_result, 'likelihood'))
+
+        self.assertTrue(hasattr(self.likelihood_result, 'objective_value'))
+        self.assertFalse(hasattr(self.likelihood_result, 'r_squared'))
+        self.assertFalse(hasattr(self.likelihood_result, 'chi_squared'))
+        self.assertTrue(hasattr(self.likelihood_result, 'log_likelihood'))
+        self.assertTrue(hasattr(self.likelihood_result, 'likelihood'))
 
 if __name__ == '__main__':
     unittest.main()

@@ -572,7 +572,7 @@ class Tests(unittest.TestCase):
         """
         Fit using the likelihood method.
         """
-        b = Parameter(value=4, min=3.0)
+        b = Parameter('b', value=4, min=3.0)
         x, y = variables('x, y')
         pdf = {y: Exp(x, 1/b)}
 
@@ -589,10 +589,16 @@ class Tests(unittest.TestCase):
             fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
+        pdf_i = fit.model(x=xdata, **fit_result.params).y  # probabilities
+        likelihood = np.product(pdf_i)
+        loglikelihood = np.sum(np.log(pdf_i))
 
         self.assertAlmostEqual(fit_result.value(b) / mean, 1, 3)
         self.assertAlmostEqual(fit_result.value(b) / stdev, 1, 3)
         self.assertAlmostEqual(fit_result.stdev(b) / mean_stdev, 1, 3)
+
+        self.assertAlmostEqual(likelihood, fit_result.likelihood)
+        self.assertAlmostEqual(loglikelihood, fit_result.log_likelihood)
 
     def test_likelihood_fitting_gaussian(self):
         """

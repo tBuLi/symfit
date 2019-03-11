@@ -2,6 +2,11 @@ from collections import OrderedDict
 
 import numpy as np
 
+from symfit.core.objectives import (
+    LeastSquares, VectorLeastSquares, LogLikelihood
+)
+from symfit.core.support import cached_property
+
 class FitResults(object):
     """
     Class to display the results of a fit in a nice and unambiguous way.
@@ -17,32 +22,43 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.fit.Model`'s.
     """
-    def __init__(self, model, popt, covariance_matrix, infodict, mesg, ier, minimizer, objective, **gof_qualifiers):
+
+    def __init__(self, model, popt, covariance_matrix, minimizer_output, minimizer, objective):
         """
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
-        :param pcov: covariance matrix.
-        :param infodict: dict with fitting info.
-        :param mesg: Status message.
-        :param ier: Number of iterations.
+        :param covariance_matrix: covariance matrix.
+        :param minimizer_output: Raw output as given by the minimizer. This is
+            assumed to be a :class:`~scipy.optimize.OptimizationResult` instance.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
-        :param gof_qualifiers: Any remaining keyword arguments should be
-          Goodness of fit (g.o.f.) qualifiers.
         """
-        # Validate the types in rough way
-        self.infodict = infodict
-        self.status_message = mesg
-        self.iterations = ier
+        self.minimizer_output = minimizer_output
         self.model = model
-        self.gof_qualifiers = gof_qualifiers
         self.minimizer = minimizer
         self.objective = objective
 
         self._popt = popt
-        self.params = OrderedDict([(p.name, value) for p, value in zip(self.model.params, popt)])
+        self.params = OrderedDict(
+            [(p.name, value) for p, value in zip(self.model.params, popt)]
+        )
         self.covariance_matrix = covariance_matrix
+        self.gof_qualifiers = self._gof_qualifiers()
 
+    @cached_property
+    def iterations(self):
+        if hasattr(self.minimizer_output, 'nit'):
+            return self.minimizer_output.nit
+        else:
+            return None
+
+    @cached_property
+    def status_message(self):
+        return self.minimizer_output.message
+
+    @cached_property
+    def infodict(self):
+        return self.minimizer_output.infodic
 
     def __str__(self):
         """
@@ -57,13 +73,13 @@ class FitResults(object):
             res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
         res += 'Fitting status message: {}\n'.format(self.status_message)
-        res += 'Number of iterations:   {}\n'.format(self.infodict['nfev'])
+        res += 'Number of iterations:   {}\n'.format(self.iterations)
         res += 'Objective:              {}\n'.format(self.objective)
         res += 'Minimizer               {}\n'.format(self.minimizer)
-        try:
-            res += 'Regression Coefficient: {}\n'.format(self.r_squared)
-        except AttributeError:
-            pass
+
+        res += '\nGoodness of fit qualifiers:\n'
+        res += '\n'.join('{:20} {}'.format(gof, value)
+                         for gof, value in sorted(self.gof_qualifiers.items()))
         return res
 
     def __getattr__(self, item):
@@ -142,6 +158,11 @@ class FitResults(object):
             try:
                 if key == 'objective' or key == 'minimizer':
                     assert one_dict[key].__class__ == other_dict[key].__class__
+                elif key == 'minimizer_output':
+                    # Ignore this, because it can contain unexpected terms and
+                    # if all the derived attributes are correct I see no reason
+                    # why this term shouldn't be at least close enough.
+                    pass
                 else:
                     assert one_dict[key] == other_dict[key]
             except ValueError as err:
@@ -156,3 +177,42 @@ class FitResults(object):
 
     def __eq__(self, other):
         return FitResults._array_safe_dict_eq(self.__dict__, other.__dict__)
+
+
+    def _gof_qualifiers(self):
+        """
+        Based on the objective used, we can infer certain goodness of fit
+        (g.o.f.) qualifiers.
+
+        The ``objective_value`` itself always exists, and then depending on the
+        objective we also get the following:
+
+        - The coefficient of determination :math:`R^2` and :math:`\\chi^2` for
+          :class:`~symfit.core.objectives.LeastSquares` and
+          :class:`~symfit.core.objectives.VectorLeastSquares`.
+        - Likelihood and log-likelihood for
+          :class:`~symfit.core.objectives.LogLikelihood`.
+
+        :return: ``dict`` containing goodness of fit qualifiers.
+        """
+        gof_qualifiers = {}
+
+        gof_qualifiers['objective_value'] = self.minimizer_output.fun
+        if isinstance(self.objective, (LeastSquares, VectorLeastSquares)):
+            from symfit.core.fit import r_squared
+            R2 = r_squared(self.objective.model, fit_result=self,
+                           data=self.objective.data)
+            gof_qualifiers['r_squared'] = R2
+
+        if isinstance(self.objective, VectorLeastSquares):
+            # In this case the objective value is the residuals
+            chi_squared = np.sum(gof_qualifiers['objective_value'] ** 2)
+            gof_qualifiers['chi_squared'] = chi_squared
+        elif isinstance(self.objective, LeastSquares):
+            # Undo the normalization to get back chi^2.
+            gof_qualifiers['chi_squared'] = 2 * gof_qualifiers['objective_value']
+        elif isinstance(self.objective, LogLikelihood):
+            # We undo the minus sign we have included to maximize likelihood
+            gof_qualifiers['log_likelihood'] = - gof_qualifiers['objective_value']
+            gof_qualifiers['likelihood'] = np.exp(- gof_qualifiers['objective_value'])
+        return gof_qualifiers
