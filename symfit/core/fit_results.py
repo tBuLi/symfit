@@ -72,13 +72,13 @@ class FitResults(object):
             stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
             res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
-        res += 'Fitting status message: {}\n'.format(self.status_message)
-        res += 'Number of iterations:   {}\n'.format(self.iterations)
-        res += 'Objective:              {}\n'.format(self.objective)
-        res += 'Minimizer               {}\n'.format(self.minimizer)
+        res += '{:<22} {}\n'.format('Status message', self.status_message)
+        res += '{:<22} {}\n'.format('Number of iterations', self.iterations)
+        res += '{:<22} {}\n'.format('Objective', self.objective)
+        res += '{:<22} {}\n'.format('Minimizer', self.minimizer)
 
         res += '\nGoodness of fit qualifiers:\n'
-        res += '\n'.join('{:20} {}'.format(gof, value)
+        res += '\n'.join('{:<22} {}'.format(gof, value)
                          for gof, value in sorted(self.gof_qualifiers.items()))
         return res
 
