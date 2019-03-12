@@ -1422,10 +1422,9 @@ class Fit(HasCovarianceMatrix):
         :return: FitResults instance
         """
         minimizer_ans = self.minimizer.execute(**minimize_options)
-        cov_matrix = self.covariance_matrix(
+        minimizer_ans.covariance_matrix = self.covariance_matrix(
             dict(zip(self.model.params, minimizer_ans._popt))
         )
-        minimizer_ans.covariance_matrix = cov_matrix
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
         return minimizer_ans

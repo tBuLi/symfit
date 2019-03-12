@@ -27,7 +27,8 @@ class FitResults(object):
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param covariance_matrix: covariance matrix.
-        :param minimizer_output: Raw output as given by the minimizer.
+        :param minimizer_output: ``dict`` with the raw output as given by the
+            minimizer.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
         """
