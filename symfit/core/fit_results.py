@@ -21,16 +21,14 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.fit.Model`'s.
     """
-
-    def __init__(self, model, popt, covariance_matrix, minimizer_output, minimizer, objective):
+    def __init__(self, model, popt, covariance_matrix, minimizer, objective, **minimizer_output):
         """
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param covariance_matrix: covariance matrix.
-        :param minimizer_output: ``dict`` with the raw output as given by the
-            minimizer.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
+        :param **minimizer_output: Raw output as given by the minimizer.
         """
         self.minimizer_output = minimizer_output
         self.model = model
@@ -46,11 +44,16 @@ class FitResults(object):
 
     @property
     def iterations(self):
-        return self.minimizer_output.get('nit', None)
+        if 'nit' in self.minimizer_output:
+            return self.minimizer_output['nit']
+        elif 'niter' in self.minimizer_output:
+            return self.minimizer_output['niter']
+        else:
+            return None
 
     @property
     def status_message(self):
-        return self.minimizer_output.message
+        return self.minimizer_output['message']
 
     @property
     def infodict(self):
@@ -204,7 +207,7 @@ class FitResults(object):
         """
         gof_qualifiers = {}
 
-        gof_qualifiers['objective_value'] = self.minimizer_output.fun
+        gof_qualifiers['objective_value'] = self.minimizer_output['fun']
         if isinstance(self.objective, (LeastSquares, VectorLeastSquares)):
             R2 = r_squared(self.objective.model, fit_result=self,
                            data=self.objective.data)

@@ -38,11 +38,9 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(self.fit_result.params, OrderedDict)
 
     def test_minimizer_output_type(self):
-        self.assertIsInstance(self.fit_result.minimizer_output, OptimizeResult)
-        self.assertIsInstance(self.minpack_result.minimizer_output,
-                              OptimizeResult)
-        self.assertIsInstance(self.likelihood_result.minimizer_output,
-                              OptimizeResult)
+        self.assertIsInstance(self.fit_result.minimizer_output, dict)
+        self.assertIsInstance(self.minpack_result.minimizer_output, dict)
+        self.assertIsInstance(self.likelihood_result.minimizer_output, dict)
 
     def test_fitting(self):
         """
