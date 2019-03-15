@@ -5,6 +5,7 @@ import numpy as np
 from symfit.core.objectives import (
     LeastSquares, VectorLeastSquares, LogLikelihood
 )
+from symfit.core.support import keywordonly
 
 class FitResults(object):
     """
@@ -21,6 +22,7 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.fit.Model`'s.
     """
+    @keywordonly(constraints=None)
     def __init__(self, model, popt, covariance_matrix, minimizer, objective, **minimizer_output):
         """
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
@@ -30,6 +32,7 @@ class FitResults(object):
         :param objective: Objective function which was optimized.
         :param **minimizer_output: Raw output as given by the minimizer.
         """
+        self.constraints = minimizer_output.pop('constraints')
         self.minimizer_output = minimizer_output
         self.model = model
         self.minimizer = minimizer
@@ -57,7 +60,7 @@ class FitResults(object):
 
     @property
     def infodict(self):
-        return self.minimizer_output.infodic
+        return self.minimizer_output['infodic']
 
     def __str__(self):
         """
@@ -79,6 +82,19 @@ class FitResults(object):
         res += '\nGoodness of fit qualifiers:\n'
         res += '\n'.join('{:<22} {}'.format(gof, value)
                          for gof, value in sorted(self.gof_qualifiers.items()))
+
+        if self.constraints:
+            res += '\n\nConstraints:\n'
+            res += 20 * '-' + '\n'
+            # res += '{:<22} {}\n'.format('Constraint', 'Value')
+            for constraint in self.constraints:
+                # Print the component and the value of the constraint
+                res += 'Question: {} {} 0?\n'.format(
+                    constraint.model[constraint.model.dependent_vars[0]],
+                    constraint.model.constraint_type.rel_op
+                )
+                res += 'Answer:   {}\n\n'.format(constraint(**self.params)[0])
+
         return res
 
     def __getattr__(self, item):

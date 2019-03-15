@@ -5,11 +5,13 @@ from collections import OrderedDict
 
 import numpy as np
 from scipy.optimize import OptimizeResult
-from symfit import Variable, Parameter, Fit, FitResults
+from symfit import (
+    Variable, Parameter, Fit, FitResults, Eq, Ge, CallableNumericalModel, Model
+)
 from symfit.distributions import BivariateGaussian
 from symfit.core.minimizers import BaseMinimizer, MINPACK
 from symfit.core.objectives import (
-    LogLikelihood, LeastSquares, VectorLeastSquares
+    LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
 )
 
 class TestFitResults(unittest.TestCase):
@@ -24,15 +26,26 @@ class TestFitResults(unittest.TestCase):
         b = Parameter('b')
         x = Variable('x')
         y = Variable('y')
-        new = {y: a * x ** b}
+        model = Model({y: a * x ** b})
         self.params = [a, b]
 
-        fit = Fit(new, x=xdata, y=ydata)
+        fit = Fit(model, x=xdata, y=ydata)
         self.fit_result = fit.execute()
-        fit = Fit(new, x=xdata, y=ydata, minimizer=MINPACK)
+        fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)
         self.minpack_result = fit.execute()
-        fit = Fit(new, x=xdata, objective=LogLikelihood)
+        fit = Fit(model, x=xdata, objective=LogLikelihood)
         self.likelihood_result = fit.execute()
+
+        z = Variable('z')
+        constraints = [
+            Eq(a, b),
+            CallableNumericalModel.as_constraint(
+                {z: lambda a: a - 1}, connectivity_mapping={z: {a}},
+                constraint_type=Ge, model=model
+            )
+        ]
+        fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
+        self.constrained_result = fit.execute()
 
     def test_params_type(self):
         self.assertIsInstance(self.fit_result.params, OrderedDict)
@@ -132,6 +145,18 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(self.fit_result.objective, LeastSquares)
         self.assertIsInstance(self.minpack_result.objective, VectorLeastSquares)
         self.assertIsInstance(self.likelihood_result.objective, LogLikelihood)
+
+    def test_constraints_included(self):
+        """
+        Test if the constraints have been properly fed to the results object so
+        we can easily print their compliance.
+        """
+        # None by default
+        self.assertIsNone(self.fit_result.constraints)
+        # For a constrained fit we expect a list of MinimizeModel objectives.
+        self.assertIsInstance(self.constrained_result.constraints, list)
+        for constraint in self.constrained_result:
+            self.assertIsInstance(constraint, MinimizeModel)
 
     def test_pickle(self):
         dumped = pickle.dumps(self.fit_result)

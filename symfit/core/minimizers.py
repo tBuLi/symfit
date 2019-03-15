@@ -369,9 +369,9 @@ class ScipyMinimize(object):
             model=DummyModel(params=self.parameters),
             popt=best_vals,
             covariance_matrix=None,
-            minimizer_output=ans,
             objective=self.objective,
-            minimizer=self
+            minimizer=self,
+            **ans
         )
 
         return FitResults(**fit_results)
@@ -500,6 +500,11 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
             cons.append(con)
         cons = tuple(cons)
         return cons
+
+    def _pack_output(self, ans):
+        fit_result = super(ScipyConstrainedMinimize, self)._pack_output(ans)
+        fit_result.constraints = self.constraints
+        return fit_result
 
 
 class BFGS(ScipyGradientMinimize):
@@ -756,18 +761,11 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
             full_output=True,
             **minpack_options
         )
+
+        # Translate to standard names for optimize
         ans = OptimizeResult(zip(output_names, full_output))
         ans['fun'] = ans.infodic['fvec']
         ans['success'] = 1 <= ans.status <= 4  # These codes are successful
         ans['nfev'] = ans.infodic['nfev']
 
-        fit_results = dict(
-            model=DummyModel(params=self.params),
-            popt=ans.x,
-            covariance_matrix=None,
-            minimizer_output=ans,
-            objective=self.objective,
-            minimizer=self
-        )
-
-        return FitResults(**fit_results)
+        return self._pack_output(ans)
