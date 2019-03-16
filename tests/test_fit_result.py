@@ -151,8 +151,6 @@ class TestFitResults(unittest.TestCase):
         Test if the constraints have been properly fed to the results object so
         we can easily print their compliance.
         """
-        # None by default
-        self.assertIsNone(self.fit_result.constraints)
         # For a constrained fit we expect a list of MinimizeModel objectives.
         self.assertIsInstance(self.constrained_result.constraints, list)
         for constraint in self.constrained_result.constraints:
