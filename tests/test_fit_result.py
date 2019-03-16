@@ -163,10 +163,9 @@ class TestFitResults(unittest.TestCase):
                          sorted(new_result.__dict__.keys()))
         for k, v1 in self.fit_result.__dict__.items():
             v2 = new_result.__dict__[k]
-            if k == 'objective' or k == 'minimizer':
+            if k == 'minimizer':
                 self.assertEqual(type(v1), type(v2))
             elif k != 'minimizer_output':  # Ignore minimizer_output
-                print(k)
                 if isinstance(v1, np.ndarray):
                     np.testing.assert_almost_equal(v1, v2)
                 else:
