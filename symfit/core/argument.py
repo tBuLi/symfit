@@ -115,6 +115,20 @@ class Parameter(Argument):
             self.min = min
             self.max = max
 
+    def __eq__(self, other):
+        """
+        Parameters are considered equal when their name, assumptions, and
+        bounds are considered the same.
+        """
+        equal = super(Parameter, self).__eq__(other)
+        if equal is NotImplemented:
+            return NotImplemented
+        else:
+            if equal:
+                return self.min == other.min and self.max == other.max \
+                       and self.fixed == other.fixed
+            else:
+                return False
 
 class Variable(Argument):
     """ Variable type."""
