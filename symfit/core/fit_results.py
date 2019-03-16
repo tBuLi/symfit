@@ -179,11 +179,6 @@ class FitResults(object):
                     # if all the derived attributes are correct I see no reason
                     # why this term shouldn't be at least close enough.
                     pass
-                elif key == 'constraints':
-                    assert len(one_dict['constraints']) == len(other_dict['constraints'])
-                    for constr1, constr2 in zip(one_dict['constraints'],
-                                                other_dict['constraints']):
-                        assert constr1 == constr2
                 else:
                     assert one_dict[key] == other_dict[key]
             except ValueError as err:
