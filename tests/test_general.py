@@ -12,7 +12,10 @@ from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
     parameters, Model, Eq, Ge, exp, integrate, oo, GradientModel
 )
-from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
+from symfit.core.minimizers import (
+    MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution, BaseMinimizer,
+    ChainedMinimizer
+)
 from symfit.core.objectives import LogLikelihood
 from symfit.distributions import Gaussian, Exp, BivariateGaussian
 from tests.test_minimizers import subclasses
@@ -896,19 +899,29 @@ class Tests(unittest.TestCase):
         """
         Make sure fixed parameters don't change on fitting
         """
-        xdata = np.arange(100)
-        ydata = np.arange(100)
-
         a, b, c, d = parameters('a, b, c, d')
         x, y = variables('x, y')
 
         c.value = 4.0
+        a.min, a.max = 1.0, 5.0  # Bounds are needed for DifferentialEvolution
+        b.min, b.max = 1.0, 5.0
+        c.min, c.max = 1.0, 5.0
+        d.min, d.max = 1.0, 5.0
         c.fixed = True
 
-        model_dict = {y: a * exp(-(x - b)**2 / (2 * c**2)) + d}
-        fit = Fit(model_dict, x=xdata, y=ydata)
-        fit_result = fit.execute()
-        self.assertEqual(4.0, fit_result.params['c'])
+        model = Model({y: a * exp(-(x - b)**2 / (2 * c**2)) + d})
+        # Generate data
+        xdata = np.linspace(0, 100)
+        ydata = model(xdata, a=2, b=3, c=2, d=2).y
+
+        for minimizer in subclasses(BaseMinimizer):
+            if minimizer is ChainedMinimizer:
+                continue
+            else:
+                fit = Fit(model, x=xdata, y=ydata, minimizer=minimizer)
+                fit_result = fit.execute()
+                # Should still be 4.0, not 2.0!
+                self.assertEqual(4.0, fit_result.params['c'])
 
     def test_boundaries(self):
         """
