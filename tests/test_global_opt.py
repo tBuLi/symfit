@@ -91,14 +91,14 @@ class TestGlobalOptGaussian(unittest.TestCase):
         Test the automatic generation of the signature for ChainedMinimizer
         """
         minimizers = [
-            DifferentialEvolution, BFGS, BFGS, DifferentialEvolution, BFGS
+            BFGS, DifferentialEvolution, BFGS, DifferentialEvolution, BFGS
         ]
 
         fit = Fit(self.model, self.xx, self.yy, self.ydata,
                   minimizer=minimizers)
 
         names = [
-            'DifferentialEvolution', 'BFGS', 'BFGS_2',
+            'BFGS', 'DifferentialEvolution', 'BFGS_2',
             'DifferentialEvolution_2', 'BFGS_3'
         ]
         for name, param_name in zip(names, fit.minimizer.__signature__.parameters):
@@ -108,6 +108,11 @@ class TestGlobalOptGaussian(unittest.TestCase):
 
         for param in fit.minimizer.__signature__.parameters.values():
             self.assertEqual(param.kind, inspect_sig.Parameter.KEYWORD_ONLY)
+        # Make sure this ends up at the right minimizer. Due to an error it
+        # used to end up at the first BFGS and raise
+        # TypeError: minimize() got an unexpected keyword argument 'strategy'
+        fit.execute(DifferentialEvolution={'strategy': 'best1bin'})
+
 
 class TestGlobalOptMexican(unittest.TestCase):
     def test_mexican_hat(self):
