@@ -32,7 +32,8 @@ class FitResults(object):
         :param objective: Objective function which was optimized.
         :param **minimizer_output: Raw output as given by the minimizer.
         """
-        self.constraints = minimizer_output.pop('constraints')
+        constraints = minimizer_output.pop('constraints')
+        self.constraints = constraints if constraints is not None else []
         self.minimizer_output = minimizer_output
         self.model = model
         self.minimizer = minimizer
@@ -171,13 +172,18 @@ class FitResults(object):
         """
         for key in one_dict:
             try:
-                if key == 'objective' or key == 'minimizer':
+                if key == 'minimizer':
                     assert one_dict[key].__class__ == other_dict[key].__class__
                 elif key == 'minimizer_output':
                     # Ignore this, because it can contain unexpected terms and
                     # if all the derived attributes are correct I see no reason
                     # why this term shouldn't be at least close enough.
                     pass
+                elif key == 'constraints':
+                    assert len(one_dict['constraints']) == len(other_dict['constraints'])
+                    for constr1, constr2 in zip(one_dict['constraints'],
+                                                other_dict['constraints']):
+                        assert constr1 == constr2
                 else:
                     assert one_dict[key] == other_dict[key]
             except ValueError as err:

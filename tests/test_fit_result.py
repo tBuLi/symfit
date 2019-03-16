@@ -155,7 +155,7 @@ class TestFitResults(unittest.TestCase):
         self.assertIsNone(self.fit_result.constraints)
         # For a constrained fit we expect a list of MinimizeModel objectives.
         self.assertIsInstance(self.constrained_result.constraints, list)
-        for constraint in self.constrained_result:
+        for constraint in self.constrained_result.constraints:
             self.assertIsInstance(constraint, MinimizeModel)
 
     def test_pickle(self):

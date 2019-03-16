@@ -527,9 +527,14 @@ class BaseNumericalModel(BaseModel):
         self._connectivity_mapping = value
 
     def __eq__(self, other):
-        raise NotImplementedError(
-            'Equality checking for {} is ambiguous.'.format(self.__class__.__name__)
-        )
+        if self.connectivity_mapping == other.connectivity_mapping:
+            for key, func in self.model_dict.items():
+                if func != other[key]:
+                    return False
+            else:
+                return True
+        else:
+            return False
 
     def __neg__(self):
         """

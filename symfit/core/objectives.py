@@ -124,6 +124,26 @@ class BaseObjective(object):
         )
         return kwargs
 
+    def __eq__(self, other):
+        """
+        Objectives are considered equal if they are of the same type, have the
+        same model, and the same data.
+        """
+        if self.__class__ == other.__class__ and self.model == other.model:
+            # Check if the data is also equivalent
+            for key, value in self.data.items():
+                try:
+                    equal = np.allclose(other.data[key], value)
+                except TypeError:
+                    equal = other.data[key] == value
+                finally:
+                    if not equal:
+                        return False
+            else:
+                return True
+        else:
+            return False
+
 
 @add_metaclass(abc.ABCMeta)
 class GradientObjective(BaseObjective):
