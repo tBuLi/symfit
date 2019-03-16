@@ -27,7 +27,7 @@ class Argument(Symbol):
     #       interpreter.
     _argument_indices = defaultdict(int)
 
-    def __new__(cls, name=None, *args, **assumptions):
+    def __new__(cls, name=None, **assumptions):
         """
         Create a new ``Argument``. See :class:`~sympy.core.symbol.Symbol`
         for more information.
@@ -84,9 +84,9 @@ class Parameter(Argument):
 
     _argument_name = 'par'
 
-    def __new__(cls, name=None, *args, **kwargs):
+    def __new__(cls, name=None, value=1.0, min=None, max=None, fixed=False, **kwargs):
         try:
-            return super(Parameter, cls).__new__(cls, name, *args, **kwargs)
+            return super(Parameter, cls).__new__(cls, name, **kwargs)
         except TypeError as err:
             if isinstance(name, numbers.Number):
                 raise TypeError('In symfit >0.4.1 the value needs to be assigned '
