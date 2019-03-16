@@ -126,7 +126,7 @@ class Parameter(Argument):
         else:
             if equal:
                 return self.min == other.min and self.max == other.max \
-                       and self.fixed == other.fixed
+                       and self.fixed == other.fixed and self.value == other.value
             else:
                 return False
 
