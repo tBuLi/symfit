@@ -108,10 +108,11 @@ class TestGlobalOptGaussian(unittest.TestCase):
 
         for param in fit.minimizer.__signature__.parameters.values():
             self.assertEqual(param.kind, inspect_sig.Parameter.KEYWORD_ONLY)
-        # Make sure this ends up at the right minimizer. Due to an error it
-        # used to end up at the first BFGS and raise
-        # TypeError: minimize() got an unexpected keyword argument 'strategy'
-        fit.execute(DifferentialEvolution={'strategy': 'best1bin'})
+        # Make sure keywords end up at the right minimizer.
+        with self.assertRaises(TypeError):
+            # This is not a valid kwarg to DiffEvo, but it is to BFGS. Check if
+            # we really go by name of the Minimizer, not by order.
+            fit.execute(DifferentialEvolution={'return_all': False})
 
 
 class TestGlobalOptMexican(unittest.TestCase):
