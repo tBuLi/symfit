@@ -130,6 +130,12 @@ class Parameter(Argument):
             else:
                 return False
 
+    def _hashable_content(self):
+        # Add Parameter specific content to that used for hashing.
+        hashable_content = super(Parameter, self)._hashable_content()
+        param_hashable = tuple((attr, getattr(self, attr)) for attr in self.__slots__)
+        return hashable_content + param_hashable
+
 class Variable(Argument):
     """ Variable type."""
     # Variable index to be assigned to generated nameless variables
