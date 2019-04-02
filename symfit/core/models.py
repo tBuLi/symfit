@@ -328,8 +328,14 @@ class BaseModel(Mapping):
         # Everything at the bottom of the toposort is independent, at the top
         # dependent, and the rest interdependent.
         ordered = list(toposort(self.connectivity_mapping))
-        independent = sorted(ordered.pop(0), key=sort_func)
-        self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
+        if ordered:
+            independent = sorted(ordered.pop(0), key=sort_func)
+        else:
+            independent = []
+        if ordered:
+            self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
+        else:
+            self.dependent_vars = []
         self.interdependent_vars = sorted(
             [item for items in ordered for item in items],
             key=sort_func
