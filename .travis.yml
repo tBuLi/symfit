@@ -7,7 +7,7 @@ python:
   - "3.7"
 cache:
   - pip
-service:
+services:
   # Needed for matplotlib tests
   - xvfb
 ## Install the dependencies
