@@ -1,9 +1,9 @@
 language: python
 python:
   - "2.7"
-  - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
 cache:
   - pip
 before_install:
@@ -15,7 +15,7 @@ install:
   # Upgrade pip to enable the --only-binary flag; setuptools for pbr.
   - pip install --upgrade pip setuptools
   - pip install --upgrade pytest coveralls
-  - pip install --upgrade sphinx==1.5.5
+  - pip install --upgrade sphinx
   - pip install --upgrade -r requirements.txt
   - pip install .[all]
 # Run tests
@@ -23,7 +23,7 @@ script:
   - coverage run --source symfit -m py.test
   - coverage report
   - mkdir docs_build
-  - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION == "3.7" ]]; then
       sphinx-build -nW -b html docs docs_build;
     fi
 before_deploy:
@@ -41,10 +41,10 @@ deploy:
     on:
       branch: master
       tags: true
-      # This condition makes sure we only push a new distro once, from the py2
+      # This condition makes sure we only push a new distro once, from the py3
       # test. This is because symfit is a universal wheel. If ever it isnt, this
       # condition should be removed.
-      condition: $TRAVIS_PYTHON_VERSION = "2.7"
+      condition: $TRAVIS_PYTHON_VERSION = "3.7"
 after_deploy:
 - pwd
 - ls
