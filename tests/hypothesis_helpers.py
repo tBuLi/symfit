@@ -244,10 +244,7 @@ def dep_values(draw, model, indep_data, param_vals):
         Data for the dependent variables of `model`, as well as associated
         sigmas.
     """
-    try:
-        dep_data = model(**indep_data, **param_vals)._asdict()
-    except (OverflowError, ZeroDivisionError):
-        assume(False)  # Some model + data that causes numerical issues
+    dep_data = model(**indep_data, **param_vals)._asdict()
     shapes = {var: data.shape for var, data in dep_data.items()}
     sigmas = {
         'sigma_{}'.format(str(var)): st.one_of(
@@ -291,5 +288,8 @@ def model_with_data(draw, dependent_vars, symbols, steps=5):
     """
     model = draw(models(dependent_vars, symbols, steps=steps))
     indep_data, param_data = draw(st.tuples(indep_values(model), param_values(model)), label='independent data, parameters')
-    dep_data = draw(dep_values(model, indep_data, param_data), label='dependent data')
+    try:
+        dep_data = draw(dep_values(model, indep_data, param_data), label='dependent data')
+    except ArithmeticError:
+        assume(False)  # Some model + data that causes numerical issues
     return model, param_data, indep_data, dep_data
