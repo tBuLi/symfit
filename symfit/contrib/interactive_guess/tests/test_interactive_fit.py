@@ -4,9 +4,6 @@ from symfit import Variable, Parameter, exp, latex
 from symfit.distributions import Gaussian
 import numpy as np
 import unittest
-import matplotlib
-matplotlib.use('agg')
-
 import matplotlib.colors
 import matplotlib.pyplot as plt
 
