@@ -7,10 +7,9 @@ python:
   - "3.7"
 cache:
   - pip
-before_install:
-## Provide a X display for plotting
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
+service:
+  # Needed for matplotlib tests
+  - xvfb
 ## Install the dependencies
 install:
   # Upgrade pip to enable the --only-binary flag; setuptools for pbr.
