@@ -91,14 +91,14 @@ class TestGlobalOptGaussian(unittest.TestCase):
         Test the automatic generation of the signature for ChainedMinimizer
         """
         minimizers = [
-            DifferentialEvolution, BFGS, BFGS, DifferentialEvolution, BFGS
+            BFGS, DifferentialEvolution, BFGS, DifferentialEvolution, BFGS
         ]
 
         fit = Fit(self.model, self.xx, self.yy, self.ydata,
                   minimizer=minimizers)
 
         names = [
-            'DifferentialEvolution', 'BFGS', 'BFGS_2',
+            'BFGS', 'DifferentialEvolution', 'BFGS_2',
             'DifferentialEvolution_2', 'BFGS_3'
         ]
         for name, param_name in zip(names, fit.minimizer.__signature__.parameters):
@@ -108,6 +108,12 @@ class TestGlobalOptGaussian(unittest.TestCase):
 
         for param in fit.minimizer.__signature__.parameters.values():
             self.assertEqual(param.kind, inspect_sig.Parameter.KEYWORD_ONLY)
+        # Make sure keywords end up at the right minimizer.
+        with self.assertRaises(TypeError):
+            # This is not a valid kwarg to DiffEvo, but it is to BFGS. Check if
+            # we really go by name of the Minimizer, not by order.
+            fit.execute(DifferentialEvolution={'return_all': False})
+
 
 class TestGlobalOptMexican(unittest.TestCase):
     def test_mexican_hat(self):

@@ -1,6 +1,6 @@
 import abc
 import sys
-from collections import namedtuple, Counter
+from collections import namedtuple, Counter, OrderedDict
 
 from scipy.optimize import (
     minimize, differential_evolution, basinhopping, NonlinearConstraint,
@@ -255,10 +255,15 @@ class ChainedMinimizer(BaseMinimizer):
         :return:  an instance of :class:`~symfit.core.fit_results.FitResults`.
         """
         bound_arguments = self.__signature__.bind(**minimizer_kwargs)
-        # Include default values in bound_argument object
+        # Include default values in bound_argument object.
+        # Start from a new OrderedDict to guarantee ordering.
+        arguments = OrderedDict()
         for param in self.__signature__.parameters.values():
-            if param.name not in bound_arguments.arguments:
-                bound_arguments.arguments[param.name] = param.default
+            if param.name in bound_arguments.arguments:
+                arguments[param.name] = bound_arguments.arguments[param.name]
+            else:
+                arguments[param.name] = param.default
+        bound_arguments.arguments = arguments
 
         answers = []
         next_guess = self.initial_guesses

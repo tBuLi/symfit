@@ -1,53 +1,64 @@
 language: python
-python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
-  - "3.6"
+dist: xenial
 cache:
   - pip
+services:
+  # Needed for matplotlib tests
+  - xvfb
+
+env:
+  global:
+    - SKIP_GENERATE_AUTHORS=1  # stop pbr from autogenerating AUTHORS.
+
+
 before_install:
-## Provide a X display for plotting
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
-## Install the dependencies
-install:
-  # Upgrade pip to enable the --only-binary flag; setuptools for pbr.
   - pip install --upgrade pip setuptools
-  - pip install --upgrade pytest coveralls
-  - pip install --upgrade sphinx==1.5.5
+install:
   - pip install --upgrade -r requirements.txt
   - pip install .[all]
-# Run tests
+
+before_script:
+  - pip install --upgrade pytest coveralls
 script:
   - coverage run --source symfit -m py.test
   - coverage report
-  - mkdir docs_build
-  - if [[ $TRAVIS_PYTHON_VERSION == "3.5" ]]; then
-      sphinx-build -nW -b html docs docs_build;
-    fi
-before_deploy:
-- pwd
-- ls
-- echo $PATH
-- export SKIP_GENERATE_AUTHORS=1  # stop pbr from autogenerating AUTHORS.
-deploy:
-  - provider: pypi
-    distributions: "sdist bdist_wheel"
-    user: "tbuli"
-    password:
-      secure: nzvMJZxSUAT1Rc58P0f4Q3wOlf1LEMWxl2vmM5OuhQdNAl18D2VjVfAoz2o4KwBZEq65MZYuAzktfht28or5PCncZ6ZXOB+svkuhJ87MHsaIXnojG/srPS8BjWqlIecS4v40FBCxa5uleu2lNWWNG73AkKl3H4v8ypvR05z+dVfKZ4RsuKjrWkrKRdHOFxGo5qCkPxmakztKh4ww9/iKPT6MlGOy/QCq2Pr1R9R/tDOc+BNox4/OTZW9AVB9JkTx2aZNlBswPbDNQOfPD0En6Msq83sXgGv3HT/PGFQ58blKVxssogEdUsGbTgqMSXcpA/ic3aw8S9U3UKHLlu6MCfY6T4Q1gTQA2RsVvDkvDTEQDEgNx8BUI+t3T1tNJ/PgKlh4CMMtXminK4Ba87feOvYfNDgAw7LDa4Kph+tYxjHAoRfWgbs+7pq8waJ5OSPB75+tSs9vLMqJA5z1/s294K3pCEUsNyWgqAG8K/dXatJf+5kGEgSZyK4azS6gaBG1Dbq1aE0Zoy6PdKrW9l9Kkd5TU7gdKT4ora6l+EDvo0WqllvpKzS7VqRyAPY17nR7UidxzjvaNR6QXLKS/+Hinu60W45J5G9fAc7FpJQMrdHkYodQsXbAWELPSI3l5A3nTfbQ8rsqNcl9c50y1ijdx4AnDvWc4DzZAgjP2vKxpxs=
-    skip_cleanup: true
-    on:
-      branch: master
-      tags: true
-      # This condition makes sure we only push a new distro once, from the py2
-      # test. This is because symfit is a universal wheel. If ever it isnt, this
-      # condition should be removed.
-      condition: $TRAVIS_PYTHON_VERSION = "2.7"
-after_deploy:
-- pwd
-- ls
-- echo $PATH
+
 after_success:
-- coveralls
+  - coveralls
+
+jobs:
+  fast_finish: true
+  # allow_failures:
+  #   - python: "3.5-dev"
+  #   - python: "3.6-dev"
+  #   - python: "3.7-dev"
+  #   - python: "3.8-dev"  # 3.8-dev should not use coveralls.
+  include: 
+    - python: "3.5"
+    - python: "3.6"
+    - python: "3.7"
+    - python: "2.7"
+
+    - stage: docs
+      python: "3.7"
+      install:
+        - pip install --upgrade sphinx
+        - pip install --upgrade .[all]
+      script: 
+        - mkdir docs_build
+        - sphinx-build -nW -b html docs docs_build
+
+    - stage: deploy
+      python: "3.7"
+      before_script: skip
+      script: skip
+      deploy:
+        provider: pypi
+        # distributions: "sdist bdist_wheel"
+        user: "tbuli"
+        password:
+          secure: nzvMJZxSUAT1Rc58P0f4Q3wOlf1LEMWxl2vmM5OuhQdNAl18D2VjVfAoz2o4KwBZEq65MZYuAzktfht28or5PCncZ6ZXOB+svkuhJ87MHsaIXnojG/srPS8BjWqlIecS4v40FBCxa5uleu2lNWWNG73AkKl3H4v8ypvR05z+dVfKZ4RsuKjrWkrKRdHOFxGo5qCkPxmakztKh4ww9/iKPT6MlGOy/QCq2Pr1R9R/tDOc+BNox4/OTZW9AVB9JkTx2aZNlBswPbDNQOfPD0En6Msq83sXgGv3HT/PGFQ58blKVxssogEdUsGbTgqMSXcpA/ic3aw8S9U3UKHLlu6MCfY6T4Q1gTQA2RsVvDkvDTEQDEgNx8BUI+t3T1tNJ/PgKlh4CMMtXminK4Ba87feOvYfNDgAw7LDa4Kph+tYxjHAoRfWgbs+7pq8waJ5OSPB75+tSs9vLMqJA5z1/s294K3pCEUsNyWgqAG8K/dXatJf+5kGEgSZyK4azS6gaBG1Dbq1aE0Zoy6PdKrW9l9Kkd5TU7gdKT4ora6l+EDvo0WqllvpKzS7VqRyAPY17nR7UidxzjvaNR6QXLKS/+Hinu60W45J5G9fAc7FpJQMrdHkYodQsXbAWELPSI3l5A3nTfbQ8rsqNcl9c50y1ijdx4AnDvWc4DzZAgjP2vKxpxs=
+        # skip_cleanup: true
+        on:
+          branch: master
+          tags: true
