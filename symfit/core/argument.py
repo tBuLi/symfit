@@ -122,7 +122,7 @@ class Parameter(Argument):
         """
         equal = super(Parameter, self).__eq__(other)
         if equal is NotImplemented:
-            return NotImplemented
+            return equal
         else:
             if equal:
                 return self.min == other.min and self.max == other.max \
@@ -130,11 +130,8 @@ class Parameter(Argument):
             else:
                 return False
 
-    def _hashable_content(self):
-        # Add Parameter specific content to that used for hashing.
-        hashable_content = super(Parameter, self)._hashable_content()
-        param_hashable = tuple((attr, getattr(self, attr)) for attr in self.__slots__)
-        return hashable_content + param_hashable
+    __hash__ = Argument.__hash__
+
 
 class Variable(Argument):
     """ Variable type."""
