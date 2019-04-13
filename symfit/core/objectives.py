@@ -129,6 +129,10 @@ class BaseObjective(object):
         Objectives are considered equal if they are of the same type, have the
         same model, and the same data.
         """
+        # Class equality is enforced, even though this breaks subclassing.
+        # This is to prevent false positives, which could be way worse. In the
+        # case of subclassing, we leave it up to the subclasser to decide when
+        # equality is achieved.
         if self.__class__ == other.__class__ and self.model == other.model:
             # Check if the data is also equivalent
             for key, value in self.data.items():

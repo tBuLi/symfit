@@ -280,7 +280,8 @@ class TestMinimize(unittest.TestCase):
             res_before = fit.execute()
             np.random.seed(2)
             res_after = pickled_fit.execute()
-            self.assertEqual(res_before, res_after)
+            self.assertTrue(FitResults._array_safe_dict_eq(res_before.__dict__,
+                                                           res_after.__dict__))
 
     def test_multiprocessing(self):
         """

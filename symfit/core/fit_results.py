@@ -166,8 +166,12 @@ class FitResults(object):
         numpy.allclose to compare arrays, and does normal comparison for all
         other types.
 
-        :param one_dict:
-        :param other_dict:
+        This pretty mich defines FitResult equality, but because there are
+        still some questions on how and if that should be defined, __eq__ has
+        not been implemented.
+
+        :param one_dict: __dict__ of a FitResults object
+        :param other_dict: __dict__ of a FitResults object
         :return: bool
         """
         for key in one_dict:
@@ -190,9 +194,6 @@ class FitResults(object):
             except AssertionError:
                 return False
         else: return True
-
-    def __eq__(self, other):
-        return FitResults._array_safe_dict_eq(self.__dict__, other.__dict__)
 
     def __getstate__(self):
         state = self.__dict__.copy()
