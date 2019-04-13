@@ -73,3 +73,10 @@ class SymfitNumPyPrinter(NumPyPrinter):
         Print ``Idx`` objects.
         """
         return "{0}".format(self._print(expr.args[0]))
+
+    def _print_MatPow(self, expr):
+        if expr.shape == (1, 1):
+            # Scalar, so we can take a normal power.
+            return self._print_Pow(expr)
+        else:
+            return super(SymfitNumPyPrinter, self)._print_MatPow(expr)
