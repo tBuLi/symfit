@@ -71,7 +71,7 @@ class BaseMinimizer(object):
                     connectivity_mapping={y: set(self.parameters)}
                 )
             return objective_type(model,
-                                  data={y: None for y in model.dependent_vars})
+                                  data={})
 
     @abc.abstractmethod
     def execute(self, **options):
