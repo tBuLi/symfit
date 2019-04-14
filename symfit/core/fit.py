@@ -1015,10 +1015,10 @@ class TakesData(object):
         """
         Perform some basic sanity checking on the model to warn users when they
         might be trying something ill advised.
-        :param model:
-        :return:
+
+        :param model: model instance.
         """
-        if not isinstance(model, ODEModel) and isinstance(model, BaseCallableModel):
+        if not isinstance(model, ODEModel) and not isinstance(model, BaseNumericalModel):
             # Such a model should probably not contain derivatives
             for var, expr in model.items():
                 if isinstance(var, sympy.Derivative) or expr.has(sympy.Derivative):
