@@ -1018,7 +1018,7 @@ class TakesData(object):
         :param model:
         :return:
         """
-        if not isinstance(model, ODEModel):
+        if not isinstance(model, ODEModel) and isinstance(model, BaseCallableModel):
             # Such a model should probably not contain derivatives
             for var, expr in model.items():
                 if isinstance(var, sympy.Derivative) or expr.has(sympy.Derivative):
