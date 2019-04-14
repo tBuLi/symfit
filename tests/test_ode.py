@@ -1,5 +1,10 @@
 from __future__ import division, print_function
-import unittest
+import sys
+if sys.version_info >= (3, 2):
+    import unittest
+else:
+    import unittest2 as unittest
+
 
 import numpy as np
 from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel

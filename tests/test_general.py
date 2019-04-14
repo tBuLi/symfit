@@ -1,5 +1,4 @@
 from __future__ import division, print_function
-import unittest
 import sys
 import sympy
 import warnings
@@ -21,6 +20,11 @@ if sys.version_info >= (3, 0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
+
+if sys.version_info >= (3, 2):
+    import unittest
+else:
+    import unittest2 as unittest
 
 
 class Tests(unittest.TestCase):
@@ -80,12 +84,8 @@ class Tests(unittest.TestCase):
 
         y = Variable('y')
 
-        with warnings.catch_warnings(record=True) as w:
-            # Cause all warnings to always be triggered.
-            warnings.simplefilter("always")
+        with self.assertWarns(DeprecationWarning):
             x = Variable()
-            self.assertTrue(len(w) == 1)
-            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
 
         model = {y: a*x**b}
 
