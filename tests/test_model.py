@@ -152,25 +152,26 @@ class TestModel(unittest.TestCase):
             numerical_model(x=xdata, a=5.5, b=15.0),
             mixed_model(x=xdata, a=5.5, b=15.0)
         )
+        zdata = mixed_model(x=xdata, a=5.5, b=15.0).z + np.random.normal(0, 1)
 
         # Check if the fits are the same
-        fit = Fit(model, x=xdata, y=ydata)
-        analytical_result = fit.execute()
-        fit = Fit(numerical_model, x=xdata, y=ydata)
+        fit = Fit(mixed_model, x=xdata, y=ydata, z=zdata)
+        mixed_result = fit.execute()
+        fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata)
         numerical_result = fit.execute()
         for param in [a, b]:
             self.assertAlmostEqual(
-                analytical_result.value(param),
+                mixed_result.value(param),
                 numerical_result.value(param)
             )
             self.assertAlmostEqual(
-                analytical_result.stdev(param),
+                mixed_result.stdev(param),
                 numerical_result.stdev(param)
             )
-        self.assertAlmostEqual(analytical_result.r_squared, numerical_result.r_squared)
+        self.assertAlmostEqual(mixed_result.r_squared, numerical_result.r_squared)
 
         # Test if the constrained syntax is supported
-        fit = Fit(numerical_model, x=xdata, y=ydata, constraints=[Eq(a, b)])
+        fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata, constraints=[Eq(a, b)])
         constrained_result = fit.execute()
         self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
 

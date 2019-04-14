@@ -357,7 +357,7 @@ class TestMinimize(unittest.TestCase):
 
         # No scipy style dicts allowed.
         with self.assertRaises(TypeError):
-            fit = SLSQP(MinimizeModel(model, data={}),
+            fit = SLSQP(MinimizeModel(model, data=data_dict),
                         parameters=[a, b, c],
                         constraints=[
                             {'type': 'eq', 'fun': lambda a, b, c: a - c}

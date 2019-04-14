@@ -17,7 +17,7 @@ from symfit.core.minimizers import (
     SLSQP, MINPACK, TrustConstr, ScipyConstrainedMinimize, COBYLA
 )
 from symfit.core.support import key2str
-from symfit.core.objectives import MinimizeModel, LogLikelihood
+from symfit.core.objectives import MinimizeModel, LogLikelihood, LeastSquares
 from symfit.core.fit import ModelError
 from symfit import (
     Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
@@ -704,19 +704,23 @@ class TestConstrained(unittest.TestCase):
 
         # Allowed
         fit = Fit(model, x=xdata, y=ydata, Y=2, constraints=[constraint])
+        self.assertIsInstance(fit.objective, LeastSquares)
+        self.assertIsInstance(fit.minimizer.constraints[0], MinimizeModel)
         fit = Fit(model, x=xdata, y=ydata)
+        self.assertIsInstance(fit.objective, LeastSquares)
         fit = Fit(model, x=xdata, objective=LogLikelihood)
+        self.assertIsInstance(fit.objective, LogLikelihood)
 
         # Not allowed
         with self.assertRaises(TypeError):
             fit = Fit(model, x=xdata, y=ydata, Y=2)
         with self.assertRaises(TypeError):
             fit = Fit(model, x=xdata, y=ydata, Y=2, Z=3, constraints=[constraint])
-        # TODO: Uncomment these next lines when #214 has been fixed.
-        # with self.assertRaises(TypeError):
-        #     fit = Fit(model, x=xdata)
-        # with self.assertRaises(TypeError):
-        #     fit = Fit(model, x=xdata, y=ydata, objective=LogLikelihood)
+        # Since #214 has been fixed, these properly raise an error.
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xdata)
+        with self.assertRaises(TypeError):
+            fit = Fit(model, x=xdata, y=ydata, objective=LogLikelihood)
 
 
     def test_constrained_dependent_on_model(self):
@@ -875,12 +879,13 @@ class TestConstrained(unittest.TestCase):
         self.assertEqual(fit.constraints[0].interdependent_vars, [B, y])
         self.assertEqual(fit.constraints[0].params, [A, mu, sig])
         self.assertEqual(fit.constraints[0].constraint_type, Eq)
+        self.assertIsInstance(fit.objective, LeastSquares)
+        self.assertIsInstance(fit.minimizer.constraints[0], MinimizeModel)
 
-        self.assertEqual(set(k for k, v in fit.data.items() if v is not None),
+        self.assertEqual({k for k, v in fit.data.items() if v is not None},
                          {x, y, dx, M, I, fit.model.sigmas[y]})
         # These belong to internal variables
-        self.assertEqual(set(k for k, v in fit.data.items() if v is None),
-                         {B, constraint.sigmas[Y], Y})
+        self.assertEqual({k for k, v in fit.data.items() if v is None}, set())
 
         constr_result = fit.execute()
         # The constraint should not be met for the unconstrained fit
@@ -993,6 +998,7 @@ class TestConstrained(unittest.TestCase):
         results = []
         for minimizer in minimizers:
             fit = Fit(- model, minimizer=minimizer)
+            self.assertIsInstance(fit.objective, MinimizeModel)
             fit_result = fit.execute(tol=1e-15)
             results.append(fit_result)
 

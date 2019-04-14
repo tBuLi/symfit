@@ -13,7 +13,7 @@ from symfit import (
     parameters, Model, Eq, Ge, exp, integrate, oo, GradientModel
 )
 from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
-from symfit.core.objectives import LogLikelihood
+from symfit.core.objectives import LogLikelihood, MinimizeModel, LeastSquares
 from symfit.distributions import Gaussian, Exp, BivariateGaussian
 from tests.test_minimizers import subclasses
 
@@ -90,6 +90,7 @@ class Tests(unittest.TestCase):
         model = {y: a*x**b}
 
         with self.assertRaises(TypeError):
+            # The name of x is not x.
             fit = Fit(model, x=xdata, y=ydata)
 
     def test_vector_fitting(self):
@@ -434,6 +435,7 @@ class Tests(unittest.TestCase):
         g = A * Gaussian(x, x0, sig)
 
         fit = Fit(g, xdata, ydata)
+        self.assertIsInstance(fit.objective, LeastSquares)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(A), 5.0)
@@ -585,7 +587,7 @@ class Tests(unittest.TestCase):
         stdev = np.std(xdata)
         mean_stdev = stdev / np.sqrt(len(xdata))
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
@@ -914,14 +916,16 @@ class Tests(unittest.TestCase):
 
         bounded_minimizers = list(subclasses(BoundedMinimizer))
         for minimizer in bounded_minimizers:
+            if minimizer is MINPACK:
+                # Not a MINPACKable problem because it only has a param
+                continue
             fit = Fit(model, minimizer=minimizer)
+            self.assertIsInstance(fit.objective, MinimizeModel)
             if minimizer is DifferentialEvolution:
                 # Also needs a max
                 x.max = 10
                 fit_result = fit.execute()
                 x.max = None
-            elif minimizer is MINPACK:
-                pass  # Not a MINPACKable problem because it only has a param
             else:
                 fit_result = fit.execute()
                 self.assertGreaterEqual(fit_result.value(x), 1.0)
@@ -940,12 +944,12 @@ class Tests(unittest.TestCase):
         bounded_minimizers = [minimizer for minimizer in bounded_minimizers
                               if minimizer is not DifferentialEvolution]
         for minimizer in bounded_minimizers:
-            fit = Fit(model, minimizer=minimizer)
+            # Not a MINPACKable problem because it only has a param
             if minimizer is MINPACK:
-                pass  # Not a MINPACKable problem because it only has a param
-            else:
-                fit_result = fit.execute()
-                self.assertAlmostEqual(fit_result.value(x), 0.0)
+                continue
+            fit = Fit(model, minimizer=minimizer)
+            fit_result = fit.execute()
+            self.assertAlmostEqual(fit_result.value(x), 0.0)
             self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
