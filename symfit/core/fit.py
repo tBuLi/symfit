@@ -931,6 +931,8 @@ class TakesData(object):
             self.model = model
         else:
             self.model = Model(model)
+        # Perform basic sanity checking, will throw a warning if needed.
+        self._model_sanity(model)
 
         # Handle ordered_data and named_data according to the allowed names.
         signature = self._make_signature()
@@ -1007,6 +1009,23 @@ class TakesData(object):
         ]
 
         return inspect_sig.Signature(parameters=parameters)
+
+    @staticmethod
+    def _model_sanity(model):
+        """
+        Perform some basic sanity checking on the model to warn users when they
+        might be trying something ill advised.
+        :param model:
+        :return:
+        """
+        if not isinstance(model, ODEModel):
+            # Such a model should probably not contain derivatives
+            for var, expr in model.items():
+                if isinstance(var, sympy.Derivative) or expr.has(sympy.Derivative):
+                    warnings.warn(RuntimeWarning(
+                        'The model contains derivatives in its definition. '
+                        'Are you sure you don\'t mean to use `symfit.ODEModel`?'
+                    ))
 
     @property
     def dependent_data(self):
