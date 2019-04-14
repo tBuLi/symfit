@@ -1008,7 +1008,7 @@ class TakesData(object):
             ``self.model``.
         """
         parameters = self._make_parameters()
-        parameters = sorted(parameters, key=lambda p: (p.kind, p.name))
+        parameters = sorted(parameters, key=lambda p: p.default is None)
         return inspect_sig.Signature(parameters=parameters)
 
     @staticmethod
