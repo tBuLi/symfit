@@ -30,7 +30,7 @@ class FitResults(object):
         :param covariance_matrix: covariance matrix.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
-        :param **minimizer_output: Raw output as given by the minimizer.
+        :param \**minimizer_output: Raw output as given by the minimizer.
         """
         constraints = minimizer_output.pop('constraints')
         self.constraints = constraints if constraints is not None else []
