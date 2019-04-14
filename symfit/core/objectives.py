@@ -18,6 +18,8 @@ class BaseObjective(object):
         """
         self.model = model
         self.data = data
+        # Compares the model with the data to see if they are compatible.
+        self._sanity_checking()
 
     @cached_property
     def dependent_data(self):
@@ -91,7 +93,8 @@ class BaseObjective(object):
         """
         shaped_result = []
         n_params = len(self.model.params)
-        for dep_data, component in zip(self.dependent_data.values(), model_output):
+        for dep_var, component in zip(self.model.dependent_vars, model_output):
+            dep_data = self.dependent_data.get(dep_var, None)
             if dep_data is not None:
                 if dep_data.shape == component.shape:
                     shaped_result.append(component)
@@ -123,6 +126,17 @@ class BaseObjective(object):
             self.model.__signature__.parameters if p in data_by_name}
         )
         return kwargs
+
+    def _sanity_checking(self):
+        """
+        Check if the model and the provided data are compatible. Raises a
+        TypeError when this is not the case.
+        """
+        # Simply checking for existence of these dicts will raise an error if
+        # they cannot be built.
+        self.dependent_data
+        self.independent_data
+        self.sigma_data
 
 
 @add_metaclass(abc.ABCMeta)
@@ -200,7 +214,8 @@ class VectorLeastSquares(GradientObjective):
 
         # zip together the dependent vars and evaluated component
         for y, ans in zip(self.model.dependent_vars, evaluated_func):
-            if self.dependent_data[y] is not None:
+            dep_data = self.dependent_data.get(y, None)
+            if dep_data is not None:
                 result.append(((self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]]) ** 2)
                 if flatten_components: # Flattens *within* a component
                     result[-1] = result[-1].flatten()
@@ -218,7 +233,8 @@ class VectorLeastSquares(GradientObjective):
         result = len(self.model.params) * [0.0]
         for ans, y, row in zip(evaluated_func, self.model.dependent_vars,
                                evaluated_jac):
-            if self.dependent_data[y] is not None:
+            dep_data = self.dependent_data.get(y, None)
+            if dep_data is not None:
                 for index, component in enumerate(row):
                     result[index] += component * (
                         (self.dependent_data[y] - ans) / self.sigma_data[self.model.sigmas[y]] ** 2
@@ -260,7 +276,7 @@ class LeastSquares(HessianObjective):
 
         chi2 = [0 for _ in evaluated_func]
         for index, (dep_var, dep_var_value) in enumerate(zip(self.model.dependent_vars, evaluated_func)):
-            dep_data = self.dependent_data[dep_var]
+            dep_data = self.dependent_data.get(dep_var, None)
             if dep_data is not None:
                 sigma = self.sigma_data[self.model.sigmas[dep_var]]
                 chi2[index] += np.sum(
@@ -288,7 +304,7 @@ class LeastSquares(HessianObjective):
         result = 0
         for var, f, jac_comp in zip(self.model.dependent_vars, evaluated_func,
                                     evaluated_jac):
-            y = self.dependent_data[var]
+            y = self.dependent_data.get(var, None)
             sigma_var = self.model.sigmas[var]
             if y is not None:
                 sigma = self.sigma_data[sigma_var]
@@ -320,7 +336,7 @@ class LeastSquares(HessianObjective):
         for var, f, jac_comp, hess_comp in zip(self.model.dependent_vars,
                                                evaluated_func, evaluated_jac,
                                                evaluated_hess):
-            y = self.dependent_data[var]
+            y = self.dependent_data.get(var, None)
             sigma_var = self.model.sigmas[var]
             if y is not None:
                 sigma = self.sigma_data[sigma_var]
@@ -367,7 +383,30 @@ class HessianObjectiveJacApprox(HessianObjective):
                 ) for comp in result]
 
 
-class LogLikelihood(HessianObjective):
+class BaseIndependentObjective(BaseObjective):
+    """
+    Some objective functions dependent only on independent variables, not
+    dependent and sigma variables. In this case, sanity checking is greatly
+    simplified.
+    """
+    @cached_property
+    def dependent_data(self):
+        """
+        :return: Empty OrderedDict.
+        :rtype: collections.OrderedDict
+        """
+        return OrderedDict()
+
+    @cached_property
+    def sigma_data(self):
+        """
+        :return: Empty OrderedDict.
+        :rtype: collections.OrderedDict
+        """
+        return OrderedDict()
+
+
+class LogLikelihood(HessianObjective, BaseIndependentObjective):
     """
     Error function to be minimized by a minimizer in order to *maximize*
     the log-likelihood.
@@ -444,7 +483,7 @@ class LogLikelihood(HessianObjective):
             return np.atleast_2d(np.squeeze(np.array(result)))
 
 
-class MinimizeModel(HessianObjective):
+class MinimizeModel(HessianObjective, BaseIndependentObjective):
     """
     Objective to use when the model itself is the quantity that should be
     minimized. This is only supported for scalar models.
