@@ -22,7 +22,7 @@ from .minimizers import (
 )
 from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares,
-    LogLikelihood, HessianObjective, HessianObjectiveJacApprox
+    LogLikelihood, BaseIndependentObjective, HessianObjectiveJacApprox
 )
 from .fit_results import FitResults
 
@@ -952,10 +952,9 @@ class TakesData(object):
         for var in self.model.vars:
             # Identify data by their Variable, not their variable names.
             # But anything that is not a part of model should not be thrown away
-            self.data[var] = self.data.pop(var.name)
+            if var.name in self.data:
+                self.data[var] = self.data.pop(var.name)
 
-        # Interdependent vars are None by default
-        self.data.update({var: None for var in self.model.interdependent_vars})
         # Change the type to array if no array operations are supported.
         # We don't want to break duck-typing, hence the try-except.
         for var, dataset in self.data.items():
@@ -967,16 +966,10 @@ class TakesData(object):
         self.sigmas_provided = any(value is not None for value in self.sigma_data.values())
 
         # Replace sigmas that are constant by an array of that constant
-        for var, sigma in self.model.sigmas.items():
+        for var, sigma in zip(self.dependent_data, self.sigma_data):
             try:
                 iter(self.data[sigma])
-            except TypeError:
-                if self.data[var] is None and self.data[sigma] is None:
-                    if len(self.data_shapes[1]) == 1:
-                        # The shape of the dependent vars is unique across dependent vars.
-                        # This means we can just assume this shape.
-                        self.data[sigma] = np.ones(self.data_shapes[1][0])
-                    else: pass # No stdevs can be calculated
+            except TypeError:  # not iterable
                 if self.data[var] is not None and self.data[sigma] is None:
                     self.data[sigma] = np.ones(self.data[var].shape)
                 elif self.data[var] is not None:
@@ -996,17 +989,51 @@ class TakesData(object):
             else:
                 self.absolute_sigma = False
 
-    def _make_signature(self):
-        var_names = [var.name for var in self.model.vars]
-        parameters = [
-            # Note that these are inspect_sig.Parameter's, not symfit parameters
-            inspect_sig.Parameter(name,
-                                  inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
-                                  default=None)
-            for name in var_names
-        ]
+    def _make_parameters(self):
+        """
+        Make :class:`inspect.Parameter`'s using the default rules: all variables
+        to the model need to be provided.
 
+        :return: list of  :class:`inspect.Parameter` corresponding to
+            ``self.model``.
+        """
+        return self._make_signature_params_for_objective(self.model, BaseObjective)
+
+    def _make_signature(self):
+        """
+        Make a :class:`inspect.Signature` object corresponding to
+        ``self.model``.
+
+        :return: :class:`inspect.Signature` object corresponding to
+            ``self.model``.
+        """
+        parameters = self._make_parameters()
+        parameters = sorted(parameters, key=lambda p: (p.kind, p.name))
         return inspect_sig.Signature(parameters=parameters)
+
+    @staticmethod
+    def _make_signature_params_for_objective(model, objective_cls):
+        """
+        Based on an objective function, return the inspect.Parameter objects
+        needed to satisfy this objective.
+
+        :param model: instance of model
+        :param objective_cls: (subclass) of objective.
+        """
+        if issubclass(objective_cls, BaseIndependentObjective):
+            vars = model.independent_vars
+        else:
+            vars = model.vars
+
+        parameters = [
+            inspect_sig.Parameter(
+                var.name,
+                kind=inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
+                default=None if var in model.sigmas.values() else inspect_sig.Parameter.empty
+            )
+            for var in vars
+        ]
+        return parameters
 
     @property
     def dependent_data(self):
@@ -1018,7 +1045,7 @@ class TakesData(object):
         :rtype: collections.OrderedDict
         """
         return OrderedDict((var, self.data[var])
-                           for var in self.model.dependent_vars)
+                           for var in self.model.dependent_vars if var in self.data)
 
     @property
     def independent_data(self):
@@ -1042,7 +1069,7 @@ class TakesData(object):
         """
         sigmas = self.model.sigmas
         return OrderedDict((sigmas[var], self.data[sigmas[var]])
-                           for var in self.model.dependent_vars)
+                           for var in self.model.dependent_vars if sigmas[var] in self.data)
 
     @property
     def data_shapes(self):
@@ -1244,13 +1271,40 @@ class Fit(HasCovarianceMatrix):
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
         constraints = named_data.pop('constraints')
+        # Should be a list of Constraint objects
         constraints = [] if constraints is None else constraints
-        # List of Constraint objects
-        if not isinstance(model, BaseModel):
-            model = Model(model)
+
+        # Initiate self.model as an instance of BaseModel if it isn't already
+        if isinstance(model, BaseModel):
+            self.model = model
+        else:
+            self.model = Model(model)
+
+        # Select objective function to use. Has to be done before calling
+        # super.__init__
+        self.objective = self._determine_objective(self.model, objective,
+                                                   minimizer)
         self.constraints = self._init_constraints(constraints=constraints,
-                                                  model=model)
-        super(Fit, self).__init__(model, *ordered_data, **named_data)
+                                                  model=self.model)
+        try:
+            super(Fit, self).__init__(model, *ordered_data, **named_data)
+        except TypeError as err:
+            # There is one possible exception: if the objective was determined
+            # to be a MinimizeModel, but the user actually provided data for the
+            # dependent vars. In that case, they actually want a LeastSquare so
+            # we retry.
+            if objective != self.objective and 'argument' in str(err):
+                self.objective = LeastSquares
+                try:
+                    super(Fit, self).__init__(model, *ordered_data, **named_data)
+                except TypeError:
+                    # If this did not turn out to be the case, re-raise the
+                    # original exception
+                    raise err
+            else:
+                # However, if the user provided an objective themselves,
+                # or it occurred for another reason, they'll want this error.
+                raise err
 
         # Update the data belonging to the constraints. We do this by checking
         # for the presence of data with the same name as one of the independent
@@ -1260,36 +1314,10 @@ class Fit(HasCovarianceMatrix):
             for var in constraint.independent_vars:
                 if var.name in self.data:
                     self.data[var] = self.data.pop(var.name)
-            # Set the dependent vars to None in the data
-            for var in constraint.dependent_vars:
-                self.data[var] = None
-                self.data[constraint.sigmas[var]] = None
 
-        if objective is None:
-            if minimizer is MINPACK:
-                # MINPACK is considered a special snowflake, as its API has to be
-                # considered seperately and has its own non standard objective function.
-                objective = VectorLeastSquares
-            # Param only scalar Model -> the model is the objective.
-            elif len(self.model.independent_vars) == 0 and len(self.model) == 1:
-                # No data provided means a simple minimization of the Model parameters
-                # is requested, not a fit.
-                if all(value is None for value in self.data.values()):
-                    objective = MinimizeModel
-
-        if objective is None:
-            objective = LeastSquares
-        elif objective == LogLikelihood or isinstance(objective, LogLikelihood):
-            if self.sigmas_provided:
-                raise NotImplementedError(
-                    'LogLikelihood fitting does not currently support data '
-                    'weights.'
-                )
-        # Initialise the objective if it's not initialised already
-        if isinstance(objective, BaseObjective):
-            self.objective = objective
-        else:
-            self.objective = objective(self.model, self.data)
+        # Initialise the objective with data if it's not initialised already
+        if not isinstance(self.objective, BaseObjective):
+            self.objective = self.objective(self.model, self.data)
 
         # Select the minimizer on the basis of the provided information.
         if minimizer is None:
@@ -1303,25 +1331,31 @@ class Fit(HasCovarianceMatrix):
             self.minimizer = self._init_minimizer(minimizer)
 
     def _make_signature(self):
-        signature = super(Fit, self)._make_signature()
+        if issubclass(self.objective, BaseObjective):
+            objective_cls = self.objective
+        else:
+            objective_cls = self.objective.__class__
+        parameters = self._make_signature_params_for_objective(
+            self.model, objective_cls
+        )
+        # Extend the signature with the variables to the constraint. Since
+        # constraints will be turned into MinimizeModel objectives, they only
+        # need independent variables to be provided.
+        for constraint in self.constraints:
+            parameters.extend(
+                self._make_signature_params_for_objective(constraint,
+                                                          MinimizeModel)
+            )
 
-        var_names = {var.name for constraint in self.constraints
-                     for var in constraint.independent_vars}
-        # Extra parameter objects due to vars of constraints.
-        extra_parameters = []
-        for var_name in var_names:
-            # inspect Parameters, not symfit Parameters
-            if var_name not in signature.parameters:
-                sig_param = inspect_sig.Parameter(
-                    var_name,
-                    inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
-                    default=None
-                )
-                extra_parameters.append(sig_param)
+        # Make unique while preserving order, and sort by default value so
+        # sigma variables end last
+        unique_parameters = []
+        for par in parameters:
+            if par not in unique_parameters:
+                unique_parameters.append(par)
 
-        extra_parameters.extend(list(signature.parameters.values()))
-        signature = signature.replace(parameters=extra_parameters)
-        return signature
+        parameters = sorted(unique_parameters, key=lambda p: p.default is None)
+        return inspect_sig.Signature(parameters=parameters)
 
     def _determine_minimizer(self):
         """
@@ -1336,6 +1370,34 @@ class Fit(HasCovarianceMatrix):
             return LBFGSB
         else:
             return BFGS
+
+    @staticmethod
+    def _determine_objective(model, objective, minimizer):
+        """
+        Determine the most suitable objective on the basis of the problem at
+        hand.
+
+        :param model: :class:`symfit.core.fit.BaseModel` under consideration.
+        :param objective: objective provided to :class:`symfit.core.fit.Fit` by
+            the user, or ``None``.
+        :param minimizer: :class:`~symfit.core.minimizers.BaseMinimizer`
+            provided by the user, or  ``None``
+        :return: a subclass of `BaseObjective`.
+        """
+        if objective is not None:
+            return objective
+        else:
+            if minimizer is MINPACK:
+                # MINPACK is considered a special snowflake, as its API has to
+                # be considered seperately and has its own non standard
+                # objective function.
+                return VectorLeastSquares
+            # Param only scalar Model -> the model is the objective.
+            elif len(model.independent_vars) == 0 and len(model) == 1:
+                # No data provided means a simple minimization of the Model
+                # parameters is requested, not a fit.
+                return MinimizeModel
+        return LeastSquares
 
     def _init_minimizer(self, minimizer, **minimizer_options):
         """
@@ -1377,7 +1439,6 @@ class Fit(HasCovarianceMatrix):
             constraint_objectives = []
             for constraint in self.constraints:
                 data = self.data  # No copy, share state
-                data.update({var: None for var in constraint.dependent_vars})
                 constraint_objectives.append(MinimizeModel(constraint, data))
             minimizer_options['constraints'] = constraint_objectives
         return minimizer(self.objective, self.model.params, **minimizer_options)
@@ -1448,10 +1509,11 @@ def r_squared(model, fit_result, data):
     :param data: data with which the fit was performed.
     """
     # First filter out the dependent vars
-    y_is = [data[var] for var in model if var in data]
-    x_is = [value for var, value in data.items() if var.name in model.__signature__.parameters]
+    y_is = [data[var] for var in model.dependent_vars if var in data]
+    x_is = [data[var] for var in model.independent_vars if var in data]
     y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
-    f_is = model(*x_is, **fit_result.params)
+    f_is = model(*x_is, **fit_result.params)._asdict()
+    f_is = [f_is[var] for var in model.dependent_vars]
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
     return 1 - SS_res/SS_tot
