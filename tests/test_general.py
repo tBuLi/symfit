@@ -1,12 +1,13 @@
 from __future__ import division, print_function
-import unittest
 import sys
 import sympy
 import warnings
+import unittest
 
 import numpy as np
 import scipy.stats
 from scipy.optimize import curve_fit, minimize
+import pytest
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
@@ -80,12 +81,8 @@ class Tests(unittest.TestCase):
 
         y = Variable('y')
 
-        with warnings.catch_warnings(record=True) as w:
-            # Cause all warnings to always be triggered.
-            warnings.simplefilter("always")
+        with pytest.warns(DeprecationWarning):
             x = Variable()
-            self.assertTrue(len(w) == 1)
-            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
 
         model = {y: a*x**b}
 
