@@ -2,10 +2,12 @@ from __future__ import division, print_function
 import sys
 import sympy
 import warnings
+import unittest
 
 import numpy as np
 import scipy.stats
 from scipy.optimize import curve_fit, minimize
+import pytest
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
@@ -20,11 +22,6 @@ if sys.version_info >= (3, 0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
-
-if sys.version_info >= (3, 2):
-    import unittest
-else:
-    import unittest2 as unittest
 
 
 class Tests(unittest.TestCase):
@@ -84,7 +81,7 @@ class Tests(unittest.TestCase):
 
         y = Variable('y')
 
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
             x = Variable()
 
         model = {y: a*x**b}

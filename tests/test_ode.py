@@ -1,12 +1,10 @@
 from __future__ import division, print_function
 import sys
-if sys.version_info >= (3, 2):
-    import unittest
-else:
-    import unittest2 as unittest
+import unittest
 
-
+import pytest
 import numpy as np
+
 from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel
 from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
@@ -214,13 +212,13 @@ class TestODE(unittest.TestCase):
         model_dict = {
             D(a, t): - k * a * t,
         }
-        with self.assertWarns(RuntimeWarning):
+        with pytest.warns(RuntimeWarning):
             fit = Fit(model_dict, t=tdata, a=adata)
 
         model_dict = {
             a: - k * D(a, t) * t,
         }
-        with self.assertWarns(RuntimeWarning):
+        with pytest.warns(RuntimeWarning):
             fit = Fit(model_dict, t=tdata, a=adata)
 
 if __name__ == '__main__':

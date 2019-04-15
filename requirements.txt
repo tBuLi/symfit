@@ -4,5 +4,4 @@ sympy >= 1.2
 toposort
 funcsigs; python_version < '3.0'
 functools32; python_version < '3.0'
-unittest2; python_version < '3.2'
 six
