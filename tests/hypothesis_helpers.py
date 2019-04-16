@@ -8,14 +8,19 @@ from symfit.core.support import key2str
 import sympy
 
 from hypothesis import strategies as st
+from hypothesis.extra import numpy as npst
 from hypothesis import assume, note
 
 
 NUMBERS = st.floats(allow_nan=False, allow_infinity=False, min_value=-1e6, max_value=1e6)
 
 
+def _is_sorted(lst, cmp=lambda x, y: x <= y):
+    return all(cmp(x, y) for x, y in zip(lst[:-1], lst[1:]))
+
+
 @st.composite
-def exprs(draw, symbols, operations, n_steps, allow_number=False):
+def exprs(draw, symbols, unary_ops, operations, n_leaves, allow_number=False):
     """
     A strategy to generate arbitrary :mod:`Sympy` expressions, based on
     strategies for generating `symbols` and `operations`.
@@ -25,12 +30,14 @@ def exprs(draw, symbols, operations, n_steps, allow_number=False):
     symbols: hypothesis.LazySearchStrategy[sympy.Symbol]
         A strategy that generates sympy symbols. Should probably include
         constants such as 1 and -1.
-    operations: hypothesis.LazySearchStrategy[tuple[int, sympy.Operation]]
+    unary_ops: hypothesis.LazySearchStrategy[sympy.Operation]
+        A strategy that generates sympy operations that take a single argument.
+    operations: hypothesis.LazySearchStrategy[tuple[int, sympy.Operation, bool]]
         A strategy that generates operations with the associated number of
-        arguments.
-    n_steps: int
-        The number of steps to take. Larger numbers result in more complex
-        expressions.
+        arguments and whether they commute.
+    n_leaves: int
+        The number of symbols to initially generate. Larger numbers result in
+        more complex expressions.
     allow_number: bool
         Whether the produced expression can be just a number.
 
@@ -38,22 +45,34 @@ def exprs(draw, symbols, operations, n_steps, allow_number=False):
     -------
     sympy.Expression
     """
-    expr = draw(symbols)
-    for _ in range(n_steps):
+    leaves = draw(st.lists(symbols, min_size=n_leaves, max_size=n_leaves))
+
+    unary_ops = st.one_of(st.none(), unary_ops)
+    first_ops = draw(st.lists(unary_ops, min_size=len(leaves), max_size=len(leaves)))
+    leaves = [op(leave) if op else leave for op, leave in zip(first_ops, leaves)]
+ 
+    while len(leaves) != 1:
         nargs, op = draw(operations)
-        args, expr_pos = draw(st.tuples(st.lists(symbols,
-                                                 min_size=nargs-1,
-                                                 max_size=nargs-1),
-                                        st.integers(0, nargs-1)))
-        args.insert(expr_pos, expr)
-        expr = op(*args)
+        idxs = draw(st.lists(st.integers(min_value=0, max_value=len(leaves) - 1),
+                             min_size=nargs,
+                             max_size=nargs,
+                             unique=True))
+        args = [leaves[idx] for idx in idxs]
+        for idx in sorted(idxs, reverse=True):
+            del leaves[idx]
+        new_node = op(*args)
+        op = draw(unary_ops)
+        if op:
+            new_node = op(new_node)
+        leaves.append(new_node)
+    expr = leaves[0]
     assume(allow_number or not expr.is_number)
     return expr
 
 
 # TODO: ODEModels
 @st.composite
-def models(draw, dependent_vars, symbols, steps=5):
+def models(draw, dependent_vars, symbols, leaves=5):
     """
     A strategy for generating :class:`symfit.Model` s. 
 
@@ -72,16 +91,19 @@ def models(draw, dependent_vars, symbols, steps=5):
     -------
     symfit.Model
     """
-    constants = st.sampled_from([0, 1, -1, 2, 3, sympy.Rational(1, 2), sympy.pi, sympy.E])
+    constants = st.sampled_from([1, -1, 2, 3, sympy.Rational(1, 2), sympy.pi, sympy.E])
     symbols = st.one_of(constants, symbols)
     ops = st.sampled_from([(2, sympy.Add),
                            (2, sympy.Mul),
                            # Can cause imaginary numbers (e.g. (-4)**1.2)
-                           #(2, sympy.Pow),
-                           (1, sympy.sin),
+                           # (2, sympy.Pow),
                            # (2, sympy.log),
                           ])
-    expressions = exprs(symbols, ops, steps, False)
+    unary_ops = st.sampled_from([sympy.sin,
+                                 sympy.exp,
+                                 lambda e: -e,
+                                 lambda e: 1/e])
+    expressions = exprs(symbols, unary_ops, ops, leaves, False)
     model_dict = {}
     for dependent_var in draw(dependent_vars):
         expr = draw(expressions)
@@ -134,8 +156,7 @@ def independent_data_shapes(draw, model, min_value=1, max_value=10, min_dim=1, m
     """
     indep_vars = model.independent_vars
     shape_groups = _same_shape_vars(model)
-    shapes = st.lists(st.integers(min_value, max_value),
-                      min_size=min_dim, max_size=max_dim).map(tuple)
+    shapes = npst.array_shapes(min_dim, max_dim, min_value, max_value)
     grp_shape = draw(st.fixed_dictionaries({var_grp: shapes for var_grp in shape_groups}))
     indep_shape = {}
     for vars, shape in grp_shape.items():
@@ -157,18 +178,14 @@ def numpy_arrays(shape, elements=NUMBERS, **kwargs):
         The strategy which should be used to generate elements of the array.
     kwargs: dict[str]
         Additional keyword arguments to be passed to
-        :func:`hypothesis.strategies.lists`
+        :func:`hypothesis.extra.numpy.arrays`
 
     Returns
     -------
     hypothesis.LazySearchStrategy[np.array]
     """
-    number_of_values = reduce(operator.mul, shape, 1)
-    return st.lists(elements,
-                    min_size=number_of_values,
-                    max_size=number_of_values,
-                    **kwargs).map(lambda l: np.reshape(l, shape))
-
+    return npst.arrays(float, shape, elements=NUMBERS, **kwargs)
+    
 
 @st.composite
 def indep_values(draw, model):
@@ -258,7 +275,7 @@ def dep_values(draw, model, indep_data, param_vals):
 
 
 @st.composite
-def model_with_data(draw, dependent_vars, symbols, steps=5):
+def model_with_data(draw, dependent_vars, symbols, leaves=5):
     """
     Strategy that generates a model with associated data using the given
     dependent variables.
@@ -270,7 +287,7 @@ def model_with_data(draw, dependent_vars, symbols, steps=5):
     symbols: hypothesis.LazySearchStrategy[symfit.Variable or symfit.Parameter]
         Strategy to use to generate independent variables and parameters for the
         model
-    steps: int
+    leaves: int
         The number of operations to perform when generating the expressions for
         every dependent component of the model. More steps means complexer
         expressions.
@@ -286,7 +303,7 @@ def model_with_data(draw, dependent_vars, symbols, steps=5):
     dict[str, np.array]
         Data for the dependent variables, as well as sigmas.
     """
-    model = draw(models(dependent_vars, symbols, steps=steps))
+    model = draw(models(dependent_vars, symbols, leaves=leaves))
     indep_data, param_data = draw(st.tuples(indep_values(model), param_values(model)), label='independent data, parameters')
     try:
         dep_data = draw(dep_values(model, indep_data, param_data), label='dependent data')
