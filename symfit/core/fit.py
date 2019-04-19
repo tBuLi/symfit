@@ -1381,7 +1381,7 @@ class Fit(HasCovarianceMatrix):
                         raise TypeError(
                             'A value was provided for `{}`, however for {} '
                             'fitting the dependent variable cannot have a value '
-                            'assigned to it.'.format(objective, var.name)
+                            'assigned to it.'.format(var.name, objective)
                         )
             return objective
         else:
@@ -1390,8 +1390,8 @@ class Fit(HasCovarianceMatrix):
                 # be considered separately and has its own non standard
                 # objective function.
                 return VectorLeastSquares
-            if len(model) == 1:
-                if len(model.independent_vars) == 0 and model.dependent_vars[0].name not in bound_arguments.arguments:
+            if len(model) == 1 and len(model.independent_vars) == 0:
+                if model.dependent_vars[0].name not in bound_arguments.arguments:
                     # No data provided means a simple minimization of the Model
                     # parameters is requested, not a fit. Therefore set the
                     # variable to None and return MinimizeModel.
