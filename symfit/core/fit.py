@@ -989,16 +989,6 @@ class TakesData(object):
             else:
                 self.absolute_sigma = False
 
-    def _make_parameters(self):
-        """
-        Make :class:`inspect.Parameter`'s using the default rules: all variables
-        to the model need to be provided.
-
-        :return: list of  :class:`inspect.Parameter` corresponding to
-            ``self.model``.
-        """
-        return self._make_signature_params_for_objective(self.model, BaseObjective)
-
     def _make_signature(self):
         """
         Make a :class:`inspect.Signature` object corresponding to
@@ -1007,31 +997,33 @@ class TakesData(object):
         :return: :class:`inspect.Signature` object corresponding to
             ``self.model``.
         """
-        parameters = self._make_parameters()
+        parameters = self._make_parameters(self.model)
         parameters = sorted(parameters, key=lambda p: p.default is None)
         return inspect_sig.Signature(parameters=parameters)
 
     @staticmethod
-    def _make_signature_params_for_objective(model, objective_cls):
+    def _make_parameters(model, none_allowed=None):
         """
-        Based on an objective function, return the inspect.Parameter objects
-        needed to satisfy this objective.
+        Based on a model, return the inspect.Parameter objects
+        needed to satisfy all the variables of this model.
 
         :param model: instance of model
-        :param objective_cls: (subclass) of objective.
+        :param none_allowed: If provided, this has to be a sequence of
+            :class:`symfit.core.argument.Variable` whose values are set to
+            ``None`` by default. If not provided, this will be set to sigma
+            variables only.
+        :return: list of  :class:`inspect.Parameter` corresponding to all the
+            external variables of the model.
         """
-        if issubclass(objective_cls, BaseIndependentObjective):
-            vars = model.independent_vars
-        else:
-            vars = model.vars
-
+        if none_allowed is None:
+            none_allowed = model.sigmas.values()
         parameters = [
             inspect_sig.Parameter(
                 var.name,
                 kind=inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
-                default=None if var in model.sigmas.values() else inspect_sig.Parameter.empty
+                default=None if var in none_allowed else inspect_sig.Parameter.empty
             )
-            for var in vars
+            for var in model.vars
         ]
         return parameters
 
@@ -1243,7 +1235,8 @@ class Fit(HasCovarianceMatrix):
         fit_result = fit.execute(minimizer_kwargs=[dict(xatol=0.1), {}])
     """
 
-    @keywordonly(objective=None, minimizer=None, constraints=None)
+    @keywordonly(objective=None, minimizer=None, constraints=None,
+                 absolute_sigma=None)
     def __init__(self, model, *ordered_data, **named_data):
         """
 
@@ -1271,6 +1264,7 @@ class Fit(HasCovarianceMatrix):
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
         constraints = named_data.pop('constraints')
+        absolute_sigma = named_data.pop('absolute_sigma')
         # Should be a list of Constraint objects
         constraints = [] if constraints is None else constraints
 
@@ -1280,38 +1274,29 @@ class Fit(HasCovarianceMatrix):
         else:
             self.model = Model(model)
 
-        # Select objective function to use. Has to be done before calling
-        # super.__init__
-        self.objective = self._determine_objective(self.model, objective,
-                                                   minimizer)
         self.constraints = self._init_constraints(constraints=constraints,
                                                   model=self.model)
-        try:
-            super(Fit, self).__init__(model, *ordered_data, **named_data)
-        except TypeError as err:
-            # There is one possible exception: if the objective was determined
-            # to be a MinimizeModel, but the user actually provided data for the
-            # dependent vars. In that case, they actually want a LeastSquare so
-            # we retry.
-            if objective != self.objective and 'argument' in str(err):
-                self.objective = LeastSquares
-                try:
-                    super(Fit, self).__init__(model, *ordered_data, **named_data)
-                except TypeError:
-                    # If this did not turn out to be the case, re-raise the
-                    # original exception
-                    raise err
-            else:
-                # However, if the user provided an objective themselves,
-                # or it occurred for another reason, they'll want this error.
-                raise err
+
+        # Bind as much as possible the provided arguments.
+        signature = self._make_signature()
+        bound_arguments = signature.bind_partial(*ordered_data, **named_data)
+
+        # Select objective function to use. Has to be done before calling
+        # super.__init__
+        self.objective = self._determine_objective(
+            self.model, objective=objective,
+            minimizer=minimizer, bound_arguments=bound_arguments
+        )
+
+        super(Fit, self).__init__(self.model, absolute_sigma=absolute_sigma,
+                                  **bound_arguments.arguments)
 
         # Update the data belonging to the constraints. We do this by checking
         # for the presence of data with the same name as one of the independent
         # variables of the constraint. If present, we start addressing them by
         # their Variable instead.
         for constraint in self.constraints:
-            for var in constraint.independent_vars:
+            for var in constraint.vars:
                 if var.name in self.data:
                     self.data[var] = self.data.pop(var.name)
 
@@ -1331,20 +1316,16 @@ class Fit(HasCovarianceMatrix):
             self.minimizer = self._init_minimizer(minimizer)
 
     def _make_signature(self):
-        if issubclass(self.objective, BaseObjective):
-            objective_cls = self.objective
-        else:
-            objective_cls = self.objective.__class__
-        parameters = self._make_signature_params_for_objective(
-            self.model, objective_cls
-        )
+        parameters = self._make_parameters(self.model)
         # Extend the signature with the variables to the constraint. Since
         # constraints will be turned into MinimizeModel objectives, they only
         # need independent variables to be provided.
         for constraint in self.constraints:
+            none_allowed = constraint.dependent_vars + list(constraint.sigmas.values())
             parameters.extend(
-                self._make_signature_params_for_objective(constraint,
-                                                          MinimizeModel)
+                self._make_parameters(
+                    constraint, none_allowed=none_allowed
+                )
             )
 
         # Make unique while preserving order, and sort by default value so
@@ -1372,31 +1353,52 @@ class Fit(HasCovarianceMatrix):
             return BFGS
 
     @staticmethod
-    def _determine_objective(model, objective, minimizer):
+    def _determine_objective(model, objective, minimizer, bound_arguments):
         """
         Determine the most suitable objective on the basis of the problem at
-        hand.
+        hand. This could modify ``bound_arguments`` in place accordingly if
+        required!
 
         :param model: :class:`symfit.core.fit.BaseModel` under consideration.
         :param objective: objective provided to :class:`symfit.core.fit.Fit` by
             the user, or ``None``.
         :param minimizer: :class:`~symfit.core.minimizers.BaseMinimizer`
             provided by the user, or  ``None``
+        :param bound_arguments: Instance of :class:`inspect.BoundArguments`.
         :return: a subclass of `BaseObjective`.
         """
         if objective is not None:
+            # Client is king, return the clients objective. For LogLikelihood
+            # though, we do check if the data is compatible with likelihood
+            # fitting.
+            if objective is LogLikelihood or objective is MinimizeModel or \
+                    isinstance(objective, (MinimizeModel, LogLikelihood)):
+                # Set dependent vars and corresponding sigmas to None.
+                for var in model.dependent_vars + list(model.sigmas.values()):
+                    if var.name not in bound_arguments.arguments:
+                        bound_arguments.arguments[var.name] = None
+                    else:
+                        raise TypeError(
+                            'A value was provided for `{}`, however for {} '
+                            'fitting the dependent variable cannot have a value '
+                            'assigned to it.'.format(objective, var.name)
+                        )
             return objective
         else:
             if minimizer is MINPACK:
                 # MINPACK is considered a special snowflake, as its API has to
-                # be considered seperately and has its own non standard
+                # be considered separately and has its own non standard
                 # objective function.
                 return VectorLeastSquares
-            # Param only scalar Model -> the model is the objective.
-            elif len(model.independent_vars) == 0 and len(model) == 1:
-                # No data provided means a simple minimization of the Model
-                # parameters is requested, not a fit.
-                return MinimizeModel
+            if len(model) == 1:
+                if len(model.independent_vars) == 0 and model.dependent_vars[0].name not in bound_arguments.arguments:
+                    # No data provided means a simple minimization of the Model
+                    # parameters is requested, not a fit. Therefore set the
+                    # variable to None and return MinimizeModel.
+                    for var in model.dependent_vars:
+                        if var.name not in bound_arguments.arguments:
+                            bound_arguments.arguments[var.name] = None
+                    return MinimizeModel
         return LeastSquares
 
     def _init_minimizer(self, minimizer, **minimizer_options):
