@@ -133,7 +133,7 @@ class BaseObjective(object):
         TypeError when this is not the case.
         """
         # Simply checking for existence of these dicts will raise an error if
-        # they cannot be built.
+        # they cannot be built (because these are properties).
         self.dependent_data
         self.independent_data
         self.sigma_data

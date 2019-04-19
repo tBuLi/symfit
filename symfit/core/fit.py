@@ -1515,6 +1515,7 @@ def r_squared(model, fit_result, data):
     x_is = [data[var] for var in model.independent_vars if var in data]
     y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
     f_is = model(*x_is, **fit_result.params)._asdict()
+    # f_is also contains the evaluated interdependent_vars, skip those.
     f_is = [f_is[var] for var in model.dependent_vars]
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
     SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
