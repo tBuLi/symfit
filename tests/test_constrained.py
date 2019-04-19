@@ -885,7 +885,8 @@ class TestConstrained(unittest.TestCase):
         self.assertEqual({k for k, v in fit.data.items() if v is not None},
                          {x, y, dx, M, I, fit.model.sigmas[y]})
         # These belong to internal variables
-        self.assertEqual({k for k, v in fit.data.items() if v is None}, set())
+        self.assertEqual({k for k, v in fit.data.items() if v is None},
+                         {constraint.sigmas[Y], Y})
 
         constr_result = fit.execute()
         # The constraint should not be met for the unconstrained fit
