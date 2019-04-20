@@ -1371,7 +1371,7 @@ class Fit(HasCovarianceMatrix):
             # Client is king, return the clients objective. For LogLikelihood
             # though, we do check if the data is compatible with likelihood
             # fitting.
-            if (objective is LogLikelihood or objective is MinimizeModel or 
+            if (objective is LogLikelihood or objective is MinimizeModel or
                     isinstance(objective, (MinimizeModel, LogLikelihood))):
                 # Set dependent vars and corresponding sigmas to None.
                 for var in model.dependent_vars + list(model.sigmas.values()):
