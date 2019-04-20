@@ -23,13 +23,14 @@ class FitResults(object):
     :class:`~symfit.core.fit.Model`'s.
     """
     @keywordonly(constraints=None)
-    def __init__(self, model, popt, covariance_matrix, minimizer, objective, **minimizer_output):
+    def __init__(self, model, popt, covariance_matrix, minimizer, objective, message, **minimizer_output):
         """
         :param model: :class:`~symfit.core.fit.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param covariance_matrix: covariance matrix.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
+        :param message: Status message returned by the minimizer.
         :param \**minimizer_output: Raw output as given by the minimizer.
         """
         constraints = minimizer_output.pop('constraints')
@@ -38,6 +39,7 @@ class FitResults(object):
         self.model = model
         self.minimizer = minimizer
         self.objective = objective
+        self.status_message = message
 
         self._popt = popt
         self.params = OrderedDict(
@@ -54,14 +56,6 @@ class FitResults(object):
             return self.minimizer_output['niter']
         else:
             return None
-
-    @property
-    def status_message(self):
-        return self.minimizer_output['message']
-
-    @property
-    def infodict(self):
-        return self.minimizer_output['infodic']
 
     def __str__(self):
         """

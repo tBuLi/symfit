@@ -156,6 +156,12 @@ class TestFitResults(unittest.TestCase):
         for constraint in self.constrained_result.constraints:
             self.assertIsInstance(constraint, MinimizeModel)
 
+    def test_message_included(self):
+        """Status message should be included."""
+        self.assertIsInstance(self.fit_result.status_message, str)
+        self.assertIsInstance(self.minpack_result.status_message, str)
+        self.assertIsInstance(self.likelihood_result.status_message, str)
+
     def test_pickle(self):
         dumped = pickle.dumps(self.fit_result)
         new_result = pickle.loads(dumped)
