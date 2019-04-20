@@ -491,8 +491,8 @@ class BaseNumericalModel(BaseModel):
             the values of this dict have to be sets.
         """
         connectivity_mapping = kwargs.pop('connectivity_mapping')
-        if connectivity_mapping is None and \
-                independent_vars is not None and params is not None:
+        if (connectivity_mapping is None and
+                independent_vars is not None and params is not None):
             # Make model into a mapping if needed.
             if not isinstance(model, Mapping):
                 try:
@@ -1371,8 +1371,8 @@ class Fit(HasCovarianceMatrix):
             # Client is king, return the clients objective. For LogLikelihood
             # though, we do check if the data is compatible with likelihood
             # fitting.
-            if objective is LogLikelihood or objective is MinimizeModel or \
-                    isinstance(objective, (MinimizeModel, LogLikelihood)):
+            if (objective is LogLikelihood or objective is MinimizeModel or 
+                    isinstance(objective, (MinimizeModel, LogLikelihood))):
                 # Set dependent vars and corresponding sigmas to None.
                 for var in model.dependent_vars + list(model.sigmas.values()):
                     if var.name not in bound_arguments.arguments:
@@ -1390,15 +1390,15 @@ class Fit(HasCovarianceMatrix):
                 # be considered separately and has its own non standard
                 # objective function.
                 return VectorLeastSquares
-            if len(model) == 1 and len(model.independent_vars) == 0:
-                if model.dependent_vars[0].name not in bound_arguments.arguments:
-                    # No data provided means a simple minimization of the Model
-                    # parameters is requested, not a fit. Therefore set the
-                    # variable to None and return MinimizeModel.
-                    for var in model.dependent_vars:
-                        if var.name not in bound_arguments.arguments:
-                            bound_arguments.arguments[var.name] = None
-                    return MinimizeModel
+            if (len(model) == 1 and len(model.independent_vars) == 0 and
+                model.dependent_vars[0].name not in bound_arguments.arguments):
+                # No data provided means a simple minimization of the Model
+                # parameters is requested, not a fit. Therefore set the
+                # variable to None and return MinimizeModel.
+                for var in model.dependent_vars:
+                    if var.name not in bound_arguments.arguments:
+                        bound_arguments.arguments[var.name] = None
+                return MinimizeModel
         return LeastSquares
 
     def _init_minimizer(self, minimizer, **minimizer_options):
