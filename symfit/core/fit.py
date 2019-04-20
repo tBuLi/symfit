@@ -1095,34 +1095,6 @@ class TakesData(object):
         return np.array([param.value for param in self.model.params])
 
 
-class BaseFit(TakesData):
-    """
-    Abstract base class for all fitting objects.
-    """
-    def execute(self, *args, **kwargs):
-        """
-        Every fit object has to define an execute method.
-        Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.
-
-        :args kwargs:
-        :return: Instance of FitResults
-        """
-        raise NotImplementedError('Every subclass of BaseFit must have an execute method.')
-
-    def error_func(self, *args, **kwargs):
-        """
-        Every fit object has to define an error_func method, giving the function to be minimized.
-        """
-        raise NotImplementedError('Every subclass of BaseFit must have an error_func method.')
-
-    def eval_jacobian(self, *args, **kwargs):
-        """
-        Every fit object has to define an eval_jacobian method, giving the jacobian of the
-        function to be minimized.
-        """
-        raise NotImplementedError('Every subclass of BaseFit must have an eval_jacobian method.')
-
-
 class HasCovarianceMatrix(TakesData):
     """
     Mixin class for calculating the covariance matrix for any model that has a
