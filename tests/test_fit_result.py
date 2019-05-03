@@ -9,7 +9,9 @@ from symfit import (
     Variable, Parameter, Fit, FitResults, Eq, Ge, CallableNumericalModel, Model
 )
 from symfit.distributions import BivariateGaussian
-from symfit.core.minimizers import BaseMinimizer, MINPACK
+from symfit.core.minimizers import (
+    BaseMinimizer, MINPACK, BFGS, NelderMead, ChainedMinimizer
+)
 from symfit.core.objectives import (
     LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
 )
@@ -35,6 +37,8 @@ class TestFitResults(unittest.TestCase):
         self.minpack_result = fit.execute()
         fit = Fit(model, x=xdata, objective=LogLikelihood)
         self.likelihood_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata, minimizer=[BFGS, NelderMead])
+        self.chained_result = fit.execute()
 
         z = Variable('z')
         constraints = [
@@ -139,6 +143,10 @@ class TestFitResults(unittest.TestCase):
     def test_minimizer_included(self):
         """"The minimizer used should be included in the results."""
         self.assertIsInstance(self.fit_result.minimizer, BaseMinimizer)
+        self.assertIsInstance(self.chained_result.minimizer, ChainedMinimizer)
+        for minimizer, cls in zip(self.chained_result.minimizer.minimizers,
+                                  [BFGS, NelderMead]):
+            self.assertIsInstance(minimizer, cls)
 
     def test_objective_included(self):
         """"The objective used should be included in the results."""

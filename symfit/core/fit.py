@@ -1432,6 +1432,7 @@ class Fit(HasCovarianceMatrix):
         )
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
+        minimizer_ans.minimizer = self.minimizer
         return minimizer_ans
 
 
