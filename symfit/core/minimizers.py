@@ -318,6 +318,9 @@ class ChainedMinimizer(BaseMinimizer):
         del state['__signature__']
         return state
 
+    def __str__(self):
+        return self.__class__.__name__ + '(minimizers={})'.format(self.minimizers)
+
 class ScipyMinimize(object):
     """
     Mix-in class that handles the execute calls to :func:`scipy.optimize.minimize`.
