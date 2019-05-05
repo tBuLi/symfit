@@ -52,8 +52,6 @@ class FitResults(object):
     def iterations(self):
         if 'nit' in self.minimizer_output:
             return self.minimizer_output['nit']
-        elif 'niter' in self.minimizer_output:
-            return self.minimizer_output['niter']
         else:
             return None
 
