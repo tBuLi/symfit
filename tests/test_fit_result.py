@@ -16,6 +16,9 @@ from symfit.core.objectives import (
     LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
 )
 
+def ge_constraint(a):  # Has to be in the global namespace for pickle.
+    return a - 1
+
 class TestFitResults(unittest.TestCase):
     """
     Tests for the FitResults object.
@@ -44,7 +47,7 @@ class TestFitResults(unittest.TestCase):
         constraints = [
             Eq(a, b),
             CallableNumericalModel.as_constraint(
-                {z: lambda a: a - 1}, connectivity_mapping={z: {a}},
+                {z: ge_constraint}, connectivity_mapping={z: {a}},
                 constraint_type=Ge, model=model
             )
         ]
@@ -171,19 +174,21 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(self.likelihood_result.status_message, str)
 
     def test_pickle(self):
-        dumped = pickle.dumps(self.fit_result)
-        new_result = pickle.loads(dumped)
-        self.assertEqual(sorted(self.fit_result.__dict__.keys()),
-                         sorted(new_result.__dict__.keys()))
-        for k, v1 in self.fit_result.__dict__.items():
-            v2 = new_result.__dict__[k]
-            if k == 'minimizer':
-                self.assertEqual(type(v1), type(v2))
-            elif k != 'minimizer_output':  # Ignore minimizer_output
-                if isinstance(v1, np.ndarray):
-                    np.testing.assert_almost_equal(v1, v2)
-                else:
-                    self.assertEqual(v1, v2)
+        for fit_result in [self.fit_result, self.chained_result,
+                           self.constrained_result, self.likelihood_result]:
+            dumped = pickle.dumps(fit_result)
+            new_result = pickle.loads(dumped)
+            self.assertEqual(sorted(fit_result.__dict__.keys()),
+                             sorted(new_result.__dict__.keys()))
+            for k, v1 in fit_result.__dict__.items():
+                v2 = new_result.__dict__[k]
+                if k == 'minimizer':
+                    self.assertEqual(type(v1), type(v2))
+                elif k != 'minimizer_output':  # Ignore minimizer_output
+                    if isinstance(v1, np.ndarray):
+                        np.testing.assert_almost_equal(v1, v2)
+                    else:
+                        self.assertEqual(v1, v2)
 
     def test_gof_presence(self):
         """
