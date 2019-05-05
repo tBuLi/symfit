@@ -356,6 +356,7 @@ class TestMinimize(unittest.TestCase):
                         self.assertIsInstance(used, target)
                 else:
                     self.assertIsInstance(result.minimizer, minimizer)
+                self.assertIsInstance(result.iterations, int)
 
     def test_minimizer_constraint_compatibility(self):
         """

@@ -531,6 +531,11 @@ class COBYLA(ScipyConstrainedMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
+    def execute(self, **minimize_options):
+        ans = super(COBYLA, self).execute(**minimize_options)
+        # Nearest indication of nit.
+        ans.minimizer_output['nit'] = ans.minimizer_output.pop('nfev')
+        return ans
 
 class LBFGSB(ScipyGradientMinimize, ScipyBoundedMinimizer):
     """
@@ -631,10 +636,14 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, ScipyBoundedMi
         if hessian is None:
             hessian = self.wrapped_hessian
 
-        return super(TrustConstr, self).execute(options=options,
+        ans = super(TrustConstr, self).execute(options=options,
                                                 jacobian=jacobian,
                                                 hessian=hessian,
                                                 **minimize_options)
+        # Rename the number of iterations kwarg to be consistent.
+        ans.minimizer_output['nit'] = ans.minimizer_output.pop('niter')
+        return ans
+
 
 class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
     """
@@ -647,6 +656,7 @@ class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
                                      self.bounds,
                                      **de_options)
         return self._pack_output(ans)
+
 
 class BasinHopping(ScipyMinimize, GlobalMinimizer):
     """
@@ -774,6 +784,6 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
         ans = OptimizeResult(zip(output_names, full_output))
         ans['fun'] = ans.infodic['fvec']
         ans['success'] = 1 <= ans.status <= 4  # These codes are successful
-        ans['nfev'] = ans.infodic['nfev']
+        ans['nit'] = ans.infodic['nfev']  # Nearest indication of nit.
 
         return self._pack_output(ans)
