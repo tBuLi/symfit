@@ -187,18 +187,6 @@ class FitResults(object):
                 return False
         else: return True
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state['minimizer'] = (type(state['minimizer']),
-                              state['minimizer'].objective,
-                              state['minimizer'].parameters)
-        return state
-
-    def __setstate__(self, state):
-        min_class, objective, parameters = state['minimizer']
-        state['minimizer'] = min_class(objective, parameters)
-        self.__dict__.update(state)
-
     def _gof_qualifiers(self):
         """
         Based on the objective used, we can infer certain goodness of fit
