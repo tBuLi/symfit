@@ -8,17 +8,17 @@ import numpy as np
 from symfit import (
     Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
     Model, FitResults, variables, CallableNumericalModel, Idx,
-    IndexedBase, symbols, Sum, log
+    IndexedBase, symbols, Sum, log, exp, cos, pi, besseli
 )
 from symfit.core.objectives import (
     VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel
 )
 from symfit.core.fit_results import FitResults
-from symfit.core.printing import SymfitNumPyPrinter
+from symfit.core.printing import NumPyPrinter
 from symfit.distributions import Exp
 
 # Overwrite the way Sum is printed by numpy just while testing. Is not
-# general enough to be moved to SymfitNumPyPrinter, but has to be used
+# general enough to be moved to symfit.core.printing, but has to be used
 # in this test. This way of summing completely ignores the summation indices and
 # the dimensions, and instead just flattens everything to a scalar. Only used
 # in this test to build the analytical equivalents of our LeastSquares
@@ -32,7 +32,7 @@ class FlattenSum(Sum):
 def _print_FlattenSum(self, expr):
     return "%s(%s)" % (self._module_format('numpy.sum'),
                        self._print(expr.function))
-SymfitNumPyPrinter._print_FlattenSum = _print_FlattenSum
+NumPyPrinter._print_FlattenSum = _print_FlattenSum
 
 
 class TestObjectives(unittest.TestCase):
@@ -189,7 +189,54 @@ class TestObjectives(unittest.TestCase):
         self.assertAlmostEqual(fit_exact_result.stdev(a), fit_num_result.stdev(a))
         self.assertAlmostEqual(fit_exact_result.stdev(b), fit_num_result.stdev(b))
 
+    def test_LogLikelihood_global(self):
+        """
+        This is a test for global likelihood fitting to multiple data sets.
+        Based on SO question 56006357.
+        """
+        # creating the data
+        mu1, mu2 = .05, -.05
+        sigma1, sigma2 = 3.5, 2.5
+        n1, n2 = 80, 90
+        np.random.seed(42)
+        x1 = np.random.vonmises(mu1, sigma1, n1)
+        x2 = np.random.vonmises(mu2, sigma2, n2)
 
+        n = 2  # number of components
+        xs = variables(
+            'x,' + ','.join('x_{}'.format(i) for i in range(1, n + 1)))
+        x, xs = xs[0], xs[1:]
+        ys = variables(','.join('y_{}'.format(i) for i in range(1, n + 1)))
+        mu, kappa = parameters('mu, kappa')
+        kappas = parameters(','.join('k_{}'.format(i) for i in range(1, n + 1)),
+                            min=0, max=10)
+        mu.min, mu.max = - np.pi, np.pi
+
+        template = exp(kappa * cos(x - mu)) / (2 * pi * besseli(0, kappa))
+
+        model = Model(
+            {y_i: template.subs({kappa: k_i, x: x_i}) for y_i, x_i, k_i in
+             zip(ys, xs, kappas)}
+        )
+
+        all_data = {xs[0]: x1, xs[1]: x2, ys[0]: None, ys[1]: None}
+        all_params = {'mu': 1}
+        all_params.update({k_i.name: 1 for k_i in kappas})
+
+        # Evaluate the loglikelihood and its jacobian and hessian
+        logL = LogLikelihood(model, data=all_data)
+        eval_numerical = logL(**all_params)
+        jac_numerical = logL.eval_jacobian(**all_params)
+        hess_numerical = logL.eval_hessian(**all_params)
+
+        # Test the types and shapes of the components.
+        self.assertIsInstance(eval_numerical, float)
+        self.assertIsInstance(jac_numerical, np.ndarray)
+        self.assertIsInstance(hess_numerical, np.ndarray)
+
+        self.assertEqual(eval_numerical.shape, tuple())  # Empty tuple -> scalar
+        self.assertEqual(jac_numerical.shape, (3,))
+        self.assertEqual(hess_numerical.shape, (3, 3,))
 
 if __name__ == '__main__':
     try:

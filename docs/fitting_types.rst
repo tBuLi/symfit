@@ -115,6 +115,10 @@ Example::
 ``fit_result`` is a normal :class:`~symfit.core.fit_results.FitResults` object.
 As always, bounds on parameters and even constraints are supported.
 
+Multiple data sets can be likelihood fitted simultaneously by merging this
+example with that of global fitting, see `Example: Global Likelihood fitting`
+in the example section.
+
 .. _minimize_maximize:
 
 Minimize/Maximize

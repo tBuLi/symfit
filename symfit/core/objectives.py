@@ -381,7 +381,9 @@ class LogLikelihood(HessianObjective):
             ordered_parameters, **parameters
         )
 
-        ans = - np.nansum(np.log(evaluated_func))
+        ans = - np.nansum(
+            [np.nansum(np.log(component)) for component in evaluated_func]
+        )
         return ans
 
     @keywordonly(apply_func=np.nansum)
@@ -403,14 +405,18 @@ class LogLikelihood(HessianObjective):
         )
 
         result = []
-        for jac_comp in evaluated_jac:
+        for component, jac_comp in zip(evaluated_func, evaluated_jac):
+            component_sums = []
             for df in jac_comp:
-                result.append(
+                component_sums.append(
                     - apply_func(
-                        df.flatten() / evaluated_func
+                        df / component
                     )
                 )
+            else:
+                result.append(component_sums)
         else:
+            result = np.sum(result, axis=0)
             return np.atleast_1d(np.squeeze(np.array(result)))
 
     def eval_hessian(self, ordered_parameters=[], **parameters):

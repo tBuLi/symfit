@@ -29,6 +29,7 @@ standard least-squares objective, such as likelihood fitting.
     :maxdepth: 1
 
     ex_bivariate_likelihood
+    ex_multidataset_likelihood
 
 Interactive Guess Module
 ------------------------

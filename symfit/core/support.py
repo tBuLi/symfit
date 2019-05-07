@@ -19,7 +19,7 @@ from sympy import symbols, MatrixExpr
 from sympy.core.expr import Expr
 
 from symfit.core.argument import Parameter, Variable
-from symfit.core.printing import SymfitNumPyPrinter
+import symfit.core.printing  # Overwrites some numpy printing
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -120,8 +120,7 @@ def sympy_to_py(func, args):
     func = func.xreplace(derivatives)
     args = [derivatives[var] if isinstance(var, sympy.Derivative) else var
             for var in args]
-    lambdafunc = lambdify(args, func, printer=SymfitNumPyPrinter,
-                          dummify=False)
+    lambdafunc = lambdify(args, func, dummify=False)
     # Check if the names of the lambda function are what we expect
     signature = inspect_sig.signature(lambdafunc)
     sig_parameters = OrderedDict(signature.parameters)
