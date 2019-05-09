@@ -10,7 +10,7 @@ from symfit import (
 )
 from symfit.distributions import BivariateGaussian
 from symfit.core.minimizers import (
-    BaseMinimizer, MINPACK, BFGS, NelderMead, ChainedMinimizer
+    BaseMinimizer, MINPACK, BFGS, NelderMead, ChainedMinimizer, BasinHopping
 )
 from symfit.core.objectives import (
     LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
@@ -53,6 +53,9 @@ class TestFitResults(unittest.TestCase):
         ]
         fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
         self.constrained_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata, constraints=constraints,
+                  minimizer=BasinHopping)
+        self.constrained_basinhopping_result = fit.execute()
 
     def test_params_type(self):
         self.assertIsInstance(self.fit_result.params, OrderedDict)
@@ -163,9 +166,11 @@ class TestFitResults(unittest.TestCase):
         we can easily print their compliance.
         """
         # For a constrained fit we expect a list of MinimizeModel objectives.
-        self.assertIsInstance(self.constrained_result.constraints, list)
-        for constraint in self.constrained_result.constraints:
-            self.assertIsInstance(constraint, MinimizeModel)
+        for constrained_result in [self.constrained_result,
+                                   self.constrained_basinhopping_result]:
+            self.assertIsInstance(constrained_result.constraints, list)
+            for constraint in constrained_result.constraints:
+                self.assertIsInstance(constraint, MinimizeModel)
 
     def test_message_included(self):
         """Status message should be included."""

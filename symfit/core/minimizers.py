@@ -753,6 +753,9 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
             self.initial_guesses,
             **minimize_options
         )
+        if 'constraints' in minimize_options['minimizer_kwargs']:
+            # Add the constraints to the FitResults
+            ans['constraints'] = self.local_minimizer.constraints
         return self._pack_output(ans)
 
 
