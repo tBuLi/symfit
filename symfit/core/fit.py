@@ -1236,18 +1236,25 @@ class Fit(HasCovarianceMatrix):
     """
 
     @keywordonly(objective=None, minimizer=None, constraints=None,
-                 absolute_sigma=None)
+                 absolute_sigma=None, stationary_point=False)
     def __init__(self, model, *ordered_data, **named_data):
         """
 
         :param model: (dict of) sympy expression(s) or ``Model`` object.
-        :param constraints: iterable of ``Relation`` objects to be used as
-            constraints.
+        :param constraints: iterable or dict of ``Relation`` objects to be used
+            as constraints. If a dictionary, the keys have to be parameter
+            objects which are to be used as Lagrange multipliers. Using a dict
+            will instead solve for a stationary point of the Lagrangian,
+            ``stationary_point`` will therefore be forced to ``True``.
         :param bool absolute_sigma: True by default. If the sigma is only used
             for relative weights in your problem, you could consider setting it
             to False, but if your sigma are measurement errors, keep it at True.
             Note that curve_fit has this set to False by default, which is
             wrong in experimental science.
+        :param bool stationary_point: If ``True``, solve for a stationary value
+            of the objective, i.e. when the jacobian of the objective equals
+            zero, instead of minimizing the model itself. The default setting
+            is ``False``, meaning we minimize the objective.
         :param objective: Have Fit use your specified objective. Can be one of
             the predefined `symfit` objectives or any callable which accepts fit
             parameters and returns a scalar.
@@ -1265,6 +1272,7 @@ class Fit(HasCovarianceMatrix):
         minimizer = named_data.pop('minimizer')
         constraints = named_data.pop('constraints')
         absolute_sigma = named_data.pop('absolute_sigma')
+        stationary_point = named_data.pop('stationary_point')
         # Should be a list of Constraint objects
         constraints = [] if constraints is None else constraints
 
@@ -1274,6 +1282,13 @@ class Fit(HasCovarianceMatrix):
         else:
             self.model = Model(model)
 
+        if isinstance(constraints, dict):
+            # Split in multipliers and constraints, respecting order.
+            ordered_constraints = OrderedDict(**constraints)
+            constraints = list(ordered_constraints.values())
+            self.multipliers = list(ordered_constraints.keys())
+        else:
+            self.multipliers = []
         self.constraints = self._init_constraints(constraints=constraints,
                                                   model=self.model)
 
@@ -1300,9 +1315,30 @@ class Fit(HasCovarianceMatrix):
                 if var.name in self.data:
                     self.data[var] = self.data.pop(var.name)
 
+        self.constraint_objectives = []
+        for constraint in self.constraints:
+            self.constraint_objectives.append(
+                MinimizeModel(model=constraint, data=self.data)
+            )
+
         # Initialise the objective with data if it's not initialised already
         if not isinstance(self.objective, BaseObjective):
             self.objective = self.objective(self.model, self.data)
+
+        self.stationary_point = stationary_point or bool(self.multipliers)
+        if self.stationary_point:
+            # fit for the stationary point instead.
+            self.grad_lagrangian = self.build_grad_lagrangian(
+                self.objective, self.multipliers, self.constraint_objectives
+            )
+
+            grad_L = self.grad_lagrangian.dependent_vars[0]
+            # generate data
+            grad_data = {
+                grad_L: np.zeros(len(self.model.free_params)),
+                self.grad_lagrangian.sigmas[grad_L]: np.ones(len(self.model.free_params))
+            }
+            self.objective = LeastSquares(self.grad_lagrangian, data=grad_data)
 
         # Select the minimizer on the basis of the provided information.
         if minimizer is None:
@@ -1436,14 +1472,8 @@ class Fit(HasCovarianceMatrix):
                 minimizer_options['hessian'] = self.objective.eval_hessian
 
         if issubclass(minimizer, ConstrainedMinimizer):
-            # set the constraints as MinimizeModel. The dependent vars of the
-            # constraint are set to None since their value is irrelevant.
-            constraint_objectives = []
-            for constraint in self.constraints:
-                data = self.data  # No copy, share state
-                constraint_objectives.append(MinimizeModel(constraint, data))
-            minimizer_options['constraints'] = constraint_objectives
-        return minimizer(self.objective, self.model.params, **minimizer_options)
+            minimizer_options['constraints'] = self.constraint_objectives
+        return minimizer(self.objective, self.objective.model.params, **minimizer_options)
 
     def _init_constraints(self, constraints, model):
         """
@@ -1476,6 +1506,59 @@ class Fit(HasCovarianceMatrix):
                     )
         return con_models
 
+    @staticmethod
+    def build_grad_lagrangian(objective, multipliers, constraint_objectives):
+        """
+        Build a :class:`~symfit.core.fit.CallableNumericalModel` representing
+        the gradient of the Lagrangian function.
+
+        The Lagrange function is
+
+        .. math:: \\mathcal{L}(\\vec{p}, \\vec{\\lambda}) = f(\\vec{p}) + \\sum_{j} \\lambda_j g_{j}(\\vec{p})
+
+        where :math:`f(\\vec{p})` is the objective function to be minimized as
+        a function of parameters :math:`\\vec{p}`, the :math:`\\lambda_j` are
+        the lagrange multipliers, and :math:`g_{j}(\\vec{p})` are the equality
+        constraints.
+
+        Because the constraints are met at stationary points of the Lagrange
+        function, we solve :math:`\\nabla_p \\mathcal{L} = 0` instead of
+        minimizing :math:`\\mathcal{L}` directly.
+
+        :param objective: Objective :math:`f(\\vec{p})`.
+        :param multipliers: list of :class:`symfit.core.argument.Parameter`
+            objects, to be interpreted as Lagrange multipliers :math:`\\lambda_j`.
+        :param constraint_objectives: list of objectives representing the
+            constraints :math:`g_{j}(\\vec{p})`.
+        :return: :class:`~symfit.core.fit.CallableNumericalModel` representing
+            :math:`\\nabla_p \\mathcal{L}`
+        """
+        grad_L = sympy.Dummy('grad_L')
+        grad_f = sympy.Dummy('grad_f')
+        if multipliers:
+            grad_gs = [constraint.model.dependent_vars[0] for constraint in
+                       constraint_objectives]
+        else:
+            grad_gs = []
+
+        # Lagrangian itself
+        model_dict = {grad_f: objective.eval_jacobian}
+        model_dict.update(
+            {grad_g_i: constraint_objectives[i].eval_jacobian for i, grad_g_i in
+             enumerate(grad_gs)})
+        model_dict[grad_L] = grad_f + sum(
+            l_i * grad_g_i for l_i, grad_g_i in zip(multipliers, grad_gs))
+
+        connectivity_mapping = {grad_f: set(objective.model.free_params)}
+        connectivity_mapping.update(
+            {grad_g_i: set(objective.model.free_params) for grad_g_i in
+             grad_gs})
+        connectivity_mapping.update({grad_L: {grad_f, *grad_gs}})
+
+        grad_lagrangian = CallableNumericalModel(model_dict,
+                                                 connectivity_mapping=connectivity_mapping)
+        return grad_lagrangian
+
     def execute(self, **minimize_options):
         """
         Execute the fit.
@@ -1496,25 +1579,29 @@ class Fit(HasCovarianceMatrix):
             minimizer_ans.covariance_matrix = cov_matrix
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
-        minimizer_ans.gof_qualifiers['r_squared'] = r_squared(self.model, minimizer_ans, self.data)
+
+        best_fit_params = minimizer_ans.params.copy()
+        for l in self.multipliers:
+            del best_fit_params[l.name]
+        minimizer_ans.gof_qualifiers['r_squared'] = r_squared(self.model, best_fit_params, self.data)
         return minimizer_ans
 
 
-def r_squared(model, fit_result, data):
+def r_squared(model, best_fit_params, data):
     """
     Calculates the coefficient of determination, R^2, for the fit.
 
     (Is not defined properly for vector valued functions.)
 
     :param model: Model instance
-    :param fit_result: FitResults instance
+    :param best_fit_params: FitResults.params or equivalent ``dict``.
     :param data: data with which the fit was performed.
     """
     # First filter out the dependent vars
     y_is = [data[var] for var in model.dependent_vars if var in data]
     x_is = [data[var] for var in model.independent_vars if var in data]
     y_bars = [np.mean(y_i) if y_i is not None else None for y_i in y_is]
-    f_is = model(*x_is, **fit_result.params)._asdict()
+    f_is = model(*x_is, **best_fit_params)._asdict()
     # f_is also contains the evaluated interdependent_vars, skip those.
     f_is = [f_is[var] for var in model.dependent_vars]
     SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
