@@ -190,9 +190,9 @@ class FitResults(object):
     def __getstate__(self):
         state = self.__dict__.copy()
 
-        if hasattr(state['minimizer'], 'minimizers'):  # ChainedMinimizer
-            minimizer_cls = [type(minimizer)
-                             for minimizer in state['minimizer'].minimizers]
+        if hasattr(state['minimizer'], 'minimizers'):
+            # ChainedMinimizer pickles well, just use the instance.
+            minimizer_cls = state['minimizer']
         else:
             minimizer_cls = type(state['minimizer'])
         state['minimizer'] = (minimizer_cls,
@@ -203,15 +203,9 @@ class FitResults(object):
     def __setstate__(self, state):
         min_class, objective, parameters = state['minimizer']
         try:
-            # If min_class is iterable, initiate a ChainedMinimizer.
-            minimizers = [cls(objective, parameters) for cls in min_class]
-        except TypeError:
             state['minimizer'] = min_class(objective, parameters)
-        else:
-            # Has to be imported here to prevent circular imports
-            from symfit.core.minimizers import ChainedMinimizer
-            state['minimizer'] = ChainedMinimizer(objective, parameters,
-                                                  minimizers=minimizers)
+        except TypeError:  # assume min_class is already an instance.
+            state['minimizer'] = min_class
         self.__dict__.update(state)
 
     def _gof_qualifiers(self):
