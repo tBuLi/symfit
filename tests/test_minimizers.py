@@ -52,9 +52,8 @@ class SqrtLeastSquares(LeastSquares):
         chi2 = super(SqrtLeastSquares, self).__call__(*args, **kwargs)
         chi2_jac = super(SqrtLeastSquares, self).eval_jacobian(*args, **kwargs)
         chi2_hess = super(SqrtLeastSquares, self).eval_hessian(*args, **kwargs)
-        # Hessian Approximation! Just takes the
-        raise - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) \
-              + 0.5 * (1 / sqrt_chi2) * chi2_hess
+        return - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) \
+               + 0.5 * (1 / sqrt_chi2) * chi2_hess
 
 def subclasses(base, leaves_only=True):
     """
