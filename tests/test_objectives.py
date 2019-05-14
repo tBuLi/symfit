@@ -46,10 +46,10 @@ class TestObjectives(unittest.TestCase):
         Test the picklability of the built-in objectives.
         """
         # Create test data
-        xdata = np.linspace(0, 100, 25)  # From 0 to 100 in 100 steps
+        xdata = np.linspace(0, 100, 100)  # From 0 to 100 in 100 steps
         a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
         b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
-        ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
+        ydata = a_vec * xdata + b_vec  # Point scattered around the line 15 * x + 100
 
         # Normal symbolic fit
         a = Parameter('a', value=0, min=0.0, max=1000)
