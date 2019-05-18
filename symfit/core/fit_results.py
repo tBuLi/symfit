@@ -190,9 +190,14 @@ class FitResults(object):
     def __getstate__(self):
         state = self.__dict__.copy()
 
-        if hasattr(state['minimizer'], 'minimizers'):
-            # ChainedMinimizer pickles well, just use the instance.
-            minimizer_cls = state['minimizer']
+        if hasattr(state['minimizer'], 'minimizers'):  # ChainedMinimizer
+            # ToDo: when py27 support is droppend at least this can be replaced
+            #       with just pickling the instance, perhaps also for other
+            #       minimizers.
+            minimizer_cls = [type(state['minimizer'])]
+            minimizer_cls.extend(
+                [type(minimizer) for minimizer in state['minimizer'].minimizers]
+            )
         else:
             minimizer_cls = type(state['minimizer'])
         state['minimizer'] = (minimizer_cls,
@@ -203,9 +208,13 @@ class FitResults(object):
     def __setstate__(self, state):
         min_class, objective, parameters = state['minimizer']
         try:
+            # If min_class is iterable, initiate a ChainedMinimizer.
+            minimizers = [cls(objective, parameters) for cls in min_class[1:]]
+        except TypeError:
             state['minimizer'] = min_class(objective, parameters)
-        except TypeError:  # assume min_class is already an instance.
-            state['minimizer'] = min_class
+        else:
+            state['minimizer'] = min_class[0](objective, parameters,
+                                              minimizers=minimizers)
         self.__dict__.update(state)
 
     def _gof_qualifiers(self):
