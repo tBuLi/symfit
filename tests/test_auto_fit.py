@@ -8,6 +8,7 @@ from symfit import (
     Equality, Model
 )
 from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
+from symfit.core.objectives import MinimizeModel, LeastSquares
 from symfit.distributions import Gaussian
 
 class TestAutoFit(unittest.TestCase):
@@ -303,6 +304,71 @@ class TestAutoFit(unittest.TestCase):
         self.assertAlmostEqual(np.abs(fit_result.value(sig_y)) / np.std(data[:, 1]), 1.0, 2)
         self.assertAlmostEqual(background / fit_result.value(b), 1.0, 1)
         self.assertGreaterEqual(fit_result.r_squared / 0.96, 1.0)
+
+    def test_stationary_point(self):
+        """
+        Test if fitting to the stationary point yields the desired result. This
+        is a simple model without data.
+        """
+        x = Parameter('x')
+        y = Variable('y')
+        model = Model({y: - x ** 4 + 10 * x ** 2})
+
+        # Because this model falls of the infinity, a normal minimizer wont work
+        # This is especially true when bounds are provided.
+        x.value = -3
+        fit = Fit(model, minimizer=BFGS)
+        fit_result = fit.execute()
+        self.assertIsInstance(fit.minimizer, BFGS)
+        self.assertIsInstance(fit.objective, MinimizeModel)
+        self.assertLess(fit_result.value(x), -10)  # Goes of to -inf
+        self.assertFalse(fit.stationary_point)
+
+        # Therefore, instead we fit the jacobian instead, which should yield
+        # stationary points. This should yield the right result for all known
+        # solutions.
+        for initial_guess, sol in zip([-3, 1, 3], [-np.sqrt(5), 0, np.sqrt(5)]):
+            x.value = initial_guess
+            fit = Fit(model, stationary_point=True, minimizer=BFGS)
+            fit_result = fit.execute()
+            self.assertAlmostEqual(fit_result.value(x), sol)
+        self.assertIsInstance(fit.minimizer, BFGS)
+        self.assertIsInstance(fit.objective, LeastSquares)
+        self.assertTrue(fit.stationary_point)
+
+    def test_stationary_point_data(self):
+        """
+        Test if fitting to the stationary point yields the desired result.
+        """
+        x, y = variables('x, y')
+        a, b = parameters('a, b')
+        model = Model({y: a * x + b})
+
+        xdata = np.linspace(-10, 10)
+        ydata = model(x=xdata, a=2, b=3).y
+
+        # Because this model falls of the infinity, a normal minimizer wont work
+        # This is especially true when bounds are provided.
+        fit = Fit(model, x=xdata, y=ydata, minimizer=BFGS)
+        fit_result = fit.execute()
+        self.assertIsInstance(fit.minimizer, BFGS)
+        self.assertIsInstance(fit.objective, LeastSquares)
+        self.assertIs(fit.objective.model, model)
+        self.assertAlmostEqual(fit_result.value(a), 2)
+        self.assertAlmostEqual(fit_result.value(b), 3)
+        self.assertFalse(fit.stationary_point)
+
+        # Therefore, instead we fit the jacobian instead, which should yield
+        # stationary points. This should yield the right result for all known
+        # solutions.
+        fit = Fit(model, x=xdata, y=ydata, stationary_point=True, minimizer=BFGS)
+        fit_result = fit.execute()
+        self.assertIsInstance(fit.minimizer, BFGS)
+        self.assertIsInstance(fit.objective, LeastSquares)
+        self.assertIs(fit.objective.model, fit.grad_lagrangian)
+        self.assertAlmostEqual(fit_result.value(a), 2)
+        self.assertAlmostEqual(fit_result.value(b), 3)
+        self.assertTrue(fit.stationary_point)
 
 if __name__ == '__main__':
     unittest.main()
