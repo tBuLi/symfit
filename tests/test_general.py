@@ -14,7 +14,7 @@ from symfit import (
     parameters, Model, Eq, Ge, exp, integrate, oo, GradientModel
 )
 from symfit.core.minimizers import MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution
-from symfit.core.objectives import LogLikelihood
+from symfit.core.objectives import LogLikelihood, MinimizeModel, LeastSquares
 from symfit.distributions import Gaussian, Exp, BivariateGaussian
 from tests.test_minimizers import subclasses
 
@@ -87,6 +87,7 @@ class Tests(unittest.TestCase):
         model = {y: a*x**b}
 
         with self.assertRaises(TypeError):
+            # The name of x is not x.
             fit = Fit(model, x=xdata, y=ydata)
 
     def test_vector_fitting(self):
@@ -156,75 +157,6 @@ class Tests(unittest.TestCase):
         # the parameter without data should be unchanged.
         self.assertAlmostEqual(fit_none_result.value(c), 1.0)
 
-    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds. '
-                   'However, this object is no longer used by Fit by default.')
-    def test_vector_fitting_bounds_guess(self):
-        """
-        Tests fitting to a 3 component vector valued function, with bounds and
-        guesses.
-        """
-        a, b, c = parameters('a, b, c')
-        a.min = 0
-        a.value = 10
-        a.max = 25
-        b.min = 0
-        b.max = 500
-        b.value = 100
-        a_i, b_i, c_i = variables('a_i, b_i, c_i')
-
-        model = {a_i: a, b_i: b, c_i: c}
-
-        xdata = np.array([
-            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
-            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
-            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
-        ])
-
-        fit = NumericalLeastSquares(
-            model=model,
-            a_i=xdata[0],
-            b_i=xdata[1],
-            c_i=xdata[2],
-        )
-        fit_result = fit.execute()
-
-        self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 4)
-        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata[1]), 4)
-        self.assertAlmostEqual(fit_result.value(c), np.mean(xdata[2]), 4)
-
-    @unittest.skip('Vector models fail in NumericalLeastSquares with bounds.'
-                   'However, this object is no longer used by Fit by default.')
-    def test_vector_fitting_bounds(self):
-        """
-        Tests fitting to a 3 component vector valued function, with bounds.
-        """
-        a, b, c = parameters('a, b, c')
-        a.min = 0
-        a.max = 25
-        b.min = 0
-        b.max = 500
-        a_i, b_i, c_i = variables('a_i, b_i, c_i')
-
-        model = {a_i: a, b_i: b, c_i: c}
-
-        xdata = np.array([
-            [10.1, 9., 10.5, 11.2, 9.5, 9.6, 10.],
-            [102.1, 101., 100.4, 100.8, 99.2, 100., 100.8],
-            [71.6, 73.2, 69.5, 70.2, 70.8, 70.6, 70.1],
-        ])
-
-        fit = NumericalLeastSquares(
-            model=model,
-            a_i=xdata[0],
-            b_i=xdata[1],
-            c_i=xdata[2],
-        )
-        fit_result = fit.execute()
-
-        self.assertAlmostEqual(fit_result.value(a), np.mean(xdata[0]), 4)
-        self.assertAlmostEqual(fit_result.value(b), np.mean(xdata[1]), 4)
-        self.assertAlmostEqual(fit_result.value(c), np.mean(xdata[2]), 4)
-
     def test_vector_fitting_guess(self):
         """
         Tests fitting to a 3 component vector valued function, with guesses.
@@ -281,41 +213,6 @@ class Tests(unittest.TestCase):
 
         self.assertIsInstance(fit_result.r_squared, float)
         self.assertEqual(fit_result.r_squared, 1.0)  # by definition since there's no fuzzyness
-
-    # def test_analytical_fitting(self):
-    #     """
-    #     Tests fitting using AnalyticalFit. Makes sure that the resulting
-    #     objects and values are of the right type, and that the fit_result does
-    #     not have unexpected members.
-    #     """
-    #     xdata = np.linspace(1, 10, 10)
-    #     ydata = 3*xdata + 2
-    #
-    #     a = Parameter()
-    #     b = Parameter()
-    #     x = Variable('x')
-    #     new = b*x + a
-    #
-    #     fit = AnalyticalFit(new, xdata, ydata)
-    #     fit_result = fit.execute()
-    #     print(fit_result)
-    #
-    #
-    #     self.assertIsInstance(fit_result, FitResults)
-    #     self.assertAlmostEqual(fit_result.params.a, 3.0)
-    #     self.assertAlmostEqual(fit_result.params.b, 2.0)
-    #
-    #     self.assertIsInstance(fit_result.params.a_stdev, float)
-    #     self.assertIsInstance(fit_result.params.b_stdev, float)
-    #
-    #     self.assertIsInstance(fit_result.r_squared, float)
-    #
-    #     # Test several false ways to access the data.
-    #     self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_fdska'])
-    #     self.assertRaises(AttributeError, getattr, *[fit_result.params, 'c'])
-    #     self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_stdev'])
-    #     self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
-    #     self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
 
     def test_grid_fitting(self):
         """
@@ -431,6 +328,7 @@ class Tests(unittest.TestCase):
         g = A * Gaussian(x, x0, sig)
 
         fit = Fit(g, xdata, ydata)
+        self.assertIsInstance(fit.objective, LeastSquares)
         fit_result = fit.execute()
 
         self.assertAlmostEqual(fit_result.value(A), 5.0)
@@ -582,7 +480,7 @@ class Tests(unittest.TestCase):
         stdev = np.std(xdata)
         mean_stdev = stdev / np.sqrt(len(xdata))
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
         fit = Fit(pdf, xdata, objective=LogLikelihood)
         fit_result = fit.execute()
@@ -911,14 +809,16 @@ class Tests(unittest.TestCase):
 
         bounded_minimizers = list(subclasses(BoundedMinimizer))
         for minimizer in bounded_minimizers:
+            if minimizer is MINPACK:
+                # Not a MINPACKable problem because it only has a param
+                continue
             fit = Fit(model, minimizer=minimizer)
+            self.assertIsInstance(fit.objective, MinimizeModel)
             if minimizer is DifferentialEvolution:
                 # Also needs a max
                 x.max = 10
                 fit_result = fit.execute()
                 x.max = None
-            elif minimizer is MINPACK:
-                pass  # Not a MINPACKable problem because it only has a param
             else:
                 fit_result = fit.execute()
                 self.assertGreaterEqual(fit_result.value(x), 1.0)
@@ -937,12 +837,12 @@ class Tests(unittest.TestCase):
         bounded_minimizers = [minimizer for minimizer in bounded_minimizers
                               if minimizer is not DifferentialEvolution]
         for minimizer in bounded_minimizers:
-            fit = Fit(model, minimizer=minimizer)
+            # Not a MINPACKable problem because it only has a param
             if minimizer is MINPACK:
-                pass  # Not a MINPACKable problem because it only has a param
-            else:
-                fit_result = fit.execute()
-                self.assertAlmostEqual(fit_result.value(x), 0.0)
+                continue
+            fit = Fit(model, minimizer=minimizer)
+            fit_result = fit.execute()
+            self.assertAlmostEqual(fit_result.value(x), 0.0)
             self.assertEqual(fit.minimizer.bounds, [(None, None)])
 
     def test_single_param_model(self):
