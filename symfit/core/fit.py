@@ -931,8 +931,6 @@ class TakesData(object):
             self.model = model
         else:
             self.model = Model(model)
-        # Perform basic sanity checking, will throw a warning if needed.
-        self._model_sanity(model)
 
         # Handle ordered_data and named_data according to the allowed names.
         signature = self._make_signature()
@@ -942,6 +940,12 @@ class TakesData(object):
             for var in self.model.vars:
                 if var.name.startswith(Variable._argument_name):
                     raise type(err)(str(err) + '. Some of your Variable\'s are unnamed. That might be the cause of this Error: make sure you use e.g. x = Variable(\'x\')')
+                elif isinstance(var, sympy.Derivative):
+                    # Include a very strong warning with this error.
+                    raise RuntimeWarning(
+                        'The model contains derivatives in its definition. '
+                        'Are you sure you don\'t mean to use `symfit.ODEModel`?'
+                    )
             else:
                 raise err
         # Include default values in bound_argument object
@@ -1028,23 +1032,6 @@ class TakesData(object):
             for var in model.vars
         ]
         return parameters
-
-    @staticmethod
-    def _model_sanity(model):
-        """
-        Perform some basic sanity checking on the model to warn users when they
-        might be trying something ill advised.
-
-        :param model: model instance.
-        """
-        if not isinstance(model, ODEModel) and not isinstance(model, BaseNumericalModel):
-            # Such a model should probably not contain derivatives
-            for var, expr in model.items():
-                if isinstance(var, sympy.Derivative) or expr.has(sympy.Derivative):
-                    warnings.warn(RuntimeWarning(
-                        'The model contains derivatives in its definition. '
-                        'Are you sure you don\'t mean to use `symfit.ODEModel`?'
-                    ))
 
     @property
     def dependent_data(self):

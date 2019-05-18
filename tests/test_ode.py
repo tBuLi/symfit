@@ -202,7 +202,7 @@ class TestODE(unittest.TestCase):
     def test_odemodel_sanity(self):
         """
         If a user provides an ODE like model directly to fit without
-        explicitely turning it into one, give a warning.
+        explicitly turning it into one, give a warning.
         """
         tdata = np.array([0, 10, 26, 44, 70, 120])
         adata = 10e-4 * np.array([54, 44, 34, 27, 20, 14])
@@ -212,13 +212,7 @@ class TestODE(unittest.TestCase):
         model_dict = {
             D(a, t): - k * a * t,
         }
-        with pytest.warns(RuntimeWarning):
-            fit = Fit(model_dict, t=tdata, a=adata)
-
-        model_dict = {
-            a: - k * D(a, t) * t,
-        }
-        with pytest.warns(RuntimeWarning):
+        with self.assertRaises(RuntimeWarning):
             fit = Fit(model_dict, t=tdata, a=adata)
 
 if __name__ == '__main__':
