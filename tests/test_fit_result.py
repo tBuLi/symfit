@@ -148,6 +148,10 @@ class TestFitResults(unittest.TestCase):
 
     def test_minimizer_included(self):
         """"The minimizer used should be included in the results."""
+        self.assertIsInstance(self.constrained_result.minimizer, BaseMinimizer)
+        self.assertIsInstance(self.constrained_basinhopping_result.minimizer,
+                              BaseMinimizer)
+        self.assertIsInstance(self.likelihood_result.minimizer, BaseMinimizer)
         self.assertIsInstance(self.fit_result.minimizer, BaseMinimizer)
         self.assertIsInstance(self.chained_result.minimizer, ChainedMinimizer)
         for minimizer, cls in zip(self.chained_result.minimizer.minimizers,
@@ -159,6 +163,8 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(self.fit_result.objective, LeastSquares)
         self.assertIsInstance(self.minpack_result.objective, VectorLeastSquares)
         self.assertIsInstance(self.likelihood_result.objective, LogLikelihood)
+        self.assertIsInstance(self.constrained_result.objective, LeastSquares)
+        self.assertIsInstance(self.constrained_basinhopping_result.objective, LeastSquares)
 
     def test_constraints_included(self):
         """
@@ -177,9 +183,14 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(self.fit_result.status_message, str)
         self.assertIsInstance(self.minpack_result.status_message, str)
         self.assertIsInstance(self.likelihood_result.status_message, str)
+        self.assertIsInstance(self.constrained_result.status_message, str)
+        self.assertIsInstance(
+            self.constrained_basinhopping_result.status_message, str
+        )
 
     def test_pickle(self):
         for fit_result in [self.fit_result, self.chained_result,
+                           self.constrained_basinhopping_result,
                            self.constrained_result, self.likelihood_result]:
             dumped = pickle.dumps(fit_result)
             new_result = pickle.loads(dumped)

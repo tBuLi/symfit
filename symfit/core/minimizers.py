@@ -753,6 +753,11 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
             self.initial_guesses,
             **minimize_options
         )
+        if isinstance(ans.message, list):
+            # For some reason this is currently a length one list containing
+            # the message. We check just in case this gets fixed upstream in
+            # future releases.
+            ans.message = ans.message[0]
         if 'constraints' in minimize_options['minimizer_kwargs']:
             # Add the constraints to the FitResults
             ans['constraints'] = self.local_minimizer.constraints
