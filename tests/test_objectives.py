@@ -11,7 +11,8 @@ from symfit import (
     IndexedBase, symbols, Sum, log
 )
 from symfit.core.objectives import (
-    VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel
+    VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel,
+    BaseIndependentObjective
 )
 from symfit.core.fit_results import FitResults
 from symfit.core.printing import SymfitNumPyPrinter
@@ -45,10 +46,10 @@ class TestObjectives(unittest.TestCase):
         Test the picklability of the built-in objectives.
         """
         # Create test data
-        xdata = np.linspace(0, 100, 25)  # From 0 to 100 in 100 steps
+        xdata = np.linspace(0, 100, 100)  # From 0 to 100 in 100 steps
         a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
         b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
-        ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
+        ydata = a_vec * xdata + b_vec  # Point scattered around the line 15 * x + 100
 
         # Normal symbolic fit
         a = Parameter('a', value=0, min=0.0, max=1000)
@@ -57,7 +58,12 @@ class TestObjectives(unittest.TestCase):
         model = Model({y: a * x + b})
 
         for objective in [VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel]:
-            obj = objective(model, data={'x': xdata, 'y': ydata})
+            if issubclass(objective, BaseIndependentObjective):
+                data = {x: xdata}
+            else:
+                data = {x: xdata, y: ydata,
+                        model.sigmas[y]: np.ones_like(ydata)}
+            obj = objective(model, data=data)
             new_obj = pickle.loads(pickle.dumps(obj))
             self.assertTrue(FitResults._array_safe_dict_eq(obj.__dict__,
                                                            new_obj.__dict__))
@@ -180,7 +186,7 @@ class TestObjectives(unittest.TestCase):
                                        hess_numerical)
         self.assertIsInstance(hess_numerical, np.ndarray)
 
-        fit = Fit(logL_exact, x=xdata, y=None, objective=MinimizeModel)
+        fit = Fit(logL_exact, x=xdata, objective=MinimizeModel)
         fit_exact_result = fit.execute()
         fit = Fit(logL_model, x=xdata, objective=LogLikelihood)
         fit_num_result = fit.execute()
@@ -189,7 +195,41 @@ class TestObjectives(unittest.TestCase):
         self.assertAlmostEqual(fit_exact_result.stdev(a), fit_num_result.stdev(a))
         self.assertAlmostEqual(fit_exact_result.stdev(b), fit_num_result.stdev(b))
 
+    def test_data_sanity(self):
+        """
+        Tests very basicly the data sanity for different objective types.
+        :return:
+        """
+        # Create test data
+        xdata = np.linspace(0, 100, 25)  # From 0 to 100 in 100 steps
+        a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
+        b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
+        ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
 
+        # Normal symbolic fit
+        a = Parameter('a', value=0, min=0.0, max=1000)
+        b = Parameter('b', value=0, min=0.0, max=1000)
+        x, y, z = variables('x, y, z')
+        model = Model({y: a * x + b})
+
+        for objective in [VectorLeastSquares, LeastSquares, LogLikelihood,
+                          MinimizeModel]:
+            if issubclass(objective, BaseIndependentObjective):
+                incomplete_data = {}
+                data = {x: xdata}
+                overcomplete_data = {x: xdata, z: ydata}
+            else:
+                incomplete_data = {x: xdata, y: ydata}
+                data = {x: xdata, y: ydata,
+                        model.sigmas[y]: np.ones_like(ydata)}
+                overcomplete_data = {x: xdata, y: ydata, z: ydata,
+                        model.sigmas[y]: np.ones_like(ydata)}
+            with self.assertRaises(KeyError):
+                obj = objective(model, data=incomplete_data)
+            obj = objective(model, data=data)
+            # Overcomplete data has to be allowed, since constraints share their
+            # data with models.
+            obj = objective(model, data=overcomplete_data)
 
 if __name__ == '__main__':
     try:
