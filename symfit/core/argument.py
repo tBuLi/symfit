@@ -124,11 +124,13 @@ class Parameter(Argument):
         if equal is NotImplemented:
             return equal
 
-        if equal:
-            return self.min == other.min and self.max == other.max \
-                   and self.fixed == other.fixed and self.value == other.value
-        else:
+        if not equal:
             return False
+        else:
+            return (self.min == other.min and
+                    self.max == other.max and
+                    self.fixed == other.fixed and
+                    self.value == other.value)
 
     __hash__ = Argument.__hash__
 

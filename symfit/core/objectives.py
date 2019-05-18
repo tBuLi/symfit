@@ -142,11 +142,10 @@ class BaseObjective(object):
                     equal = other.data[key] == value
                 finally:
                     if not equal:
-                        return False
+                        break
             else:
                 return True
-        else:
-            return False
+        return False
 
 
 @add_metaclass(abc.ABCMeta)
