@@ -133,19 +133,20 @@ class BaseObjective(object):
         # This is to prevent false positives, which could be way worse. In the
         # case of subclassing, we leave it up to the subclasser to decide when
         # equality is achieved.
-        if self.__class__ == other.__class__ and self.model == other.model:
-            # Check if the data is also equivalent
-            for key, value in self.data.items():
-                try:
-                    equal = np.allclose(other.data[key], value)
-                except TypeError:
-                    equal = other.data[key] == value
-                finally:
-                    if not equal:
-                        break
-            else:
-                return True
-        return False
+        if self.__class__ != other.__class__ or self.model != other.model:
+            return False
+
+        # Check if the data is also equivalent
+        for key, value in self.data.items():
+            try:
+                equal = np.allclose(other.data[key], value)
+            except TypeError:
+                equal = other.data[key] == value
+            finally:
+                if not equal:
+                    return False
+        return True
+
 
 
 @add_metaclass(abc.ABCMeta)
