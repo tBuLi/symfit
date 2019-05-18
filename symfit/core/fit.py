@@ -931,6 +931,8 @@ class TakesData(object):
             self.model = model
         else:
             self.model = Model(model)
+        # Perform basic sanity checking, will throw a warning if needed.
+        self._model_sanity(model)
 
         # Handle ordered_data and named_data according to the allowed names.
         signature = self._make_signature()
@@ -1027,6 +1029,23 @@ class TakesData(object):
         ]
         return parameters
 
+    @staticmethod
+    def _model_sanity(model):
+        """
+        Perform some basic sanity checking on the model to warn users when they
+        might be trying something ill advised.
+
+        :param model: model instance.
+        """
+        if not isinstance(model, ODEModel) and not isinstance(model, BaseNumericalModel):
+            # Such a model should probably not contain derivatives
+            for var, expr in model.items():
+                if isinstance(var, sympy.Derivative) or expr.has(sympy.Derivative):
+                    warnings.warn(RuntimeWarning(
+                        'The model contains derivatives in its definition. '
+                        'Are you sure you don\'t mean to use `symfit.ODEModel`?'
+                    ))
+
     @property
     def dependent_data(self):
         """
@@ -1093,34 +1112,6 @@ class TakesData(object):
         :return: Initial guesses for every parameter.
         """
         return np.array([param.value for param in self.model.params])
-
-
-class BaseFit(TakesData):
-    """
-    Abstract base class for all fitting objects.
-    """
-    def execute(self, *args, **kwargs):
-        """
-        Every fit object has to define an execute method.
-        Any * and ** arguments will be passed to the fitting module that is being wrapped, e.g. leastsq.
-
-        :args kwargs:
-        :return: Instance of FitResults
-        """
-        raise NotImplementedError('Every subclass of BaseFit must have an execute method.')
-
-    def error_func(self, *args, **kwargs):
-        """
-        Every fit object has to define an error_func method, giving the function to be minimized.
-        """
-        raise NotImplementedError('Every subclass of BaseFit must have an error_func method.')
-
-    def eval_jacobian(self, *args, **kwargs):
-        """
-        Every fit object has to define an eval_jacobian method, giving the jacobian of the
-        function to be minimized.
-        """
-        raise NotImplementedError('Every subclass of BaseFit must have an eval_jacobian method.')
 
 
 class HasCovarianceMatrix(TakesData):
