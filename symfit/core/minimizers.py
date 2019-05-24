@@ -14,6 +14,7 @@ from .support import keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
+from .models import CallableNumericalModel, BaseModel
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -60,7 +61,6 @@ class BaseMinimizer(object):
             # are still considered correct, and not doubly wrapped.
             return func
         else:
-            from .fit import CallableNumericalModel, BaseModel
             if isinstance(func, BaseModel):
                 model = func
             else:

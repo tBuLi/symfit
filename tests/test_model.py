@@ -14,7 +14,7 @@ from symfit import (
     CallableModel, CallableNumericalModel, Inverse, MatrixSymbol, Symbol, sqrt,
     Function, diff
 )
-from symfit.core.fit import (
+from symfit.core.models import (
     jacobian_from_model, hessian_from_model, ModelError
 )
 

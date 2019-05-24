@@ -18,7 +18,7 @@ from symfit.core.minimizers import (
 )
 from symfit.core.support import key2str
 from symfit.core.objectives import MinimizeModel, LogLikelihood, LeastSquares
-from symfit.core.fit import ModelError
+from symfit.core.models import ModelError
 from symfit import (
     Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
 )
