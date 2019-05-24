@@ -10,7 +10,7 @@ Fitting 101
 Fitting a model to data is, at it's most basic, a parameter optimisation, and
 depending on whether you do a least-squares fit or a loglikelihood fit your
 objective function changes. This means we can split the process of fitting in
-three distint, isolated parts:: the :class:`~symfit.core.fit.Model`, the
+three distint, isolated parts:: the :class:`~symfit.core.models.Model`, the
 Objective and the Minimizer. 
 
 In practice, :class:`~symfit.core.fit.Fit` will choose an appropriate objective

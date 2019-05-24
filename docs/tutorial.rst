@@ -143,7 +143,7 @@ One thing to note about such models is that now ``model(x=xdata)`` obviously no
 longer works as ``type(model) == dict``. There is a preferred way to resolve
 this. If any kind of fitting object has been initiated, it will have a
 `.model` atribute containing an instance of
-:class:`~symfit.core.fit.Model`. This can again be called::
+:class:`~symfit.core.models.Model`. This can again be called::
 
     a, b = parameters('a, b')
     y_1, y_2, x = variables('y_1, y_2, x')
@@ -161,7 +161,7 @@ returned :func:`~collections.namedtuple`. Alternatively, the unpacking can be
 performed explicitly.
 
 If for some reason no :class:`~symfit.core.fit.Fit` is initiated you can make a
-:class:`~symfit.core.fit.Model` object yourself::
+:class:`~symfit.core.models.Model` object yourself::
 
     model = Model(model_dict)
     y_1_result, y_2_result = model(x=xdata, a=2.4, b=0.1)

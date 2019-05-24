@@ -1,8 +1,8 @@
 Example: ODEModel for Reaction Kinetics
 =======================================
 
-Below is an example of how to use the :class:`symfit.core.fit.ODEModel`. In this
-example we will fit reaction kinetics data, taken from libretexts_.
+Below is an example of how to use the :class:`symfit.core.models.ODEModel`. In
+this example we will fit reaction kinetics data, taken from libretexts_.
 
 The data is from a first-order reaction :math:`\text{A} \rightarrow \text{B}`.
 

@@ -473,7 +473,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
 
         :param constraints: List of either MinimizeModel instances (this is what
           is provided by :class:`~symfit.core.fit.Fit`),
-          :class:`~symfit.core.fit.BaseModel`, or
+          :class:`~symfit.core.models.BaseModel`, or
           :class:`sympy.core.relational.Relational`.
         :return: dict of scipy compatible statements.
         """

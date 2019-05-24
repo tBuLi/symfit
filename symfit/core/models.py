@@ -104,7 +104,7 @@ class BaseModel(Mapping):
         :param constraint: An ``Expr``, a mapping or iterable of ``Expr``, or a
             ``Relational``.
         :param model: An instance of (a subclass of)
-            :class:`~symfit.core.fit.BaseModel`.
+            :class:`~symfit.core.models.BaseModel`.
         :param constraint_type: When ``constraint`` is not
             a :class:`~sympy.core.relational.Relational`, a
             :class:`~sympy.core.relational.Relational` has to be provided
@@ -170,7 +170,7 @@ class BaseModel(Mapping):
             which the argument ``model_expr`` depends.
         :param init_kwargs: Any kwargs to be passed on to the standard
             init method of this class.
-        :return: A stand-alone :class:`~symfit.core.fit.BaseModel` subclass.
+        :return: A stand-alone :class:`~symfit.core.models.BaseModel` subclass.
         """
         model = cls(model_expr, **init_kwargs)  # Initiate model instance.
         if any(var in dependency_model for var in model.independent_vars):
@@ -1150,8 +1150,8 @@ def _partial_subs(func, func2vars):
 
 def jacobian_from_model(model, as_functions=False):
     """
-    Build a :class:`~symfit.core.fit.CallableModel` representing the Jacobian of
-    ``model``.
+    Build a :class:`~symfit.core.models.CallableModel` representing the Jacobian
+     of ``model``.
 
     This function make sure the chain rule is correctly applied for
     interdependent variables.
@@ -1160,7 +1160,7 @@ def jacobian_from_model(model, as_functions=False):
     :param as_functions: If `True`, the result is returned using
         :class:`sympy.core.function.Function` where needed, e.g.
         ``{y(x, a): a * x}`` instead of ``{y: a * x}``.
-    :return: :class:`~symfit.core.fit.CallableModel` representing the Jacobian
+    :return: :class:`~symfit.core.models.CallableModel` representing the Jacobian
         of ``model``.
     """
     # Inverse dict so we can turn functions back into vars in the end
@@ -1191,14 +1191,14 @@ def jacobian_from_model(model, as_functions=False):
 
 def hessian_from_model(model):
     """
-    Build a :class:`~symfit.core.fit.CallableModel` representing the Hessian of
-    ``model``.
+    Build a :class:`~symfit.core.models.CallableModel` representing the Hessian
+    of ``model``.
 
     This function make sure the chain rule is correctly applied for
     interdependent variables.
 
     :param model: Any symbolical model-type.
-    :return: :class:`~symfit.core.fit.CallableModel` representing the Hessian
+    :return: :class:`~symfit.core.models.CallableModel` representing the Hessian
         of ``model``.
     """
     jac_model = jacobian_from_model(model, as_functions=True)

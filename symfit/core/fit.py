@@ -457,7 +457,7 @@ class Fit(HasCovarianceMatrix):
         hand. This could modify ``bound_arguments`` in place accordingly if
         required!
 
-        :param model: :class:`symfit.core.fit.BaseModel` under consideration.
+        :param model: :class:`symfit.core.models.BaseModel` under consideration.
         :param objective: objective provided to :class:`symfit.core.fit.Fit` by
             the user, or ``None``.
         :param minimizer: :class:`~symfit.core.minimizers.BaseMinimizer`
@@ -544,7 +544,8 @@ class Fit(HasCovarianceMatrix):
 
         :param constraints: iterable of :class:`~sympy.core.relational.Relation`
             objects.
-        :return: list of :class:`~symfit.core.fit.Constraint` objects.
+        :return: list of :class:`~symfit.core.models.BaseModel` objects. The
+            exact type will depend on the type of ``model``.
         """
         con_models = []
         for constraint in constraints:
