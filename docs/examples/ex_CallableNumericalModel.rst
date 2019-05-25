@@ -2,7 +2,7 @@ Example: CallableNumericalModel
 ===============================
 
 Below is an example of how to use the
-:class:`symfit.core.fit.CallableNumericalModel`. This class allows you to
+:class:`symfit.core.models.CallableNumericalModel`. This class allows you to
 provide custom callables as your model, while still allowing clean interfacing
 with the :mod:`symfit` API.
 

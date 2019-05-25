@@ -14,6 +14,15 @@ Fit
    :exclude-members: __weakref__
    :show-inheritance:
 
+Models
+------
+
+.. automodule:: symfit.core.models
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
 Argument
 --------
 

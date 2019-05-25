@@ -228,7 +228,7 @@ this::
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
     fit_result = fit.execute()
 
-That's it! An :class:`~symfit.core.fit.ODEModel` behaves just like any other
+That's it! An :class:`~symfit.core.models.ODEModel` behaves just like any other
 model object, so :class:`~symfit.core.fit.Fit` knows how to deal with it! Note
 that since we don't know the concentration of B, we explicitly set ``b=None``
 when calling :class:`~symfit.core.fit.Fit` so it will be ignored.

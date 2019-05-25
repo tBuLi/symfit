@@ -289,7 +289,7 @@ class LeastSquares(HessianObjective):
             :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`S` at.
         :param flatten_components: if `True`, return the total :math:`S`. If
             `False`, return the :math:`S` per component of the
-            :class:`~symfit.core.fit.BaseModel`.
+            :class:`~symfit.core.models.BaseModel`.
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
         flatten_components = parameters.pop('flatten_components')

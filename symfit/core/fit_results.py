@@ -20,12 +20,12 @@ class FitResults(object):
     Contains the attribute `params`, which is an
     :class:`~collections.OrderedDict` containing all the parameter names and
     their optimized values. Can be `**` unpacked when evaluating
-    :class:`~symfit.core.fit.Model`'s.
+    :class:`~symfit.core.models.Model`'s.
     """
     @keywordonly(constraints=None)
     def __init__(self, model, popt, covariance_matrix, minimizer, objective, message, **minimizer_output):
         """
-        :param model: :class:`~symfit.core.fit.Model` that was fit to.
+        :param model: :class:`~symfit.core.models.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
         :param covariance_matrix: covariance matrix.
         :param minimizer: Minimizer instance used.
