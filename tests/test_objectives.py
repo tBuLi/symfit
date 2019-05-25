@@ -14,7 +14,6 @@ from symfit.core.objectives import (
     VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel
 )
 from symfit.core.fit_results import FitResults
-from symfit.core.printing import NumPyPrinter
 from symfit.distributions import Exp
 
 # Overwrite the way Sum is printed by numpy just while testing. Is not
@@ -28,11 +27,9 @@ class FlattenSum(Sum):
     Just a sum which is printed differently: by flattening the whole array and
     summing it. Used in tests only.
     """
-
-def _print_FlattenSum(self, expr):
-    return "%s(%s)" % (self._module_format('numpy.sum'),
-                       self._print(expr.function))
-NumPyPrinter._print_FlattenSum = _print_FlattenSum
+    def _numpycode(self, printer):
+        return "%s(%s)" % (printer._module_format('numpy.sum'),
+                           printer.doprint(self.function))
 
 
 class TestObjectives(unittest.TestCase):
