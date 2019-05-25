@@ -166,7 +166,7 @@ class BaseModel(Mapping):
         :param model_expr: The ``Expr`` or mapping/iterable of ``Expr`` to be
             turned into a model.
         :param dependency_model: An instance of (a subclass of)
-            :class:`~symfit.core.fit.BaseModel`, which contains components on
+            :class:`~symfit.core.models.BaseModel`, which contains components on
             which the argument ``model_expr`` depends.
         :param init_kwargs: Any kwargs to be passed on to the standard
             init method of this class.
