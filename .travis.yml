@@ -41,6 +41,8 @@ jobs:
 
     - stage: docs
       python: "3.7"
+      before_install:
+        - sudo apt-get install pandoc
       install:
         - pip install --upgrade sphinx
         - pip install --upgrade nbsphinx
