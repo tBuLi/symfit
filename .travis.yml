@@ -46,6 +46,7 @@ jobs:
       install:
         - pip install --upgrade sphinx
         - pip install --upgrade nbsphinx
+        - pip install --upgrade IPython
         - pip install --upgrade .[all]
       script: 
         - mkdir docs_build
