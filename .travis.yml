@@ -44,9 +44,7 @@ jobs:
       before_install:
         - sudo apt-get install pandoc
       install:
-        - pip install --upgrade sphinx
-        - pip install --upgrade nbsphinx
-        - pip install --upgrade IPython
+        - pip install --upgrade -r requirements_docs.txt
         - pip install --upgrade .[all]
       script: 
         - mkdir docs_build
