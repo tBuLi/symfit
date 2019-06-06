@@ -1,10 +1,4 @@
-numpy >= 1.12
-scipy >= 1.0, <1.2
-sympy >= 1.2
-toposort
-funcsigs; python_version < '3.0'
-functools32; python_version < '3.0'
-six
+-r requirements.txt
 sphinx
 nbsphinx
 IPython
