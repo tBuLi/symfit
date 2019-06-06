@@ -413,11 +413,9 @@ class LogLikelihood(HessianObjective):
                         df / component
                     )
                 )
-            else:
-                result.append(component_sums)
-        else:
-            result = np.sum(result, axis=0)
-            return np.atleast_1d(np.squeeze(np.array(result)))
+            result.append(component_sums)
+        result = np.sum(result, axis=0)
+        return np.atleast_1d(np.squeeze(np.array(result)))
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
         """
@@ -446,8 +444,8 @@ class LogLikelihood(HessianObjective):
             # We sum away everything except the matrices in the axes 0 & 1.
             axes = tuple(range(2, len(dd_logf.shape)))
             result += np.sum(dd_logf, axis=axes, keepdims=False)
-        else:
-            return np.atleast_2d(np.squeeze(np.array(result)))
+
+        return np.atleast_2d(np.squeeze(np.array(result)))
 
 
 class MinimizeModel(HessianObjective):
