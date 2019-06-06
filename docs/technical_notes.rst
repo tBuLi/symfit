@@ -9,3 +9,4 @@ Essays on mathematical and implementation details.
     likelihood
     sigma
     api_structure
+    linear_subproblems

@@ -380,13 +380,26 @@ class BaseModel(Mapping):
         """
         bounds = []
         for p in self.params:
-            if p.fixed:
-                if p.value >= 0.0:
-                    bounds.append([np.nextafter(p.value, 0), p.value])
+            if isinstance(p, Parameter):
+                if p.fixed:
+                    if p.value >= 0.0:
+                        bounds.append([np.nextafter(p.value, 0), p.value])
+                    else:
+                        bounds.append([p.value, np.nextafter(p.value, 0)])
                 else:
-                    bounds.append([p.value, np.nextafter(p.value, 0)])
+                    bounds.append([p.min, p.max])
             else:
-                bounds.append([p.min, p.max])
+                # Matrix symbol
+                param = p.args[0]
+                if param.min is None:
+                    lb = - np.inf * np.ones(p.shape)
+                else:
+                    lb = param.min * np.ones(p.shape)
+                if param.max is None:
+                    ub = np.inf * np.ones(p.shape)
+                else:
+                    ub = param.max * np.ones(p.shape)
+                bounds.append([lb, ub])
         return bounds
 
     @property
