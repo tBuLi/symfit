@@ -1,3 +1,12 @@
+"""
+``symfit`` occasionally updates the printing of ``sympy`` objects, such that they
+print into their ``numpy``/``scipy`` equivalent. This is done because sometimes
+such printing has not been implemented in ``sympy`` yet, or because we want
+slightly different behavior from the standard one.
+
+Users using both ``symfit`` and ``sympy`` should be aware of this.
+"""
+
 from sympy import HadamardProduct, MatMul, MatPow, Idx, Inverse
 from sympy.printing.codeprinter import CodePrinter
 
