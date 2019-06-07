@@ -114,8 +114,8 @@ class Parameter(Argument):
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
         else:
-            self.min = np.array(min)
-            self.max = np.array(max)
+            self.min = np.array(min) if min is not None else None
+            self.max = np.array(max) if max is not None else None
 
     def __eq__(self, other):
         """

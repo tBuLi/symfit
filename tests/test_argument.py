@@ -115,6 +115,10 @@ class TestArgument(unittest.TestCase):
         Valid bounds can be either None, scalar, or any multidimensional array.
         :return:
         """
+        a = Parameter('a')
+        self.assertIsNone(a.min)
+        self.assertIsNone(a.max)
+
         with self.assertRaises(ValueError):
             a = Parameter('a', min=1, max=0)
         a = Parameter('a', min=0, max=1)
