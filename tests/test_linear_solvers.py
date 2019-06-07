@@ -38,7 +38,7 @@ class TestLinearSolvers(unittest.TestCase):
         for Solver in [LstSq, LstSqBounds]:
             solver = Solver(self.simple_model, data=self.data)
             ans = solver.execute()
-            np.testing.assert_almost_equal(ans.x[0], np.array([[2.], [3.]]))
+            np.testing.assert_almost_equal(ans.params['x'], np.array([[2.], [3.]]))
 
     def test_fit(self):
         """
@@ -62,8 +62,8 @@ class TestLinearSolvers(unittest.TestCase):
         solver = LstSqBounds(self.bounded_model, data=self.data)
         ans = solver.execute()
         lb, ub = self.bounded_model.bounds[0]
-        self.assertTrue(np.all(ans.x_bounded[0] >= lb))
-        self.assertTrue(np.all(ans.x_bounded[0] < ub))
+        self.assertTrue(np.all(ans.params['x_bounded'] >= lb))
+        self.assertTrue(np.all(ans.params['x_bounded'] < ub))
 
 
     def test_nodata(self):

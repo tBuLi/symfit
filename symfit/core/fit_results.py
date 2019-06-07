@@ -5,7 +5,7 @@ import numpy as np
 from symfit.core.objectives import (
     LeastSquares, VectorLeastSquares, LogLikelihood
 )
-from symfit.core.support import keywordonly
+from symfit.core.support import keywordonly, key2str
 
 class FitResults(object):
     """
@@ -22,18 +22,21 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.models.Model`'s.
     """
-    @keywordonly(constraints=None)
+    @keywordonly(constraints=None, tensor_params=None)
     def __init__(self, model, popt, covariance_matrix, minimizer, objective, message, **minimizer_output):
         """
         :param model: :class:`~symfit.core.models.Model` that was fit to.
-        :param popt: best fit parameters, same ordering as in model.params.
+        :param popt: best fit parameters, same ordering as in model.scalar_params.
         :param covariance_matrix: covariance matrix.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
         :param message: Status message returned by the minimizer.
+        :param constraints: Constraint objectives, if any.
+        :param tensor_params: ``dict`` of results for tensor parameters.
         :param \**minimizer_output: Raw output as given by the minimizer.
         """
         constraints = minimizer_output.pop('constraints')
+        tensor_params = minimizer_output.pop('tensor_params')
         self.constraints = constraints if constraints is not None else []
         self.minimizer_output = minimizer_output
         self.model = model
@@ -41,10 +44,14 @@ class FitResults(object):
         self.objective = objective
         self.status_message = message
 
-        self._popt = popt
-        self.params = OrderedDict(
-            [(p.name, value) for p, value in zip(self.model.params, popt)]
-        )
+        self.popt = popt
+        self.scalar_params = key2str(dict(zip(self.model.scalar_params, popt)))
+        self.tensor_params = key2str(tensor_params)
+
+        params = self.scalar_params.copy()
+        params.update(self.tensor_params)
+
+        self.params = OrderedDict(sorted(params.items(), key=lambda item: item[0]))
         self.covariance_matrix = covariance_matrix
         self.gof_qualifiers = self._gof_qualifiers()
 
@@ -59,18 +66,35 @@ class FitResults(object):
         """
         Pretty print the results as a table.
         """
-        res = '\nParameter Value        Standard Deviation\n'
-        for p in self.model.params:
-            value = self.value(p)
-            value_str = '{:e}'.format(value) if value is not None else 'None'
-            stdev = self.stdev(p)
-            stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
-            res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
+        res = ''
+        if self.scalar_params:
+            res += 'Scalar Parameters:\n'
+            res += 'Parameter | Value       | Standard Deviation\n'
+            # res += '--------------------------------------------\n'
+            for p in self.model.scalar_params:
+                value = self.value(p)
+                value_str = '{:e}'.format(value) if value is not None else 'None'
+                stdev = self.stdev(p)
+                stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
+                res += '{:12}{}  {}\n'.format(p.name, value_str, stdev_str, width=20)
+
+        if self.tensor_params:
+            res += '\nTensor Parameters:\n'
+            # res += '---------------------\n'
+            res += 'Parameter | Shape     | Flattened preview \n'
+            with np.printoptions(precision=2, threshold=5):
+                for p, value in self.tensor_params.items():
+                    shape = '{}'.format(value.shape)
+                    res += '{:12}{:12}{}'.format(p, shape, value.flatten())
+                    # res += '{:12}{}'.format(p, value.shape)
+            res += '\n\n'
 
         res += '{:<22} {}\n'.format('Status message', self.status_message)
         res += '{:<22} {}\n'.format('Number of iterations', self.iterations)
         res += '{:<22} {}\n'.format('Objective', self.objective)
         res += '{:<22} {}\n'.format('Minimizer', self.minimizer)
+        # if self.linear_solver:
+        #     res += '{:<22} {}\n'.format('Linear Solver', self.linear_solver)
 
         res += '\nGoodness of fit qualifiers:\n'
         res += '\n'.join('{:<22} {}'.format(gof, value)
@@ -234,8 +258,9 @@ class FitResults(object):
         :return: ``dict`` containing goodness of fit qualifiers.
         """
         gof_qualifiers = {}
+        if 'fun' in self.minimizer_output:
+            gof_qualifiers['objective_value'] = self.minimizer_output['fun']
 
-        gof_qualifiers['objective_value'] = self.minimizer_output['fun']
         if isinstance(self.objective, (LeastSquares, VectorLeastSquares)):
             R2 = r_squared(self.objective.model, fit_result=self,
                            data=self.objective.data)

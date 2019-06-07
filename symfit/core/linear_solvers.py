@@ -13,10 +13,11 @@ from six import add_metaclass
 
 import numpy as np
 from scipy.optimize import lsq_linear
-from symfit import MatMul
+from sympy import MatMul
 
 from symfit.core.models import variabletuple, ModelError
 from symfit.core.support import key2str, sympy_to_py, cached_property
+from symfit.core.fit_results import FitResults
 
 @add_metaclass(abc.ABCMeta)
 class BaseLinearSolver(object):
@@ -58,25 +59,33 @@ class BaseLinearSolver(object):
 
 class LstSq(BaseLinearSolver):
     def execute(self, *args, **kwargs):
-        ans = []
+        tensor_params = {}
+        ans = {}
         for x, (A, y) in self.subproblems.items():
-            ans.append(
-                np.linalg.lstsq(A, y, *args, **kwargs)
-            )
-
-        return self.Results(*ans)
+            res = np.linalg.lstsq(A, y, *args, **kwargs, rcond=None)
+            tensor_params[x] = res[0]
+            ans[x.name] = res
+        res = FitResults(self.model, popt=[], covariance_matrix=None,
+                         minimizer=self, objective=None, message='',
+                         tensor_params=tensor_params, **ans)
+        return res
 
 class LstSqBounds(BaseLinearSolver):
     def execute(self, *args, **kwargs):
-        ans = []
+        tensor_params = {}
+        ans = {}
         bounds = self.model.bounds
         for (x, (A, y)), (lb, ub) in zip(self.subproblems.items(), bounds):
             M = A.T.dot(A)
-            DB = A.dot(y)
-            x = []
+            DB = A.T.dot(y)
+            x_res = []
             for lb_i, ub_i, DB_i in zip(lb.T, ub.T, DB.T):
                 res = lsq_linear(M, DB_i, bounds=(lb_i, ub_i))
-                x.append(res['x'][:, None])
-            ans.append([np.block([[x_i for x_i in x]]), res])
+                x_res.append(res['x'][:, None])
+            tensor_params[x] = np.block([[x_i for x_i in x_res]])
+            ans[x.name] = res
 
-        return self.Results(*ans)
+        res = FitResults(self.model, popt=[], covariance_matrix=None,
+                         minimizer=self, objective=None, message='',
+                         tensor_params=tensor_params, **ans)
+        return res
