@@ -279,9 +279,15 @@ class BaseModel(Mapping):
             key=sort_func
         )
         # `independent` contains both params and vars, needs to be separated
-        self.independent_vars = [s for s in independent if
-                                 not isinstance(s, Parameter) and not s in self]
-        self.params = [s for s in independent if isinstance(s, Parameter)]
+        self.independent_vars = []
+        self.params = []
+        for s in independent:
+            if isinstance(s, sympy.MatrixSymbol) and isinstance(s.args[0], Parameter):
+                self.params.append(s)
+            elif isinstance(s, Parameter):
+                self.params.append(s)
+            elif not s in self:
+                self.independent_vars.append(s)
 
         try:
             assert not any(isinstance(var, Parameter)
