@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 
 from symfit import (
-    MatrixSymbol, Fit, CallableModel, Parameter
+    MatrixSymbol, Fit, CallableModel, Parameter, Ge
 )
 from symfit.core.linear_solvers import LstSq, LstSqBounds
 from symfit.core.models import ModelError
@@ -81,6 +81,34 @@ class TestLinearSolvers(unittest.TestCase):
         solver = LstSq(model, data={})
         with self.assertRaises(ModelError):
             solver.execute()
+
+    @unittest.skip
+    def test_linear_programming(self):
+        """
+        Do a simple linear programming problem taken from
+        https://www.math.ucla.edu/~tom/LP.pdf
+
+        TODO: Make this actually work
+        """
+        A_mat = [[1, 2], [4, 2], [-1, 1]]
+        y_mat = [[4], [12], [1]]
+        c_mat = np.ones((2, 1))
+
+        x = MatrixSymbol(Parameter('x', min=0), 2, 1)
+        A = MatrixSymbol('A', 3, 2)
+        y = MatrixSymbol('y', 3, 1)
+        c = MatrixSymbol('c', 2, 1)  # Coefficient matrix
+        f = MatrixSymbol('f', 1, 1)
+
+        # Minus sign for maximization
+        model = CallableModel({f: - c.T * x})
+        constraint = CallableModel.as_constraint(
+            {y: A * x}, constraint_type=Ge, model=model
+        )
+
+        fit = Fit(model, A=A_mat, y=y_mat, c=c_mat, f=None,
+                  constraints=[constraint])
+        fit_result = fit.execute()
 
 
 if __name__ == '__main__':
