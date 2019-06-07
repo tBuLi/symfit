@@ -110,6 +110,40 @@ class TestArgument(unittest.TestCase):
         with self.assertRaises(AttributeError):
             V.bar = None
 
+    def test_matrix_bounds(self):
+        """
+        Valid bounds can be either None, scalar, or any multidimensional array.
+        :return:
+        """
+        with self.assertRaises(ValueError):
+            a = Parameter('a', min=1, max=0)
+        a = Parameter('a', min=0, max=1)
+        self.assertEqual(a.min.ndim, 0)
+
+        with self.assertRaises(ValueError):
+            a = Parameter('a', min=np.ones(5), max=np.zeros(5))
+        a = Parameter('a', min=np.zeros(5), max=np.ones(5))
+        self.assertEqual(a.min.ndim, 1)
+
+        with self.assertRaises(ValueError):
+            # Only one value invalid. This is a list on purpose.
+            lb = [1, 1, 1]
+            ub = [2, 2, 0]
+            a = Parameter('a', min=lb, max=ub)
+
+        with self.assertRaises(ValueError):
+            # If both are array, then they need to be the same size
+            lb = [1, 1, 1]
+            ub = [2, 2]
+            a = Parameter('a', min=lb, max=ub)
+
+        with self.assertRaises(ValueError):
+            # One wrongful scalar bound
+            lb = [1, 1, 1]
+            a = Parameter('a', min=lb, max=0)
+        # Correct scalar+vector bounds.
+        a = Parameter('a', min=lb, max=10)
+
 
 if __name__ == '__main__':
     try:

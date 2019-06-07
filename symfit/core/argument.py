@@ -2,6 +2,8 @@ from collections import defaultdict
 import numbers
 import warnings
 
+import numpy as np
+
 from sympy.core.symbol import Symbol
 
 
@@ -107,13 +109,13 @@ class Parameter(Argument):
         self.value = value
         self.fixed = fixed
 
-        if min is not None and max is not None and min > max:
+        if min is not None and max is not None and np.any(np.array(min) > max):
             if not self.fixed:
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
         else:
-            self.min = min
-            self.max = max
+            self.min = np.array(min)
+            self.max = np.array(max)
 
     def __eq__(self, other):
         """
