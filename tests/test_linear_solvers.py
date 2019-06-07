@@ -40,18 +40,23 @@ class TestLinearSolvers(unittest.TestCase):
             ans = solver.execute()
             np.testing.assert_almost_equal(ans.x[0], np.array([[2.], [3.]]))
 
-    @unittest.skip
     def test_fit(self):
         """
         Fit should be able to decide between the minimizers on the fly.
         :return:
         """
-        for model, Solver in [(self.simple_model, LstSq), (LstSqBounds, self.bounded_model)]:
-            x = model.params[0]
+        results = {}
+        for model, Solver in [(self.simple_model, LstSq),
+                              (self.bounded_model, LstSqBounds)]:
             fit = Fit(model, **key2str(self.data))
             self.assertIsInstance(fit.linear_solver, Solver)
             fit_result = fit.execute()
-            np.testing.assert_almost_equal(fit_result.value(x), np.array([[2.], [3.]]))
+            results[Solver] = fit_result
+
+        np.testing.assert_almost_equal(results[LstSq].params['x'],
+                                       np.array([[2.], [3.]]))
+        np.testing.assert_almost_equal(results[LstSqBounds].params['x_bounded'],
+                                       np.array([[2.1], [2.85]]))
 
     def test_numpy_lsqtsqbounds(self):
         solver = LstSqBounds(self.bounded_model, data=self.data)
