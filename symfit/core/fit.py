@@ -14,6 +14,7 @@ from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares,
     LogLikelihood, HessianObjectiveJacApprox
 )
+from .linear_solvers import BaseLinearSolver, LstSq, LstSqBounds
 from .models import BaseModel, Model, BaseNumericalModel, CallableModel
 
 if sys.version_info >= (3,0):
@@ -334,7 +335,7 @@ class Fit(HasCovarianceMatrix):
     """
 
     @keywordonly(objective=None, minimizer=None, constraints=None,
-                 absolute_sigma=None)
+                 absolute_sigma=None, linear_solver=None)
     def __init__(self, model, *ordered_data, **named_data):
         """
 
@@ -352,6 +353,8 @@ class Fit(HasCovarianceMatrix):
         :param minimizer: Have Fit use your specified
             :class:`symfit.core.minimizers.BaseMinimizer`. Can be a
             :class:`~collections.abc.Sequence` of :class:`symfit.core.minimizers.BaseMinimizer`.
+        :param linear_solver: The solver to use for linear subproblems, if
+            present. See :mod:`symfit.core.linear_solvers` for more info.
         :param ordered_data: data for dependent, independent and sigma
             variables. Assigned in the following order: independent vars are
             assigned first, then dependent vars, then sigma's in dependent
@@ -361,6 +364,7 @@ class Fit(HasCovarianceMatrix):
         """
         objective = named_data.pop('objective')
         minimizer = named_data.pop('minimizer')
+        linear_solver = named_data.pop('linear_solver')
         constraints = named_data.pop('constraints')
         absolute_sigma = named_data.pop('absolute_sigma')
         # Should be a list of Constraint objects
@@ -378,6 +382,9 @@ class Fit(HasCovarianceMatrix):
         # Bind as much as possible the provided arguments.
         signature = self._make_signature()
         bound_arguments = signature.bind_partial(*ordered_data, **named_data)
+
+        # Select a solver for linear subproblems, if needed.
+        self.linear_solver = self._determine_linear_solver(self.model)
 
         # Select objective function to use. Has to be done before calling
         # super.__init__
@@ -397,6 +404,10 @@ class Fit(HasCovarianceMatrix):
             for var in constraint.vars:
                 if var.name in self.data:
                     self.data[var] = self.data.pop(var.name)
+
+        # Initiate the linear_solver if it wasn't already
+        if not isinstance(self.linear_solver, BaseLinearSolver):
+            self.linear_solver = self.linear_solver(self.model, self.data)
 
         # Initialise the objective with data if it's not initialised already
         if not isinstance(self.objective, BaseObjective):
@@ -449,6 +460,20 @@ class Fit(HasCovarianceMatrix):
             return LBFGSB
         else:
             return BFGS
+
+    def _determine_linear_solver(self, model):
+        """
+        Determine the most suitable linear solver by the presence of bounds
+
+        :return: a subclass of ``BaseLinearSolver`` or None
+        """
+        if not model.tensor_params:
+            return None
+
+        for p in model.tensor_params:
+            if p.args[0].min is not None or p.args[0].max is not None:
+                return LstSqBounds
+        return LstSq
 
     @staticmethod
     def _determine_objective(model, objective, minimizer, bound_arguments):
@@ -534,7 +559,7 @@ class Fit(HasCovarianceMatrix):
                 data = self.data  # No copy, share state
                 constraint_objectives.append(MinimizeModel(constraint, data))
             minimizer_options['constraints'] = constraint_objectives
-        return minimizer(self.objective, self.model.params, **minimizer_options)
+        return minimizer(self.objective, self.model.scalar_params, **minimizer_options)
 
     def _init_constraints(self, constraints, model):
         """
@@ -576,11 +601,15 @@ class Fit(HasCovarianceMatrix):
             minimizer.
         :return: FitResults instance
         """
-        minimizer_ans = self.minimizer.execute(**minimize_options)
-        minimizer_ans.covariance_matrix = self.covariance_matrix(
-            dict(zip(self.model.params, minimizer_ans._popt))
-        )
-        # Overwrite the DummyModel with the current model
-        minimizer_ans.model = self.model
-        minimizer_ans.minimizer = self.minimizer
-        return minimizer_ans
+        if self.model.scalar_params:
+            minimizer_ans = self.minimizer.execute(**minimize_options)
+            minimizer_ans.covariance_matrix = self.covariance_matrix(
+                dict(zip(self.model.params, minimizer_ans._popt))
+            )
+            # Overwrite the DummyModel with the current model
+            minimizer_ans.model = self.model
+            minimizer_ans.minimizer = self.minimizer
+            return minimizer_ans
+        elif self.model.tensor_params:
+            minimizer_ans = self.linear_solver.execute(**minimize_options)
+            return minimizer_ans
