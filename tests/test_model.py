@@ -12,7 +12,7 @@ import numpy as np
 from symfit import (
     Fit, parameters, variables, Model, ODEModel, D, Eq,
     CallableModel, CallableNumericalModel, Inverse, MatrixSymbol, Symbol, sqrt,
-    Function, diff
+    Function, symbols, Parameter
 )
 from symfit.core.models import (
     jacobian_from_model, hessian_from_model, ModelError
@@ -429,6 +429,42 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(model.__signature__, model.jacobian_model.__signature__)
         self.assertEqual(model.__signature__, model.hessian_model.__signature__)
+
+    def test_matrix_parameters(self):
+        """
+        Test a model with a Matrix parameter in it. The invariant of a model
+        should always be::
+
+            model(**independent_data, **fit_result.params)
+
+        """
+        N = 5
+        a = Parameter('a', min=0.0, max=10)
+        c = MatrixSymbol(Parameter('c', min=0, max=10), N, 1)
+        y = MatrixSymbol('y', N, 1)
+        Iden = MatrixSymbol('Iden', N, N)
+        M = MatrixSymbol('M', N, N)
+        d = MatrixSymbol('d', 1, 1)
+
+        model_dict = {
+            y: (Iden + M / a**2) * c,
+            d: c.T * c
+        }
+        model = CallableModel(model_dict)
+        self.assertEqual(model.params, [a, c])
+        self.assertEqual(model.scalar_params, [a])
+        self.assertEqual(model.tensor_params, [c])
+        self.assertEqual(model.independent_vars, [Iden, M])
+        self.assertEqual(model.interdependent_vars, [])
+        self.assertEqual(model.dependent_vars, [d, y])
+        print(model.bounds)
+        self.assertEqual(model.bounds[0], [0.0, 10])
+        # The bounds should be of the shape of the matrix param, despite being
+        # set as scalar originally.
+        lb = np.zeros((5, 1))
+        ub = 10 * np.ones((5, 1))
+        np.testing.assert_almost_equal(model.bounds[1], [lb, ub])
+
 
 if __name__ == '__main__':
     unittest.main()

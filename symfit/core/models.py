@@ -434,6 +434,14 @@ class BaseModel(Mapping):
         """
         return [p for p in self.params if not p.fixed]
 
+    @property
+    def scalar_params(self):
+        return [p for p in self.params if isinstance(p, Parameter)]
+
+    @property
+    def tensor_params(self):
+        return [p for p in self.params if p not in self.scalar_params]
+
     def __str__(self):
         """
         Printable representation of a Mapping model.
