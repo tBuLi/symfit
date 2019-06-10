@@ -406,7 +406,7 @@ class Fit(HasCovarianceMatrix):
                     self.data[var] = self.data.pop(var.name)
 
         # Initiate the linear_solver if it wasn't already
-        if not isinstance(self.linear_solver, BaseLinearSolver):
+        if not isinstance(self.linear_solver, BaseLinearSolver) and self.linear_solver is not None:
             params = {p: p.value for p in self.model.scalar_params}
             self.linear_solver = self.linear_solver(self.model, self.data,
                                                     scalar_parameters=params)

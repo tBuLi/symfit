@@ -380,9 +380,10 @@ class ScipyMinimize(object):
             objective=self.objective,
             minimizer=self,
             linear_solver=self.objective.linear_solver,
-            tensor_params=self.objective.subproblem_result.tensor_params,
             **ans
         )
+        if hasattr(self.objective, 'subproblem_result'):
+            fit_results['tensor_params'] = self.objective.subproblem_result.tensor_params
 
         return FitResults(**fit_results)
 

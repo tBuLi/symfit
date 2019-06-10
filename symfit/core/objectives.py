@@ -72,9 +72,10 @@ class BaseObjective(object):
         """
         # zip will stop when the shortest of the two is exhausted
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
-        self.linear_solver.scalar_parameters = parameters
-        self.subproblem_result = self.linear_solver.execute()
-        parameters.update(self.subproblem_result.tensor_params)
+        if self.linear_solver is not None:
+            self.linear_solver.scalar_parameters = parameters
+            self.subproblem_result = self.linear_solver.execute()
+            parameters.update(self.subproblem_result.tensor_params)
         parameters.update(self._invariant_kwargs)
         result = self.model(**key2str(parameters))._asdict()
         # Return only the components corresponding to the dependent data.
