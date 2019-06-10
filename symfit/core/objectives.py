@@ -11,13 +11,14 @@ class BaseObjective(object):
     """
     ABC for objective functions. Implements basic data handling.
     """
-    def __init__(self, model, data):
+    def __init__(self, model, data, linear_solver=None):
         """
         :param model: `symfit` style model.
         :param data: data for all the variables of the model.
         """
         self.model = model
         self.data = data
+        self.linear_solver = linear_solver
         # Compares the model with the data to see if they are compatible.
         self._sanity_checking()
 
@@ -71,6 +72,9 @@ class BaseObjective(object):
         """
         # zip will stop when the shortest of the two is exhausted
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
+        self.linear_solver.scalar_parameters = parameters
+        self.subproblem_result = self.linear_solver.execute()
+        parameters.update(self.subproblem_result.tensor_params)
         parameters.update(self._invariant_kwargs)
         result = self.model(**key2str(parameters))._asdict()
         # Return only the components corresponding to the dependent data.
@@ -118,7 +122,7 @@ class BaseObjective(object):
         minimization. This means fixed parameters and data, matching the
         signature of ``self.model``.
         """
-        kwargs = {p: p.value for p in self.model.params
+        kwargs = {p: p.value for p in self.model.scalar_params
                   if p not in self.model.free_params}
         data_by_name = key2str(self.independent_data)
         kwargs.update(

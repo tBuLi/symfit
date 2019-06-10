@@ -23,7 +23,7 @@ else:
     import funcsigs as inspect_sig
     from functools32 import wraps
 
-DummyModel = namedtuple('DummyModel', 'params')
+DummyModel = namedtuple('DummyModel', 'scalar_params')
 
 
 class BaseMinimizer(object):
@@ -374,11 +374,13 @@ class ScipyMinimize(object):
                 best_vals.append(next(found))
 
         fit_results = dict(
-            model=DummyModel(params=self.parameters),
+            model=DummyModel(scalar_params=self.parameters),
             popt=best_vals,
             covariance_matrix=None,
             objective=self.objective,
             minimizer=self,
+            linear_solver=self.objective.linear_solver,
+            tensor_params=self.objective.subproblem_result.tensor_params,
             **ans
         )
 

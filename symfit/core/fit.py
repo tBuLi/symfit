@@ -14,7 +14,7 @@ from .objectives import (
     LeastSquares, BaseObjective, MinimizeModel, VectorLeastSquares,
     LogLikelihood, HessianObjectiveJacApprox
 )
-from .linear_solvers import BaseLinearSolver, LstSq, LstSqBounds
+from .linear_solvers import BaseLinearSolver, LstSq, LstSqBounds, expr_is_linear
 from .models import BaseModel, Model, BaseNumericalModel, CallableModel
 
 if sys.version_info >= (3,0):
@@ -407,11 +407,14 @@ class Fit(HasCovarianceMatrix):
 
         # Initiate the linear_solver if it wasn't already
         if not isinstance(self.linear_solver, BaseLinearSolver):
-            self.linear_solver = self.linear_solver(self.model, self.data)
+            params = {p: p.value for p in self.model.scalar_params}
+            self.linear_solver = self.linear_solver(self.model, self.data,
+                                                    scalar_parameters=params)
 
         # Initialise the objective with data if it's not initialised already
         if not isinstance(self.objective, BaseObjective):
-            self.objective = self.objective(self.model, self.data)
+            self.objective = self.objective(self.model, self.data,
+                                            linear_solver=self.linear_solver)
 
         # Select the minimizer on the basis of the provided information.
         if minimizer is None:
@@ -604,11 +607,12 @@ class Fit(HasCovarianceMatrix):
         if self.model.scalar_params:
             minimizer_ans = self.minimizer.execute(**minimize_options)
             minimizer_ans.covariance_matrix = self.covariance_matrix(
-                dict(zip(self.model.params, minimizer_ans._popt))
+                minimizer_ans.scalar_params
             )
             # Overwrite the DummyModel with the current model
             minimizer_ans.model = self.model
             minimizer_ans.minimizer = self.minimizer
+            minimizer_ans.linear_solver = self.linear_solver
             return minimizer_ans
         elif self.model.tensor_params:
             minimizer_ans = self.linear_solver.execute(**minimize_options)

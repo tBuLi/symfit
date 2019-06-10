@@ -432,7 +432,7 @@ class BaseModel(Mapping):
         """
         :return: ordered list of the subset of variable params
         """
-        return [p for p in self.params if not p.fixed]
+        return [p for p in self.scalar_params if not p.fixed]
 
     @property
     def scalar_params(self):

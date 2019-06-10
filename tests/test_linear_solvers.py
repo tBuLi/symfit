@@ -8,6 +8,8 @@ from symfit import (
     MatrixSymbol, Fit, CallableModel, Parameter, Ge
 )
 from symfit.core.linear_solvers import LstSq, LstSqBounds
+from symfit.core.objectives import LeastSquares
+from symfit.core.minimizers import BFGS
 from symfit.core.models import ModelError
 from symfit.core.support import key2str
 
@@ -109,6 +111,55 @@ class TestLinearSolvers(unittest.TestCase):
         fit = Fit(model, A=A_mat, y=y_mat, c=c_mat, f=None,
                   constraints=[constraint])
         fit_result = fit.execute()
+
+    def test_linear_subproblem(self):
+        """
+        Test a model with a Matrix parameter in it. The invariant of a model
+        should always be::
+
+            model(**independent_data, **fit_result.params)
+
+        """
+        N = 20
+        I_mat = np.eye(N)
+        s = np.linspace(1, 10, N)
+        F_mat = (s + 1) ** (-2)
+        M_mat = 1 / (s[None, :] + s[:, None])
+
+        # Build the model
+        a = Parameter('a', value=100)
+        z = Parameter('z', value=1, fixed=True)
+        c = MatrixSymbol(Parameter('c'), N, 1)
+        F = MatrixSymbol('F', N, 1)
+        I = MatrixSymbol('I', N, N)
+        M = MatrixSymbol('M', N, N)
+        d = MatrixSymbol('d', 1, 1)
+
+        model_dict = {
+            F: z * (I + M / a**2) * c,
+            d: c.T * c
+        }
+        model = CallableModel(model_dict)
+        fit = Fit(model, I=I_mat, M=M_mat, d=np.atleast_2d(0.0), F=F_mat)
+
+        # subproblems_data contains the data needed to solve the subproblem
+        A_data, y_data = fit.linear_solver.subproblems_data[c]
+        np.testing.assert_almost_equal(A_data, z.value * (I_mat + M_mat / a.value**2))
+        np.testing.assert_almost_equal(y_data, F_mat)
+        fit_result = fit.execute()
+
+        self.assertIsInstance(fit_result.objective, LeastSquares)
+        self.assertIsInstance(fit_result.linear_solver, LstSq)
+        self.assertIsInstance(fit_result.minimizer, BFGS)
+        all_params = fit_result.scalar_params.copy()
+        all_params.update(fit_result.tensor_params)
+        self.assertEqual(fit_result.params, all_params)
+        # Tikhonov parameter should be small
+        self.assertLess(fit_result.value(a), 1e-1)
+
+        ans = model(I=I_mat, M=M_mat, **fit_result.params)
+        np.testing.assert_almost_equal(ans.F, F_mat, decimal=5)
+        np.testing.assert_almost_equal(ans.d, 0.0, decimal=5)
 
 
 if __name__ == '__main__':

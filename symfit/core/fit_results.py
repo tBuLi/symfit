@@ -23,13 +23,14 @@ class FitResults(object):
     :class:`~symfit.core.models.Model`'s.
     """
     @keywordonly(constraints=None, tensor_params=None)
-    def __init__(self, model, popt, covariance_matrix, minimizer, objective, message, **minimizer_output):
+    def __init__(self, model, popt, covariance_matrix, minimizer, objective, linear_solver, message, **minimizer_output):
         """
         :param model: :class:`~symfit.core.models.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.scalar_params.
         :param covariance_matrix: covariance matrix.
         :param minimizer: Minimizer instance used.
         :param objective: Objective function which was optimized.
+        :param linear_solver: Linear solver used for linear subproblems.
         :param message: Status message returned by the minimizer.
         :param constraints: Constraint objectives, if any.
         :param tensor_params: ``dict`` of results for tensor parameters.
@@ -42,11 +43,12 @@ class FitResults(object):
         self.model = model
         self.minimizer = minimizer
         self.objective = objective
+        self.linear_solver = linear_solver
         self.status_message = message
 
         self.popt = popt
         self.scalar_params = key2str(dict(zip(self.model.scalar_params, popt)))
-        self.tensor_params = key2str(tensor_params)
+        self.tensor_params = key2str(tensor_params) if tensor_params is not None else {}
 
         params = self.scalar_params.copy()
         params.update(self.tensor_params)
@@ -93,8 +95,8 @@ class FitResults(object):
         res += '{:<22} {}\n'.format('Number of iterations', self.iterations)
         res += '{:<22} {}\n'.format('Objective', self.objective)
         res += '{:<22} {}\n'.format('Minimizer', self.minimizer)
-        # if self.linear_solver:
-        #     res += '{:<22} {}\n'.format('Linear Solver', self.linear_solver)
+        if self.linear_solver:
+            res += '{:<22} {}\n'.format('Linear Solver', self.linear_solver)
 
         res += '\nGoodness of fit qualifiers:\n'
         res += '\n'.join('{:<22} {}'.format(gof, value)
