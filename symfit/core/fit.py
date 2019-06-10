@@ -458,7 +458,7 @@ class Fit(HasCovarianceMatrix):
         """
         if self.constraints:
             return SLSQP
-        elif any([bound is not None for pair in self.model.bounds for bound in pair]):
+        elif any([bounds != [None, None] for param, bounds in zip(self.model.params, self.model.bounds) if param in self.model.free_params]):
             # If any bound is set
             return LBFGSB
         else:

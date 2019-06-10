@@ -388,10 +388,7 @@ class BaseModel(Mapping):
         for p in self.params:
             if isinstance(p, Parameter):
                 if p.fixed:
-                    if p.value >= 0.0:
-                        bounds.append([np.nextafter(p.value, 0), p.value])
-                    else:
-                        bounds.append([p.value, np.nextafter(p.value, 0)])
+                    bounds.append([p.value, p.value])
                 else:
                     bounds.append([p.min, p.max])
             else:
