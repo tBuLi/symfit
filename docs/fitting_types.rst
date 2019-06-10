@@ -385,28 +385,27 @@ are added squared, ready to be minimized. Unlike in the above example, the
 
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
-  Fitting moredimensional datasets
-  --------------------------------
+Fitting moredimensional datasets
+--------------------------------
+Imagine that you have now a specific property over a grid, like a temperature,
+so you have a three-dimensional data set. To fit a function with two parameters
+to this data set, you can use :mod:`symfit`.
 
-  Imagine that you have now a specific property over a grid, like a temperature,
-  so you have a three-dimensional data set. To fit a function with two parameters
-  to this data set, you can use :mod:`symfit`.
+At this example, we made a polynomial function with two coefficients,
+representing two terms of mixed order in x and y::
 
-  At this example, we made a polynomial function with two coefficients,
-  representing two terms of mixed order in x and y::
+  x, y, z = variables('x, y, z')
+  c1, c2 = parameters('c1, c2')
+  model_dict = {z: Poly( {(1, 2): c1, (4, 5): c2}, x ,y)}
+  model = Model(model_dict)
 
-    x, y, z = variables('x, y, z')
-    c1, c2 = parameters('c1, c2')
-    model_dict = {z: Poly( {(1, 2): c1, (4, 5): c2}, x ,y)}
-    model = Model(model_dict)
+Now I can fit this polynomial model to some data::
 
-  Now I can fit this polynomial model to some data::
+  fit = Fit(model, x=xdata, y=ydata, z=zdata)
+  fit_result = fit.execute()
 
-    fit = Fit(model, x=xdata, y=ydata, z=zdata)
-    fit_result = fit.execute()
-
-  In conclusion, we made a polynomial function with two parameters,
-  which coordinates of a mesh could be.
+In conclusion, we made a polynomial function with two parameters,
+which coordinates of a mesh could be.
 
 Global Minimization
 -------------------
