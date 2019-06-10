@@ -131,12 +131,12 @@ Suppose we want to maximize the following function:
 
 Subject to the following constraints:
 
-.. math:: 
+.. math::
 
   x^3 - y = 0
 .. math::
 
-  y - 1 >= 0 
+  y - 1 >= 0
 
 In SciPy code the following lines are needed::
 
@@ -316,14 +316,14 @@ More common examples, such as dampened harmonic oscillators also work as expecte
         D(v, t): a,
     }
     ode_model = ODEModel(model_dict, initial={t: 0, v: 0, x: 1})
-    
+
     # Let's create some data...
     times = np.linspace(0, 15, 150)
     data = ode_model(times, k=11, gamma=0.9, m=m.value).x
     # ... and add some noise to it.
     noise = np.random.normal(1, 0.1, data.shape)  # 10% error
     data *= noise
-    
+
     fit = Fit(ode_model, t=times, x=data)
     fit_result = fit.execute()
 
@@ -385,6 +385,29 @@ are added squared, ready to be minimized. Unlike in the above example, the
 
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
+  Fitting moredimensional datasets
+  --------------------------------
+
+  Imagine that you have now a specific property over a grid, like a temperature,
+  so you have a three-dimensional data set. To fit a function with two parameters
+  to this data set, you can use :mod:`symfit`.
+
+  At this example, we made a polynomial function with two coefficients,
+  representing two terms of mixed order in x and y::
+
+    x, y, z = variables('x, y, z')
+    c1, c2 = parameters('c1, c2')
+    model_dict = {z: Poly( {(1, 2): c1, (4, 5): c2}, x ,y)}
+    model = Model(model_dict)
+
+  Now I can fit this polynomial model to some data::
+
+    fit = Fit(model, x=xdata, y=ydata, z=zdata)
+    fit_result = fit.execute()
+
+  In conclusion, we made a polynomial function with two parameters,
+  which coordinates of a mesh could be.
+
 Global Minimization
 -------------------
 Very often, there are multiple solutions to a fitting (or minimisation)
@@ -426,7 +449,7 @@ to your answer, and then polish it off using a local minimizer::
   Global minimizers such as differential evolution and basin-hopping are
   rather sensitive to their hyperparameters. You might
   need to play with those to get appropriate results, e.g.::
-  
+
     fit.execute(DifferentialEvolution={'popsize': 20, 'recombination': 0.9})
 
 .. note::
@@ -518,4 +541,3 @@ It is therefore always possible to assign data to variables in an unambiguous
 way using this ordering. For example::
 
     fit = Fit(model, x_data, y_data, sigma_y_data)
-
