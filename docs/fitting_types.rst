@@ -397,9 +397,9 @@ this datasets, we can use :mod:`symfit`.
 
 Let's work this out with the following mathematical model. We have a polynomial
 function with two coefficients, representing two terms of mixed order in ``x``
-and ``y``
+and ``y``.
 
-:math:`T(x, y) = z = c2 \cdot x^4 \cdot y^5 + c1 \cdot x \cdot y^2`
+:math:`T(x, y) = z = c_2 x^4 y^5 + c_1 x y^2`
 
 Secondly, we have to implement our  model::
 
@@ -407,9 +407,15 @@ Secondly, we have to implement our  model::
   c1, c2 = parameters('c1, c2')
   model_dict = {z: Poly( {(1, 2): c1, (4, 5): c2}, x ,y)}
   model = Model(model_dict)
-  #printed version: z(x, y; c1, c2) = Poly(c2*x**4*y**5 + c1*x*y**2, x, y, domain='ZZ[c1,c2]')
+  # prints z(x, y; c1, c2) = Poly(c2*x**4*y**5 + c1*x*y**2, x, y, domain='ZZ[c1,c2]')
 
-Now I can fit this polynomial model to some data::
+Now we can fit this polynomial model to some data, where ``xdata``, ``ydata``
+and ``zdata`` are two-dimensional::
+
+  x = np.linspace(-10, 10, 0.5)
+  y = np.linspace(-10, 10, 0.5)
+  xdata, ydata = np.meshgrid(x, y)
+  zdata = 42 * xdata**4 * ydata**5 + 3.14 * xdata * ydata**2
 
   fit = Fit(model, x=xdata, y=ydata, z=zdata)
   fit_result = fit.execute()
