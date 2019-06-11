@@ -391,8 +391,12 @@ Imagine that you have now a specific property over a grid, like the surface heig
 so you have a three-dimensional data set. To fit a function with two parameters
 to this data set, you can use :mod:`symfit`.
 
-At this example, we made a polynomial function with two coefficients,
-representing two terms of mixed order in ``x`` and ``y``::
+Let's work this out with the following example. We made a polynomial function
+with two coefficients, representing two terms of mixed order in ``x`` and ``y``
+
+:math:`f(x, y) = z = c2 \cdot x^4 \cdot y^5 + c1 \cdot x \cdot y^2`
+
+First, we have to define our model::
 
   x, y, z = variables('x, y, z')
   c1, c2 = parameters('c1, c2')
