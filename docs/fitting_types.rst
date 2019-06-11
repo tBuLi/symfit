@@ -386,17 +386,22 @@ are added squared, ready to be minimized. Unlike in the above example, the
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
 Fitting multidimensional datasets
---------------------------------
-Imagine that you have now a specific property over a grid, like the surface height,
-so you have a three-dimensional data set. To fit a function with two parameters
-to this data set, you can use :mod:`symfit`.
+----------------------------------
+So far we had only considered one variable, but in the real world, we have
+problems with more mutable variables, for example, a specific property over a
+grid, like a temperature. In this case, you have a three-dimensional data set
+(x-, y-coordinates, temperature).
 
-Let's work this out with the following example. We made a polynomial function
-with two coefficients, representing two terms of mixed order in ``x`` and ``y``
+If we want to fit a function with two parameters (x- and y-coordinates) to
+this datasets, we can use :mod:`symfit`.
 
-:math:`f(x, y) = z = c2 \cdot x^4 \cdot y^5 + c1 \cdot x \cdot y^2`
+Let's work this out with the following mathematical model. We have a polynomial
+function with two coefficients, representing two terms of mixed order in ``x``
+and ``y``
 
-First, we have to define our model::
+:math:`T(x, y) = z = c2 \cdot x^4 \cdot y^5 + c1 \cdot x \cdot y^2`
+
+Secondly, we have to implement our  model::
 
   x, y, z = variables('x, y, z')
   c1, c2 = parameters('c1, c2')
@@ -409,8 +414,9 @@ Now I can fit this polynomial model to some data::
   fit = Fit(model, x=xdata, y=ydata, z=zdata)
   fit_result = fit.execute()
 
-In conclusion, we made a polynomial function with two parameters,
-which coordinates of a mesh could be.
+In conclusion, we made a mathematical model for a multidimensional function
+with two parameters, implemented this model and feet it this data
+to get a result.
 
 Global Minimization
 -------------------
