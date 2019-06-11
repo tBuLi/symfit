@@ -392,7 +392,7 @@ so you have a three-dimensional data set. To fit a function with two parameters
 to this data set, you can use :mod:`symfit`.
 
 At this example, we made a polynomial function with two coefficients,
-representing two terms of mixed order in :mod:`x` and :mod:`y`::
+representing two terms of mixed order in ``x`` and ``y``::
 
   x, y, z = variables('x, y, z')
   c1, c2 = parameters('c1, c2')
