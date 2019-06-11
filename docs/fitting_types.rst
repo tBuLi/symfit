@@ -387,17 +387,18 @@ are added squared, ready to be minimized. Unlike in the above example, the
 
 Fitting moredimensional datasets
 --------------------------------
-Imagine that you have now a specific property over a grid, like a temperature,
+Imagine that you have now a specific property over a grid, like the surface height,
 so you have a three-dimensional data set. To fit a function with two parameters
 to this data set, you can use :mod:`symfit`.
 
 At this example, we made a polynomial function with two coefficients,
-representing two terms of mixed order in x and y::
+representing two terms of mixed order in :mod:`x` and :mod:`y`::
 
   x, y, z = variables('x, y, z')
   c1, c2 = parameters('c1, c2')
   model_dict = {z: Poly( {(1, 2): c1, (4, 5): c2}, x ,y)}
   model = Model(model_dict)
+  #printed version: z(x, y; c1, c2) = Poly(c2*x**4*y**5 + c1*x*y**2, x, y, domain='ZZ[c1,c2]')
 
 Now I can fit this polynomial model to some data::
 
