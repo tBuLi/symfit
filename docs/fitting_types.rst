@@ -385,7 +385,7 @@ are added squared, ready to be minimized. Unlike in the above example, the
 
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
-Fitting moredimensional datasets
+Fitting multidimensional datasets
 --------------------------------
 Imagine that you have now a specific property over a grid, like the surface height,
 so you have a three-dimensional data set. To fit a function with two parameters
