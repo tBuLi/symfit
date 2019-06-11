@@ -412,8 +412,8 @@ Secondly, we have to implement our  model::
 Now we can fit this polynomial model to some data. We have to be careful that
 ``xdata``, ``ydata`` and ``zdata`` are two-dimensional::
 
-  x = np.linspace(-10, 10, 20)
-  y = np.linspace(-10, 10, 20)
+  x = np.linspace(0, 100, 100)
+  y = np.linspace(0, 100, 100)
   xdata, ydata = np.meshgrid(x, y)
   zdata = 42 * xdata**4 * ydata**5 + 3.14 * xdata * ydata**2
 
