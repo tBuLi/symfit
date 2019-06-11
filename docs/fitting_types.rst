@@ -409,11 +409,11 @@ Secondly, we have to implement our  model::
   model = Model(model_dict)
   # prints z(x, y; c1, c2) = Poly(c2*x**4*y**5 + c1*x*y**2, x, y, domain='ZZ[c1,c2]')
 
-Now we can fit this polynomial model to some data, where ``xdata``, ``ydata``
-and ``zdata`` are two-dimensional::
+Now we can fit this polynomial model to some data. We have to be careful that
+``xdata``, ``ydata`` and ``zdata`` are two-dimensional::
 
-  x = np.linspace(-10, 10, 0.5)
-  y = np.linspace(-10, 10, 0.5)
+  x = np.linspace(-10, 10, 20)
+  y = np.linspace(-10, 10, 20)
   xdata, ydata = np.meshgrid(x, y)
   zdata = 42 * xdata**4 * ydata**5 + 3.14 * xdata * ydata**2
 
