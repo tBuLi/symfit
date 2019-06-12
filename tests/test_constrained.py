@@ -10,7 +10,7 @@ from scipy.optimize import NonlinearConstraint, minimize
 from symfit import (
     variables, Variable, parameters, Parameter, ODEModel,
     Fit, Equality, D, Model, log, FitResults, GreaterThan, Eq, Ge, Le,
-    CallableNumericalModel, HadamardProduct
+    CallableNumericalModel, HadamardProduct, GradientModel
 )
 from symfit.distributions import Gaussian
 from symfit.core.minimizers import (
@@ -524,7 +524,7 @@ class TestConstrained(unittest.TestCase):
         x = Variable('x')
         y = Variable('y')
         g = Variable('g')
-        model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
+        model = GradientModel({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
         fit = Fit(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()
 
@@ -736,7 +736,7 @@ class TestConstrained(unittest.TestCase):
         i = Idx('i', (0, 1000))
         sig.min = 0.0
 
-        model = Model({y: A * Gaussian(x, mu=mu, sig=sig)})
+        model = GradientModel({y: A * Gaussian(x, mu=mu, sig=sig)})
 
         # Generate data, 100 samples from a N(1.2, 2) distribution
         np.random.seed(2)

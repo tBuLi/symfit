@@ -77,6 +77,15 @@ Support
    :exclude-members: __weakref__
    :show-inheritance:
 
+Printing
+--------
+
+.. automodule:: symfit.core.printing
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
 Distributions
 -------------
 

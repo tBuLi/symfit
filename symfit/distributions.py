@@ -10,7 +10,12 @@ import sympy
 
 def Gaussian(x, mu, sig):
     """
+    .. math::
+
+        f(x) = \\frac{1}{\\sqrt{2 \\pi \\sigma^2}} e^{- \\frac{(x - \\mu)^2}{2 \\sigma^2}}
+
     Gaussian pdf.
+
     :param x: free variable.
     :param mu: mean of the distribution.
     :param sig: standard deviation of the distribution.
@@ -20,7 +25,8 @@ def Gaussian(x, mu, sig):
 
 def BivariateGaussian(x, y, mu_x, mu_y, sig_x, sig_y, rho):
     """
-    Bivariate Gaussian pdf.
+    `Bivariate Gaussian pdf
+    <http://mathworld.wolfram.com/BivariateNormalDistribution.html>`_.
 
     :param x: :class:`symfit.core.argument.Variable`
     :param y: :class:`symfit.core.argument.Variable`
@@ -41,7 +47,12 @@ def BivariateGaussian(x, y, mu_x, mu_y, sig_x, sig_y, rho):
 
 def Exp(x, l):
     """
+    .. math::
+
+        f(x) = l e^{- l x}
+
     Exponential Distribution pdf.
+
     :param x: free variable.
     :param l: rate parameter.
     :return: sympy.Expr for an Exponential Distribution pdf.
