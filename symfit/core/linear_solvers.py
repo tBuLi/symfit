@@ -38,8 +38,9 @@ def expr_is_linear(expr, p):
             return not rest.has(p)
         else:
             raise ModelError('Cannot deal with linear equations of this type. '
-                             'Make sure {} is the first or last term in the '
-                             'expression.'.format(p))
+                             'Make sure {p} is the first or last term in the '
+                             'expression, and that the expression is linear '
+                             'in {p}.'.format(p=p))
     elif expr is p:
         return True
     else:
