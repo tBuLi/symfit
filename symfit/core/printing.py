@@ -7,7 +7,7 @@ slightly different behavior from the standard one.
 Users using both ``symfit`` and ``sympy`` should be aware of this.
 """
 
-from sympy import HadamardProduct, MatPow, Idx, Inverse
+from sympy import HadamardProduct, MatPow, Idx, Inverse, BlockMatrix
 from sympy.printing.codeprinter import CodePrinter
 
 ##########################################################
@@ -55,6 +55,12 @@ def _print_MatPow(self, printer):
     else:
         return printer._print_MatPow(self)
 MatPow._numpycode = _print_MatPow
+
+
+def _print_BlockMatrix(self, printer):
+    return '{0}({1})'.format(printer._module_format('numpy.block'),
+                             printer._print(self.args[0].tolist()))
+BlockMatrix._numpycode = _print_BlockMatrix
 
 #########################################################
 # End of monkeypatch                                    #
