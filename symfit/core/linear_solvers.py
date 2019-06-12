@@ -2,8 +2,9 @@
 Linear solvers solve linear problems.
 
 Their API is a hybrid of our objectives and minimizers. This is because
-they take in a model and some data, and output not only the tensor valued
-parameters, but also a small fit report.
+they take in a model and some data, but also scalar parameter values.
+They then output not only the tensor valued parameters, but also a small fit
+report.
 """
 
 
@@ -13,7 +14,7 @@ from six import add_metaclass
 
 import numpy as np
 from scipy.optimize import lsq_linear
-from sympy import MatMul, diff
+from sympy import MatMul, diff, Dummy
 
 from symfit.core.models import variabletuple, ModelError
 from symfit.core.support import key2str, sympy_to_py, cached_property
@@ -64,6 +65,9 @@ class BaseLinearSolver(object):
         self.data = data
         self.scalar_parameters = {} if scalar_parameters is None else scalar_parameters
 
+        # Extract the linear subproblems
+        self.subproblems = self._extract_subproblems()
+
     @property
     def scalar_parameters(self):
         return self._scalar_parameters
@@ -76,8 +80,20 @@ class BaseLinearSolver(object):
                 input_dict[self.model.scalar_params[i]] = input_dict.pop(key)
         self._scalar_parameters = input_dict
 
-    @cached_property
-    def subproblems(self):
+    def _extract_subproblems(self):
+        """
+        Inspect the model and identify components of the type :math:`y = Ax` or
+        :math:`y = xA`, where :math:`A` can be any matrix.
+        (preferably an invertable one.)
+
+        A subproblem is then returned by turning ``A`` into a model ``A_model``,
+        which also takes care of dependencies ``A`` might have on other
+        components of the model.
+
+        :return: A dictionary whose keys are the matrix parameters ``x``,
+            and whose values are the tuples ``(A, A_model, y)``, where ``A``
+            is the dependent variable of ``A_model``.
+        """
         problems = {}
         for y in self.model.dependent_vars:
             for p in self.model.tensor_params:
@@ -85,30 +101,39 @@ class BaseLinearSolver(object):
                 if expr.has(p):
                     if expr_is_linear(expr, p):
                         expr = expr.xreplace({p: 1}).doit()
-                        expr_func = sympy_to_py(expr, expr.free_symbols)
-                        problems[p] = (expr_func, expr.free_symbols, y)
+                        A = Dummy('A')
+                        expr_model = self.model.__class__.with_dependencies(
+                            {A: expr}, dependency_model=self.model
+                        )
+                        problems[p] = (A, expr_model, y)
         if not problems:
             raise ModelError('No linear subproblem')
+
         return problems
 
     @property
     def subproblems_data(self):
+        """
+        Turn the ``self.subproblems`` into pure data which can be directly used
+        to solve :math:`y=Ax` using any suitable solver.
+        """
         problems = {}
-        for x, (A_func, A_symbols, y) in self.subproblems.items():
+        for x, (A, A_model, y) in self.subproblems.items():
+            # Take the relevant data
             relevant_data = {var: data for var, data in self.data.items()
-                             if var in A_symbols}
+                             if var in A_model.vars}
             # Add values for scalar parameters as provided by scalar_parameters
             relevant_data.update(
                 {param: value for param, value in self.scalar_parameters.items()
-                 if param in A_symbols}
+                              if param in A_model.params}
             )
             # Add fixed param values
             relevant_data.update(
                 {param: param.value for param in self.model.scalar_params
-                 if param not in self.model.free_params}
+                                    if param not in self.model.free_params}
             )
-
-            A_data = A_func(**key2str(relevant_data))
+            # Select the right component for A
+            A_data = A_model(**key2str(relevant_data))._asdict()[A]
             problems[x] = (A_data, self.data[y])
         return problems
 

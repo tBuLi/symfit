@@ -299,7 +299,8 @@ class HasCovarianceMatrix(TakesData):
                 """
 
             objective = HessApproximation(self.objective.model,
-                                          self.objective.data)
+                                          self.objective.data,
+                                          linear_solver=self.objective.linear_solver)
             cov_matrix = self._covariance_matrix(best_fit_params,
                                                  objective=objective)
 
