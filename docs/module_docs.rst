@@ -68,6 +68,15 @@ Objectives
    :exclude-members: __weakref__
    :show-inheritance:
 
+Linear Solvers
+--------------
+
+.. automodule:: symfit.core.linear_solvers
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
 Support
 -------
 
