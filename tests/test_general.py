@@ -328,7 +328,7 @@ class Tests(unittest.TestCase):
         sig = Parameter('sig')
         A = Parameter('A')
         x = Variable('x')
-        g = A * Gaussian(x, x0, sig)
+        g = GradientModel(A * Gaussian(x, x0, sig))
 
         fit = Fit(g, xdata, ydata)
         self.assertIsInstance(fit.objective, LeastSquares)
@@ -387,13 +387,13 @@ class Tests(unittest.TestCase):
         A_2 = Parameter()
         g_2 = A_2 * Gaussian(x, x0_2, sig_x_2) * Gaussian(y, y0_2, sig_y_2)
 
-        model = g_1 + g_2
+        model = GradientModel(g_1 + g_2)
         fit = Fit(model, xx, yy, ydata)
         fit_result = fit.execute()
 
         self.assertIsInstance(fit.minimizer, LBFGSB)
 
-        img = model(x=xx, y=yy, **fit_result.params)
+        img = model(x=xx, y=yy, **fit_result.params)[0]
         img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
         img_g_2 = g_2(x=xx, y=yy, **fit_result.params)
         np.testing.assert_array_equal(img, img_g_1 + img_g_2)
@@ -507,7 +507,7 @@ class Tests(unittest.TestCase):
         sig.value = 3.0
         mu.value = 50.
         x = Variable()
-        pdf = Gaussian(x, mu, sig)
+        pdf = GradientModel(Gaussian(x, mu, sig))
 
         np.random.seed(10)
         xdata = np.random.normal(51., 3.5, 10000)

@@ -7,8 +7,7 @@ import sys
 import numpy as np
 
 from symfit import (
-    variables, parameters, Fit, Parameter, Variable,
-    Equality, Model
+    Fit, Parameter, Variable, Model, GradientModel
 )
 from symfit.core.minimizers import BFGS, DifferentialEvolution
 from symfit.distributions import Gaussian
@@ -48,7 +47,7 @@ class TestGlobalOptGaussian(unittest.TestCase):
         g_1 = self.A_1 * Gaussian(x, self.x0_1, self.sig_x_1) *\
                 Gaussian(y, self.y0_1, self.sig_y_1)
 
-        self.model = Model(g_1)
+        self.model = GradientModel(g_1)
     
     def test_diff_evo(self):
         """
