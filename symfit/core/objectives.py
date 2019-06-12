@@ -448,7 +448,9 @@ class LogLikelihood(HessianObjective, BaseIndependentObjective):
             ordered_parameters, **parameters
         )
 
-        ans = - np.nansum(np.log(evaluated_func))
+        ans = - np.nansum(
+            [np.nansum(np.log(component)) for component in evaluated_func]
+        )
         return ans
 
     @keywordonly(apply_func=np.nansum)
@@ -470,15 +472,17 @@ class LogLikelihood(HessianObjective, BaseIndependentObjective):
         )
 
         result = []
-        for jac_comp in evaluated_jac:
+        for component, jac_comp in zip(evaluated_func, evaluated_jac):
+            component_sums = []
             for df in jac_comp:
-                result.append(
+                component_sums.append(
                     - apply_func(
-                        df.flatten() / evaluated_func
+                        df / component
                     )
                 )
-        else:
-            return np.atleast_1d(np.squeeze(np.array(result)))
+            result.append(component_sums)
+        result = np.sum(result, axis=0)
+        return np.atleast_1d(np.squeeze(np.array(result)))
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
         """
@@ -507,8 +511,8 @@ class LogLikelihood(HessianObjective, BaseIndependentObjective):
             # We sum away everything except the matrices in the axes 0 & 1.
             axes = tuple(range(2, len(dd_logf.shape)))
             result += np.sum(dd_logf, axis=axes, keepdims=False)
-        else:
-            return np.atleast_2d(np.squeeze(np.array(result)))
+
+        return np.atleast_2d(np.squeeze(np.array(result)))
 
 
 class MinimizeModel(HessianObjective, BaseIndependentObjective):
