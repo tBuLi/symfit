@@ -5,13 +5,15 @@ import warnings
 import numpy as np
 
 from symfit import (
-    MatrixSymbol, Fit, CallableModel, Parameter, Ge
+    MatrixSymbol, Fit, CallableModel, Parameter, Ge, parameters, variables,
+    BlockMatrix
 )
 from symfit.core.linear_solvers import LstSq, LstSqBounds
 from symfit.core.objectives import LeastSquares
 from symfit.core.minimizers import BFGS
 from symfit.core.models import ModelError
 from symfit.core.support import key2str
+from symfit.distributions import Gaussian
 
 
 class TestLinearSolvers(unittest.TestCase):
@@ -80,9 +82,8 @@ class TestLinearSolvers(unittest.TestCase):
         y = MatrixSymbol('y', L, M)
 
         model = CallableModel({y: A * x**2})
-        solver = LstSq(model, data={})
         with self.assertRaises(ModelError):
-            solver.execute()
+            solver = LstSq(model, data={})
 
     @unittest.skip
     def test_linear_programming(self):
@@ -160,6 +161,69 @@ class TestLinearSolvers(unittest.TestCase):
         ans = model(I=I_mat, M=M_mat, **fit_result.params)
         np.testing.assert_almost_equal(ans.F, F_mat, decimal=5)
         np.testing.assert_almost_equal(ans.d, 0.0, decimal=5)
+
+    def test_time_series(self):
+        """
+        Test the solving of time series data.
+        """
+        N_t = 6
+        N_x = 201
+        mu1, sig1, mu2, sig2, A = parameters('mu1, sig1, mu2, sig2, A')
+        A.min = 0
+        Y = MatrixSymbol('Y', N_x, N_t)
+        x, y = variables('x, y')
+
+        B1 = MatrixSymbol('B1', N_x, 1)
+        B2 = MatrixSymbol('B2', N_x, 1)
+
+        b1 = Gaussian(x=x, mu=mu1, sig=sig1)
+        b2 = Gaussian(x=x, mu=mu2, sig=sig2)
+
+        A = MatrixSymbol(A, 2, N_t)
+        B = BlockMatrix([[B1, B2]])
+
+        model = CallableModel({
+            Y: B * A,
+            B1: b1,
+            B2: b2
+        })
+
+        self.assertEqual(Y.shape, model[Y].shape)
+        self.assertEqual(
+            model.connectivity_mapping,
+            {Y: {A, B2, B1}, B1: {x, sig1, mu1}, B2: {x, mu2, sig2}}
+        )
+
+        # Generate mock data
+        x_data = np.linspace(0, 100, N_x)[:, None]
+        t_data = np.linspace(0, 60, N_t)[None, :]
+        # t_data = np.array([[60]])
+        amp1 = np.exp(- 0.012 * t_data)
+        amp2 = np.atleast_2d(1 - amp1)
+        amp = np.block([[amp1], [amp2]])
+        self.assertEqual(amp.shape, A.shape)
+
+        ans = model(x=x_data, mu1=40, mu2=70, sig1=10, sig2=7, A=amp)
+        Y_data = ans.Y + np.random.normal(0, 0.0005, ans.Y.shape)
+
+        mu1.value = 43
+        mu2.value = 73
+        sig1.value = 15
+        sig2.value = 15
+        fit = Fit(model, x=x_data, Y=Y_data, linear_solver=LstSqBounds)
+        # The subproblem of type y = A x, and dependencies should be taken care
+        # of
+        dummy, A_model, y = fit.linear_solver.subproblems[A]
+        self.assertEqual(
+            A_model.connectivity_mapping,
+            {dummy: {B2, B1}, B1: {x, sig1, mu1}, B2: {x, mu2, sig2}}
+        )
+        # Run the fit as a final test, no news is good news.
+        fit_result = fit.execute()
+        self.assertEqual(fit_result.value(A).shape, A.shape)
+        self.assertIsInstance(fit_result.objective, LeastSquares)
+        self.assertIsInstance(fit_result.linear_solver, LstSqBounds)
+        self.assertIsInstance(fit_result.minimizer, BFGS)
 
 
 if __name__ == '__main__':
