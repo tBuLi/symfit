@@ -20,6 +20,7 @@ paper.
     ex_ode_system.ipynb
     ex_CallableNumericalModel
     ex_tikhonov.ipynb
+    ex_time_series.ipynb
 
 Objective Examples
 ------------------
@@ -31,7 +32,7 @@ standard least-squares objective, such as likelihood fitting.
     :maxdepth: 1
 
     ex_bivariate_likelihood.ipynb
-	ex_multidataset_likelihood
+    ex_multidataset_likelihood
 
 Minimizer Examples
 ------------------
