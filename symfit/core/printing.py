@@ -7,7 +7,7 @@ slightly different behavior from the standard one.
 Users using both ``symfit`` and ``sympy`` should be aware of this.
 """
 
-from sympy import HadamardProduct, MatMul, MatPow, Idx, Inverse
+from sympy import HadamardProduct, MatPow, Idx, Inverse
 from sympy.printing.codeprinter import CodePrinter
 
 ##########################################################
@@ -30,25 +30,6 @@ class DontDeleteMe(object):
 
 CodePrinter._not_supported = DontDeleteMe(set())
 CodePrinter._number_symbols = DontDeleteMe(set())
-
-def _print_MatMul(self, printer):
-    """
-    Matrix multiplication printer. The sympy one turns everything into a
-    dot product without type-checking.
-    """
-    from sympy import MatrixExpr
-    links = []
-    for i, j in zip(self.args[1:], self.args[:-1]):
-        if isinstance(i, MatrixExpr) and isinstance(j, MatrixExpr):
-            links.append(').dot(')
-        else:
-            links.append('*')
-    printouts = [printer.doprint(i) for i in self.args]
-    result = [printouts[0]]
-    for link, printout in zip(links, printouts[1:]):
-        result.extend([link, printout])
-    return '({0})'.format(''.join(result))
-MatMul._numpycode = _print_MatMul
 
 def _print_Inverse(self, printer):
     return "%s(%s)" % (printer._module_format('numpy.linalg.inv'),
