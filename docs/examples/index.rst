@@ -17,7 +17,9 @@ paper.
     ex_piecewise
     ex_poly_surface_fit
     ex_ODEModel
+    ex_ode_system.ipynb
     ex_CallableNumericalModel
+    ex_tikhonov.ipynb
 
 Objective Examples
 ------------------
@@ -28,7 +30,16 @@ standard least-squares objective, such as likelihood fitting.
 .. toctree::
     :maxdepth: 1
 
-    ex_bivariate_likelihood
+    ex_bivariate_likelihood.ipynb
+
+Minimizer Examples
+------------------
+These examples demonstrate the different minimizers available in ``symfit``.
+
+.. toctree::
+    :maxdepth: 1
+
+    ex_mexican_hat.ipynb
 
 Interactive Guess Module
 ------------------------
