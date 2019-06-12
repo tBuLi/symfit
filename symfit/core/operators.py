@@ -5,7 +5,7 @@ This module makes ``sympy`` Expressions callable, which makes the whole project 
 """
 import sys
 
-from sympy import Eq, Ne
+from sympy import Eq, Ne, MatrixSymbol, Tuple
 from sympy.core.expr import Expr
 import sympy
 import warnings
@@ -16,34 +16,6 @@ if sys.version_info >= (3,0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
-
-# # Overwrite the behavior opun equality checking. But we want to be able to fall
-# # back on default behavior.
-# orig_eq = Expr.__class__.__eq__
-# orig_ne = Expr.__class__.__ne__
-#
-# def eq(self, other):
-#     """
-#     Hack to get an Eq object back. Seems to work when used this way,
-#     but backwards compatibility with sympy is not guaranteed.
-#     """
-#     if isinstance(other, float) or isinstance(other, int):
-#         if abs(other) == 1:
-#             # SymPy's printing check for this and might therefore produce an
-#             # error for fractions. Therefore we raise a warning in this case and
-#             # ask the user to use the Eq object manually.
-#             warnings.warn(str(self) + " == -1 and == 1 are not available for constraints. If you used +/-1 as a constraint, please use the symfit.Eq object manually.", UserWarning)
-#             return orig_eq(self.__class__, other)
-#         else:
-#             return Eq(self, other)
-#     else:
-#         return orig_eq(self.__class__, other)
-#
-# def ne(self, other):
-#     if isinstance(other, float) or isinstance(other, int):
-#         return Ne(self, other)
-#     else:
-#         return orig_ne(self.__class__, other)
 
 def call(self, *values, **named_values):
     """
@@ -92,7 +64,21 @@ def call(self, *values, **named_values):
     return func(**bound_arguments.arguments)
 
 
-# # Expr.__eq__ = eq
-# # Expr.__ne__ = ne
 Expr.__call__ = call
 Parameter.__call__ = call
+
+# Monkeypatch MatrixSymbols because they are currently broken
+def _eval_subs(self, old, new):
+    # only do substitutions in shape
+    shape = Tuple(*self.shape)._subs(old, new)
+    return MatrixSymbol(self.args[0], *shape)
+
+def doit(self, **hints):
+    if hints.get('deep', True):
+        return type(self)(self.args[0], self.args[1].doit(**hints),
+                self.args[2].doit(**hints))
+    else:
+        return self
+
+MatrixSymbol._eval_subs = _eval_subs
+MatrixSymbol.doit = doit
