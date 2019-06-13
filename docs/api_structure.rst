@@ -31,13 +31,18 @@ a lot of their properties can be inspected automatically.
 
 As a basic quality, all models are callable, i.e. they have implemented
 ``__call__``. This is used to numerically evaluate the model given the
-parameters and independent variables.
+parameters and independent variables. In order to make sure you get all the
+basic functionality, always inherit from ``BaseModel``.
 
 Next level up, if they inherit from ``GradientModel`` then they will have
 ``eval_jacobian``, which will numerically evaluate the jacobian of the model.
 Lastly, if they inherit from ``HessianModel``, they will also have
 ``eval_hessian`` to evaluate the hessian of the model.
 The standard ``Model`` is all of the above.
+
+Odd ones out from the current library are ``CallableNumericalModel`` and
+``ODEModel``. They only inherit from ``BaseModel`` and are therefore callable,
+but their other behaviors are custom build.
 
 Objectives
 ----------
