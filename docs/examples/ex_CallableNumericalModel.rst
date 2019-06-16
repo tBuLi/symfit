@@ -1,4 +1,4 @@
-Example: CallableNumericalModel
+Example: Piesewise model using CallableNumericalModel
 ===============================
 
 Below is an example of how to use the
