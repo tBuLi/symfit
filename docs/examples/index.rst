@@ -31,6 +31,7 @@ standard least-squares objective, such as likelihood fitting.
     :maxdepth: 1
 
     ex_bivariate_likelihood.ipynb
+    ex_multidataset_likelihood
 
 Minimizer Examples
 ------------------
