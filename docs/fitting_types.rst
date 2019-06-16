@@ -389,6 +389,45 @@ are added squared, ready to be minimized. Unlike in the above example, the
 
   Do not cite the overall :math:`R^2` given by :mod:`symfit`.
 
+Fitting multidimensional datasets
+----------------------------------
+So far we have only considered only considered problems with a single
+independent variable, but in the real world it is quite common to have
+problems with multiple independent variables. For example, a specific property
+over a grid, like the temperature of a surface. In that case, you have a
+three-dimensional dataset consisting of (x-, y-coordinates, temperature), and
+our model is a function :math:`T(x, y; \vec{p})`, where :math:`\vec{p}`
+indicates the collection of parameters to be determined during the fit.
+
+Let's work this out with the following mathematical model. We have a polynomial
+function with two coefficients, representing two terms of mixed order in ``x``
+and ``y``:
+
+:math:`T(x, y) = z = c_2 x^4 y^5 + c_1 x y^2`
+
+Secondly, we have to implement our model::
+
+  x, y, z = variables('x, y, z')
+  c1, c2 = parameters('c1, c2')
+  model_dict = {z: Poly( {(1, 2): c1, (4, 5): c2}, x ,y)}
+  model = Model(model_dict)
+  # prints z(x, y; c1, c2) = Poly(c2*x**4*y**5 + c1*x*y**2, x, y, domain='ZZ[c1,c2]')
+
+Now we can fit this polynomial model to some mock data. We have to be careful
+that ``xdata``, ``ydata`` and ``zdata`` are two-dimensional::
+
+  x = np.linspace(0, 100, 100)
+  y = np.linspace(0, 100, 100)
+  xdata, ydata = np.meshgrid(x, y)
+  zdata = 42 * xdata**4 * ydata**5 + 3.14 * xdata * ydata**2
+
+  fit = Fit(model, x=xdata, y=ydata, z=zdata)
+  fit_result = fit.execute()
+
+In conclusion, we made a mathematical model for a multidimensional function
+with two fit parameters, implemented this model, and fed it data
+to get a result.
+
 Global Minimization
 -------------------
 Very often, there are multiple solutions to a fitting (or minimisation)
