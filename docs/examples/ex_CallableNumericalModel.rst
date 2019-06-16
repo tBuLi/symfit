@@ -1,5 +1,5 @@
 Example: Piecewise model using CallableNumericalModel
-===============================
+=====================================================
 
 Below is an example of how to use the
 :class:`symfit.core.models.CallableNumericalModel`. This class allows you to
