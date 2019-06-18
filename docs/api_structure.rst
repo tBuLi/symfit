@@ -65,8 +65,9 @@ parameters of the model to the outside world.
 When called they must return a scalar. This scalar will be *minimized*, so when
 you need something maximized, be sure to add a negation in the right place(s).
 They can be called by using the parameter names as keyword arguments, or with a
-list of parameter values. The latter is there because this is how ``scipy``
-likes it.
+list of parameter values in the same order as
+:attr:`~symfit.core.models.BaseModel.free_params` (alphabetical).
+The latter is there because this is how ``scipy`` likes it.
 Be sure to inherit from the abstract base class(es) so you're sure you define
 all the methods that are expected of an objective. Similar to the models, they
 come in three types: :class:`~symfit.core.objectives.BaseObjective`,
@@ -76,7 +77,7 @@ come in three types: :class:`~symfit.core.objectives.BaseObjective`,
 
 When defining a new objective, it is best to inherit from
 :class:`~symfit.core.objectives.HessianObjective` and to define all three if
-possible. When feeding a model that is only callable to a
+possible. When feeding a model that does not implement ``eval_hessian`` to a
 :class:`~symfit.core.objectives.HessianObjective` no puppies die,
 :class:`~symfit.core.fit.Fit` is clever enough to prevent this.
 
@@ -91,6 +92,7 @@ support gradients. Their :meth:`~symfit.core.minimizers.BaseMinimizer.execute`
 method takes the metaparameters for the minimization.
 Again, be sure to inherit from the appropriate base class(es) if you're
 implementing your own minimizer to make sure all the expected methods are there.
+:class:`~symfit.core.fit.Fit` depends on this to make its decisions.
 And if you're wrapping Scipy style minimizers, have a look at
 :class:`~symfit.core.minimizers.ScipyMinimize`
 to avoid a duplication of efforts.
