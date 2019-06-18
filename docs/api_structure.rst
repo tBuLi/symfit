@@ -26,22 +26,25 @@ Models
 ------
 
 Models house the mathematical definition of the model we want to use to fit.
-For the typical usecase in ``symfit`` these are fully symbolical, and therefore
-a lot of their properties can be inspected automatically.
+For the typical usecase in :mod:`symfit` these are fully symbolical, and
+therefore a lot of their properties can be inspected automatically.
 
 As a basic quality, all models are callable, i.e. they have implemented
 ``__call__``. This is used to numerically evaluate the model given the
 parameters and independent variables. In order to make sure you get all the
-basic functionality, always inherit from ``BaseModel``.
+basic functionality, always inherit from :class:`~symfit.core.models.BaseModel`.
 
-Next level up, if they inherit from ``GradientModel`` then they will have
-``eval_jacobian``, which will numerically evaluate the jacobian of the model.
-Lastly, if they inherit from ``HessianModel``, they will also have
-``eval_hessian`` to evaluate the hessian of the model.
-The standard ``Model`` is all of the above.
+Next level up, if they inherit from :class:`~symfit.core.models.GradientModel`
+then they will have ``eval_jacobian``, which will numerically evaluate the
+jacobian of the model. Lastly, if they inherit from
+:class:`~symfit.core.models.HessianModel`, they will also have ``eval_hessian``
+to evaluate the hessian of the model. The standard
+:class:`~symfit.core.models.Model` is all of the above.
 
-Odd ones out from the current library are ``CallableNumericalModel`` and
-``ODEModel``. They only inherit from ``BaseModel`` and are therefore callable,
+Odd ones out from the current library are
+:class:`~symfit.core.models.CallableNumericalModel` and
+:class:`~symfit.core.models.ODEModel`. They only inherit from
+:class:`~symfit.core.models.BaseModel` and are therefore callable,
 but their other behaviors are custom build.
 
 Objectives
@@ -56,14 +59,16 @@ list of parameter values. The latter is there because this is how ``scipy``
 likes it.
 Be sure to inherit from the abstract base class(es) so you're sure you define
 all the methods that are expected of an objective. Similar to the models, they
-come in three types: ``BaseObjective``, ``GradientObjective`` and
-``HessianObjective``. These must implement ``__call__``, ``eval_jacobian`` and
-``eval_hessian`` respectively.
+come in three types: :class:`~symfit.core.objectives.BaseObjective`,
+:class:`~symfit.core.objectives.GradientObjective` and
+:class:`~symfit.core.objectives.HessianObjective`. These must implement
+``__call__``, ``eval_jacobian`` and ``eval_hessian`` respectively.
 
-When defining a new objective, it is best to inherit from ``HessianObjective``
-and to define all three if possible. When feeding a model that is only callable
-to a ``HessianObjective`` no puppies die, ``Fit`` is clever enough to
-prevent this.
+When defining a new objective, it is best to inherit from
+:class:`~symfit.core.objectives.HessianObjective` and to define all three if
+possible. When feeding a model that is only callable to a
+:class:`~symfit.core.objectives.HessianObjective` no puppies die,
+:class:`~symfit.core.fit.Fit` is clever enough to prevent this.
 
 Minimizers
 ----------
@@ -81,12 +86,14 @@ And if you're wrapping Scipy style minimizers, have a look at
 to avoid a duplication of efforts.
 
 Minimizers must always implement a method ``execute``, which will return an
-instance of ``FitResults``. Any ``*args`` and ``**kwargs`` given to execute must
+instance of :class:`~symfit.core.fit_results.FitResults`. Any ``*args`` and
+``**kwargs`` given to execute must
 be passed to the underlying minimizer.
 
 Fit
 ---
 
-``Fit`` is responsible for stringing all of the above together intelligently.
+:class:`~symfit.core.fit.Fit` is responsible for stringing all of the above
+together intelligently.
 When not coached into the right direction, it will decide which minimizer and
 objective to use on the basis of the model and data.
