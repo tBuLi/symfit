@@ -47,6 +47,16 @@ Odd ones out from the current library are
 :class:`~symfit.core.models.BaseModel` and are therefore callable,
 but their other behaviors are custom build.
 
+Since :mod:`symfit` ``0.5.0``, the core of the model has been improved
+significantly. At the center of these improvements is
+:attr:`~symfit.core.models.BaseModel.connectivity_mapping`. This mapping
+represent the connectivity matrix of the variables and parameters, and therefore
+encodes which variable depends on which. This is used in ``__call__`` to
+evaluate the components in order. To help with this, models have
+:attr:`~symfit.core.models.BaseModel.ordered_symbols`. This property is the
+topologically sorted ``connectivity_mapping``, and dictates the order in which
+variables have to be evaluated.
+
 Objectives
 ----------
 
