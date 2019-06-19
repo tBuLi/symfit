@@ -508,10 +508,11 @@ class BaseNumericalModel(BaseModel):
             for var, expr in model.items():
                 if isinstance(expr, sympy.Basic):
                     sub_model[var] = expr
-            sub_model = BaseModel(sub_model)
-            # Update with the users input. In case of conflict, this prioritizes
-            # the info given by the user.
-            connectivity_mapping.update(sub_model.connectivity_mapping)
+            if sub_model:
+                sub_model = BaseModel(sub_model)
+                # Update with the users input. In case of conflict, this prioritizes
+                # the info given by the user.
+                connectivity_mapping.update(sub_model.connectivity_mapping)
 
             self.connectivity_mapping = connectivity_mapping
         else:
