@@ -502,15 +502,16 @@ class BaseNumericalModel(BaseModel):
             if not isinstance(model, Mapping):
                 raise TypeError('Please provide the model as a mapping, '
                                 'corresponding to `connectivity_mapping`.')
-            elif connectivity_mapping.keys() != model.keys():
-                # Infer the connectivity mapping corresponding to the symbolical
-                # part automatically
-                sub_model = {}
-                for var, expr in model.items():
-                    if isinstance(expr, sympy.Basic):
-                        sub_model[var] = expr
-                sub_model = BaseModel(sub_model)
-                connectivity_mapping.update(sub_model.connectivity_mapping)
+            # Infer the connectivity mapping corresponding to the symbolical
+            # part automatically
+            sub_model = {}
+            for var, expr in model.items():
+                if isinstance(expr, sympy.Basic):
+                    sub_model[var] = expr
+            sub_model = BaseModel(sub_model)
+            # Update with the users input. In case of conflict, this prioritizes
+            # the info given by the user.
+            connectivity_mapping.update(sub_model.connectivity_mapping)
 
             self.connectivity_mapping = connectivity_mapping
         else:
