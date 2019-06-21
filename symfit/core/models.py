@@ -515,7 +515,7 @@ class BaseNumericalModel(BaseModel):
                 sub_model.connectivity_mapping.update(connectivity_mapping)
                 connectivity_mapping = sub_model.connectivity_mapping
 
-            self.connectivity_mapping = connectivity_mapping
+            self.connectivity_mapping = connectivity_mapping.copy()
         else:
             raise TypeError('Please provide `connectivity_mapping`.')
         super(BaseNumericalModel, self).__init__(model, **kwargs)
