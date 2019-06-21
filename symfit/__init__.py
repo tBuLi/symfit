@@ -1,4 +1,7 @@
 from symfit.api import *
 import pkg_resources
 
-__version__  = pkg_resources.get_distribution('symfit').version
+try:
+    __version__ = pkg_resources.get_distribution('symfit').version
+except pkg_resources.DistributionNotFound:
+    __version__ = ''
