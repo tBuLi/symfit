@@ -510,9 +510,10 @@ class BaseNumericalModel(BaseModel):
                     sub_model[var] = expr
             if sub_model:
                 sub_model = BaseModel(sub_model)
-                # Update with the users input. In case of conflict, this prioritizes
-                # the info given by the user.
-                connectivity_mapping.update(sub_model.connectivity_mapping)
+                # Update with the users input. In case of conflict, this
+                # prioritizes the info given by the user.
+                sub_model.connectivity_mapping.update(connectivity_mapping)
+                connectivity_mapping = sub_model.connectivity_mapping
 
             self.connectivity_mapping = connectivity_mapping
         else:
