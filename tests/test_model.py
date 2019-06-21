@@ -14,7 +14,7 @@ from symfit import (
     CallableModel, CallableNumericalModel, Inverse, MatrixSymbol, Symbol, sqrt,
     Function, diff
 )
-from symfit.core.fit import (
+from symfit.core.models import (
     jacobian_from_model, hessian_from_model, ModelError
 )
 
@@ -152,27 +152,45 @@ class TestModel(unittest.TestCase):
             numerical_model(x=xdata, a=5.5, b=15.0),
             mixed_model(x=xdata, a=5.5, b=15.0)
         )
+        zdata = mixed_model(x=xdata, a=5.5, b=15.0).z + np.random.normal(0, 1)
 
         # Check if the fits are the same
-        fit = Fit(model, x=xdata, y=ydata)
-        analytical_result = fit.execute()
-        fit = Fit(numerical_model, x=xdata, y=ydata)
+        fit = Fit(mixed_model, x=xdata, y=ydata, z=zdata)
+        mixed_result = fit.execute()
+        fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata)
         numerical_result = fit.execute()
         for param in [a, b]:
             self.assertAlmostEqual(
-                analytical_result.value(param),
+                mixed_result.value(param),
                 numerical_result.value(param)
             )
             self.assertAlmostEqual(
-                analytical_result.stdev(param),
+                mixed_result.stdev(param),
                 numerical_result.stdev(param)
             )
-        self.assertAlmostEqual(analytical_result.r_squared, numerical_result.r_squared)
+        self.assertAlmostEqual(mixed_result.r_squared, numerical_result.r_squared)
 
         # Test if the constrained syntax is supported
-        fit = Fit(numerical_model, x=xdata, y=ydata, constraints=[Eq(a, b)])
+        fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata, constraints=[Eq(a, b)])
         constrained_result = fit.execute()
         self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
+
+    def test_CallableNumericalModel_infer_connectivity(self):
+        """
+        When a CallableNumericalModel is initiated with symbolical and
+        non-symbolical components, only the connectivity mapping for
+        non-symbolical part has to be provided.
+        """
+        x, y, z = variables('x, y, z')
+        a, b = parameters('a, b')
+        model_dict = {z: lambda y, a, b: a * y + b,
+                      y: x ** a}
+        mixed_model = CallableNumericalModel(
+            model_dict, connectivity_mapping={z: {y, a, b}}
+        )
+        self.assertEqual(mixed_model.connectivity_mapping,
+                         {z: {y, a, b}, y: {x, a}})
+
 
     def test_CallableNumericalModel2D(self):
         """

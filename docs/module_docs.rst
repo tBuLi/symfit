@@ -14,6 +14,15 @@ Fit
    :exclude-members: __weakref__
    :show-inheritance:
 
+Models
+------
+
+.. automodule:: symfit.core.models
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
 Argument
 --------
 
@@ -63,6 +72,15 @@ Support
 -------
 
 .. automodule:: symfit.core.support
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+   :show-inheritance:
+
+Printing
+--------
+
+.. automodule:: symfit.core.printing
    :members:
    :special-members:
    :exclude-members: __weakref__

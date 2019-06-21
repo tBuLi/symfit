@@ -27,6 +27,34 @@ def chi_squared(x, y, a, b, sum=True):
 def worker(fit_obj):
     return fit_obj.execute()
 
+class SqrtLeastSquares(LeastSquares):
+    """
+    Minimizes the square root of LeastSquares. This seems to help SLSQP in
+    particular, and is considered good practise since the square can grow to
+    rapidly, leading to numerical errors.
+    """
+    # TODO: Make this a standard objective, and perhaps even THE standard
+    # objective. This lightweight version is given without proper testing
+    # because only the call is relevant, and this makes our multiprocessing test
+    # work.
+    def __call__(self, *args, **kwargs):
+        chi2 = super(SqrtLeastSquares, self).__call__(*args, **kwargs)
+        return np.sqrt(chi2)
+
+    def eval_jacobian(self, *args, **kwargs):
+        sqrt_chi2 = self(*args, **kwargs)
+        chi2_jac = super(SqrtLeastSquares, self).eval_jacobian(*args, **kwargs)
+        return 0.5 * (1 / sqrt_chi2) * chi2_jac
+
+    def eval_hessian(self, *args, **kwargs):
+        sqrt_chi2 = self(*args, **kwargs)
+        sqrt_chi2_jac = self.eval_jacobian(*args, **kwargs)
+        chi2 = super(SqrtLeastSquares, self).__call__(*args, **kwargs)
+        chi2_jac = super(SqrtLeastSquares, self).eval_jacobian(*args, **kwargs)
+        chi2_hess = super(SqrtLeastSquares, self).eval_hessian(*args, **kwargs)
+        return - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) \
+               + 0.5 * (1 / sqrt_chi2) * chi2_hess
+
 def subclasses(base, leaves_only=True):
     """
     Recursively create a set of subclasses of ``object``.
@@ -280,7 +308,8 @@ class TestMinimize(unittest.TestCase):
             res_before = fit.execute()
             np.random.seed(2)
             res_after = pickled_fit.execute()
-            self.assertEqual(res_before, res_after)
+            self.assertTrue(FitResults._array_safe_dict_eq(res_before.__dict__,
+                                                           res_after.__dict__))
 
     def test_multiprocessing(self):
         """
@@ -289,31 +318,44 @@ class TestMinimize(unittest.TestCase):
         """
         np.random.seed(2)
         x = np.arange(100, dtype=float)
-        y = x + 0.25 * x * np.random.rand(100)
-        a_values = np.arange(3) + 1
+        a_values = np.array([1, 2, 3])
         np.random.shuffle(a_values)
 
-        def gen_fit_objs(x, y, a, minimizer):
+        def gen_fit_objs(x, a, minimizer):
+            """Generates linear fits with different a parameter values."""
             for a_i in a:
-                a_par = Parameter('a', 5, min=0.0, max=20)
-                b_par = Parameter('b', 1, min=0.0, max=2)
+                a_par = Parameter('a', 4.0, min=0.0, max=20)
+                b_par = Parameter('b', 1.2, min=0.0, max=2)
                 x_var = Variable('x')
                 y_var = Variable('y')
 
                 model = CallableNumericalModel({y_var: f}, [x_var], [a_par, b_par])
 
-                fit = Fit(model, x, a_i * y + 1, minimizer=minimizer)
+                fit = Fit(
+                    model, x, a_i * x + 1, minimizer=minimizer,
+                    objective=SqrtLeastSquares if minimizer is not MINPACK else VectorLeastSquares
+                )
                 yield fit
 
         minimizers = subclasses(ScipyMinimize)
         chained_minimizer = (DifferentialEvolution, BFGS)
         minimizers.add(chained_minimizer)
 
-        all_results = {}
         pool = mp.Pool()
         for minimizer in minimizers:
-            results = pool.map(worker, gen_fit_objs(x, y, a_values, minimizer))
-            all_results[minimizer] = [res.params['a'] for res in results]
+            results = pool.map(worker, gen_fit_objs(x, a_values, minimizer))
+            a_results = [res.params['a'] for res in results]
+            minimizer_results = [res.minimizer for res in results]
+            # Check the results
+            np.testing.assert_almost_equal(a_values, a_results, decimal=2)
+            for result in results:
+                # Check that we are actually using the right minimizer
+                if isinstance(result.minimizer, ChainedMinimizer):
+                    for used, target in zip(result.minimizer.minimizers, minimizer):
+                        self.assertIsInstance(used, target)
+                else:
+                    self.assertIsInstance(result.minimizer, minimizer)
+                self.assertIsInstance(result.iterations, int)
 
     def test_minimizer_constraint_compatibility(self):
         """
@@ -357,7 +399,7 @@ class TestMinimize(unittest.TestCase):
 
         # No scipy style dicts allowed.
         with self.assertRaises(TypeError):
-            fit = SLSQP(MinimizeModel(model, data={}),
+            fit = SLSQP(MinimizeModel(model, data=data_dict),
                         parameters=[a, b, c],
                         constraints=[
                             {'type': 'eq', 'fun': lambda a, b, c: a - c}

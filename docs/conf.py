@@ -35,6 +35,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
+    'nbsphinx',
 ]
 
 intersphinx_mapping = {
@@ -53,6 +54,9 @@ nitpick_ignore = [
     ('py:class', 'sympy.core.relational.Relational'),
     ('py:func', 'symfit.core.leastsqbound.leastsqbound')
 ]
+
+# Always re-execute notebooks when building the docs
+nbsphinx_execute = 'always'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

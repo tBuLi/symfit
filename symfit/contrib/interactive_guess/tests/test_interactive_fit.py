@@ -29,7 +29,6 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         k = Parameter('k', 900)
         x0 = Parameter('x0', 1.5)
 
-        # You can NOT do this in one go. Blame Sympy. Not my fault.
         cls.k = k
         cls.x0 = x0
 
@@ -37,7 +36,6 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
         x_data = np.linspace(0, 2.5, 50)
         y_data = model[y](x=x_data, k=1000, x0=1)
         cls.guess = interactive_guess.InteractiveGuess(model, x=x_data, y=y_data)
-#        plt.close(cls.fit.fig)
 
     def test_number_of_sliders(self):
         self.assertEqual(len(self.guess._sliders), 2)

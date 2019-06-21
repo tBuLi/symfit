@@ -3,16 +3,18 @@ import sys
 from collections import namedtuple, Counter, OrderedDict
 
 from scipy.optimize import (
-    minimize, differential_evolution, basinhopping, NonlinearConstraint
+    minimize, differential_evolution, basinhopping, NonlinearConstraint,
+    OptimizeResult
 )
 from scipy.optimize import BFGS as soBFGS
 import sympy
 import numpy as np
 
-from .support import key2str, keywordonly, partial
+from .support import keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
+from .models import CallableNumericalModel, BaseModel
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -59,7 +61,6 @@ class BaseMinimizer(object):
             # are still considered correct, and not doubly wrapped.
             return func
         else:
-            from .fit import CallableNumericalModel, BaseModel
             if isinstance(func, BaseModel):
                 model = func
             else:
@@ -71,7 +72,7 @@ class BaseMinimizer(object):
                     connectivity_mapping={y: set(self.parameters)}
                 )
             return objective_type(model,
-                                  data={y: None for y in model.dependent_vars})
+                                  data={})
 
     @abc.abstractmethod
     def execute(self, **options):
@@ -275,7 +276,7 @@ class ChainedMinimizer(BaseMinimizer):
         # TODO: Compile all previous results in one, instead of just the
         # number of function evaluations. But there's some code down the
         # line that expects scalars.
-        final.infodict['nfev'] = sum(ans.infodict['nfev'] for ans in answers)
+        final.minimizer_output['nit'] = sum(ans.iterations for ans in answers)
         return final
 
     def _make_signature(self):
@@ -316,6 +317,9 @@ class ChainedMinimizer(BaseMinimizer):
         state = super(ChainedMinimizer, self).__getstate__()
         del state['__signature__']
         return state
+
+    def __str__(self):
+        return self.__class__.__name__ + '(minimizers={})'.format(self.minimizers)
 
 class ScipyMinimize(object):
     """
@@ -361,11 +365,6 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`
         :returns: :class:`~symfit.core.fit_results.FitResults`
         """
-        # Build infodic
-        infodic = {
-            'nfev': ans.nfev,
-        }
-
         best_vals = []
         found = iter(np.atleast_1d(ans.x))
         for param in self.parameters:
@@ -378,17 +377,11 @@ class ScipyMinimize(object):
             model=DummyModel(params=self.parameters),
             popt=best_vals,
             covariance_matrix=None,
-            infodic=infodic,
-            mesg=ans.message,
-            ier=ans.nit if hasattr(ans, 'nit') else None,
-            objective_value=ans.fun,
+            objective=self.objective,
+            minimizer=self,
+            **ans
         )
 
-        if 'hess_inv' in ans:
-            try:
-                fit_results['hessian_inv'] = ans.hess_inv.todense()
-            except AttributeError:
-                fit_results['hessian_inv'] = ans.hess_inv
         return FitResults(**fit_results)
 
     @classmethod
@@ -480,7 +473,7 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
 
         :param constraints: List of either MinimizeModel instances (this is what
           is provided by :class:`~symfit.core.fit.Fit`),
-          :class:`~symfit.core.fit.BaseModel`, or
+          :class:`~symfit.core.models.BaseModel`, or
           :class:`sympy.core.relational.Relational`.
         :return: dict of scipy compatible statements.
         """
@@ -516,6 +509,11 @@ class ScipyConstrainedMinimize(ScipyMinimize, ConstrainedMinimizer):
         cons = tuple(cons)
         return cons
 
+    def _pack_output(self, ans):
+        fit_result = super(ScipyConstrainedMinimize, self)._pack_output(ans)
+        fit_result.constraints = self.constraints
+        return fit_result
+
 
 class BFGS(ScipyGradientMinimize):
     """
@@ -533,6 +531,11 @@ class COBYLA(ScipyConstrainedMinimize, BaseMinimizer):
     """
     Wrapper around :func:`scipy.optimize.minimize`'s COBYLA algorithm.
     """
+    def execute(self, **minimize_options):
+        ans = super(COBYLA, self).execute(**minimize_options)
+        # Nearest indication of nit.
+        ans.minimizer_output['nit'] = ans.minimizer_output.pop('nfev')
+        return ans
 
 class LBFGSB(ScipyGradientMinimize, ScipyBoundedMinimizer):
     """
@@ -633,10 +636,14 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, ScipyBoundedMi
         if hessian is None:
             hessian = self.wrapped_hessian
 
-        return super(TrustConstr, self).execute(options=options,
+        ans = super(TrustConstr, self).execute(options=options,
                                                 jacobian=jacobian,
                                                 hessian=hessian,
                                                 **minimize_options)
+        # Rename the number of iterations kwarg to be consistent.
+        ans.minimizer_output['nit'] = ans.minimizer_output.pop('niter')
+        return ans
+
 
 class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
     """
@@ -649,6 +656,7 @@ class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
                                      self.bounds,
                                      **de_options)
         return self._pack_output(ans)
+
 
 class BasinHopping(ScipyMinimize, GlobalMinimizer):
     """
@@ -745,6 +753,14 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
             self.initial_guesses,
             **minimize_options
         )
+        if isinstance(ans.message, list):
+            # For some reason this is currently a length one list containing
+            # the message. We check just in case this gets fixed upstream in
+            # future releases.
+            ans.message = ans.message[0]
+        if 'constraints' in minimize_options['minimizer_kwargs']:
+            # Add the constraints to the FitResults
+            ans['constraints'] = self.local_minimizer.constraints
         return self._pack_output(ans)
 
 
@@ -761,7 +777,9 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
         """
         :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
         """
-        popt, pcov, infodic, mesg, ier = leastsqbound(
+        # These are the corresponding names for OptimizeResult
+        output_names = ['x', 'hess_inv', 'infodic', 'message', 'status']
+        full_output = leastsqbound(
             self.objective,
             # Dfun=self.jacobian,
             x0=self.initial_guesses,
@@ -770,14 +788,10 @@ class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
             **minpack_options
         )
 
-        fit_results = dict(
-            model=DummyModel(params=self.params),
-            popt=popt,
-            covariance_matrix=None,
-            infodic=infodic,
-            mesg=mesg,
-            ier=ier,
-            chi_squared=np.sum(infodic['fvec']**2),
-        )
+        # Translate to standard names for optimize
+        ans = OptimizeResult(zip(output_names, full_output))
+        ans['fun'] = ans.infodic['fvec']
+        ans['success'] = 1 <= ans.status <= 4  # These codes are successful
+        ans['nit'] = ans.infodic['nfev']  # Nearest indication of nit.
 
-        return FitResults(**fit_results)
+        return self._pack_output(ans)

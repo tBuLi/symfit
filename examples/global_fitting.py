@@ -50,7 +50,7 @@ y0.value = 10
 
 sigma_y = np.concatenate((np.ones(20), [2., 4., 5, 7, 3]))
 
-fit = ConstrainedNumericalLeastSquares(
+fit = Fit(
     model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1], sigma_y_2=sigma_y
 )
 fit_result = fit.execute()
