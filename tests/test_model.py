@@ -175,6 +175,23 @@ class TestModel(unittest.TestCase):
         constrained_result = fit.execute()
         self.assertAlmostEqual(constrained_result.value(a), constrained_result.value(b))
 
+    def test_CallableNumericalModel_infer_connectivity(self):
+        """
+        When a CallableNumericalModel is initiated with symbolical and
+        non-symbolical components, only the connectivity mapping for
+        non-symbolical part has to be provided.
+        """
+        x, y, z = variables('x, y, z')
+        a, b = parameters('a, b')
+        model_dict = {z: lambda y, a, b: a * y + b,
+                      y: x ** a}
+        mixed_model = CallableNumericalModel(
+            model_dict, connectivity_mapping={z: {y, a, b}}
+        )
+        self.assertEqual(mixed_model.connectivity_mapping,
+                         {z: {y, a, b}, y: {x, a}})
+
+
     def test_CallableNumericalModel2D(self):
         """
         Apply a CallableNumericalModel to 2D data, to see if it is

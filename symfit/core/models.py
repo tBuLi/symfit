@@ -473,8 +473,11 @@ class BaseNumericalModel(BaseModel):
             (Deprecated, use ``connectivity_mapping`` instead.)
         :param connectivity_mapping: Mapping indicating the dependencies of
             every variable in the model. For example, a model_dict
-            {y: a * x + b} has a connectivity_mapping {y: {x, a, b}}. Note that
-            the values of this dict have to be sets.
+            ``{y: lambda x, a, b: a * x + b}`` needs a connectivity_mapping
+            ``{y: {x, a, b}}``. (Note that the values of this dict have to be
+            sets.) This only has to be provided for the non-symbolic components.
+            The part corresponding to the symbolic components of the model is
+            inferred automatically.
         """
         connectivity_mapping = kwargs.pop('connectivity_mapping')
         if (connectivity_mapping is None and
@@ -496,10 +499,23 @@ class BaseNumericalModel(BaseModel):
             self.connectivity_mapping = {var: set(independent_vars + params)
                                          for var in model}
         elif connectivity_mapping:
-            self.connectivity_mapping = connectivity_mapping
             if not isinstance(model, Mapping):
                 raise TypeError('Please provide the model as a mapping, '
                                 'corresponding to `connectivity_mapping`.')
+            # Infer the connectivity mapping corresponding to the symbolical
+            # part automatically
+            sub_model = {}
+            for var, expr in model.items():
+                if isinstance(expr, sympy.Basic):
+                    sub_model[var] = expr
+            if sub_model:
+                sub_model = BaseModel(sub_model)
+                # Update with the users input. In case of conflict, this
+                # prioritizes the info given by the user.
+                sub_model.connectivity_mapping.update(connectivity_mapping)
+                connectivity_mapping = sub_model.connectivity_mapping
+
+            self.connectivity_mapping = connectivity_mapping.copy()
         else:
             raise TypeError('Please provide `connectivity_mapping`.')
         super(BaseNumericalModel, self).__init__(model, **kwargs)
@@ -708,8 +724,7 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
         a, b = parameters('a, b')
         numerical_model = CallableNumericalModel(
             {y: lambda x, a, b: a * x + b},
-            independent_vars=[x],
-            params=[a, b]
+            connectivity_mapping={y: {x, a, b}}
         )
 
     This is identical in functionality to the more traditional::
@@ -721,9 +736,17 @@ class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
     but allows power-users a lot more freedom while still interacting
     seamlessly with the :mod:`symfit` API.
 
-    .. note:: All of the callables must accept all of the ``independent_vars``
-        and  ``params`` of the model as arguments, even if not all of them are
-        used by every callable.
+    When mixing symbolical and non-symbolical components, the
+    ``connectivity_mapping`` only has to be provided for the non-symbolical
+    components, the rest are inferred automatically::
+
+        x, y, z = variables('x, y, z')
+        a, b = parameters('a, b')
+        model_dict = {z: lambda y, a, b: a * y + b,
+                      y: x ** a}
+        mixed_model = CallableNumericalModel(
+            model_dict, connectivity_mapping={z: {y, a, b}}
+        )
     """
     @cached_property
     def numerical_components(self):
