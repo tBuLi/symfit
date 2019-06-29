@@ -1,0 +1,44 @@
+============================= test session starts =============================
+platform win32 -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0 -- C:\Users\Antony\Anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Antony\projects\symfit, inifile: pytest.ini
+plugins: remotedata-0.3.1, openfiles-0.3.2, doctestplus-0.3.0, arraydiff-0.3
+collecting ... collected 6 items
+
+test_auto_fit.py::test_vector_fitting PASSED                             [ 16%]
+test_auto_fit.py::test_vector_fitting_bounds PASSED                      [ 33%]
+test_auto_fit.py::test_vector_fitting_guess PASSED                       [ 50%]
+test_auto_fit.py::test_global_fitting PASSED                             [ 66%]
+test_auto_fit.py::test_gaussian_2d_fitting PASSED                        [ 83%]
+test_auto_fit.py::test_gaussian_2d_fitting_background PASSED             [100%]
+
+============================== warnings summary ===============================
+C:\Users\Antony\projects\symfit\symfit\core\fit.py:1
+  C:\Users\Antony\projects\symfit\symfit\core\fit.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import OrderedDict, Sequence
+
+C:\Users\Antony\projects\symfit\symfit\core\models.py:1
+  C:\Users\Antony\projects\symfit\symfit\core\models.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import namedtuple, Mapping, OrderedDict
+
+tests/test_auto_fit.py::test_vector_fitting
+tests/test_auto_fit.py::test_vector_fitting
+  C:\Users\Antony\projects\symfit\symfit\core\models.py:89: DeprecationWarning: It is recommended to provide names to Variable explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    model = {Variable(): expr for expr in model}
+
+tests/test_auto_fit.py::test_gaussian_2d_fitting
+tests/test_auto_fit.py::test_gaussian_2d_fitting
+tests/test_auto_fit.py::test_gaussian_2d_fitting
+tests/test_auto_fit.py::test_gaussian_2d_fitting
+tests/test_auto_fit.py::test_gaussian_2d_fitting
+tests/test_auto_fit.py::test_gaussian_2d_fitting_background
+tests/test_auto_fit.py::test_gaussian_2d_fitting_background
+tests/test_auto_fit.py::test_gaussian_2d_fitting_background
+tests/test_auto_fit.py::test_gaussian_2d_fitting_background
+tests/test_auto_fit.py::test_gaussian_2d_fitting_background
+tests/test_auto_fit.py::test_gaussian_2d_fitting_background
+  C:\Users\Antony\projects\symfit\symfit\core\argument.py:89: DeprecationWarning: It is recommended to provide names to Parameter explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    return super(Parameter, cls).__new__(cls, name, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/latest/warnings.html
+==================== 6 passed, 15 warnings in 2.87 seconds ====================
