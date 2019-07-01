@@ -4,14 +4,14 @@ from ipywidgets import FloatSlider, interact
 
 
 class Interactive(object):
-    def __init__(self, fit, num=100):
+    def __init__(self, fit, num=100, step=100):
         self.fit = fit
         self.num = num
-
+        self.step = step
         self.parameters = {p.name: p for p in self.fit.model.params} # Ahh the pleasure of having a dict with names!
 
     def interact(self):
-        widgets = {k: FloatSlider(v.value, min=v.min, max=v.max, step=(v.max - v.min)/100) for k, v in self.parameters.items()}
+        widgets = {k: FloatSlider(v.value, min=v.min, max=v.max, step=(v.max - v.min)/step) for k, v in self.parameters.items()}
         self.initialize()
 
         interact(self.update_func, **widgets)
