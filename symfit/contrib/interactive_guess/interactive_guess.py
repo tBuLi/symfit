@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
 
-plt.ioff()
+#plt.ioff()
 
 
 class InteractiveGuess(TakesData):
