@@ -1,0 +1,35 @@
+============================= test session starts =============================
+platform win32 -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0 -- C:\Users\Antony\Anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Antony\Projects\Symfit, inifile: pytest.ini
+plugins: remotedata-0.3.1, openfiles-0.3.2, doctestplus-0.3.0, arraydiff-0.3
+collecting ... collected 2 items
+
+test_distributions_py.py::test_gaussian PASSED                           [ 50%]
+test_distributions_py.py::test_exp PASSED                                [100%]
+
+============================== warnings summary ===============================
+C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import OrderedDict, Sequence
+
+C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import namedtuple, Mapping, OrderedDict
+
+tests/test_distributions_py.py::test_gaussian
+tests/test_distributions_py.py::test_gaussian
+tests/test_distributions_py.py::test_exp
+  C:\Users\Antony\Projects\Symfit\symfit\core\argument.py:89: DeprecationWarning: It is recommended to provide names to Parameter explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    return super(Parameter, cls).__new__(cls, name, **kwargs)
+
+tests/test_distributions_py.py::test_gaussian
+  C:\Users\Antony\Projects\Symfit\tests\test_distributions_py.py:18: DeprecationWarning: It is recommended to provide names to Variable explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    x = Variable()
+
+tests/test_distributions_py.py::test_exp
+  C:\Users\Antony\Projects\Symfit\tests\test_distributions_py.py:35: DeprecationWarning: It is recommended to provide names to Variable explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    x = Variable()
+
+-- Docs: https://docs.pytest.org/en/latest/warnings.html
+==================== 2 passed, 7 warnings in 1.10 seconds =====================
