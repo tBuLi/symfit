@@ -1,5 +1,5 @@
 from __future__ import division
-import unittest
+import pytest
 import warnings
 
 import sympy
