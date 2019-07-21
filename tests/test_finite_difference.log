@@ -1,0 +1,27 @@
+============================= test session starts =============================
+platform win32 -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0 -- C:\Users\Antony\Anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Antony\Projects\Symfit, inifile: pytest.ini
+plugins: remotedata-0.3.1, openfiles-0.3.2, doctestplus-0.3.0, arraydiff-0.3
+collecting ... collected 8 items
+
+test_finite_difference_py.py::test_1_1_model PASSED                      [ 12%]
+test_finite_difference_py.py::test_1_multi_model PASSED                  [ 25%]
+test_finite_difference_py.py::test_multi_1_model PASSED                  [ 37%]
+test_finite_difference_py.py::test_multi_multi_model PASSED              [ 50%]
+test_finite_difference_py.py::test_multi_indep PASSED                    [ 62%]
+test_finite_difference_py.py::test_ODE_stdev PASSED                      [ 75%]
+test_finite_difference_py.py::test_unequal_data PASSED                   [ 87%]
+test_finite_difference_py.py::test_harmonic_oscillator_errors PASSED     [100%]
+
+============================== warnings summary ===============================
+C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import OrderedDict, Sequence
+
+C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import namedtuple, Mapping, OrderedDict
+
+-- Docs: https://docs.pytest.org/en/latest/warnings.html
+==================== 8 passed, 2 warnings in 7.52 seconds =====================
