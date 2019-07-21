@@ -173,7 +173,7 @@ def test_global_fitting():
         y_1: a_1 * x_1**2 + b_1 * x_1 + y0,
         y_2: a_2 * x_2**2 + b_2 * x_2 + y0,
     })
-    assert model.shared_parameters == True
+    assert model.shared_parameters
 
     # Generate data from this model
     xdata1 = np.linspace(0, 10)
@@ -209,7 +209,7 @@ def test_global_fitting():
     fit = Fit(
         model, x_1=xdata[0], x_2=xdata[1], y_1=ydata[0], y_2=ydata[1]
     )
-    assert model.shared_parameters == False
+    assert not model.shared_parameters
     assert isinstance(fit.minimizer, BFGS)
 
     # Scalar model, still use bfgs.
