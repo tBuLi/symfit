@@ -1,0 +1,147 @@
+============================= test session starts =============================
+platform win32 -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0 -- C:\Users\Antony\Anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Antony\Projects\Symfit, inifile: pytest.ini
+plugins: remotedata-0.3.1, openfiles-0.3.2, doctestplus-0.3.0, arraydiff-0.3
+collecting ... collected 7 items
+
+test_minimizers_py.py::test_custom_objective PASSED                      [ 14%]
+test_minimizers_py.py::test_custom_parameter_names PASSED                [ 28%]
+test_minimizers_py.py::test_powell PASSED                                [ 42%]
+test_minimizers_py.py::test_jac_hess PASSED                              [ 57%]
+test_minimizers_py.py::test_pickle PASSED                                [ 71%]
+test_minimizers_py.py::test_multiprocessing PASSED                       [ 85%]
+test_minimizers_py.py::test_minimizer_constraint_compatibility PASSED    [100%]
+
+============================== warnings summary ===============================
+C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import OrderedDict, Sequence
+
+C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import namedtuple, Mapping, OrderedDict
+
+tests/test_minimizers_py.py::test_custom_objective
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_minimizer_constraint_compatibility
+tests/test_minimizers_py.py::test_minimizer_constraint_compatibility
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:89: DeprecationWarning: It is recommended to provide names to Variable explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    model = {Variable(): expr for expr in model}
+
+tests/test_minimizers_py.py::test_custom_parameter_names
+tests/test_minimizers_py.py::test_custom_parameter_names
+  C:\Users\Antony\Projects\Symfit\symfit\core\argument.py:89: DeprecationWarning: It is recommended to provide names to Parameter explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    return super(Parameter, cls).__new__(cls, name, **kwargs)
+
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+tests/test_minimizers_py.py::test_jac_hess
+  C:\Users\Antony\Anaconda3\lib\site-packages\numpy\matrixlib\defmatrix.py:71: PendingDeprecationWarning: the matrix subclass is not the recommended way to represent matrices or deal with linear algebra (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). Please adjust your code to use regular ndarray.
+    return matrix(data, dtype=dtype, copy=False)
+
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+tests/test_minimizers_py.py::test_multiprocessing
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:491: DeprecationWarning: `independent_vars` and `params` have been deprecated. Use `connectivity_mapping` instead.
+    '`independent_vars` and `params` have been deprecated.'
+
+tests/test_minimizers_py.py::test_pickle
+  C:\Users\Antony\Anaconda3\lib\site-packages\scipy\optimize\_trustregion_constr\canonical_constraint.py:148: FutureWarning: arrays to stack must be passed as a "sequence" type such as list or tuple. Support for non-sequence iterables such as generators is deprecated as of NumPy 1.16 and will raise an error in the future.
+    c.keep_feasible for c in canonical_constraints)), dtype=bool)
+
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+tests/test_minimizers_py.py::test_pickle
+  C:\Users\Antony\Anaconda3\lib\site-packages\numpy\matrixlib\defmatrix.py:1105: PendingDeprecationWarning: the matrix subclass is not the recommended way to represent matrices or deal with linear algebra (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). Please adjust your code to use regular ndarray.
+    return matrix(concatenate(arr_rows, axis=0))
+
+-- Docs: https://docs.pytest.org/en/latest/warnings.html
+=================== 7 passed, 105 warnings in 38.62 seconds ===================
