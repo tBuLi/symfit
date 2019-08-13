@@ -815,7 +815,8 @@ def test_constrained_dependent_on_model():
         else:
             # TODO if these constraints can somehow be written as integrals
             # depending on y and x this if/else should be removed.
-            assert con_map == {fit_constraint.dependent_vars[0]: {A}}
+            assert con_map == {fit_constraint.dependent_vars[0
+            ]: {A}}
             assert fit_constraint.independent_vars == []
             assert len(fit_constraint.dependent_vars) == 1
             assert fit_constraint.interdependent_vars == []
