@@ -130,7 +130,7 @@ __________________ test_constrained_dependent_on_matrixmodel __________________
         fit = Fit(model, x=xcentres, y=ydata, I=Idata)
 >       unconstr_result = fit.execute()
 
-test_constrained_py.py:904: 
+test_constrained_py.py:903: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 ..\symfit\core\fit.py:579: in execute
     minimizer_ans = self.minimizer.execute(**minimize_options)
@@ -2718,4 +2718,4 @@ tests/test_constrained_py.py::test_trustconstr
     return matrix(data, dtype=dtype, copy=False)
 
 -- Docs: https://docs.pytest.org/en/latest/warnings.html
-======= 2 failed, 15 passed, 1 skipped, 2492 warnings in 19.65 seconds ========
+======= 2 failed, 15 passed, 1 skipped, 2492 warnings in 14.87 seconds ========
