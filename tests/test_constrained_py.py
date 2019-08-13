@@ -947,8 +947,12 @@ def test_constrained_dependent_on_matrixmodel():
     assert not fit.minimizer.wrapped_constraints[0]['fun'](
         **unconstr_result.params)[0] == pytest.approx(0, 1e-3)
     # And at high precision with constraint
+    # TODO Change after resolve bug at pytest
     assert fit.minimizer.wrapped_constraints[0]['fun'](
-        **constr_result.params)[0] == pytest.approx(0, 8)
+        **constr_result.params)[0] > 0 - 1e-8
+
+    assert fit.minimizer.wrapped_constraints[0]['fun'](
+        **constr_result.params)[0] < 0 + 1e-8
 
     # Constraining will negatively effect the R^2 value, but...
     assert constr_result.r_squared < unconstr_result.r_squared
