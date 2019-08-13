@@ -1,0 +1,62 @@
+============================= test session starts =============================
+platform win32 -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0 -- C:\Users\Antony\Anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Antony\Projects\Symfit, inifile: pytest.ini
+plugins: remotedata-0.3.1, openfiles-0.3.2, doctestplus-0.3.0, arraydiff-0.3
+collecting ... collected 10 items
+
+test_fit_result_py.py::test_params_type PASSED                           [ 10%]
+test_fit_result_py.py::test_minimizer_output_type PASSED                 [ 20%]
+test_fit_result_py.py::test_fitting PASSED                               [ 30%]
+test_fit_result_py.py::test_fitting_2 PASSED                             [ 40%]
+test_fit_result_py.py::test_minimizer_included PASSED                    [ 50%]
+test_fit_result_py.py::test_objective_included PASSED                    [ 60%]
+test_fit_result_py.py::test_constraints_included PASSED                  [ 70%]
+test_fit_result_py.py::test_message_included PASSED                      [ 80%]
+test_fit_result_py.py::test_pickle PASSED                                [ 90%]
+test_fit_result_py.py::test_gof_presence ERROR                           [100%]
+
+=================================== ERRORS ====================================
+_____________________ ERROR at setup of test_gof_presence _____________________
+file C:\Users\Antony\Projects\Symfit\tests\test_fit_result_py.py, line 225
+  def test_gof_presence(self):
+E       fixture 'self' not found
+>       available fixtures: _Module__pytest_setup_function, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, monkeypatch, pytestconfig, record_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\Antony\Projects\Symfit\tests\test_fit_result_py.py:225
+============================== warnings summary ===============================
+C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import OrderedDict, Sequence
+
+C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
+    from collections import namedtuple, Mapping, OrderedDict
+
+tests/test_fit_result_py.py::test_params_type
+tests/test_fit_result_py.py::test_params_type
+tests/test_fit_result_py.py::test_minimizer_output_type
+tests/test_fit_result_py.py::test_minimizer_output_type
+tests/test_fit_result_py.py::test_fitting
+tests/test_fit_result_py.py::test_fitting
+tests/test_fit_result_py.py::test_fitting_2
+tests/test_fit_result_py.py::test_fitting_2
+tests/test_fit_result_py.py::test_fitting_2
+tests/test_fit_result_py.py::test_minimizer_included
+tests/test_fit_result_py.py::test_minimizer_included
+tests/test_fit_result_py.py::test_objective_included
+tests/test_fit_result_py.py::test_objective_included
+tests/test_fit_result_py.py::test_constraints_included
+tests/test_fit_result_py.py::test_constraints_included
+tests/test_fit_result_py.py::test_message_included
+tests/test_fit_result_py.py::test_message_included
+tests/test_fit_result_py.py::test_pickle
+tests/test_fit_result_py.py::test_pickle
+tests/test_fit_result_py.py::test_gof_presence
+tests/test_fit_result_py.py::test_gof_presence
+  C:\Users\Antony\Projects\Symfit\symfit\core\models.py:89: DeprecationWarning: It is recommended to provide names to Variable explicitly as automatic generation of names will be dropped in future `symfit` versions.
+    model = {Variable(): expr for expr in model}
+
+-- Docs: https://docs.pytest.org/en/latest/warnings.html
+=============== 9 passed, 23 warnings, 1 error in 45.72 seconds ===============
