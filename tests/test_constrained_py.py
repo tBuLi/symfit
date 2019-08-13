@@ -436,7 +436,7 @@ def test_vector_parameter_error():
     assert not fit_result.stdev(
         b)/np.sqrt(pcov[1, 1]/N) == pytest.approx(1.0, 1e-1)
     assert not fit_result.stdev(
-        c)/np.sqrt(pcov[2, 2]/N) == pytest.approx(1.0, 1e-1)
+        c)/np.sqrt(pcov[2, 2]/N) == pytest.approx(1.0, 1e-5)
 
 
 def test_error_advanced():
@@ -849,9 +849,9 @@ def test_constrained_dependent_on_model():
             **unconstr_result.params)
         constr_value = fit.minimizer.wrapped_constraints[0]['fun'](
             **fit_result.params)
-        assert constr_value[0] == pytest.approx(0.0, 1e-10)
+        assert constr_value[0] == pytest.approx(0.0, 10e-5)
     # And if it was very poorly met before
-    assert not unconstr_value[0] == pytest.approx(0.0, 1e-2)
+    assert not unconstr_value[0] == pytest.approx(0.0, 1e-1)
 
 
 def test_constrained_dependent_on_matrixmodel():
@@ -933,8 +933,8 @@ def test_constrained_dependent_on_matrixmodel():
     assert isinstance(fit.objective, LeastSquares)
     assert isinstance(fit.minimizer.constraints[0], MinimizeModel)
 
-    assert isinstance({k for k, v in fit.data.items() if v is not None},
-                      {x, y, dx, M, I, fit.model.sigmas[y]})
+    assert {k for k, v in fit.data.items() if v is not None} == {
+        x, y, dx, M, I, fit.model.sigmas[y]}
     # These belong to internal variables
     assert {k for k, v in fit.data.items() if v is None} == {
         constraint.sigmas[Y], Y}
