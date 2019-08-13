@@ -851,8 +851,7 @@ def test_constrained_dependent_on_model():
             **fit_result.params)
 
         # TODO because of a bug by pytest we have to solve it like this
-        assert constr_value[0] > 0 - 1e-10
-        assert constr_value[0] < 0 + 1e-10
+        assert constr_value[0] == pytest.approx(0, 1e-11)
     # And if it was very poorly met before
     assert not unconstr_value[0] == pytest.approx(0.0, 1e-1)
 
