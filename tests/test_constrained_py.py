@@ -850,7 +850,7 @@ def test_constrained_dependent_on_model():
         constr_value = fit.minimizer.wrapped_constraints[0]['fun'](
             **fit_result.params)
 
-        assert constr_value[0] == pytest.approx(0, 1e-11)
+        assert constr_value[0] == pytest.approx(0, 1e-5)
     # And if it was very poorly met before
     assert not unconstr_value[0] == pytest.approx(0.0, 1e-1)
 
