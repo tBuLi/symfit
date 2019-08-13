@@ -14,17 +14,8 @@ test_fit_result_py.py::test_objective_included PASSED                    [ 60%]
 test_fit_result_py.py::test_constraints_included PASSED                  [ 70%]
 test_fit_result_py.py::test_message_included PASSED                      [ 80%]
 test_fit_result_py.py::test_pickle PASSED                                [ 90%]
-test_fit_result_py.py::test_gof_presence ERROR                           [100%]
+test_fit_result_py.py::test_gof_presence PASSED                          [100%]
 
-=================================== ERRORS ====================================
-_____________________ ERROR at setup of test_gof_presence _____________________
-file C:\Users\Antony\Projects\Symfit\tests\test_fit_result_py.py, line 225
-  def test_gof_presence(self):
-E       fixture 'self' not found
->       available fixtures: _Module__pytest_setup_function, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, monkeypatch, pytestconfig, record_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
->       use 'pytest --fixtures [testpath]' for help on them.
-
-C:\Users\Antony\Projects\Symfit\tests\test_fit_result_py.py:225
 ============================== warnings summary ===============================
 C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1
   C:\Users\Antony\Projects\Symfit\symfit\core\fit.py:1: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
@@ -59,4 +50,4 @@ tests/test_fit_result_py.py::test_gof_presence
     model = {Variable(): expr for expr in model}
 
 -- Docs: https://docs.pytest.org/en/latest/warnings.html
-=============== 9 passed, 23 warnings, 1 error in 45.72 seconds ===============
+=================== 10 passed, 23 warnings in 44.80 seconds ===================

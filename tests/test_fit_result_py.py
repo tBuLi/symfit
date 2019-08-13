@@ -222,7 +222,7 @@ def test_pickle():
                 else:
                     assert v1 == v2
 
-def test_gof_presence(self):
+def test_gof_presence():
     """
     Test if the expected goodness of fit estimators are present.
     """
