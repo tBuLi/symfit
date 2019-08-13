@@ -15,8 +15,11 @@ from symfit.core.minimizers import *
 from symfit.core.objectives import LeastSquares, MinimizeModel, VectorLeastSquares
 
 # Defined at the global level because local functions can't be pickled.
+
+
 def f(x, a, b):
     return a * x + b
+
 
 def chi_squared(x, y, a, b, sum=True):
     if sum:
@@ -24,8 +27,10 @@ def chi_squared(x, y, a, b, sum=True):
     else:
         return (y - f(x, a, b)) ** 2
 
+
 def worker(fit_obj):
     return fit_obj.execute()
+
 
 class SqrtLeastSquares(LeastSquares):
     """
@@ -37,6 +42,7 @@ class SqrtLeastSquares(LeastSquares):
     # objective. This lightweight version is given without proper testing
     # because only the call is relevant, and this makes our multiprocessing test
     # work.
+
     def __call__(self, *args, **kwargs):
         chi2 = super(SqrtLeastSquares, self).__call__(*args, **kwargs)
         return np.sqrt(chi2)
@@ -53,7 +59,8 @@ class SqrtLeastSquares(LeastSquares):
         chi2_jac = super(SqrtLeastSquares, self).eval_jacobian(*args, **kwargs)
         chi2_hess = super(SqrtLeastSquares, self).eval_hessian(*args, **kwargs)
         return - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) \
-               + 0.5 * (1 / sqrt_chi2) * chi2_hess
+            + 0.5 * (1 / sqrt_chi2) * chi2_hess
+
 
 def subclasses(base, leaves_only=True):
     """
@@ -76,6 +83,7 @@ def subclasses(base, leaves_only=True):
 
 def setup_function():
     np.random.seed(0)
+
 
 def test_custom_objective():
     """
@@ -114,8 +122,10 @@ def test_custom_objective():
     fit_custom_result = fit_custom.execute()
 
     assert isinstance(fit_custom_result, FitResults)
-    assert fit_custom_result.value(a) / fit_result.value(a) == pytest.approx(1.0, 1e-5)
-    assert fit_custom_result.value(b) / fit_result.value(b) == pytest.approx(1.0, 1e-4)
+    assert fit_custom_result.value(
+        a) / fit_result.value(a) == pytest.approx(1.0, 1e-5)
+    assert fit_custom_result.value(
+        b) / fit_result.value(b) == pytest.approx(1.0, 1e-4)
 
     # New preferred usage, multi component friendly.
     with pytest.raises(TypeError):
@@ -136,8 +146,11 @@ def test_custom_objective():
     fit_custom_result = fit_custom.execute()
 
     assert isinstance(fit_custom_result, FitResults)
-    assert fit_custom_result.value(a) / fit_result.value(a) == pytest.approx(1.0, 1e-5)
-    assert fit_custom_result.value(b) / fit_result.value(b) == pytest.approx(1.0, 1e-4)
+    assert fit_custom_result.value(
+        a) / fit_result.value(a) == pytest.approx(1.0, 1e-5)
+    assert fit_custom_result.value(
+        b) / fit_result.value(b) == pytest.approx(1.0, 1e-4)
+
 
 def test_custom_parameter_names():
     """
@@ -156,6 +169,7 @@ def test_custom_parameter_names():
     fit_custom = BFGS(chi_squared, [a, c])
     with pytest.raises(TypeError):
         fit_custom.execute()
+
 
 def test_powell():
     """
@@ -225,7 +239,7 @@ def test_pickle():
             independent_vars=[x], params=[a, b]
         )
         fit = Fit(model, x=xdata, y=ydata, minimizer=minimizer,
-                    constraints=constraints)
+                  constraints=constraints)
         if minimizer is not MINPACK:
             assert isinstance(fit.objective, LeastSquares)
             assert isinstance(fit.minimizer.objective, LeastSquares)
@@ -256,10 +270,11 @@ def test_pickle():
                             assert isinstance(val1, val2.__class__)
                             if key == 'constraints':
                                 assert val1.model.constraint_type == val2.model.constraint_type
-                                assert list(val1.model.model_dict.values())[0] == list(val2.model.model_dict.values())[0]
+                                assert list(val1.model.model_dict.values())[
+                                    0] == list(val2.model.model_dict.values())[0]
                                 assert val1.model.independent_vars == val2.model.independent_vars
                                 assert val1.model.params == val2.model.params
-                                assert val1.model.__signature__  == val2.model.__signature__
+                                assert val1.model.__signature__ == val2.model.__signature__
                             elif key == 'wrapped_constraints':
                                 if isinstance(val1, dict):
                                     assert val1['type'] == val2['type']
@@ -269,10 +284,12 @@ def test_pickle():
                                     # their dicts are equal, because no
                                     # __eq__ is implemented on
                                     # NonLinearConstraint
-                                    assert len(val1.__dict__) == len(val2.__dict__)
+                                    assert len(val1.__dict__) == len(
+                                        val2.__dict__)
                                     for key in val1.__dict__:
                                         try:
-                                            assert val1.__dict__[key] == val2.__dict__[key]
+                                            assert val1.__dict__[
+                                                key] == val2.__dict__[key]
                                         except AssertionError:
                                             assert isinstance(
                                                 val1.__dict__[key],
@@ -295,7 +312,9 @@ def test_pickle():
         res_before = fit.execute()
         np.random.seed(2)
         res_after = pickled_fit.execute()
-        assert FitResults._array_safe_dict_eq(res_before.__dict__, res_after.__dict__)
+        assert FitResults._array_safe_dict_eq(
+            res_before.__dict__, res_after.__dict__)
+
 
 def test_multiprocessing():
     """
@@ -343,6 +362,7 @@ def test_multiprocessing():
                 assert isinstance(result.minimizer, minimizer)
             assert isinstance(result.iterations, int)
 
+
 def test_minimizer_constraint_compatibility():
     """
     Test if #156 has been solved, and test all the other constraint styles.
@@ -353,8 +373,8 @@ def test_minimizer_constraint_compatibility():
 
     model = Model({z: a * x**2 - b * y**2 + c})
     # Generate data, z has to be scalar for MinimizeModel to be happy
-    xdata = 3 #np.linspace(0, 10)
-    ydata = 5 # np.linspace(0, 10)
+    xdata = 3  # np.linspace(0, 10)
+    ydata = 5  # np.linspace(0, 10)
     zdata = model(a=2, b=3, c=5, x=xdata, y=ydata).z
     data_dict = {x: xdata, y: ydata, z: zdata}
 
@@ -389,7 +409,5 @@ def test_minimizer_constraint_compatibility():
                     parameters=[a, b, c],
                     constraints=[
                         {'type': 'eq', 'fun': lambda a, b, c: a - c}
-                    ]
+        ]
         )
-
-

@@ -19,6 +19,8 @@ def setup_method():
     np.random.seed(0)
 
 # TODO: Should be 2 tests?
+
+
 def test_minimize():
     """
     Tests maximizing a function with and without constraints, taken from the
@@ -44,19 +46,19 @@ def test_minimize():
         """ Derivative of objective function """
         dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
         dfdx1 = sign*(2*x[0] - 4*x[1])
-        return np.array([ dfdx0, dfdx1 ])
+        return np.array([dfdx0, dfdx1])
 
     cons = (
         {'type': 'eq',
-            'fun' : lambda x: np.array([x[0]**3 - x[1]]),
-            'jac' : lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
+            'fun': lambda x: np.array([x[0]**3 - x[1]]),
+            'jac': lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
         {'type': 'ineq',
-            'fun' : lambda x: np.array([x[1] - 1]),
-            'jac' : lambda x: np.array([0.0, 1.0])})
+            'fun': lambda x: np.array([x[1] - 1]),
+            'jac': lambda x: np.array([0.0, 1.0])})
 
     # Unconstrained fit
-    res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-            method='BFGS', options={'disp': False})
+    res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
+                   method='BFGS', options={'disp': False})
     fit = Fit(model=- model)
     assert isinstance(fit.objective, MinimizeModel)
     assert isinstance(fit.minimizer, BFGS)
@@ -67,8 +69,8 @@ def test_minimize():
     assert fit_result.value(y) / res.x[1] == pytest.approx(1.0, 1e-6)
 
     # Same test, but with constraints in place.
-    res = minimize(func, [-1.0,1.0], args=(-1.0,), jac=func_deriv,
-            constraints=cons, method='SLSQP', options={'disp': False})
+    res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
+                   constraints=cons, method='SLSQP', options={'disp': False})
 
     from symfit.core.minimizers import SLSQP
     fit = Fit(- model, constraints=constraints)
@@ -77,6 +79,7 @@ def test_minimize():
     fit_result = fit.execute()
     assert fit_result.value(x), res.x[0] == pytest.approx(1e-6)
     assert fit_result.value(y), res.x[1] == pytest.approx(1e-6)
+
 
 def test_constraint_types():
     x = Parameter(value=-1.0)
@@ -126,6 +129,7 @@ def test_constraint_types():
     assert fit_result.value(x) == pytest.approx(std_result.value(x))
     assert fit_result.value(y) == pytest.approx(std_result.value(y))
 
+
 def test_basinhopping_large():
     """
     Test the basinhopping method of scipy.minimize. This is based of scipy's docs
@@ -170,11 +174,13 @@ def test_basinhopping_large():
     assert res.x[1] == fit_result.value(x2)
     assert res.fun == fit_result.objective_value
 
+
 def test_basinhopping():
-    func = lambda x: np.cos(14.5 * x - 0.3) + (x + 0.2) * x
+    def func(x): return np.cos(14.5 * x - 0.3) + (x + 0.2) * x
     x0 = [1.]
     np.random.seed(555)
-    res = basinhopping(func, x0, minimizer_kwargs={"method": "BFGS"}, niter=200)
+    res = basinhopping(func, x0, minimizer_kwargs={
+                       "method": "BFGS"}, niter=200)
     np.random.seed(555)
     x, = parameters('x')
     fit = BasinHopping(func, [x], local_minimizer=BFGS)
@@ -184,9 +190,11 @@ def test_basinhopping():
     assert res.x == fit_result.value(x)
     assert res.fun == fit_result.objective_value
 
+
 def test_basinhopping_2d():
     def func2d(x):
-        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * x[1] + (x[0] + 0.2) * x[0]
+        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * \
+            x[1] + (x[0] + 0.2) * x[0]
         df = np.zeros(2)
         df[0] = -14.5 * np.sin(14.5 * x[0] - 0.3) + 2. * x[0] + 0.2
         df[1] = 2. * x[1] + 0.2
@@ -205,7 +213,8 @@ def test_basinhopping_2d():
     np.random.seed(555)
     minimizer_kwargs = {'method': 'BFGS', 'jac': True}
     x0 = [1.0, 1.0]
-    res = basinhopping(func2d, x0, minimizer_kwargs=minimizer_kwargs, niter=200)
+    res = basinhopping(
+        func2d, x0, minimizer_kwargs=minimizer_kwargs, niter=200)
 
     np.random.seed(555)
     x1, x2 = parameters('x1, x2', value=x0)
@@ -213,7 +222,7 @@ def test_basinhopping_2d():
         fit = BasinHopping(
             func2d_symfit, [x1, x2],
             local_minimizer=NelderMead(func2d_symfit, [x1, x2],
-                                        jacobian=jac2d_symfit)
+                                       jacobian=jac2d_symfit)
         )
         assert False
     except TypeError:
@@ -225,7 +234,8 @@ def test_basinhopping_2d():
     )
     fit_result = fit.execute(niter=200)
     assert isinstance(fit.local_minimizer.jacobian, MinimizeModel)
-    assert isinstance(fit.local_minimizer.jacobian.model, CallableNumericalModel)
+    assert isinstance(fit.local_minimizer.jacobian.model,
+                      CallableNumericalModel)
     assert res.x[0] / fit_result.value(x1) == 1.0
     assert res.x[1] / fit_result.value(x2) == 1.0
     assert res.fun == fit_result.objective_value
@@ -256,4 +266,3 @@ def test_basinhopping_2d():
     fit_result = fit.execute()
     assert fit_result.value(x1) >= x1.min
     assert isinstance(fit.minimizer.local_minimizer, LBFGSB)
-

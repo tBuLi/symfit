@@ -26,6 +26,7 @@ def test_gaussian():
     # A pdf should always integrate to 1 on its domain
     assert sympy.integrate(g, (x, -sympy.oo, sympy.oo)) == 1
 
+
 def test_exp():
     """
     Make sure that symfit.distributions.Exp produces the expected

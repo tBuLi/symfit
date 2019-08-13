@@ -12,10 +12,11 @@ from symfit import (
 from symfit.core.minimizers import BFGS, DifferentialEvolution
 from symfit.distributions import Gaussian
 
-if sys.version_info >= (3,0):
+if sys.version_info >= (3, 0):
     import inspect as inspect_sig
 else:
     import funcsigs as inspect_sig
+
 
 class TestGlobalOptGaussian:
     @classmethod
@@ -27,7 +28,7 @@ class TestGlobalOptGaussian:
 
         # Insert them as y,x here as np fucks up cartesian conventions.
         cls.ydata, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=200,
-                                               range=[[0.0, 1.0], [0.0, 1.0]])
+                                                   range=[[0.0, 1.0], [0.0, 1.0]])
         xcentres = (xedges[:-1] + xedges[1:]) / 2
         ycentres = (yedges[:-1] + yedges[1:]) / 2
 
@@ -45,16 +46,16 @@ class TestGlobalOptGaussian:
         self.sig_y_1 = Parameter('sigy1', value=0, min=0.0, max=1)
         self.A_1 = Parameter('A1', min=0, max=1000)
         g_1 = self.A_1 * Gaussian(x, self.x0_1, self.sig_x_1) *\
-                Gaussian(y, self.y0_1, self.sig_y_1)
+            Gaussian(y, self.y0_1, self.sig_y_1)
 
         self.model = GradientModel(g_1)
-    
+
     def test_diff_evo(self):
         """
         Tests fitting to a scalar gaussian with 2 independent variables with
         wide bounds.
         """
-        
+
         fit = Fit(self.model, self.xx, self.yy, self.ydata, minimizer=BFGS)
         fit_result = fit.execute()
 
@@ -112,7 +113,6 @@ class TestGlobalOptGaussian:
             # This is not a valid kwarg to DiffEvo, but it is to BFGS. Check if
             # we really go by name of the Minimizer, not by order.
             fit.execute(DifferentialEvolution={'return_all': False})
-
 
 
 def test_mexican_hat():

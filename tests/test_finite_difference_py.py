@@ -11,8 +11,10 @@ import numpy as np
 import warnings
 import pytest
 
+
 def setup_method():
     np.random.seed(0)
+
 
 def test_1_1_model():
     '''Tests the case with 1 component and 1 parameter'''
@@ -29,6 +31,7 @@ def test_1_1_model():
     approx = model.finite_difference(x=3, a=3.5)
     np.testing.assert_allclose(exact, approx)
 
+
 def test_1_multi_model():
     '''Tests the case with 1 component and multiple parameters'''
     x, y = sf.variables('x, y')
@@ -44,12 +47,13 @@ def test_1_multi_model():
     approx = model.finite_difference(x=3, a=3.5, b=2)
     np.testing.assert_allclose(exact, approx)
 
+
 def test_multi_1_model():
     '''Tests the case with multiple components and one parameter'''
     x, y, z = sf.variables('x, y, z')
     a, = sf.parameters('a')
     model = sf.Model({y: 3 * a * x**2,
-                        z: sf.exp(a*x)})
+                      z: sf.exp(a*x)})
     x_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, a=3.5)
@@ -60,12 +64,13 @@ def test_multi_1_model():
     approx = model.finite_difference(x=3, a=3.5)
     np.testing.assert_allclose(exact, approx)
 
+
 def test_multi_multi_model():
     '''Tests the case with multiple components and multiple parameters'''
     x, y, z = sf.variables('x, y, z')
     a, b, c = sf.parameters('a, b, c')
     model = sf.Model({y: 3 * a * x**2 + b * x - c,
-                        z: sf.exp(a*x - b) * c})
+                      z: sf.exp(a*x - b) * c})
     x_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, a=3.5, b=2, c=5)
@@ -76,6 +81,7 @@ def test_multi_multi_model():
     approx = model.finite_difference(x=3, a=3.5, b=2, c=5)
     np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
+
 def test_multi_indep():
     '''
     Tests the case with multiple components, multiple parameters and
@@ -84,7 +90,7 @@ def test_multi_indep():
     w, x, y, z = sf.variables('w, x, y, z')
     a, b, c = sf.parameters('a, b, c')
     model = sf.Model({y: 3 * a * x**2 + b * x * w - c,
-                        z: sf.exp(a*x - b) + c*w})
+                      z: sf.exp(a*x - b) + c*w})
     x_data = np.arange(10)/10
     w_data = np.arange(10)
 
@@ -100,6 +106,7 @@ def test_multi_indep():
     approx = model.finite_difference(x=0.3, w=5, a=3.5, b=2, c=5)
     np.testing.assert_allclose(exact, approx, rtol=1e-5)
 
+
 def test_ODE_stdev():
     """
     Make sure that parameters from ODEModels get standard deviations.
@@ -112,10 +119,10 @@ def test_ODE_stdev():
     a = -k * x
 
     model = sf.ODEModel({
-                            sf.D(v, t): a,
-                            sf.D(x, t): v,
-                            },
-                        initial={v: 0, x: 1, t: 0})
+        sf.D(v, t): a,
+        sf.D(x, t): v,
+    },
+        initial={v: 0, x: 1, t: 0})
     t_data = np.linspace(0, 10, 150)
     noise = np.random.normal(1, 0.05, t_data.shape)
     x_data = model(t=t_data, k=11).x * noise
@@ -124,6 +131,7 @@ def test_ODE_stdev():
     result = fit.execute()
     assert result.stdev(k) is not None
     assert np.isfinite(result.stdev(k))
+
 
 def test_unequal_data():
     """
@@ -144,7 +152,7 @@ def test_unequal_data():
     exact = model.eval_jacobian(x_1=xdata1, x_2=xdata2,
                                 a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
     approx = model.finite_difference(x_1=xdata1, x_2=xdata2,
-                                        a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
+                                     a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111, y0=10.8)
     # First axis is the number of components
     assert len(exact) == 2
     assert len(approx) == 2
@@ -167,7 +175,7 @@ def test_unequal_data():
     exact = model.eval_jacobian(x_1=xdata1, x_2=xdata2,
                                 a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
     approx = model.finite_difference(x_1=xdata1, x_2=xdata2,
-                                        a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
+                                     a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
     _assert_equal(exact, approx, rtol=1e-4)
 
     model = sf.Model({
@@ -176,6 +184,7 @@ def test_unequal_data():
     exact = model.eval_jacobian(x_1=xdata1, a_1=101.3, b_1=0.5)
     approx = model.finite_difference(x_1=xdata1, a_1=101.3, b_1=0.5)
     _assert_equal(exact, approx, rtol=1e-4)
+
 
 def test_harmonic_oscillator_errors():
     """
@@ -187,7 +196,7 @@ def test_harmonic_oscillator_errors():
     m = 1
     a = -k/m * x
     ode_model = sf.ODEModel({sf.D(v, t): a,
-                                sf.D(x, t): v},
+                             sf.D(x, t): v},
                             initial={t: 0, v: 0, x: 1})
 
     t_data = np.linspace(0, 10, 250)
@@ -213,4 +222,3 @@ def _assert_equal(exact, approx, **kwargs):
     assert len(exact) == len(approx)
     for exact_comp, approx_comp in zip(exact, approx):
         np.testing.assert_allclose(exact_comp, approx_comp, **kwargs)
-

@@ -29,6 +29,7 @@ else:
 def setup_method():
     np.random.seed(0)
 
+
 def test_callable():
     """
     Make sure that symfit expressions are callable (with scalars and
@@ -46,6 +47,7 @@ def test_callable():
     ydata = np.arange(1, 10)
     result = func(x=ydata, y=ydata, a=3, b=9)
     assert np.array_equal(result, 3*xdata**2 + 9*ydata**2)
+
 
 def test_named_fitting():
     """
@@ -66,6 +68,7 @@ def test_named_fitting():
     assert isinstance(fit_result, FitResults)
     assert fit_result.value(a) == pytest.approx(3.0)
     assert fit_result.value(b) == pytest.approx(2.0)
+
 
 def test_backwards_compatible_fitting():
     """
@@ -114,13 +117,14 @@ def test_vector_fitting():
         a_i=xdata[0],
         b_i=xdata[1],
         c_i=xdata[2],
-        minimizer = MINPACK
+        minimizer=MINPACK
     )
     fit_result = fit.execute()
 
     assert fit_result.value(b) / 1.006143e+02 == pytest.approx(1.0, 1e-4)
     assert fit_result.value(c) / 7.085713e+01 == pytest.approx(1.0, 1e-5)
     assert fit_result.value(a) / 9.985691 == pytest.approx(1.0, 1e-5)
+
 
 def test_vector_none_fitting():
     """
@@ -160,6 +164,7 @@ def test_vector_none_fitting():
     # the parameter without data should be unchanged.
     assert fit_none_result.value(c) == pytest.approx(1.0)
 
+
 def test_vector_fitting_guess():
     """
     Tests fitting to a 3 component vector valued function, with guesses.
@@ -182,13 +187,14 @@ def test_vector_fitting_guess():
         a_i=xdata[0],
         b_i=xdata[1],
         c_i=xdata[2],
-        minimizer = MINPACK
+        minimizer=MINPACK
     )
     fit_result = fit.execute()
 
     assert fit_result.value(a) == pytest.approx(np.mean(xdata[0]), 1e-4)
     assert fit_result.value(b) == pytest.approx(np.mean(xdata[1]), 1e-4)
     assert fit_result.value(c) == pytest.approx(np.mean(xdata[2]), 1e-4)
+
 
 def test_fitting():
     """
@@ -217,6 +223,7 @@ def test_fitting():
     assert isinstance(fit_result.r_squared, float)
     assert fit_result.r_squared == 1.0  # by definition since there's no fuzzyness
 
+
 def test_grid_fitting():
     """
     Tests fitting a scalar function with 2 independent variables.
@@ -243,6 +250,8 @@ def test_grid_fitting():
     assert results.value(b) == pytest.approx(3.)
 
 # TODO: Should be 3 tests?
+
+
 def test_model_callable():
     """
     Tests if Model objects are callable in the way expected. Calling a
@@ -292,6 +301,7 @@ def test_model_callable():
     for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
         assert arg_name == name
 
+
 def test_2D_fitting():
     """
     Makes sure that a scalar model with 2 independent variables has the
@@ -316,6 +326,7 @@ def test_2D_fitting():
 
     fit_result = fit.execute()
     assert isinstance(fit_result, FitResults)
+
 
 def test_gaussian_fitting():
     """
@@ -347,6 +358,7 @@ def test_gaussian_fitting():
     )
     assert sexy == ugly
 
+
 def test_2_gaussian_2d_fitting():
     """
     Tests fitting to a scalar gaussian with 2 independent variables with
@@ -362,7 +374,7 @@ def test_2_gaussian_2d_fitting():
 
     # Insert them as y,x here as np fucks up cartesian conventions.
     ydata, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=100,
-                                            range=[[0.0, 1.0], [0.0, 1.0]])
+                                           range=[[0.0, 1.0], [0.0, 1.0]])
     xcentres = (xedges[:-1] + xedges[1:]) / 2
     ycentres = (yedges[:-1] + yedges[1:]) / 2
 
@@ -404,6 +416,7 @@ def test_2_gaussian_2d_fitting():
     assert fit_result.value(x0_2) == pytest.approx(0.3, 1e-3)
     assert fit_result.value(y0_2) == pytest.approx(0.4, 1e-3)
 
+
 def test_gaussian_2d_fitting():
     """
     Tests fitting to a scalar gaussian function with 2 independent
@@ -416,7 +429,7 @@ def test_gaussian_2d_fitting():
 
     # Insert them as y,x here as np fucks up cartesian conventions.
     ydata, xedges, yedges = np.histogram2d(data[:, 0], data[:, 1], bins=100,
-                                            range=[[0.0, 1.0], [0.0, 1.0]])
+                                           range=[[0.0, 1.0], [0.0, 1.0]])
     xcentres = (xedges[:-1] + xedges[1:]) / 2
     ycentres = (yedges[:-1] + yedges[1:]) / 2
 
@@ -438,9 +451,12 @@ def test_gaussian_2d_fitting():
 
     assert fit_result.value(x0) == pytest.approx(np.mean(data[:, 0]), 1e-1)
     assert fit_result.value(y0) == pytest.approx(np.mean(data[:, 1]), 1e-1)
-    assert np.abs(fit_result.value(sig_x)) == pytest.approx(np.std(data[:, 0]), 1e-1)
-    assert np.abs(fit_result.value(sig_y)) == pytest.approx(np.std(data[:, 1]), 1e-1)
+    assert np.abs(fit_result.value(sig_x)) == pytest.approx(
+        np.std(data[:, 0]), 1e-1)
+    assert np.abs(fit_result.value(sig_y)) == pytest.approx(
+        np.std(data[:, 1]), 1e-1)
     assert fit_result.r_squared >= 0.99
+
 
 def test_jacobian_matrix():
     """
@@ -453,6 +469,7 @@ def test_jacobian_matrix():
     model = Model({a_i: 2 * a + 3 * b, b_i: 5 * b, c_i: 7 * c})
     assert [[2, 3, 0], [0, 5, 0], [0, 0, 7]] == model.jacobian
 
+
 def test_hessian_matrix():
     """
     The Hessian matrix of a model should be a 3D list (matrix) containing
@@ -463,8 +480,9 @@ def test_hessian_matrix():
 
     model = Model({a_i: 2 * a**2 + 3 * b, b_i: 5 * b**2, c_i: 7 * c*b})
     assert [[[4, 0, 0], [0, 0, 0], [0, 0, 0]],
-                        [[0, 0, 0], [0, 10, 0], [0, 0, 0]],
-                        [[0, 0, 0], [0, 0, 7], [0, 7, 0]]] == model.hessian
+            [[0, 0, 0], [0, 10, 0], [0, 0, 0]],
+            [[0, 0, 0], [0, 0, 7], [0, 7, 0]]] == model.hessian
+
 
 def test_likelihood_fitting_exponential():
     """
@@ -507,6 +525,7 @@ def test_likelihood_fitting_exponential():
     assert likelihood == pytest.approx(fit_result.likelihood)
     assert loglikelihood == pytest.approx(fit_result.log_likelihood)
 
+
 def test_likelihood_fitting_gaussian():
     """
     Fit using the likelihood method.
@@ -532,6 +551,7 @@ def test_likelihood_fitting_gaussian():
     assert fit_result.value(mu) / mean == pytest.approx(1, 1e-6)
     assert fit_result.stdev(mu) / mean_stdev == pytest.approx(1, 1e-3)
     assert fit_result.value(sig) / np.std(xdata) == pytest.approx(1, 1e-6)
+
 
 def test_likelihood_fitting_bivariate_gaussian():
     """
@@ -562,8 +582,10 @@ def test_likelihood_fitting_bivariate_gaussian():
 
     assert fit_result.value(x0) / mean[0] == pytest.approx(1, 1e-2)
     assert fit_result.value(y0) / mean[1] == pytest.approx(1, 1e-2)
-    assert fit_result.value(sig_x) / np.sqrt(cov[0, 0]) == pytest.approx(1, 1e-2)
-    assert fit_result.value(sig_y) / np.sqrt(cov[1, 1]) == pytest.approx(1, 1e-2)
+    assert fit_result.value(
+        sig_x) / np.sqrt(cov[0, 0]) == pytest.approx(1, 1e-2)
+    assert fit_result.value(
+        sig_y) / np.sqrt(cov[1, 1]) == pytest.approx(1, 1e-2)
     assert fit_result.value(rho) / r == pytest.approx(1, 1e-2)
 
     marginal = integrate(pdf, (y, -oo, oo), conds='none')
@@ -586,6 +608,7 @@ def test_evaluate_model():
 
     assert new(x=2, A=2) == 8
     assert not new(x=2, A=3) == 8
+
 
 def test_simple_sigma():
     """
@@ -611,25 +634,31 @@ def test_simple_sigma():
     # t_smooth = t_model(y=h_smooth, **fit_result.params)
 
     # Lets with the results from curve_fit, no weights
-    popt_noweights, pcov_noweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data)
+    popt_noweights, pcov_noweights = curve_fit(
+        lambda y, p: (2 * y / p)**0.5, y_data, t_data)
 
     assert fit_result.value(g) == pytest.approx(popt_noweights[0])
-    assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov_noweights[0, 0]), 1e-6)
+    assert fit_result.stdev(g) == pytest.approx(
+        np.sqrt(pcov_noweights[0, 0]), 1e-6)
 
     # Same sigma everywere
     fit = Fit(t_model, y_data, t_data, 0.0031, absolute_sigma=False)
     fit_result = fit.execute()
-    popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=0.0031*np.ones(len(y_data)), absolute_sigma=False)
+    popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (
+        2 * y / p)**0.5, y_data, t_data, sigma=0.0031*np.ones(len(y_data)), absolute_sigma=False)
     assert fit_result.value(g) == pytest.approx(popt_sameweights[0], 1e-4)
-    assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov_sameweights[0, 0]), 1e-4)
+    assert fit_result.stdev(g) == pytest.approx(
+        np.sqrt(pcov_sameweights[0, 0]), 1e-4)
     # Same weight everywere should be the same as no weight when absolute_sigma=False
     assert fit_result.value(g) == pytest.approx(popt_noweights[0], 1e-4)
-    assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov_noweights[0, 0]), 1e-4)
+    assert fit_result.stdev(g) == pytest.approx(
+        np.sqrt(pcov_noweights[0, 0]), 1e-4)
 
     # Different sigma for every point
     fit = Fit(t_model, y_data, t_data, 0.1*sigma_t, absolute_sigma=False)
     fit_result = fit.execute()
-    popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t)
+    popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5,
+                           y_data, t_data, sigma=.1*sigma_t)
 
     assert fit_result.value(g) == pytest.approx(popt[0])
     assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov[0, 0]), 1e-6)
@@ -637,6 +666,7 @@ def test_simple_sigma():
     # according to Mathematica
     assert fit_result.value(g) == pytest.approx(9.095, 1e-3)
     assert fit_result.stdev(g) == pytest.approx(0.102, 1e-2)
+
 
 def test_error_advanced():
     """
@@ -700,9 +730,9 @@ def test_error_advanced():
     assert fit_result.value(a) == pytest.approx(popt[0], 1e-4)
     assert fit_result.value(b) == pytest.approx(popt[1], 1e-4)
     assert fit_result.value(c) == pytest.approx(popt[2], 1e-4)
-    assert fit_result.stdev(a) == pytest.approx(np.sqrt(pcov[0,0]), 1e-4)
-    assert fit_result.stdev(b) == pytest.approx(np.sqrt(pcov[1,1]), 1e-4)
-    assert fit_result.stdev(c) == pytest.approx(np.sqrt(pcov[2,2]), 1e-4)
+    assert fit_result.stdev(a) == pytest.approx(np.sqrt(pcov[0, 0]), 1e-4)
+    assert fit_result.stdev(b) == pytest.approx(np.sqrt(pcov[1, 1]), 1e-4)
+    assert fit_result.stdev(c) == pytest.approx(np.sqrt(pcov[2, 2]), 1e-4)
 
     # Same as Mathematica with MEASUREMENT ERROR
     assert fit_result.value(a) == pytest.approx(2.68807, 1e-4)
@@ -711,6 +741,7 @@ def test_error_advanced():
     assert fit_result.stdev(a) == pytest.approx(0.0974628, 1e-4)
     assert fit_result.stdev(b) == pytest.approx(0.247018, 1e-4)
     assert fit_result.stdev(c) == pytest.approx(0.597661, 1e-4)
+
 
 def test_error_analytical():
     """
@@ -733,16 +764,19 @@ def test_error_analytical():
     fit = Fit(model, y=yn, sigma_y=sigma)
     fit_result = fit.execute()
 
-    popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn, sigma=sigma, absolute_sigma=True)
+    popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x),
+                           xn, yn, sigma=sigma, absolute_sigma=True)
     assert fit_result.value(a) == pytest.approx(popt[0], 1e-5)
-    assert fit_result.stdev(a) == pytest.approx(np.sqrt(np.diag(pcov))[0], 1e-2)
+    assert fit_result.stdev(a) == pytest.approx(
+        np.sqrt(np.diag(pcov))[0], 1e-2)
 
     fit_no_sigma = Fit(model, yn)
     fit_result_no_sigma = fit_no_sigma.execute()
 
     popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn,)
     # With or without sigma, the bestfit params should be in agreement in case of equal weights
-    assert fit_result.value(a) == pytest.approx(fit_result_no_sigma.value(a), 1e-5)
+    assert fit_result.value(a) == pytest.approx(
+        fit_result_no_sigma.value(a), 1e-5)
     # Since symfit is all about absolute errors, the sigma will not be in agreement
     assert not fit_result.stdev(a) == fit_result_no_sigma.stdev(a) == 5
     assert fit_result_no_sigma.stdev(a) == pytest.approx(pcov[0][0]**0.5, 1e-5)
@@ -803,6 +837,7 @@ def test_error_analytical():
 #     self.assertAlmostEqual(var_a_exact**0.5, fit_result.params.a_stdev, 6)
 #     self.assertAlmostEqual(var_b_exact**0.5, fit_result.params.b_stdev, 6)
 
+
 def test_fixed_parameters():
     """
     Make sure fixed parameters don't change on fitting
@@ -831,6 +866,7 @@ def test_fixed_parameters():
             # Should still be 4.0, not 2.0!
             assert 4.0 == fit_result.params['c']
 
+
 def test_boundaries():
     """
     Make sure parameter boundaries are respected
@@ -857,6 +893,7 @@ def test_boundaries():
             assert fit_result.value(x) <= 2.0
         assert fit.minimizer.bounds == [(1, None)]
 
+
 def test_non_boundaries():
     """
     Make sure parameter boundaries are not invented
@@ -867,7 +904,7 @@ def test_non_boundaries():
 
     bounded_minimizers = list(subclasses(BoundedMinimizer))
     bounded_minimizers = [minimizer for minimizer in bounded_minimizers
-                            if minimizer is not DifferentialEvolution]
+                          if minimizer is not DifferentialEvolution]
     for minimizer in bounded_minimizers:
         # Not a MINPACKable problem because it only has a param
         if minimizer is MINPACK:
@@ -876,6 +913,7 @@ def test_non_boundaries():
         fit_result = fit.execute()
         assert fit_result.value(x) == pytest.approx(0.0)
         assert fit.minimizer.bounds == [(None, None)]
+
 
 def test_single_param_model():
     """
@@ -902,6 +940,7 @@ def test_single_param_model():
     fit = Fit(model, l=LL, T=TT)
     fit_result = fit.execute()
 
+
 def test_model_from_dict():
     """
     Tries to create a model from a dictionary.
@@ -911,11 +950,12 @@ def test_model_from_dict():
     # This way the test fails rather than errors.
     try:
         Model({
-                y_1: 2 * a * x,
-                y_2: b * x**2
-                })
+            y_1: 2 * a * x,
+            y_2: b * x**2
+        })
     except Exception as error:
         self.fail('test_model_from_dict raised {}'.format(error))
+
 
 def test_version():
     """

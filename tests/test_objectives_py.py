@@ -23,11 +23,14 @@ from symfit.distributions import Exp
 # the dimensions, and instead just flattens everything to a scalar. Only used
 # in this test to build the analytical equivalents of our LeastSquares
 # and LogLikelihood
+
+
 class FlattenSum(Sum):
     """
     Just a sum which is printed differently: by flattening the whole array and
     summing it. Used in tests only.
     """
+
     def _numpycode(self, printer):
         return "%s(%s)" % (printer._module_format('numpy.sum'),
                            printer.doprint(self.function))
@@ -35,6 +38,7 @@ class FlattenSum(Sum):
 
 def setup_method():
     np.random.seed(0)
+
 
 def test_pickle():
     """
@@ -61,6 +65,7 @@ def test_pickle():
         obj = objective(model, data=data)
         new_obj = pickle.loads(pickle.dumps(obj))
         assert FitResults._array_safe_dict_eq(obj.__dict__, new_obj.__dict__)
+
 
 def test_LeastSquares():
     """
@@ -104,10 +109,10 @@ def test_LeastSquares():
     assert isinstance(eval_numerical, float)
     assert isinstance(eval_exact[0][0], float)
     np.testing.assert_almost_equal(np.squeeze(jac_exact[0], axis=-1),
-                                    jac_numerical)
+                                   jac_numerical)
     assert isinstance(jac_numerical, np.ndarray)
     np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
-                                    hess_numerical)
+                                   hess_numerical)
     assert isinstance(hess_numerical, np.ndarray)
 
     fit = Fit(chi2_exact, x=xdata, y=ydata, objective=MinimizeModel)
@@ -170,10 +175,10 @@ def test_LogLikelihood():
     assert isinstance(eval_numerical, float)
     assert isinstance(eval_exact.y[0], float)
     np.testing.assert_almost_equal(np.squeeze(jac_exact[0], axis=-1),
-                                    jac_numerical)
+                                   jac_numerical)
     assert isinstance(jac_numerical, np.ndarray)
     np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
-                                    hess_numerical)
+                                   hess_numerical)
     assert isinstance(hess_numerical, np.ndarray)
 
     fit = Fit(logL_exact, x=xdata, objective=MinimizeModel)
@@ -184,6 +189,7 @@ def test_LogLikelihood():
     assert fit_exact_result.value(b) == pytest.approx(fit_num_result.value(b))
     assert fit_exact_result.stdev(a) == pytest.approx(fit_num_result.stdev(a))
     assert fit_exact_result.stdev(b) == pytest.approx(fit_num_result.stdev(b))
+
 
 def test_data_sanity():
     """
@@ -203,7 +209,7 @@ def test_data_sanity():
     model = Model({y: a * x + b})
 
     for objective in [VectorLeastSquares, LeastSquares, LogLikelihood,
-                        MinimizeModel]:
+                      MinimizeModel]:
         if issubclass(objective, BaseIndependentObjective):
             incomplete_data = {}
             data = {x: xdata}
@@ -213,7 +219,7 @@ def test_data_sanity():
             data = {x: xdata, y: ydata,
                     model.sigmas[y]: np.ones_like(ydata)}
             overcomplete_data = {x: xdata, y: ydata, z: ydata,
-                    model.sigmas[y]: np.ones_like(ydata)}
+                                 model.sigmas[y]: np.ones_like(ydata)}
         try:
             obj = objective(model, data=incomplete_data)
             assert False
@@ -223,6 +229,7 @@ def test_data_sanity():
         # Overcomplete data has to be allowed, since constraints share their
         # data with models.
         obj = objective(model, data=overcomplete_data)
+
 
 def test_LogLikelihood_global():
     """
@@ -272,5 +279,3 @@ def test_LogLikelihood_global():
     assert eval_numerical.shape == tuple()  # Empty tuple -> scalar
     assert jac_numerical.shape == (3,)
     assert hess_numerical.shape == (3, 3,)
-
-

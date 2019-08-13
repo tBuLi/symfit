@@ -22,6 +22,8 @@ from symfit.core.models import (
 """
 Tests for Model objects.
 """
+
+
 def test_model_as_dict():
     x, y_1, y_2 = variables('x, y_1, y_2')
     a, b = parameters('a, b')
@@ -37,6 +39,7 @@ def test_model_as_dict():
     assert list(model.values()) == list(model_dict.values())
     assert y_1 in model
     assert not model[y_1] in model
+
 
 def test_order():
     """
@@ -70,7 +73,8 @@ def test_neg():
 
     constraint_neg = - constraint
     # for key in constraint:
-    assert constraint[constraint.dependent_vars[0]] == - constraint_neg[constraint_neg.dependent_vars[0]]
+    assert constraint[constraint.dependent_vars[0]] == - \
+        constraint_neg[constraint_neg.dependent_vars[0]]
 
     # ODEModel
     odemodel = ODEModel({D(y_1, x): a * x}, initial={a: 1.0})
@@ -112,7 +116,7 @@ def test_CallableNumericalModel():
     )
 
     faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
-                                            [], [a, b])
+                                          [], [a, b])
     assert not model.__signature__ == faulty_model.__signature__
 
     try:
@@ -169,14 +173,19 @@ def test_CallableNumericalModel():
     fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata)
     numerical_result = fit.execute()
     for param in [a, b]:
-        assert mixed_result.value(param) == pytest.approx(numerical_result.value(param))
-        assert mixed_result.stdev(param) == pytest.approx(numerical_result.stdev(param))
+        assert mixed_result.value(param) == pytest.approx(
+            numerical_result.value(param))
+        assert mixed_result.stdev(param) == pytest.approx(
+            numerical_result.stdev(param))
     assert mixed_result.r_squared == pytest.approx(numerical_result.r_squared)
 
     # Test if the constrained syntax is supported
-    fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata, constraints=[Eq(a, b)])
+    fit = Fit(numerical_model, x=xdata, y=ydata,
+              z=zdata, constraints=[Eq(a, b)])
     constrained_result = fit.execute()
-    assert constrained_result.value(a) == pytest.approx(constrained_result.value(b))
+    assert constrained_result.value(
+        a) == pytest.approx(constrained_result.value(b))
+
 
 def test_CallableNumericalModel2D():
     """
@@ -221,6 +230,7 @@ def test_CallableNumericalModel2D():
     assert fit_result.stdev(b) == pytest.approx(flat_result.stdev(b))
     assert fit_result.r_squared == pytest.approx(flat_result.r_squared)
 
+
 def test_pickle():
     """
     Make sure models can be pickled are preserved when pickling
@@ -239,7 +249,7 @@ def test_pickle():
     ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, 3, 4, some_kwarg=True)
 
     models = [exact_model, constraint, num_model, ode_model,
-                connected_num_model]
+              connected_num_model]
     for model in models:
         new_model = pickle.loads(pickle.dumps(model))
         # Compare signatures
@@ -255,6 +265,7 @@ def test_pickle():
             new_model.function_dict
             new_model.vars_as_functions
         assert model.__dict__ == new_model.__dict__
+
 
 def test_MatrixSymbolModel():
     """
@@ -309,6 +320,7 @@ def test_MatrixSymbolModel():
     # TODO: add constraints to Matrix model. But since Matrix expressions
     # can not yet be derived, this needs #154 to be solved first.
 
+
 def test_interdependency_invalid():
     """
     Create an invalid model with interdependency.
@@ -350,11 +362,11 @@ def test_interdependency():
     assert callable_model.params == [a, b]
     assert callable_model.connectivity_mapping == {y: {a, b, x}, z: {a, b, y}}
     np.testing.assert_almost_equal(callable_model(x=3, a=1, b=2),
-                                    np.atleast_2d([7, 51]).T)
+                                   np.atleast_2d([7, 51]).T)
     for var, func in callable_model.vars_as_functions.items():
         assert(set(str(x) for x in callable_model.connectivity_mapping[var]) ==
-            set(str(x.__class__) if isinstance(x, Function) else str(x)
-                for x in func.args))
+               set(str(x.__class__) if isinstance(x, Function) else str(x)
+                   for x in func.args))
 
     jac_model = jacobian_from_model(callable_model)
     assert jac_model.params == [a, b]
@@ -368,25 +380,25 @@ def test_interdependency():
     # Hessian.
     assert (jac_model.connectivity_mapping ==
             {D(y, a): {a, x},
-            D(y, b): {b},
-            D(z, a): {b, y, D(y, a)},
-            D(z, b): {a, y, D(y, b)},
-            y: {a, b, x}, z: {a, b, y}
-            }
-    )
+             D(y, b): {b},
+             D(z, a): {b, y, D(y, a)},
+             D(z, b): {a, y, D(y, b)},
+             y: {a, b, x}, z: {a, b, y}
+             }
+            )
     assert (jac_model.model_dict ==
-        {D(y, a): 3 * a**2 * x,
-            D(y, b): 2 * b,
-            D(z, a): b + 2 * y * D(y, a),
-            D(z, b): a + 2 * y * D(y, b),
-            y: callable_model[y], z: callable_model[z]
-            }
-    )
+            {D(y, a): 3 * a**2 * x,
+             D(y, b): 2 * b,
+             D(z, a): b + 2 * y * D(y, a),
+             D(z, b): a + 2 * y * D(y, b),
+             y: callable_model[y], z: callable_model[z]
+             }
+            )
     for var, func in jac_model.vars_as_functions.items():
         assert (set(x.name for x in jac_model.connectivity_mapping[var]) ==
-            set(str(x.__class__) if isinstance(x, Function) else str(x)
-                for x in func.args)
-        )
+                set(str(x.__class__) if isinstance(x, Function) else str(x)
+                    for x in func.args)
+                )
     hess_model = hessian_from_model(callable_model)
     # Result according to Mathematica
     hess_as_dict = {
@@ -410,23 +422,22 @@ def test_interdependency():
 
     assert hess_model.params == [a, b]
     assert (hess_model.dependent_vars ==
-        [D(z, (a, 2)), D(z, a, b), D(z, (b, 2)), D(z, b, a),
-            D(z, a), D(z, b), z]
-    )
-    assert hess_model.interdependent_vars == [D(y, (a, 2)), D(y, a), D(y, b), y]
+            [D(z, (a, 2)), D(z, a, b), D(z, (b, 2)), D(z, b, a),
+             D(z, a), D(z, b), z]
+            )
+    assert hess_model.interdependent_vars == [
+        D(y, (a, 2)), D(y, a), D(y, b), y]
     assert hess_model.independent_vars == [x]
 
     model = Model(model_dict)
     np.testing.assert_almost_equal(model(x=3, a=1, b=2),
-                                    np.atleast_2d([7, 51]).T)
+                                   np.atleast_2d([7, 51]).T)
     np.testing.assert_almost_equal(model.eval_jacobian(x=3, a=1, b=2),
-                                    np.array([[[9], [4]], [[128], [57]]]))
+                                   np.array([[[9], [4]], [[128], [57]]]))
     np.testing.assert_almost_equal(
         model.eval_hessian(x=3, a=1, b=2),
         np.array([[[[18], [0]], [[0], [2]]],
-                        [[[414], [73]], [[73], [60]]]]))
+                  [[[414], [73]], [[73], [60]]]]))
 
     assert model.__signature__ == model.jacobian_model.__signature__
     assert model.__signature__ == model.hessian_model.__signature__
-
-

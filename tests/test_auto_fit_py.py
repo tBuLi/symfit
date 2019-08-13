@@ -256,8 +256,10 @@ def test_gaussian_2d_fitting():
 
     assert fit_result.value(x0) == pytest.approx(np.mean(data[:, 0]), 1e-3)
     assert fit_result.value(y0) == pytest.approx(np.mean(data[:, 1]), 1e-3)
-    assert np.abs(fit_result.value(sig_x)) == pytest.approx(np.std(data[:, 0]), 1e-2)
-    assert np.abs(fit_result.value(sig_y)) == pytest.approx(np.std(data[:, 1]), 1e-2)
+    assert np.abs(fit_result.value(sig_x)) == pytest.approx(
+        np.std(data[:, 0]), 1e-2)
+    assert np.abs(fit_result.value(sig_y)) == pytest.approx(
+        np.std(data[:, 1]), 1e-2)
     assert fit_result.r_squared >= 0.96
 
 
@@ -299,9 +301,13 @@ def test_gaussian_2d_fitting_background():
     fit = Fit(model, x=xx, y=yy, g=ydata)
     fit_result = fit.execute()
 
-    assert fit_result.value(x0) / np.mean(data[:, 0]) == pytest.approx(1.0, 1e-2)
-    assert fit_result.value(y0) / np.mean(data[:, 1]) == pytest.approx(1.0, 1e-2)
-    assert np.abs(fit_result.value(sig_x)) / np.std(data[:, 0]) == pytest.approx(1.0, 1e-2)
-    assert np.abs(fit_result.value(sig_y)) / np.std(data[:, 1]) == pytest.approx(1.0, 1e-2)
+    assert fit_result.value(
+        x0) / np.mean(data[:, 0]) == pytest.approx(1.0, 1e-2)
+    assert fit_result.value(
+        y0) / np.mean(data[:, 1]) == pytest.approx(1.0, 1e-2)
+    assert np.abs(fit_result.value(sig_x)) / \
+        np.std(data[:, 0]) == pytest.approx(1.0, 1e-2)
+    assert np.abs(fit_result.value(sig_y)) / \
+        np.std(data[:, 1]) == pytest.approx(1.0, 1e-2)
     assert background / fit_result.value(b) == pytest.approx(1.0, 1e-1)
     assert fit_result.r_squared >= 0.96

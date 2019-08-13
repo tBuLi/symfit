@@ -25,6 +25,7 @@ chained_result: FitResults
 constrained_result: FitResults
 constrained_basinhopping_result: FitResults
 
+
 def ge_constraint(a):  # Has to be in the global namespace for pickle.
     return a - 1
 
@@ -63,18 +64,21 @@ def setup_function():
     fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
     constrained_result = fit.execute()
     fit = Fit(model, x=xdata, y=ydata, constraints=constraints,
-                minimizer=BasinHopping)
+              minimizer=BasinHopping)
     constrained_basinhopping_result = fit.execute()
+
 
 def test_params_type():
     global fit_result
     assert isinstance(fit_result.params, OrderedDict)
-    
+
+
 def test_minimizer_output_type():
     global fit_result, minpack_result, likelihood_result
     assert isinstance(fit_result.minimizer_output, dict)
     assert isinstance(minpack_result.minimizer_output, dict)
     assert isinstance(likelihood_result.minimizer_output, dict)
+
 
 def test_fitting():
     """
@@ -92,6 +96,7 @@ def test_fitting():
     assert isinstance(fit_result.r_squared, float)
     # by definition since there's no fuzzyness
     assert fit_result.r_squared == 1.0
+
 
 def test_fitting_2():
     np.random.seed(43)
@@ -111,8 +116,8 @@ def test_fitting_2():
 
     # Insert them as y,x here as np fucks up cartesian conventions.
     ydata, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=200,
-                                            range=[[0.0, 1.0], [0.0, 1.0]],
-                                            density=True)
+                                           range=[[0.0, 1.0], [0.0, 1.0]],
+                                           density=True)
     xcentres = (xedges[:-1] + xedges[1:]) / 2
     ycentres = (yedges[:-1] + yedges[1:]) / 2
 
@@ -129,7 +134,7 @@ def test_fitting_2():
     rho_1 = Parameter('rho_1', value=0.0, min=-0.5, max=0.5)
     A_1 = Parameter('A_1', value=0.5, min=0.3, max=0.7)
     g_1 = A_1 * BivariateGaussian(x=x, y=y, mu_x=x0_1, mu_y=y0_1,
-                                    sig_x=sig_x_1, sig_y=sig_y_1, rho=rho_1)
+                                  sig_x=sig_x_1, sig_y=sig_y_1, rho=rho_1)
 
     x0_2 = Parameter('x0_2', value=0.3, min=0.2, max=0.4)
     sig_x_2 = Parameter('sig_x_2', value=0.05, min=0.0, max=0.2)
@@ -138,7 +143,7 @@ def test_fitting_2():
     rho_2 = Parameter('rho_2', value=0.26, min=0.0, max=0.8)
     A_2 = Parameter('A_2', value=0.5, min=0.3, max=0.7)
     g_2 = A_2 * BivariateGaussian(x=x, y=y, mu_x=x0_2, mu_y=y0_2,
-                                    sig_x=sig_x_2, sig_y=sig_y_2, rho=rho_2)
+                                  sig_x=sig_x_2, sig_y=sig_y_2, rho=rho_2)
 
     model = g_1 + g_2
     fit = Fit(model, xx, yy, ydata)
@@ -147,7 +152,8 @@ def test_fitting_2():
     assert fit_result.r_squared > 0.95
     for param in fit.model.params:
         try:
-            assert fit_result.stdev(param)**2 / fit_result.variance(param) == pytest.approx(1.0)
+            assert fit_result.stdev(
+                param)**2 / fit_result.variance(param) == pytest.approx(1.0)
         except AssertionError:
             assert fit_result.variance(param) <= 0.0
             assert np.isnan(fit_result.stdev(param))
@@ -155,7 +161,9 @@ def test_fitting_2():
     # Covariance matrix should be symmetric
     for param_1 in fit.model.params:
         for param_2 in fit.model.params:
-            assert fit_result.covariance(param_1, param_2) / fit_result.covariance(param_2, param_1) == pytest.approx(1.0, 1e-3)
+            assert fit_result.covariance(
+                param_1, param_2) / fit_result.covariance(param_2, param_1) == pytest.approx(1.0, 1e-3)
+
 
 def test_minimizer_included():
     """"The minimizer used should be included in the results."""
@@ -163,13 +171,14 @@ def test_minimizer_included():
     global constrained_basinhopping_result, constrained_result, likelihood_result, chained_result, fit_result
     assert isinstance(constrained_result.minimizer, BaseMinimizer)
     assert isinstance(constrained_basinhopping_result.minimizer,
-                            BaseMinimizer)
+                      BaseMinimizer)
     assert isinstance(likelihood_result.minimizer, BaseMinimizer)
     assert isinstance(fit_result.minimizer, BaseMinimizer)
     assert isinstance(chained_result.minimizer, ChainedMinimizer)
     for minimizer, cls in zip(chained_result.minimizer.minimizers,
-                                [BFGS, NelderMead]):
+                              [BFGS, NelderMead]):
         assert isinstance(minimizer, cls)
+
 
 def test_objective_included():
     """"The objective used should be included in the results."""
@@ -180,6 +189,7 @@ def test_objective_included():
     assert isinstance(constrained_result.objective, LeastSquares)
     assert isinstance(constrained_basinhopping_result.objective, LeastSquares)
 
+
 def test_constraints_included():
     """
     Test if the constraints have been properly fed to the results object so
@@ -188,10 +198,11 @@ def test_constraints_included():
     global constrained_basinhopping_result, constrained_result
     # For a constrained fit we expect a list of MinimizeModel objectives.
     for constrained_result in [constrained_result,
-                                constrained_basinhopping_result]:
+                               constrained_basinhopping_result]:
         assert isinstance(constrained_result.constraints, list)
         for constraint in constrained_result.constraints:
             assert isinstance(constraint, MinimizeModel)
+
 
 def test_message_included():
     """Status message should be included."""
@@ -204,14 +215,16 @@ def test_message_included():
         constrained_basinhopping_result.status_message, str
     )
 
+
 def test_pickle():
     global fit_result, minpack_result, likelihood_result, constrained_basinhopping_result, constrained_result
     for fit_result in [fit_result, chained_result,
-                        constrained_basinhopping_result,
-                        constrained_result, likelihood_result]:
+                       constrained_basinhopping_result,
+                       constrained_result, likelihood_result]:
         dumped = pickle.dumps(fit_result)
         new_result = pickle.loads(dumped)
-        assert sorted(fit_result.__dict__.keys()) == sorted(new_result.__dict__.keys())
+        assert sorted(fit_result.__dict__.keys()) == sorted(
+            new_result.__dict__.keys())
         for k, v1 in fit_result.__dict__.items():
             v2 = new_result.__dict__[k]
             if k == 'minimizer':
@@ -221,6 +234,7 @@ def test_pickle():
                     np.testing.assert_almost_equal(v1, v2)
                 else:
                     assert v1 == v2
+
 
 def test_gof_presence():
     """

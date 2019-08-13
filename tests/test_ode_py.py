@@ -13,8 +13,11 @@ from symfit.distributions import Gaussian
 """
 Tests for the FitResults object.
 """
+
+
 def setup_method():
     np.random.seed(6)
+
 
 def test_known_solution():
     p, c1 = parameters('p, c1')
@@ -42,8 +45,10 @@ def test_known_solution():
     fit_result = fit.execute()
 
     assert ode_result.value(p) / fit_result.value(p) == pytest.approx(1, 1e-2)
-    assert ode_result.r_squared / fit_result.r_squared == pytest.approx(1, 1e-4)
+    assert ode_result.r_squared / \
+        fit_result.r_squared == pytest.approx(1, 1e-4)
     assert ode_result.stdev(p) / fit_result.stdev(p) == pytest.approx(1, 1e-2)
+
 
 def test_van_der_pol():
     """
@@ -63,6 +68,7 @@ def test_van_der_pol():
     # plt.plot(tdata, ode_model(tdata)[0], color='red')
     # plt.plot(tdata, ode_model(tdata)[1], color='blue')
     # plt.show()
+
 
 def test_polgar():
     """
@@ -95,6 +101,7 @@ def test_polgar():
     # plt.legend()
     # plt.show()
 
+
 def test_simple_kinetics():
     """
     Simple kinetics data to test fitting
@@ -121,22 +128,29 @@ def test_simple_kinetics():
 
     fit = Fit(ode_model, t=tdata, a=adata, b=None, minimizer=MINPACK)
     ode_result = fit.execute()
-    assert ode_result.value(k) / fit_result.value(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.stdev(k) / fit_result.stdev(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.r_squared / fit_result.r_squared == pytest.approx(1, 1e-4)
+    assert ode_result.value(
+        k) / fit_result.value(k) == pytest.approx(1.0, 1e-4)
+    assert ode_result.stdev(
+        k) / fit_result.stdev(k) == pytest.approx(1.0, 1e-4)
+    assert ode_result.r_squared / \
+        fit_result.r_squared == pytest.approx(1, 1e-4)
 
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
     ode_result = fit.execute()
-    assert ode_result.value(k) / fit_result.value(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.stdev(k) / fit_result.stdev(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.r_squared / fit_result.r_squared == pytest.approx(1, 1e-4)
+    assert ode_result.value(
+        k) / fit_result.value(k) == pytest.approx(1.0, 1e-4)
+    assert ode_result.stdev(
+        k) / fit_result.stdev(k) == pytest.approx(1.0, 1e-4)
+    assert ode_result.r_squared / \
+        fit_result.r_squared == pytest.approx(1, 1e-4)
+
 
 def test_single_eval():
     """
     Eval an ODEModel at a single value rather than a vector.
     """
     x, y, t = variables('x, y, t')
-    k, = parameters('k') # C is the integration constant.
+    k, = parameters('k')  # C is the integration constant.
 
     # The harmonic oscillator as a system, >1st order is not supported yet.
     harmonic_dict = {
@@ -146,8 +160,10 @@ def test_single_eval():
 
     # Make a second model to prevent caching of integration results.
     # This also means harmonic_dict should NOT be a Model object.
-    harmonic_model_array = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
-    harmonic_model_points = ODEModel(harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
+    harmonic_model_array = ODEModel(
+        harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
+    harmonic_model_points = ODEModel(
+        harmonic_dict, initial={t: 0.0, x: 1.0, y: 0.0})
     tdata = np.linspace(-100, 100, 101)
     X, Y = harmonic_model_array(t=tdata, k=0.1)
     # Shuffle the data to prevent using the result at time t to calculate
@@ -175,7 +191,7 @@ def test_full_eval_range():
     k.value = 0.01
     t0 = tdata[2]
     a0 = adata[2]
-    b0 = 0.02729855 # Obtained from evaluating from t=0.
+    b0 = 0.02729855  # Obtained from evaluating from t=0.
 
     model_dict = {
         D(a, t): - k * a**2,
@@ -197,6 +213,7 @@ def test_full_eval_range():
     ode_result = fit.execute()
     assert ode_result.r_squared > 0.95
 
+
 def test_odemodel_sanity():
     """
     If a user provides an ODE like model directly to fit without
@@ -215,4 +232,3 @@ def test_odemodel_sanity():
         assert False
     except RuntimeWarning:
         assert True
-

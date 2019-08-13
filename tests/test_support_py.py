@@ -19,18 +19,18 @@ else:
     import funcsigs as inspect_sig
 
 
-
-
 @keywordonly(c=2, d=RequiredKeyword)
 def f(a, b, *args, **kwargs):
     c = kwargs.pop('c')
     d = kwargs.pop('d')
     return a + b + c + d
 
+
 class A(object):
     @keywordonly(c=2, d=RequiredKeyword)
     def __init__(self, a, b, **kwargs):
         pass
+
 
 class B(A):
     @keywordonly(e=5)
@@ -56,6 +56,7 @@ def test_keywordonly_signature():
     for param in sig_f.parameters.values():
         assert param.kind == kinds[param.name]
 
+
 def test_keywordonly_call():
     """
     Call our test function with some values to see if it behaves as
@@ -65,6 +66,7 @@ def test_keywordonly_call():
     # In the next case the 5 is left behind since it ends up in *args.
     assert f(4, 3, 5, d=6) == 4 + 3 + 2 + 6
 
+
 def test_keywordonly_norequiredkeyword():
     """
     Try to not provide a RequiredKeyword with a value and get away with it.
@@ -72,6 +74,7 @@ def test_keywordonly_norequiredkeyword():
     """
     with pytest.raises(RequiredKeywordError):
         f(4, 3, 5, 6)
+
 
 def test_keywordonly_nokwagrs():
     """
@@ -82,6 +85,7 @@ def test_keywordonly_nokwagrs():
         @keywordonly(c=2, d=RequiredKeyword)
         def g(a, b, *args):
             pass
+
 
 def test_keywordonly_class():
     """
@@ -100,6 +104,7 @@ def test_keywordonly_class():
     sig = inspect_sig.signature(A.__init__)
     for param in sig.parameters.values():
         assert param.kind == kinds[param.name]
+
 
 def test_keywordonly_inheritance():
     """
@@ -132,6 +137,7 @@ def test_keywordonly_inheritance():
     with pytest.raises(TypeError):
         b = B(3, 5, 7, d=2, e=6)
 
+
 def test_repeatable_partial():
     """
     Test the custom repeatable partial, which makes partial behave the same
@@ -155,6 +161,7 @@ def test_repeatable_partial():
     assert not partialed_two.args
     assert partialed_two.keywords == {'a': 2, 'b': 'string'}
 
+
 def test_parameters():
     """
     Test the `parameter` convenience function.
@@ -169,7 +176,8 @@ def test_parameters():
     with pytest.raises(ValueError):
         x1, x2 = parameters('x1, x2', value=[2.0, 1.3, 3.0], min=0.0)
 
-    x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[-30, -10], max=[300, 100], fixed=[True, False])
+    x1, x2 = parameters('x1, x2', value=[
+                        2.0, 1.3], min=[-30, -10], max=[300, 100], fixed=[True, False])
     assert x1.min == -30
     assert x2.min == -10
     assert x1.max == 300
@@ -181,9 +189,11 @@ def test_parameters():
 
     # Illegal bounds
     with pytest.raises(ValueError):
-        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[400, -10], max=[300, 100])
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[
+                            400, -10], max=[300, 100])
     # Should not raise any error, as repeat is an endless source of values
     x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=repeat(0.0))
+
 
 def test_cached_property():
     class A(object):
@@ -221,5 +231,3 @@ def test_cached_property():
         a.f
     # Should be returning from cache, so a.f is not actually called
     assert a.counter == 2
-
-
