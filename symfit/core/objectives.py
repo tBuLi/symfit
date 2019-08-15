@@ -1,3 +1,18 @@
+"""
+Objective functions are the functions which are minimized by the
+:mod:`~symfit.core.minimizers`.
+Famous examples are `least squares
+<https://en.wikipedia.org/wiki/Least_squares>`_, `log-likelihood
+<https://en.wikipedia.org/wiki/Likelihood_function>`_, or minimizing the model
+itself.
+
+``symfit`` provides objective functions for those cases by default. Custom
+objectives can also be created, for example by inheriting from
+:class:`~symfit.core.objectives.BaseObjective`,
+:class:`~symfit.core.objectives.GradientObjective` or
+:class:`~symfit.core.objectives.HessianObjective`.
+"""
+
 import abc
 from collections import OrderedDict
 from six import add_metaclass

@@ -19,6 +19,7 @@ paper.
     ex_ODEModel
     ex_ode_system.ipynb
     ex_CallableNumericalModel
+    ex_CallableNumericalModel_ode.ipynb
     ex_tikhonov.ipynb
 
 Objective Examples
