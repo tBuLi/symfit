@@ -187,6 +187,22 @@ def test_CallableNumericalModel():
         a) == pytest.approx(constrained_result.value(b))
 
 
+def test_CallableNumericalModel_infer_connectivity():
+    """
+    When a CallableNumericalModel is initiated with symbolical and
+    non-symbolical components, only the connectivity mapping for
+    non-symbolical part has to be provided.
+    """
+    x, y, z = variables('x, y, z')
+    a, b = parameters('a, b')
+    model_dict = {z: lambda y, a, b: a * y + b,
+                    y: x ** a}
+    mixed_model = CallableNumericalModel(
+        model_dict, connectivity_mapping={z: {y, a, b}}
+    )
+    assert mixed_model.connectivity_mapping == {z: {y, a, b}, y: {x, a}}
+
+
 def test_CallableNumericalModel2D():
     """
     Apply a CallableNumericalModel to 2D data, to see if it is
