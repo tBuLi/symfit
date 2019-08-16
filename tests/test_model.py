@@ -175,9 +175,14 @@ def test_CallableNumericalModel():
     for param in [a, b]:
         assert mixed_result.value(param) == pytest.approx(
             numerical_result.value(param))
-        stdevResult = mixed_result.stdev(param)
-        if stdevResult is not None:
-            assert stdevResult == pytest.approx(numerical_result.stdev(param))
+
+        if mixed_result.stdev(param) is  None and numerical_result.stdev(param) is None:
+            assert True
+        elif mixed_result.stdev(param) or  None and numerical_result.stdev(param) is None:
+            assert False
+        else:
+            assert mixed_result.stdev(param) == pytest.approx(numerical_result.stdev(param))
+
     assert mixed_result.r_squared == pytest.approx(numerical_result.r_squared)
 
     # Test if the constrained syntax is supported
@@ -243,8 +248,21 @@ def test_CallableNumericalModel2D():
 
     assert fit_result.value(a) == pytest.approx(flat_result.value(a))
     assert fit_result.value(b) == pytest.approx(flat_result.value(b))
-    assert fit_result.stdev(a) == pytest.approx(flat_result.stdev(a))
-    assert fit_result.stdev(b) == pytest.approx(flat_result.stdev(b))
+
+    if fit_result.stdev(a) is None and flat_result.stdev(a) is None:
+        assert True
+    elif fit_result.stdev(a) is None or flat_result.stdev(a) is None:
+        assert False
+    else:
+        assert fit_result.stdev(a) == pytest.approx(flat_result.stdev(a))
+    
+    if fit_result.stdev(b) is None and flat_result.stdev(b) is None:
+        assert True
+    elif fit_result.stdev(b) is None or flat_result.stdev(b) is None:
+        assert False
+    else:
+        assert fit_result.stdev(b) == pytest.approx(flat_result.stdev(b))
+
     assert fit_result.r_squared == pytest.approx(flat_result.r_squared)
 
 
