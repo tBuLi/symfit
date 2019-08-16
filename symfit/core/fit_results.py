@@ -117,6 +117,9 @@ class FitResults(object):
         except TypeError:
             # This happens when variance returns None.
             return None
+        except AttributeError:
+            # This happens when variance returns None.
+            return None
 
 
     def value(self, param):
