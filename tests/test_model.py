@@ -175,8 +175,9 @@ def test_CallableNumericalModel():
     for param in [a, b]:
         assert mixed_result.value(param) == pytest.approx(
             numerical_result.value(param))
-        assert mixed_result.stdev(param) == pytest.approx(
-            numerical_result.stdev(param))
+        stdevResult = mixed_result.stdev(param)
+        if stdevResult is not None:
+            assert stdevResult == pytest.approx(numerical_result.stdev(param))
     assert mixed_result.r_squared == pytest.approx(numerical_result.r_squared)
 
     # Test if the constrained syntax is supported
@@ -196,7 +197,7 @@ def test_CallableNumericalModel_infer_connectivity():
     x, y, z = variables('x, y, z')
     a, b = parameters('a, b')
     model_dict = {z: lambda y, a, b: a * y + b,
-                    y: x ** a}
+                  y: x ** a}
     mixed_model = CallableNumericalModel(
         model_dict, connectivity_mapping={z: {y, a, b}}
     )
