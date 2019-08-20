@@ -112,7 +112,7 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Standard deviation of ``param``.
         """
-        if variance is not None:
+        if self.variance(param) is not None:
             return np.sqrt(self.variance(param))
         else:
             return None
