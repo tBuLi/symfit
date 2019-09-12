@@ -12,11 +12,16 @@ from hypothesis.extra import numpy as npst
 from hypothesis import assume, note
 
 
-NUMBERS = st.floats(allow_nan=False, allow_infinity=False, min_value=-1e6, max_value=1e6)
+NUMBERS = st.floats(allow_nan=False, allow_infinity=False, min_value=-1e3, max_value=1e3)
 
 
 def _is_sorted(lst, cmp=lambda x, y: x <= y):
     return all(cmp(x, y) for x, y in zip(lst[:-1], lst[1:]))
+
+
+def _is_number(obj):
+    obj = sympy.sympify(obj)
+    return obj.is_number
 
 
 @st.composite
@@ -45,21 +50,29 @@ def exprs(draw, symbols, unary_ops, operations, n_leaves, allow_number=False):
     -------
     sympy.Expression
     """
-    leaves = draw(st.lists(symbols, min_size=n_leaves, max_size=n_leaves))
+    symbol_st = st.lists(symbols, min_size=n_leaves, max_size=n_leaves)
+    # Assert we draw at least one not numerical symbol, unless we allow numbers
+    leaves = draw(symbol_st.filter(
+        lambda l: allow_number or any(not _is_number(val) for val in l))
+    )
 
+    # TODO: allow chaining of unary ops
     unary_ops = st.one_of(st.none(), unary_ops)
     first_ops = draw(st.lists(unary_ops, min_size=len(leaves), max_size=len(leaves)))
-    leaves = [op(leave) if op else leave for op, leave in zip(first_ops, leaves)]
+    leaves = [op(leaf) if op else leaf for op, leaf in zip(first_ops, leaves)]
  
     while len(leaves) != 1:
-        nargs, op = draw(operations)
-        idxs = draw(st.lists(st.integers(min_value=0, max_value=len(leaves) - 1),
-                             min_size=nargs,
-                             max_size=nargs,
-                             unique=True))
+        nargs, op, comm = draw(operations)
+        # Draw indices for the leaves that get combined by the operation.
+        idxs_st = st.lists(st.integers(min_value=0, max_value=len(leaves) - 1),
+                           min_size=nargs,
+                           max_size=nargs,
+                           unique=True)
+        # ... and if the operation commutes, make sure the indices are sorted.
+        idxs = draw(idxs_st.filter(lambda l: not comm or _is_sorted(l)))
         args = [leaves[idx] for idx in idxs]
-        for idx in sorted(idxs, reverse=True):
-            del leaves[idx]
+        # Remove the drawn symbols from `leaves`
+        leaves = [leaf for idx, leaf in enumerate(leaves) if idx not in idxs]
         new_node = op(*args)
         op = draw(unary_ops)
         if op:
@@ -93,19 +106,29 @@ def models(draw, dependent_vars, symbols, leaves=5):
     """
     constants = st.sampled_from([1, -1, 2, 3, sympy.Rational(1, 2), sympy.pi, sympy.E])
     symbols = st.one_of(constants, symbols)
-    ops = st.sampled_from([(2, sympy.Add),
-                           (2, sympy.Mul),
+    ops = st.sampled_from([(2, sympy.Add, True),
+                           (2, sympy.Mul, True),
                            # Can cause imaginary numbers (e.g. (-4)**1.2)
-                           # (2, sympy.Pow),
-                           # (2, sympy.log),
+                           # (2, sympy.Pow, False),
+                           # (2, sympy.log, False),
                           ])
     unary_ops = st.sampled_from([sympy.sin,
                                  sympy.exp,
                                  lambda e: -e,
                                  lambda e: 1/e])
-    expressions = exprs(symbols, unary_ops, ops, leaves, False)
     model_dict = {}
-    for dependent_var in draw(dependent_vars):
+    dep_vars = draw(dependent_vars)
+    for idx, dependent_var in enumerate(dep_vars):
+        # Dependent vars can depend on other dependent vars: {y1: k, y2: y1+1}.
+        # But this can cause cyclical dependency ({y1: y2, y2: y1}), so limit to
+        # idx < jdx. Note that this also prevents {y1: y1}.
+        other_vars = [dep_var for jdx, dep_var in enumerate(dep_vars) if idx < jdx]
+        if other_vars:
+            # Can't sample_from and empty list
+            symbs = st.one_of(symbols, st.sampled_from(other_vars))
+        else:
+            symbs = symbols
+        expressions = exprs(symbs, unary_ops, ops, leaves, False)
         expr = draw(expressions)
         model_dict[dependent_var] = expr
     model = Model(model_dict)
@@ -114,12 +137,20 @@ def models(draw, dependent_vars, symbols, leaves=5):
 
 def _same_shape_vars(model):
     """
-    Helper function that returns a set of frozensets of all independent
-    variables in model that should have broadcast compatible shapes.
+    Helper function that returns a set of frozensets of all variables in model
+    that should have broadcast compatible shapes.
     """
     indep_vars = model.independent_vars
-    con_map = model.connectivity_mapping
+    con_map = model.connectivity_mapping.copy()
     shape_groups = {var: {var} for var in indep_vars}
+
+    # Deal with interdependent vars
+    for k, group in con_map.items():
+        for var in list(group):
+            if var in con_map:
+                con_map[k] = group | con_map[var]
+                con_map[k] -= {var}
+
     for group in con_map.values():
         comb = {var for var in group if var in indep_vars}
         shape_group = set()
@@ -155,13 +186,18 @@ def independent_data_shapes(draw, model, min_value=1, max_value=10, min_dim=1, m
     dict[str]: tuple[int, ...]
     """
     indep_vars = model.independent_vars
-    shape_groups = _same_shape_vars(model)
+    shape_groups = map(tuple, _same_shape_vars(model))
     shapes = npst.array_shapes(min_dim, max_dim, min_value, max_value)
     grp_shape = draw(st.fixed_dictionaries({var_grp: shapes for var_grp in shape_groups}))
     indep_shape = {}
     for vars, shape in grp_shape.items():
-        for var in vars:
+        # Not all shapes have to be the same size, but they should be
+        # broadcastable. Since it's a pain to find a shape A that is compatible
+        # with both B, C and D we'll just say that the last shape can be
+        # different.
+        for var in vars[:-1]:
             indep_shape[var] = shape
+        indep_shape[vars[-1]] = npst.broadcastable_shapes(shape, min_dim, max_dim, min_value, max_value)
     return indep_shape
 
 
@@ -262,13 +298,19 @@ def dep_values(draw, model, indep_data, param_vals):
         sigmas.
     """
     dep_data = model(**indep_data, **param_vals)._asdict()
-    shapes = {var: data.shape for var, data in dep_data.items()}
+    # You can't provide data for interdependent variables.
+    dep_data = {
+        var: data
+        for var, data in dep_data.items()
+        if var in model.dependent_vars
+    }
+    shapes = {var: data.shape for var, data in dep_data.items() if data is not None}
     sigmas = {
         'sigma_{}'.format(str(var)): st.one_of(
             st.none(),
             st.floats(allow_nan=False, allow_infinity=False, min_value=0, max_value=5),
-            numpy_arrays(vals.shape)
-        ) for var, vals in dep_data.items()
+            numpy_arrays(shape)
+        ) for var, shape in shapes.items()
     }
     sigmas = draw(st.fixed_dictionaries(dict(**sigmas)))
     return dict(**sigmas, **key2str(dep_data))
@@ -304,9 +346,22 @@ def model_with_data(draw, dependent_vars, symbols, leaves=5):
         Data for the dependent variables, as well as sigmas.
     """
     model = draw(models(dependent_vars, symbols, leaves=leaves))
-    indep_data, param_data = draw(st.tuples(indep_values(model), param_values(model)), label='independent data, parameters')
+    indep_data, param_data = draw(st.tuples(indep_values(model), 
+                                            param_values(model)),
+                                  label='independent data, parameters')
     try:
         dep_data = draw(dep_values(model, indep_data, param_data), label='dependent data')
     except ArithmeticError:
         assume(False)  # Some model + data that causes numerical issues
+    for data in dep_data.values():
+        # In addition, let's make sure all data is finite and real.
+        assume(data is None or (np.all(np.isfinite(data)) and np.all(np.isreal(data))))
     return model, param_data, indep_data, dep_data
+
+
+if __name__ == '__main__':
+    DEPENDENT_VARS = st.lists(st.sampled_from(variables('Y1, Y2')), unique=True, min_size=1)
+    SYMBOLS = st.sampled_from(parameters('a, b, c') + variables('x, y, z'))
+
+    for _ in range(5):
+        print(list(map(str, model_with_data(DEPENDENT_VARS, SYMBOLS).example())))
