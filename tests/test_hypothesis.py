@@ -1,8 +1,9 @@
 from .hypothesis_helpers import model_with_data
 from hypothesis import strategies as st
-from hypothesis import given, note, assume, settings
+from hypothesis import given, note, assume, settings, HealthCheck
 
 import numpy as np
+from pytest import approx
 
 from symfit import Fit, variables, parameters
 
@@ -17,10 +18,10 @@ def _cmp_result(reference, found):
     for k in reference:
         ref_vals.append(reference[k])
         found_vals.append(found[k])
-    assert np.allclose(ref_vals, found_vals)
+    assert found_vals == approx(ref_vals)
 
 
-@settings(max_examples=500)
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(model_with_data(DEPENDENT_VARS, SYMBOLS))
 def test_simple(model_with_data):
     model, param_vals, indep_vals, dep_vals = model_with_data
@@ -30,4 +31,6 @@ def test_simple(model_with_data):
     fit = Fit(model, **indep_vals, **dep_vals)
     result = fit.execute()
     note(str(result))
+    note(str(model(**indep_vals, **result.params)))
+    note(str(fit.minimizer))
     _cmp_result(param_vals, result.params)
