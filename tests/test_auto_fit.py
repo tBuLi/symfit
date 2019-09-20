@@ -5,7 +5,7 @@ import numpy as np
 
 from symfit import (
     variables, parameters, Fit, Parameter, Variable,
-    Equality, Model
+    Equality, Model, GradientModel
 )
 from symfit.core.minimizers import BFGS, MINPACK, SLSQP, LBFGSB
 from symfit.distributions import Gaussian
@@ -250,7 +250,7 @@ class TestAutoFit(unittest.TestCase):
         y = Variable('y')
         g = Variable('g')
 
-        model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
+        model = GradientModel({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
         fit = Fit(model, x=xx, y=yy, g=ydata)
         fit_result = fit.execute()
 
@@ -291,7 +291,7 @@ class TestAutoFit(unittest.TestCase):
         y = Variable('y')
         g = Variable('g')
 
-        model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y) + b})
+        model = GradientModel({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y) + b})
 
         # ydata, = model(x=xx, y=yy, x0=mean[0], y0=mean[1], sig_x=np.sqrt(cov[0][0]), sig_y=np.sqrt(cov[1][1]), A=1, b=3.0)
         fit = Fit(model, x=xx, y=yy, g=ydata)

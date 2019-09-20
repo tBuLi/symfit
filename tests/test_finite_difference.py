@@ -197,7 +197,7 @@ class FiniteDifferenceTests(unittest.TestCase):
         noise = np.random.normal(1, 0.05, size=t_data.shape)
         x_data = ode_model(t=t_data, k=100).x * noise
 
-        ode_fit = sf.Fit(ode_model, t=t_data, x=x_data)
+        ode_fit = sf.Fit(ode_model, t=t_data, x=x_data, v=None)
         ode_result = ode_fit.execute()
 
         phi = 0

@@ -27,7 +27,7 @@ class Argument(Symbol):
     #       interpreter.
     _argument_indices = defaultdict(int)
 
-    def __new__(cls, name=None, *args, **assumptions):
+    def __new__(cls, name=None, **assumptions):
         """
         Create a new ``Argument``. See :class:`~sympy.core.symbol.Symbol`
         for more information.
@@ -84,9 +84,9 @@ class Parameter(Argument):
 
     _argument_name = 'par'
 
-    def __new__(cls, name=None, *args, **kwargs):
+    def __new__(cls, name=None, value=1.0, min=None, max=None, fixed=False, **kwargs):
         try:
-            return super(Parameter, cls).__new__(cls, name, *args, **kwargs)
+            return super(Parameter, cls).__new__(cls, name, **kwargs)
         except TypeError as err:
             if isinstance(name, numbers.Number):
                 raise TypeError('In symfit >0.4.1 the value needs to be assigned '
@@ -114,6 +114,25 @@ class Parameter(Argument):
         else:
             self.min = min
             self.max = max
+
+    def __eq__(self, other):
+        """
+        Parameters are considered equal when their name, assumptions, and
+        bounds are considered the same.
+        """
+        equal = super(Parameter, self).__eq__(other)
+        if equal is NotImplemented:
+            return equal
+
+        if not equal:
+            return False
+        else:
+            return (self.min == other.min and
+                    self.max == other.max and
+                    self.fixed == other.fixed and
+                    self.value == other.value)
+
+    __hash__ = Argument.__hash__
 
 
 class Variable(Argument):

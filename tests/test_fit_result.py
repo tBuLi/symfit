@@ -1,53 +1,76 @@
 from __future__ import division, print_function
 import unittest
 import pickle
-import sympy
-import types
 from collections import OrderedDict
 
 import numpy as np
-from symfit import Variable, Parameter, Fit, FitResults, GradientModel
-from symfit.distributions import Gaussian, BivariateGaussian
-from symfit.core.minimizers import MINPACK
+from scipy.optimize import OptimizeResult
+from symfit import (
+    Variable, Parameter, Fit, FitResults, Eq, Ge, CallableNumericalModel, Model
+)
+from symfit.distributions import BivariateGaussian
+from symfit.core.minimizers import (
+    BaseMinimizer, MINPACK, BFGS, NelderMead, ChainedMinimizer, BasinHopping
+)
+from symfit.core.objectives import (
+    LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
+)
+
+def ge_constraint(a):  # Has to be in the global namespace for pickle.
+    return a - 1
 
 class TestFitResults(unittest.TestCase):
     """
     Tests for the FitResults object.
     """
+    def setUp(self):
+        xdata = np.linspace(1, 10, 10)
+        ydata = 3 * xdata ** 2
 
-    def test_read_only_results(self):
-        """
-        Fit results should be read-only. Let's try to break this!
-        """
-        xdata = np.linspace(1,10,10)
-        ydata = 3*xdata**2
-
-        a = Parameter(value=3.0, min=2.75)
-        b = Parameter(value=2.0, max=2.75)
+        a = Parameter('a')
+        b = Parameter('b')
         x = Variable('x')
-        new = a*x**b
+        y = Variable('y')
+        model = Model({y: a * x ** b})
+        self.params = [a, b]
 
-        fit = Fit(new, xdata, ydata)
-        # raise Exception(fit.partial_chi(3, 2), [component(3, 2) for component in fit.partial_chi_jacobian])
-        # raise Exception(fit.model.chi_jacobian)
-        fit_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata)
+        self.fit_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)
+        self.minpack_result = fit.execute()
+        fit = Fit(model, x=xdata, objective=LogLikelihood)
+        self.likelihood_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata, minimizer=[BFGS, NelderMead])
+        self.chained_result = fit.execute()
 
-        self.assertTrue(isinstance(fit_result.params, OrderedDict))
-        # Should no longer be read-only, so setable. Should not raise an error
-        fit_result.params = 'hello'
-        self.assertTrue(isinstance(fit_result.params, str))
+        z = Variable('z')
+        constraints = [
+            Eq(a, b),
+            CallableNumericalModel.as_constraint(
+                {z: ge_constraint}, connectivity_mapping={z: {a}},
+                constraint_type=Ge, model=model
+            )
+        ]
+        fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
+        self.constrained_result = fit.execute()
+        fit = Fit(model, x=xdata, y=ydata, constraints=constraints,
+                  minimizer=BasinHopping)
+        self.constrained_basinhopping_result = fit.execute()
+
+    def test_params_type(self):
+        self.assertIsInstance(self.fit_result.params, OrderedDict)
+
+    def test_minimizer_output_type(self):
+        self.assertIsInstance(self.fit_result.minimizer_output, dict)
+        self.assertIsInstance(self.minpack_result.minimizer_output, dict)
+        self.assertIsInstance(self.likelihood_result.minimizer_output, dict)
 
     def test_fitting(self):
-        xdata = np.linspace(1,10,10)
-        ydata = 3*xdata**2
-
-        a = Parameter() #3.1, min=2.5, max=3.5
-        b = Parameter()
-        x = Variable()
-        new = a*x**b
-
-        fit = Fit(new, xdata, ydata, minimizer=MINPACK)
-        fit_result = fit.execute()
+        """
+        Test if the fitting worked in the first place.
+        """
+        a, b = self.params
+        fit_result = self.fit_result
         self.assertIsInstance(fit_result, FitResults)
         self.assertAlmostEqual(fit_result.value(a), 3.0)
         self.assertAlmostEqual(fit_result.value(b), 2.0)
@@ -56,14 +79,8 @@ class TestFitResults(unittest.TestCase):
         self.assertIsInstance(fit_result.stdev(b), float)
 
         self.assertIsInstance(fit_result.r_squared, float)
-        self.assertEqual(fit_result.r_squared, 1.0)  # by definition since there's no fuzzyness
-
-        # Test several illegal ways to access the data.
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_fdska'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'c'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_stdev'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a_stdev_'])
-        self.assertRaises(AttributeError, getattr, *[fit_result.params, 'a__stdev'])
+        # by definition since there's no fuzzyness
+        self.assertEqual(fit_result.r_squared, 1.0)
 
     def test_fitting_2(self):
         np.random.seed(43)
@@ -131,26 +148,85 @@ class TestFitResults(unittest.TestCase):
 
     def test_minimizer_included(self):
         """"The minimizer used should be included in the results."""
-        return NotImplementedError()
+        self.assertIsInstance(self.constrained_result.minimizer, BaseMinimizer)
+        self.assertIsInstance(self.constrained_basinhopping_result.minimizer,
+                              BaseMinimizer)
+        self.assertIsInstance(self.likelihood_result.minimizer, BaseMinimizer)
+        self.assertIsInstance(self.fit_result.minimizer, BaseMinimizer)
+        self.assertIsInstance(self.chained_result.minimizer, ChainedMinimizer)
+        for minimizer, cls in zip(self.chained_result.minimizer.minimizers,
+                                  [BFGS, NelderMead]):
+            self.assertIsInstance(minimizer, cls)
 
     def test_objective_included(self):
         """"The objective used should be included in the results."""
-        return NotImplementedError()
+        self.assertIsInstance(self.fit_result.objective, LeastSquares)
+        self.assertIsInstance(self.minpack_result.objective, VectorLeastSquares)
+        self.assertIsInstance(self.likelihood_result.objective, LogLikelihood)
+        self.assertIsInstance(self.constrained_result.objective, LeastSquares)
+        self.assertIsInstance(self.constrained_basinhopping_result.objective, LeastSquares)
+
+    def test_constraints_included(self):
+        """
+        Test if the constraints have been properly fed to the results object so
+        we can easily print their compliance.
+        """
+        # For a constrained fit we expect a list of MinimizeModel objectives.
+        for constrained_result in [self.constrained_result,
+                                   self.constrained_basinhopping_result]:
+            self.assertIsInstance(constrained_result.constraints, list)
+            for constraint in constrained_result.constraints:
+                self.assertIsInstance(constraint, MinimizeModel)
+
+    def test_message_included(self):
+        """Status message should be included."""
+        self.assertIsInstance(self.fit_result.status_message, str)
+        self.assertIsInstance(self.minpack_result.status_message, str)
+        self.assertIsInstance(self.likelihood_result.status_message, str)
+        self.assertIsInstance(self.constrained_result.status_message, str)
+        self.assertIsInstance(
+            self.constrained_basinhopping_result.status_message, str
+        )
 
     def test_pickle(self):
-        xdata = np.linspace(1, 10, 10)
-        ydata = 3 * xdata ** 2
+        for fit_result in [self.fit_result, self.chained_result,
+                           self.constrained_basinhopping_result,
+                           self.constrained_result, self.likelihood_result]:
+            dumped = pickle.dumps(fit_result)
+            new_result = pickle.loads(dumped)
+            self.assertEqual(sorted(fit_result.__dict__.keys()),
+                             sorted(new_result.__dict__.keys()))
+            for k, v1 in fit_result.__dict__.items():
+                v2 = new_result.__dict__[k]
+                if k == 'minimizer':
+                    self.assertEqual(type(v1), type(v2))
+                elif k != 'minimizer_output':  # Ignore minimizer_output
+                    if isinstance(v1, np.ndarray):
+                        np.testing.assert_almost_equal(v1, v2)
+                    else:
+                        self.assertEqual(v1, v2)
 
-        a = Parameter('a')  # 3.1, min=2.5, max=3.5
-        b = Parameter('b')
-        x = Variable('x')
-        y = Variable('y')
-        new = {y: a * x ** b}
+    def test_gof_presence(self):
+        """
+        Test if the expected goodness of fit estimators are present.
+        """
+        self.assertTrue(hasattr(self.fit_result, 'objective_value'))
+        self.assertTrue(hasattr(self.fit_result, 'r_squared'))
+        self.assertTrue(hasattr(self.fit_result, 'chi_squared'))
+        self.assertFalse(hasattr(self.fit_result, 'log_likelihood'))
+        self.assertFalse(hasattr(self.fit_result, 'likelihood'))
 
-        fit = Fit(new, x=xdata, y=ydata)
-        fit_result = fit.execute()
-        new_result = pickle.loads(pickle.dumps(fit_result))
-        self.assertEqual(fit_result.__dict__.keys(), new_result.__dict__.keys())
+        self.assertTrue(hasattr(self.minpack_result, 'objective_value'))
+        self.assertTrue(hasattr(self.minpack_result, 'r_squared'))
+        self.assertTrue(hasattr(self.minpack_result, 'chi_squared'))
+        self.assertFalse(hasattr(self.minpack_result, 'log_likelihood'))
+        self.assertFalse(hasattr(self.minpack_result, 'likelihood'))
+
+        self.assertTrue(hasattr(self.likelihood_result, 'objective_value'))
+        self.assertFalse(hasattr(self.likelihood_result, 'r_squared'))
+        self.assertFalse(hasattr(self.likelihood_result, 'chi_squared'))
+        self.assertTrue(hasattr(self.likelihood_result, 'log_likelihood'))
+        self.assertTrue(hasattr(self.likelihood_result, 'likelihood'))
 
 if __name__ == '__main__':
     unittest.main()
