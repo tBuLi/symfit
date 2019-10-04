@@ -789,14 +789,12 @@ class GradientModel(CallableModel, BaseGradientModel):
     """
     def __init__(self, *args, **kwargs):
         super(GradientModel, self).__init__(*args, **kwargs)
-        self.jacobian_model = jacobian_from_model(self)
 
-    def _set_params(self, value):
-        super(GradientModel, self)._set_params(value)
-        if hasattr(self, 'jacobian_model'):
-            self.jacobian_model.params = value
-    # Properties cannot use `super` unless when used in this way
-    params = property(CallableModel._get_params, _set_params)
+    @cached_property
+    def jacobian_model(self):
+        jac_model = jacobian_from_model(self)
+        jac_model.__signature__ = self.__signature__
+        return jac_model
 
     @cached_property
     def jacobian(self):
@@ -843,14 +841,12 @@ class HessianModel(GradientModel):
     """
     def __init__(self, *args, **kwargs):
         super(HessianModel, self).__init__(*args, **kwargs)
-        self.hessian_model = hessian_from_model(self)
 
-    def _set_params(self, value):
-        super(HessianModel, self)._set_params(value)
-        if hasattr(self, 'hessian_model'):
-            self.hessian_model.params = value
-    # Properties cannot use `super` unless when used in this way
-    params = property(GradientModel._get_params, _set_params)
+    @cached_property
+    def hessian_model(self):
+        hess_model = hessian_from_model(self)
+        hess_model.__signature__ = self.__signature__
+        return hess_model
 
     @property
     def hessian(self):
