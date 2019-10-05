@@ -593,13 +593,14 @@ class BaseCallableModel(BaseModel):
              '`numerical_components`.').format(self.__class__)
         )
 
-    def _get_params(self):
+    @property
+    def params(self):
         return self._params
 
-    def _set_params(self, value):
+    @params.setter
+    def params(self, value):
         self._params = value
         self.__signature__ = self._make_signature()
-    params = property(_get_params, _set_params)  # Properties cannot use `super`
 
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
@@ -793,7 +794,7 @@ class GradientModel(CallableModel, BaseGradientModel):
     @cached_property
     def jacobian_model(self):
         jac_model = jacobian_from_model(self)
-        jac_model.__signature__ = self.__signature__
+        jac_model.params = self.params
         return jac_model
 
     @cached_property
@@ -845,7 +846,7 @@ class HessianModel(GradientModel):
     @cached_property
     def hessian_model(self):
         hess_model = hessian_from_model(self)
-        hess_model.__signature__ = self.__signature__
+        hess_model.params = self.params
         return hess_model
 
     @property
