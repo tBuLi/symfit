@@ -516,14 +516,14 @@ class Fit(HasCovarianceMatrix):
             # that, otherwise we let the minimizer estimate it itself.
             # Hence the check of jacobian_model, as this is the
             # py function version of the analytical jacobian.
-            if hasattr(self.model, 'jacobian_model') and hasattr(self.objective, 'eval_jacobian'):
+            if hasattr(self.model, 'eval_jacobian') and hasattr(self.objective, 'eval_jacobian'):
                 minimizer_options['jacobian'] = self.objective.eval_jacobian
         if issubclass(minimizer, HessianMinimizer):
             # If an analytical version of the Hessian exists we should use
             # that, otherwise we let the minimizer estimate it itself.
             # Hence the check of hessian_model, as this is the
             # py function version of the analytical hessian.
-            if hasattr(self.model, 'hessian_model') and hasattr(self.objective, 'eval_hessian'):
+            if hasattr(self.model, 'eval_hessian') and hasattr(self.objective, 'eval_hessian'):
                 minimizer_options['hessian'] = self.objective.eval_hessian
 
         if issubclass(minimizer, ConstrainedMinimizer):

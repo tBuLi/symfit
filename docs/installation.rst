@@ -4,10 +4,12 @@ If you are using pip, you can simply run ::
 
   pip install symfit
 
-from your terminal. If you are using linux and do not use pip, you can download
-the source from https://github.com/tBuLi/symfit and install manually.
+from your terminal. If you prefer to use `conda`, run ::
 
-Are you not on linux and you do not use pip? That's your own mess.
+  conda install -c conda-forge symfit
+
+instead. Lastly, if you prefer to install manually you can download
+the source from https://github.com/tBuLi/symfit.
 
 Contrib module
 --------------
@@ -18,8 +20,4 @@ interactive guesses, install `symfit` using::
 
 Dependencies
 ------------
-::
-
-  pip install sympy
-  pip install numpy
-  pip install scipy
+See `requirements.txt` for a full list.

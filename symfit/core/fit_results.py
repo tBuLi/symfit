@@ -112,7 +112,7 @@ class FitResults(object):
         """
         try:
             return np.sqrt(self.variance(param))
-        except AttributeError:
+        except (AttributeError, TypeError):
             # This happens when variance returns None.
             return None
 
