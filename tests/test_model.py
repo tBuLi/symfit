@@ -31,8 +31,8 @@ def test_model_as_dict():
     model_dict = OrderedDict([(y_1, a * x**2), (y_2, 2 * x * b)])
     model = Model(model_dict)
 
-    assert id(model[y_1]) == id(model_dict[y_1])
-    assert id(model[y_2]) == id(model_dict[y_2])
+    assert model[y_1] is model_dict[y_1]
+    assert model[y_2] is model_dict[y_2]
     assert len(model) == len(model_dict)
     assert model.items() == model_dict.items()
     assert model.keys() == model_dict.keys()
@@ -95,7 +95,7 @@ def test_neg():
         elif key in model.interdependent_vars:
             assert model[key] == model_neg[key]
         else:
-            raise Exception('There should be no such variable')
+            pytest.fail()
 
 
 def test_CallableNumericalModel():
@@ -118,38 +118,30 @@ def test_CallableNumericalModel():
     faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
                                           [], [a, b])
     assert not model.__signature__ == faulty_model.__signature__
-
-    try:
+    with pytest.raises(TypeError):
         # This is an incorrect signature, even though the lambda function is
         # correct. Should fail.
         faulty_model(xdata, 5.5, 15.0)
-        assert False
-    except TypeError:
-        assert True
-
+    
     # Faulty model whose components do not all accept all of the args
     faulty_model = CallableNumericalModel(
         {y: lambda x, a, b: a * x + b, z: lambda x, a: x**a}, [x], [a, b]
     )
     assert model.__signature__ == faulty_model.__signature__
-    try:
+
+    with pytest.raises(TypeError):
         # Lambda got an unexpected keyword 'b'
         faulty_model(xdata, 5.5, 15.0)
-        assert False
-    except TypeError:
-        assert True
 
     # Faulty model with a wrongly named argument
     faulty_model = CallableNumericalModel(
         {y: lambda x, a, c=5: a * x + c}, [x], [a, b]
     )
     assert model.__signature__ == faulty_model.__signature__
-    try:
+
+    with pytest.raises(TypeError):
         # Lambda got an unexpected keyword 'b'
         faulty_model(xdata, 5.5, 15.0)
-        assert False
-    except TypeError:
-        assert True
 
     # Correct version of the previous model
     numerical_model = CallableNumericalModel(
@@ -363,25 +355,18 @@ def test_interdependency_invalid():
     a, b, c = parameters('a, b, c')
     x, y, z = variables('x, y, z')
 
-    try:
+    with pytest.raises(ModelError):
         # Invalid, parameters can not be keys
         model_dict = {
             c: a ** 3 * x + b ** 2,
             z: c ** 2 + a * b
         }
         model = Model(model_dict)
-        assert False
-    except ModelError:
-        assert True
 
-    try:
+    with pytest.raises(ModelError):
         # Invalid, parameters can not be keys
         model_dict = {c: a ** 3 * x + b ** 2}
         model = Model(model_dict)
-        assert False
-    except ModelError:
-        assert True
-
 
 def test_interdependency():
     a, b = parameters('a, b')
