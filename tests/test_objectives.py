@@ -220,11 +220,9 @@ def test_data_sanity():
                     model.sigmas[y]: np.ones_like(ydata)}
             overcomplete_data = {x: xdata, y: ydata, z: ydata,
                                  model.sigmas[y]: np.ones_like(ydata)}
-        try:
+        with pytest.raises(KeyError):
             obj = objective(model, data=incomplete_data)
-            assert False
-        except KeyError:
-            assert True
+
         obj = objective(model, data=data)
         # Overcomplete data has to be allowed, since constraints share their
         # data with models.
