@@ -65,20 +65,19 @@ def test_minimize():
 
     fit_result = fit.execute()
 
-    assert fit_result.value(x) / res.x[0] == pytest.approx(1.0, 1e-6)
-    assert fit_result.value(y) / res.x[1] == pytest.approx(1.0, 1e-6)
+    assert fit_result.value(x) == pytest.approx(res.x[0], 1e-6)
+    assert fit_result.value(y) == pytest.approx(res.x[1], 1e-6)
 
     # Same test, but with constraints in place.
     res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
                    constraints=cons, method='SLSQP', options={'disp': False})
 
-    from symfit.core.minimizers import SLSQP
     fit = Fit(- model, constraints=constraints)
     assert fit.constraints[0].constraint_type == Ge
     assert fit.constraints[1].constraint_type == Eq
     fit_result = fit.execute()
-    assert fit_result.value(x), res.x[0] == pytest.approx(1e-6)
-    assert fit_result.value(y), res.x[1] == pytest.approx(1e-6)
+    assert fit_result.value(x) == pytest.approx(res.x[0], 1e-6)
+    assert fit_result.value(y) == pytest.approx(res.x[1], 1e-6)
 
 
 def test_constraint_types():
@@ -89,11 +88,9 @@ def test_constraint_types():
 
     # These types are not allowed constraints.
     for relation in [Lt, Gt, Ne]:
-        try:
+        with pytest.raises(ModelError):
             Fit(model, constraints=[relation(x, y)])
-            assert False
-        except ModelError:
-            assert True
+
 
     # Should execute without problems.
     for relation in [Eq, Ge, Le]:
@@ -218,15 +215,13 @@ def test_basinhopping_2d():
 
     np.random.seed(555)
     x1, x2 = parameters('x1, x2', value=x0)
-    try:
+
+    with pytest.raises(TypeError):
         fit = BasinHopping(
             func2d_symfit, [x1, x2],
             local_minimizer=NelderMead(func2d_symfit, [x1, x2],
                                        jacobian=jac2d_symfit)
         )
-        assert False
-    except TypeError:
-        assert True
 
     fit = BasinHopping(
         func2d_symfit, [x1, x2],
@@ -236,8 +231,8 @@ def test_basinhopping_2d():
     assert isinstance(fit.local_minimizer.jacobian, MinimizeModel)
     assert isinstance(fit.local_minimizer.jacobian.model,
                       CallableNumericalModel)
-    assert res.x[0] / fit_result.value(x1) == 1.0
-    assert res.x[1] / fit_result.value(x2) == 1.0
+    assert res.x[0] == fit_result.value(x1)
+    assert res.x[1] == fit_result.value(x2)
     assert res.fun == fit_result.objective_value
 
     # Now compare with the symbolic equivalent
