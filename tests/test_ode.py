@@ -44,10 +44,9 @@ def test_known_solution():
     fit = Fit(sol, t=tdata, y=ydata)
     fit_result = fit.execute()
 
-    assert ode_result.value(p) / fit_result.value(p) == pytest.approx(1, 1e-2)
-    assert ode_result.r_squared / \
-        fit_result.r_squared == pytest.approx(1, 1e-4)
-    assert ode_result.stdev(p) / fit_result.stdev(p) == pytest.approx(1, 1e-2)
+    assert ode_result.value(p) == pytest.approx(fit_result.value(p), 1e-2)
+    assert ode_result.r_squared == pytest.approx(fit_result.r_squared, 1e-4)
+    assert ode_result.stdev(p) == pytest.approx(fit_result.stdev(p), 1e-2)
 
 
 def test_van_der_pol():
@@ -128,21 +127,15 @@ def test_simple_kinetics():
 
     fit = Fit(ode_model, t=tdata, a=adata, b=None, minimizer=MINPACK)
     ode_result = fit.execute()
-    assert ode_result.value(
-        k) / fit_result.value(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.stdev(
-        k) / fit_result.stdev(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.r_squared / \
-        fit_result.r_squared == pytest.approx(1, 1e-4)
+    assert ode_result.value(k) == pytest.approx(fit_result.value(k), 1e-4)
+    assert ode_result.stdev(k) == pytest.approx(fit_result.stdev(k), 1e-4)
+    assert ode_result.r_squared == pytest.approx(fit_result.r_squared, 1e-4)
 
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
     ode_result = fit.execute()
-    assert ode_result.value(
-        k) / fit_result.value(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.stdev(
-        k) / fit_result.stdev(k) == pytest.approx(1.0, 1e-4)
-    assert ode_result.r_squared / \
-        fit_result.r_squared == pytest.approx(1, 1e-4)
+    assert ode_result.value(k) == pytest.approx(fit_result.value(k), 1e-4)
+    assert ode_result.stdev(k) == pytest.approx(fit_result.stdev(k), 1e-4)
+    assert ode_result.r_squared == pytest.approx(fit_result.r_squared, 1e-4)
 
 
 def test_single_eval():
@@ -227,8 +220,5 @@ def test_odemodel_sanity():
     model_dict = {
         D(a, t): - k * a * t,
     }
-    try:
+    with pytest.raises(RuntimeWarning):
         fit = Fit(model_dict, t=tdata, a=adata)
-        assert False
-    except RuntimeWarning:
-        assert True
