@@ -111,11 +111,8 @@ def test_CallableNumericalModel():
     xdata = np.linspace(0, 10)
     ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
 
-    # TODO #assert model(x=xdata, a=5.5, b=15.0) == pytest.approx(numerical_model(x=xdata, a=5.5, b=15.0))
-    np.testing.assert_almost_equal(
-        model(x=xdata, a=5.5, b=15.0),
-        numerical_model(x=xdata, a=5.5, b=15.0)
-    )
+    assert np.array(model(x=xdata, a=5.5, b=15.0)) == pytest.approx(
+        np.array(numerical_model(x=xdata, a=5.5, b=15.0)))
 
     faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
                                           [], [a, b])
@@ -155,11 +152,9 @@ def test_CallableNumericalModel():
         {y: lambda x, a, b: a * x + b, z: x ** a}, [x],
         [a, b]
     )
-    # TODO #assert numerical_model(x=xdata, a=5.5, b=15.0) == pytest.approx(mixed_model(x=xdata, a=5.5, b=15.0))
-    np.testing.assert_almost_equal(
-        numerical_model(x=xdata, a=5.5, b=15.0),
-        mixed_model(x=xdata, a=5.5, b=15.0)
-    )
+   
+    assert np.array(numerical_model(x=xdata, a=5.5, b=15.0)) == pytest.approx(
+        np.array(mixed_model(x=xdata, a=5.5, b=15.0)))
     zdata = mixed_model(x=xdata, a=5.5, b=15.0).z + np.random.normal(0, 1)
 
     # Check if the fits are the same
