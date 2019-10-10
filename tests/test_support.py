@@ -174,10 +174,18 @@ def test_parameters():
     assert not x1.fixed
     assert not x2.fixed
     with pytest.raises(ValueError):
-        x1, x2 = parameters('x1, x2', value=[2.0, 1.3, 3.0], min=0.0)
+        x1, x2 = parameters('x1, x2',
+                            value=[2.0, 1.3, 3.0], 
+                            min=0.0
+                        )
 
-    x1, x2 = parameters('x1, x2', value=[
-                        2.0, 1.3], min=[-30, -10], max=[300, 100], fixed=[True, False])
+    x1, x2 = parameters('x1, x2', 
+                        value=[2.0, 1.3], 
+                        min=[-30, -10], 
+                        max=[300, 100], 
+                        fixed=[True, False]
+                    )
+                    
     assert x1.min == -30
     assert x2.min == -10
     assert x1.max == 300
