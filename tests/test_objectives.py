@@ -108,11 +108,9 @@ def test_LeastSquares():
     assert eval_exact[0] == pytest.approx(eval_numerical)
     assert isinstance(eval_numerical, float)
     assert isinstance(eval_exact[0][0], float)
-    np.testing.assert_almost_equal(np.squeeze(jac_exact[0], axis=-1),
-                                   jac_numerical)
+    assert np.squeeze(jac_exact[0], axis=-1) == pytest.approx(jac_numerical)
     assert isinstance(jac_numerical, np.ndarray)
-    np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
-                                   hess_numerical)
+    assert np.squeeze(hess_exact[0], axis=-1) == pytest.approx(hess_numerical)
     assert isinstance(hess_numerical, np.ndarray)
 
     fit = Fit(chi2_exact, x=xdata, y=ydata, objective=MinimizeModel)
@@ -164,9 +162,9 @@ def test_LogLikelihood():
     assert jac_exact[0].shape == (2, 1)
     assert hess_exact[0].shape == (2, 2, 1)
     # Test if identical to MinimizeModel
-    np.testing.assert_almost_equal(eval_exact[0], eval_minimizemodel)
-    np.testing.assert_almost_equal(jac_exact[0], jac_minimizemodel)
-    np.testing.assert_almost_equal(hess_exact[0], hess_minimizemodel)
+    assert eval_exact[0] == pytest.approx(eval_minimizemodel)
+    assert jac_exact[0] == pytest.approx(jac_minimizemodel)
+    assert hess_exact[0] == pytest.approx(hess_minimizemodel)
 
     # Test if these two models have the same call, jacobian, and hessian.
     # Since models always have components as their first dimension, we have
@@ -174,11 +172,9 @@ def test_LogLikelihood():
     assert eval_exact.y == pytest.approx(eval_numerical)
     assert isinstance(eval_numerical, float)
     assert isinstance(eval_exact.y[0], float)
-    np.testing.assert_almost_equal(np.squeeze(jac_exact[0], axis=-1),
-                                   jac_numerical)
+    assert np.squeeze(jac_exact[0], axis=-1) == pytest.approx(jac_numerical)
     assert isinstance(jac_numerical, np.ndarray)
-    np.testing.assert_almost_equal(np.squeeze(hess_exact[0], axis=-1),
-                                   hess_numerical)
+    assert np.squeeze(hess_exact[0], axis=-1) == pytest.approx(hess_numerical)
     assert isinstance(hess_numerical, np.ndarray)
 
     fit = Fit(logL_exact, x=xdata, objective=MinimizeModel)
