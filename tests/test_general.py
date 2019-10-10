@@ -121,9 +121,9 @@ def test_vector_fitting():
     )
     fit_result = fit.execute()
 
-    assert fit_result.value(b) / 1.006143e+02 == pytest.approx(1.0, 1e-4)
-    assert fit_result.value(c) / 7.085713e+01 == pytest.approx(1.0, 1e-5)
-    assert fit_result.value(a) / 9.985691 == pytest.approx(1.0, 1e-5)
+    assert fit_result.value(a) == pytest.approx(np.mean(xdata[0]), 1e-5)
+    assert fit_result.value(b) == pytest.approx(np.mean(xdata[1]), 1e-4) 
+    assert fit_result.value(c) == pytest.approx(np.mean(xdata[2]), 1e-5) 
 
 
 def test_vector_none_fitting():
@@ -408,7 +408,7 @@ def test_2_gaussian_2d_fitting():
     img = model(x=xx, y=yy, **fit_result.params)[0]
     img_g_1 = g_1(x=xx, y=yy, **fit_result.params)
     img_g_2 = g_2(x=xx, y=yy, **fit_result.params)
-    np.testing.assert_array_equal(img, img_g_1 + img_g_2)
+    assert img == pytest.approx(img_g_1 + img_g_2)
 
     # Equal up to some precision. Not much obviously.
     assert fit_result.value(x0_1) == pytest.approx(0.7, 1e-3)
@@ -513,14 +513,14 @@ def test_likelihood_fitting_exponential():
     likelihood = np.product(pdf_i)
     loglikelihood = np.sum(np.log(pdf_i))
 
-    assert fit_result.value(b) / mean == pytest.approx(1, 1e-3)
-    assert fit_result.value(b) / mean == pytest.approx(1, 1e-3)
-    assert fit_result.value(b) / mean == pytest.approx(1, 1e-3)
-    assert fit_result.value(b) / mean == pytest.approx(1, 1e-3)
-    assert fit_result.value(b) / mean == pytest.approx(1, 1e-3)
-    assert fit_result.value(b) / mean == pytest.approx(1, 1e-3)
-    assert fit_result.value(b) / stdev == pytest.approx(1, 1e-3)
-    assert fit_result.stdev(b) / mean_stdev == pytest.approx(1, 1e-3)
+    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
+    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
+    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
+    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
+    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
+    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
+    assert fit_result.value(b) == pytest.approx(stdev, 1e-3)
+    assert fit_result.stdev(b) == pytest.approx(mean_stdev, 1e-3)
 
     assert likelihood == pytest.approx(fit_result.likelihood)
     assert loglikelihood == pytest.approx(fit_result.log_likelihood)
@@ -548,9 +548,9 @@ def test_likelihood_fitting_gaussian():
     fit = Fit(pdf, xdata, objective=LogLikelihood)
     fit_result = fit.execute()
 
-    assert fit_result.value(mu) / mean == pytest.approx(1, 1e-6)
-    assert fit_result.stdev(mu) / mean_stdev == pytest.approx(1, 1e-3)
-    assert fit_result.value(sig) / np.std(xdata) == pytest.approx(1, 1e-6)
+    assert fit_result.value(mu) == pytest.approx(mean, 1e-6)
+    assert fit_result.stdev(mu) == pytest.approx(mean_stdev, 1e-3)
+    assert fit_result.value(sig) == pytest.approx(np.std(xdata), 1e-6)
 
 
 def test_likelihood_fitting_bivariate_gaussian():
@@ -580,16 +580,15 @@ def test_likelihood_fitting_bivariate_gaussian():
     fit = Fit(pdf, x=xdata, y=ydata, objective=LogLikelihood)
     fit_result = fit.execute()
 
-    assert fit_result.value(x0) / mean[0] == pytest.approx(1, 1e-2)
-    assert fit_result.value(y0) / mean[1] == pytest.approx(1, 1e-2)
-    assert fit_result.value(
-        sig_x) / np.sqrt(cov[0, 0]) == pytest.approx(1, 1e-2)
-    assert fit_result.value(
-        sig_y) / np.sqrt(cov[1, 1]) == pytest.approx(1, 1e-2)
-    assert fit_result.value(rho) / r == pytest.approx(1, 1e-2)
+    assert fit_result.value(x0) == pytest.approx(mean[0], 1e-2)
+    assert fit_result.value(y0) == pytest.approx(mean[1], 1e-2)
+    assert fit_result.value(sig_x) == pytest.approx(np.sqrt(cov[0, 0]), 1e-2)
+    assert fit_result.value(sig_y) == pytest.approx(np.sqrt(cov[1, 1]), 1e-2)
+    assert fit_result.value(rho) == pytest.approx(r, 1e-2)
 
     marginal = integrate(pdf, (y, -oo, oo), conds='none')
     fit = Fit(marginal, x=xdata, objective=LogLikelihood)
+    
     try:
         # Should raise a NameError, not a TypeError, see #219
         fit.execute()
@@ -700,23 +699,23 @@ def test_error_advanced():
     fit_result = fit.execute()
 
     # Same as Mathematica default behavior.
-    assert fit_result.value(a) / 2.9956 == pytest.approx(1, 1e-4)
-    assert fit_result.value(b) / 0.563212 == pytest.approx(1, 1e-4)
-    assert fit_result.value(c) / 3.59732 == pytest.approx(1, 1e-4)
-    assert fit_result.stdev(a) / 0.278304 == pytest.approx(1, 1e-4)
-    assert fit_result.stdev(b) / 0.224107 == pytest.approx(1, 1e-4)
-    assert fit_result.stdev(c) / 0.980352 == pytest.approx(1, 1e-4)
+    assert fit_result.value(a) == pytest.approx(2.9956, 1e-4)
+    assert fit_result.value(b) == pytest.approx(0.563212, 1e-4)
+    assert fit_result.value(c) == pytest.approx(3.59732, 1e-4)
+    assert fit_result.stdev(a) == pytest.approx(0.278304, 1e-4)
+    assert fit_result.stdev(b) == pytest.approx(0.224107, 1e-4)
+    assert fit_result.stdev(c) == pytest.approx(0.980352, 1e-4)
 
     fit = Fit(model, xdata, ydata, zdata, absolute_sigma=True)
     fit_result = fit.execute()
     # Same as Mathematica in Measurement error mode, but without suplying
     # any errors.
-    assert fit_result.value(a) / 2.9956 == pytest.approx(1, 1e-4)
-    assert fit_result.value(b) / 0.563212 == pytest.approx(1, 1e-4)
-    assert fit_result.value(c) / 3.59732 == pytest.approx(1, 1e-4)
-    assert fit_result.stdev(a) / 0.643259 == pytest.approx(1, 1e-4)
-    assert fit_result.stdev(b) / 0.517992 == pytest.approx(1, 1e-4)
-    assert fit_result.stdev(c) / 2.26594 == pytest.approx(1, 1e-4)
+    assert fit_result.value(a) == pytest.approx(2.9956, 1e-4)
+    assert fit_result.value(b) == pytest.approx(0.563212, 1e-4)
+    assert fit_result.value(c) == pytest.approx(3.59732, 1e-4)
+    assert fit_result.stdev(a) == pytest.approx(0.643259, 1e-4)
+    assert fit_result.stdev(b) == pytest.approx(0.517992, 1e-4)
+    assert fit_result.stdev(c) == pytest.approx(2.26594, 1e-4)
 
     fit = Fit(model, xdata, ydata, zdata, sigma_z=errors)
     fit_result = fit.execute()
@@ -954,7 +953,7 @@ def test_model_from_dict():
             y_2: b * x**2
         })
     except Exception as error:
-        self.fail('test_model_from_dict raised {}'.format(error))
+        pytest.fail('test_model_from_dict raised {}'.format(error))
 
 
 def test_version():
