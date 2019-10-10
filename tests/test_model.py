@@ -110,9 +110,11 @@ def test_CallableNumericalModel():
 
     xdata = np.linspace(0, 10)
     ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
+
+    # TODO #assert model(x=xdata, a=5.5, b=15.0) == pytest.approx(numerical_model(x=xdata, a=5.5, b=15.0))
     np.testing.assert_almost_equal(
         model(x=xdata, a=5.5, b=15.0),
-        numerical_model(x=xdata, a=5.5, b=15.0),
+        numerical_model(x=xdata, a=5.5, b=15.0)
     )
 
     faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
@@ -153,6 +155,7 @@ def test_CallableNumericalModel():
         {y: lambda x, a, b: a * x + b, z: x ** a}, [x],
         [a, b]
     )
+    # TODO #assert numerical_model(x=xdata, a=5.5, b=15.0) == pytest.approx(mixed_model(x=xdata, a=5.5, b=15.0))
     np.testing.assert_almost_equal(
         numerical_model(x=xdata, a=5.5, b=15.0),
         mixed_model(x=xdata, a=5.5, b=15.0)
@@ -381,8 +384,7 @@ def test_interdependency():
     assert callable_model.dependent_vars == [z]
     assert callable_model.params == [a, b]
     assert callable_model.connectivity_mapping == {y: {a, b, x}, z: {a, b, y}}
-    np.testing.assert_almost_equal(callable_model(x=3, a=1, b=2),
-                                   np.atleast_2d([7, 51]).T)
+    assert callable_model(x=3, a=1, b=2) == pytest.approx(np.atleast_2d([7, 51]).T)
     for var, func in callable_model.vars_as_functions.items():
         assert(set(str(x) for x in callable_model.connectivity_mapping[var]) ==
                set(str(x.__class__) if isinstance(x, Function) else str(x)
@@ -450,14 +452,10 @@ def test_interdependency():
     assert hess_model.independent_vars == [x]
 
     model = Model(model_dict)
-    np.testing.assert_almost_equal(model(x=3, a=1, b=2),
-                                   np.atleast_2d([7, 51]).T)
-    np.testing.assert_almost_equal(model.eval_jacobian(x=3, a=1, b=2),
-                                   np.array([[[9], [4]], [[128], [57]]]))
-    np.testing.assert_almost_equal(
-        model.eval_hessian(x=3, a=1, b=2),
-        np.array([[[[18], [0]], [[0], [2]]],
-                  [[[414], [73]], [[73], [60]]]]))
+    assert model(x=3, a=1, b=2) == pytest.approx(np.atleast_2d([7, 51]).T)
+    assert model.eval_jacobian(x=3, a=1, b=2) == pytest.approx(np.array([[[9], [4]], [[128], [57]]]))
+    assert model.eval_hessian(x=3, a=1, b=2) == pytest.approx(
+        np.array([[[[18], [0]], [[0], [2]]],[[[414], [73]], [[73], [60]]]]))
 
     assert model.__signature__ == model.jacobian_model.__signature__
     assert model.__signature__ == model.hessian_model.__signature__
