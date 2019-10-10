@@ -7,7 +7,6 @@ from symfit.core.objectives import (
 )
 from symfit.core.support import keywordonly
 
-
 class FitResults(object):
     """
     Class to display the results of a fit in a nice and unambiguous way.
@@ -66,8 +65,7 @@ class FitResults(object):
             value_str = '{:e}'.format(value) if value is not None else 'None'
             stdev = self.stdev(p)
             stdev_str = '{:e}'.format(stdev) if stdev is not None else 'None'
-            res += '{:10}{} {}\n'.format(p.name,
-                                         value_str, stdev_str, width=20)
+            res += '{:10}{} {}\n'.format(p.name, value_str, stdev_str, width=20)
 
         res += '{:<22} {}\n'.format('Status message', self.status_message)
         res += '{:<22} {}\n'.format('Number of iterations', self.iterations)
@@ -112,9 +110,10 @@ class FitResults(object):
         :param param: ``Parameter`` Instance.
         :return: Standard deviation of ``param``.
         """
-        if self.variance(param) is not None:
+        try:
             return np.sqrt(self.variance(param))
-        else:
+        except AttributeError:
+            # This happens when variance returns None.
             return None
 
     def value(self, param):
@@ -181,14 +180,12 @@ class FitResults(object):
             except ValueError as err:
                 # When dealing with arrays, we need to use numpy for comparison
                 if isinstance(one_dict[key], dict):
-                    assert FitResults._array_safe_dict_eq(
-                        one_dict[key], other_dict[key])
+                    assert FitResults._array_safe_dict_eq(one_dict[key], other_dict[key])
                 else:
                     assert np.allclose(one_dict[key], other_dict[key])
             except AssertionError:
                 return False
-        else:
-            return True
+        else: return True
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -199,8 +196,7 @@ class FitResults(object):
             #       minimizers.
             minimizer_cls = [type(state['minimizer'])]
             minimizer_cls.extend(
-                [type(minimizer)
-                 for minimizer in state['minimizer'].minimizers]
+                [type(minimizer) for minimizer in state['minimizer'].minimizers]
             )
         else:
             minimizer_cls = type(state['minimizer'])
@@ -251,14 +247,11 @@ class FitResults(object):
             gof_qualifiers['chi_squared'] = chi_squared
         elif isinstance(self.objective, LeastSquares):
             # Undo the normalization to get back chi^2.
-            gof_qualifiers['chi_squared'] = 2 * \
-                gof_qualifiers['objective_value']
+            gof_qualifiers['chi_squared'] = 2 * gof_qualifiers['objective_value']
         elif isinstance(self.objective, LogLikelihood):
             # We undo the minus sign we have included to maximize likelihood
-            gof_qualifiers['log_likelihood'] = - \
-                gof_qualifiers['objective_value']
-            gof_qualifiers['likelihood'] = np.exp(
-                gof_qualifiers['log_likelihood'])
+            gof_qualifiers['log_likelihood'] = - gof_qualifiers['objective_value']
+            gof_qualifiers['likelihood'] = np.exp(gof_qualifiers['log_likelihood'])
         return gof_qualifiers
 
 
@@ -279,8 +272,6 @@ def r_squared(model, fit_result, data):
     f_is = model(*x_is, **fit_result.params)._asdict()
     # f_is also contains the evaluated interdependent_vars, skip those.
     f_is = [f_is[var] for var in model.dependent_vars]
-    SS_res = np.sum([np.sum((y_i - f_i)**2)
-                     for y_i, f_i in zip(y_is, f_is) if y_i is not None])
-    SS_tot = np.sum([np.sum((y_i - y_bar)**2)
-                     for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
+    SS_res = np.sum([np.sum((y_i - f_i)**2) for y_i, f_i in zip(y_is, f_is) if y_i is not None])
+    SS_tot = np.sum([np.sum((y_i - y_bar)**2) for y_i, y_bar in zip(y_is, y_bars) if y_i is not None])
     return 1 - SS_res/SS_tot
