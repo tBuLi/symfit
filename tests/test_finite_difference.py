@@ -214,7 +214,7 @@ def test_harmonic_oscillator_errors():
     result = fit.execute()
 
     assert result.value(k) == pytest.approx(ode_result.value(k), 1e-4)
-    assert result.stdev(k) / ode_result.stdev(k) == pytest.approx(1, 1e-2)
+    assert result.stdev(k) == pytest.approx(ode_result.stdev(k), 1e-2)
     assert result.stdev(k) >= ode_result.stdev(k)
 
 
