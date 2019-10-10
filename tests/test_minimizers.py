@@ -58,8 +58,7 @@ class SqrtLeastSquares(LeastSquares):
         chi2 = super(SqrtLeastSquares, self).__call__(*args, **kwargs)
         chi2_jac = super(SqrtLeastSquares, self).eval_jacobian(*args, **kwargs)
         chi2_hess = super(SqrtLeastSquares, self).eval_hessian(*args, **kwargs)
-        return - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) \
-            + 0.5 * (1 / sqrt_chi2) * chi2_hess
+        return - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) + 0.5 * (1 / sqrt_chi2) * chi2_hess
 
 
 def subclasses(base, leaves_only=True):
@@ -122,10 +121,8 @@ def test_custom_objective():
     fit_custom_result = fit_custom.execute()
 
     assert isinstance(fit_custom_result, FitResults)
-    assert fit_custom_result.value(
-        a) / fit_result.value(a) == pytest.approx(1.0, 1e-5)
-    assert fit_custom_result.value(
-        b) / fit_result.value(b) == pytest.approx(1.0, 1e-4)
+    assert fit_custom_result.value(a) == pytest.approx(fit_result.value(a), 1e-5)
+    assert fit_custom_result.value(b) == pytest.approx(fit_result.value(b), 1e-4)
 
     # New preferred usage, multi component friendly.
     with pytest.raises(TypeError):
@@ -146,10 +143,8 @@ def test_custom_objective():
     fit_custom_result = fit_custom.execute()
 
     assert isinstance(fit_custom_result, FitResults)
-    assert fit_custom_result.value(
-        a) / fit_result.value(a) == pytest.approx(1.0, 1e-5)
-    assert fit_custom_result.value(
-        b) / fit_result.value(b) == pytest.approx(1.0, 1e-4)
+    assert fit_custom_result.value(a) == pytest.approx(fit_result.value(a), 1e-5)
+    assert fit_custom_result.value(b) == pytest.approx(fit_result.value(b), 1e-4)
 
 
 def test_custom_parameter_names():
@@ -270,8 +265,7 @@ def test_pickle():
                             assert isinstance(val1, val2.__class__)
                             if key == 'constraints':
                                 assert val1.model.constraint_type == val2.model.constraint_type
-                                assert list(val1.model.model_dict.values())[
-                                    0] == list(val2.model.model_dict.values())[0]
+                                assert list(val1.model.model_dict.values())[0] == list(val2.model.model_dict.values())[0]
                                 assert val1.model.independent_vars == val2.model.independent_vars
                                 assert val1.model.params == val2.model.params
                                 assert val1.model.__signature__ == val2.model.__signature__
@@ -284,12 +278,10 @@ def test_pickle():
                                     # their dicts are equal, because no
                                     # __eq__ is implemented on
                                     # NonLinearConstraint
-                                    assert len(val1.__dict__) == len(
-                                        val2.__dict__)
+                                    assert len(val1.__dict__) == len(val2.__dict__)
                                     for key in val1.__dict__:
                                         try:
-                                            assert val1.__dict__[
-                                                key] == val2.__dict__[key]
+                                            assert val1.__dict__[key] == val2.__dict__[key]
                                         except AssertionError:
                                             assert isinstance(
                                                 val1.__dict__[key],
@@ -312,8 +304,7 @@ def test_pickle():
         res_before = fit.execute()
         np.random.seed(2)
         res_after = pickled_fit.execute()
-        assert FitResults._array_safe_dict_eq(
-            res_before.__dict__, res_after.__dict__)
+        assert FitResults._array_safe_dict_eq(res_before.__dict__, res_after.__dict__)
 
 
 def test_multiprocessing():
@@ -352,7 +343,7 @@ def test_multiprocessing():
         a_results = [res.params['a'] for res in results]
         minimizer_results = [res.minimizer for res in results]
         # Check the results
-        np.testing.assert_almost_equal(a_values, a_results, decimal=2)
+        assert a_values == pytest.approx(a_results, 1e-2)
         for result in results:
             # Check that we are actually using the right minimizer
             if isinstance(result.minimizer, ChainedMinimizer):
