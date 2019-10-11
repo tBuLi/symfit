@@ -19,7 +19,7 @@ a, b = parameters('a, b')
 
 mixed_model = CallableNumericalModel(
     {y1: nonanalytical_func, y2: x ** a},
-    connectivity_mapping={y1: {x, a, b}, y2: {x, a}}
+    connectivity_mapping={y1: {x, a, b}}
 )
 
 # Generate data
