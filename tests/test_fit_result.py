@@ -214,7 +214,7 @@ class TestTestResult():
                     assert type(v1) == type(v2)
                 elif k != 'minimizer_output':  # Ignore minimizer_output
                     if isinstance(v1, np.ndarray):
-                        np.testing.assert_almost_equal(v1, v2)
+                        assert v1 == pytest.approx(v2)
                     else:
                         assert v1 == v2
 
