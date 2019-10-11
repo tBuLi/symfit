@@ -54,8 +54,8 @@ def test_simple_kinetics():
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
     fit_result = fit.execute(tol=1e-9)
 
-    assert fit_result.value(k) / 4.302875e-01 == pytest.approx(1.0, 1e-5)
-    assert fit_result.stdev(k) / 6.447068e-03 == pytest.approx(1.0, 1e-5)
+    assert fit_result.value(k) == pytest.approx(4.302875e-01, 1e-5)
+    assert fit_result.stdev(k) == pytest.approx(6.447068e-03, 1e-5)
 
 
 def test_global_fitting():
@@ -370,17 +370,12 @@ def test_vector_parameter_error():
     assert fit_new_result.value(c) == pytest.approx(np.mean(xdata[2]), 1e-4)
 
     # All stdev's must be equal
-    assert fit_new_result.stdev(
-        a)/fit_new_result.stdev(b) == pytest.approx(1.0, 1e-3)
-    assert fit_new_result.stdev(
-        a)/fit_new_result.stdev(c) == pytest.approx(1.0, 1e-3)
+    assert fit_new_result.stdev(a) == pytest.approx(fit_new_result.stdev(b), 1e-3)
+    assert fit_new_result.stdev(a) == pytest.approx(fit_new_result.stdev(c), 1e-3)
     # Test for a miss on the exact value
-    assert fit_new_result.stdev(
-        a)/np.sqrt(pcov[0, 0]/N) != pytest.approx(1.0, 1e-3)
-    assert fit_new_result.stdev(
-        b)/np.sqrt(pcov[1, 1]/N) != pytest.approx(1.0, 1e-3)
-    assert fit_new_result.stdev(
-        c)/np.sqrt(pcov[2, 2]/N) != pytest.approx(1.0, 1e-3)
+    assert not fit_new_result.stdev(a) == pytest.approx(np.sqrt(pcov[0, 0]/N), 1e-3)
+    assert not fit_new_result.stdev(b) == pytest.approx(np.sqrt(pcov[1, 1]/N), 1e-3)
+    assert not fit_new_result.stdev(c) == pytest.approx(np.sqrt(pcov[2, 2]/N), 1e-3)
 
     # The standard object actually does not predict the right values for
     # stdev, because its method for computing them apparently does not allow
@@ -443,7 +438,7 @@ def test_error_advanced():
     """
     Compare the error propagation of Fit against
     NumericalLeastSquares.
-    Models an example from the mathematica docs and try's to replicate it:
+    Models an example from the mathematica docs and tries to replicate it:
     http://reference.wolfram.com/language/howto/FitModelsWithMeasurementErrors.html
     """
     data = [
@@ -704,9 +699,9 @@ def test_interdependency_constrained():
     assert W_manual.shape == (2, 2)
     assert c_manual.shape == (2, 1)
     assert z_manual.shape == (1, 1)
-    np.testing.assert_almost_equal(W_manual, eval_model.W)
-    np.testing.assert_almost_equal(c_manual, eval_model.c)
-    np.testing.assert_almost_equal(z_manual, eval_model.z)
+    assert W_manual == pytest.approx(eval_model.W)
+    assert c_manual == pytest.approx(eval_model.c)
+    assert z_manual == pytest.approx(eval_model.z)
     fit = Fit(model, z=z_manual, I=iden, M=M_mat, y=y_vec)
     fit_result = fit.execute()
 
@@ -1059,8 +1054,7 @@ def test_constrainedminimizers():
     for r1, r2 in zip(results[:-1], results[1:]):
         assert r1.value(x) == pytest.approx(r2.value(x), 1e-6)
         assert r1.value(y) == pytest.approx(r2.value(y), 1e-6)
-        np.testing.assert_almost_equal(r1.covariance_matrix,
-                                       r2.covariance_matrix)
+        assert r1.covariance_matrix == pytest.approx(r2.covariance_matrix)
 
     constraints = [
         Ge(y - 1, 0),  # y - 1 >= 0,
@@ -1080,8 +1074,7 @@ def test_constrainedminimizers():
     for r1, r2 in zip(results[:-1], results[1:]):
         assert r1.value(x) == pytest.approx(r2.value(x), 1e-6)
         assert r1.value(y) == pytest.approx(r2.value(y), 1e-6)
-        np.testing.assert_almost_equal(r1.covariance_matrix,
-                                       r2.covariance_matrix)
+        assert r1.covariance_matrix == pytest.approx(r2.covariance_matrix)
 
 
 def test_trustconstr():
@@ -1120,7 +1113,7 @@ def test_trustconstr():
     # Unconstrained fit
     res = minimize(func, [-1.0, 1.0], args=(-1.0,),
                    jac=func_jac, hess=func_hess, method='trust-constr')
-    np.testing.assert_almost_equal(res.x, [2, 1])
+    assert res.x == pytest.approx([2, 1])
 
     # Constrained fit
     nonlinear_constraint = NonlinearConstraint(cons_f, 0, [np.inf, 0],
@@ -1128,7 +1121,7 @@ def test_trustconstr():
     res_constr = minimize(func, [-1.0, 1.0], args=(-1.0,), tol=1e-15,
                           jac=func_jac, hess=func_hess, method='trust-constr',
                           constraints=[nonlinear_constraint])
-    np.testing.assert_almost_equal(res_constr.x, [1, 1])
+    assert res_constr.x == pytest.approx([1, 1])
 
     # Symfit equivalent code
     x = Parameter('x', value=-1.0)
@@ -1139,7 +1132,7 @@ def test_trustconstr():
     # Unconstrained fit first, see if we get the known result.
     fit = Fit(-model, minimizer=TrustConstr)
     fit_result = fit.execute()
-    np.testing.assert_almost_equal(list(fit_result.params.values()), [2, 1])
+    assert list(fit_result.params.values()) == pytest.approx([2, 1])
 
     # Now we are ready for the constrained fit.
     constraints = [
@@ -1150,5 +1143,4 @@ def test_trustconstr():
     fit_result = fit.execute(tol=1e-15)
 
     # Test if the constrained results are equal
-    np.testing.assert_almost_equal(list(fit_result.params.values()),
-                                   res_constr.x)
+    assert list(fit_result.params.values()) == pytest.approx(res_constr.x)
