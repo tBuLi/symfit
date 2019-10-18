@@ -19,7 +19,17 @@ else:
     import funcsigs as inspect_sig
 
 
-class ModelOutput(Sequence):
+class ModelOutput(tuple):
+    def __new__(self, variables, output):
+        """
+        ``variables`` and ``output`` need to be in the same order!
+
+        :param variables: The variables corresponding to ``output``.
+        :param output: The output of a call which should be mapped to
+            ``variables``.
+        """
+        return tuple.__new__(ModelOutput, output)
+
     def __init__(self, variables, output):
         """
         ``variables`` and ``output`` need to be in the same order!
