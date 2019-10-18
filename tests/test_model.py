@@ -106,11 +106,9 @@ class TestModel(unittest.TestCase):
 
         xdata = np.linspace(0, 10)
         ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
-        ans1= model(x=xdata, a=5.5, b=15.0)
-        ans2 = numerical_model(x=xdata, a=5.5, b=15.0)
         np.testing.assert_almost_equal(
-            tuple(ans1),
-            tuple(ans2)
+            model(x=xdata, a=5.5, b=15.0),
+            numerical_model(x=xdata, a=5.5, b=15.0),
         )
 
         faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
