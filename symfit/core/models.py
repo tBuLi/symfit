@@ -47,13 +47,13 @@ class ModelOutput(tuple):
         try:
             var = self.variable_names[name]
         except KeyError as err:
-            raise AttributeError(err.msg)
+            raise AttributeError(err)
         return self.output_dict[var]
 
     def __getitem__(self, key):
         return self.output[key]
 
-    def __str__(self):
+    def __repr__(self):
         return self.__class__.__name__ + '(variables={}, output={})'.format(self.variables, self.output)
 
     def _asdict(self):
