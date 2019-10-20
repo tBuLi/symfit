@@ -4,6 +4,7 @@ import pytest
 import sys
 import sympy
 import warnings
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import scipy.stats
@@ -23,7 +24,12 @@ else:
     import funcsigs as inspect_sig
 
 
-def test_parameter_add():
+@pytest.fixture(autouse=True)
+def suppress_DeprecationWarning():
+    warnings.simplefilter("ignore")
+
+
+def test_parameter_add(suppress_DeprecationWarning):
     """
     Makes sure the __add__ method of Parameters behaves as expected.
     """
@@ -33,7 +39,7 @@ def test_parameter_add():
     assert isinstance(new, sympy.Add)
 
 
-def test_argument_unnamed():
+def test_argument_unnamed(suppress_DeprecationWarning):
     """
     Make sure the generated parameter names follow the pattern
     """
@@ -43,10 +49,9 @@ def test_argument_unnamed():
     x = Variable()
     y = Variable('y')
 
-    assert str(a) == '{}_{}'.format(a._argument_name, a._argument_index)
     assert str(a) == 'par_{}'.format(a._argument_index)
-    assert str(b) != '{}_{}'.format(b._argument_name, b._argument_index)
-    assert str(c) == '{}_{}'.format(c._argument_name, c._argument_index)
+    assert str(b) != 'par_{}'.format(b._argument_index)
+    assert str(c) == 'par_{}'.format(c._argument_index)
     assert c.value == 10
     assert b.value == 10
     assert str(x) == 'var_{}'.format(x._argument_index)
@@ -56,7 +61,7 @@ def test_argument_unnamed():
         d = Parameter(10)
 
 
-def test_pickle():
+def test_pickle(suppress_DeprecationWarning):
     """
     Make sure attributes are preserved when pickling
     """
@@ -71,7 +76,7 @@ def test_pickle():
         new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name)
 
 
-def test_slots():
+def test_slots(suppress_DeprecationWarning):
     """
     Make sure Parameters and Variables don't have a __dict__
     """
