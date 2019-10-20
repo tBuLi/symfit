@@ -24,7 +24,7 @@ else:
     import funcsigs as inspect_sig
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def suppress_DeprecationWarning():
     warnings.simplefilter("ignore")
 
