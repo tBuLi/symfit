@@ -119,10 +119,11 @@ def test_ODE_stdev():
     a = -k * x
 
     model = sf.ODEModel({
-        sf.D(v, t): a,
-        sf.D(x, t): v,
-    },
-        initial={v: 0, x: 1, t: 0})
+            sf.D(v, t): a,
+            sf.D(x, t): v,
+        },
+        initial={v: 0, x: 1, t: 0}
+    )
     t_data = np.linspace(0, 10, 150)
     noise = np.random.normal(1, 0.05, t_data.shape)
     x_data = model(t=t_data, k=11).x * noise

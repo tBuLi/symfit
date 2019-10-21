@@ -19,8 +19,6 @@ def setup_method():
     np.random.seed(0)
 
 # TODO: Should be 2 tests?
-
-
 def test_minimize():
     """
     Tests maximizing a function with and without constraints, taken from the

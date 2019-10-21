@@ -174,17 +174,13 @@ def test_parameters():
     assert not x1.fixed
     assert not x2.fixed
     with pytest.raises(ValueError):
-        x1, x2 = parameters('x1, x2',
-                            value=[2.0, 1.3, 3.0], 
-                            min=0.0
-                        )
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3, 3.0], min=0.0)
 
     x1, x2 = parameters('x1, x2', 
                         value=[2.0, 1.3], 
                         min=[-30, -10], 
                         max=[300, 100], 
-                        fixed=[True, False]
-                    )
+                        fixed=[True, False])
                     
     assert x1.min == -30
     assert x2.min == -10
@@ -197,8 +193,8 @@ def test_parameters():
 
     # Illegal bounds
     with pytest.raises(ValueError):
-        x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=[
-                            400, -10], max=[300, 100])
+        x1, x2 = parameters('x1, x2', value=[2.0, 1.3],
+                            min=[400, -10], max=[300, 100])
     # Should not raise any error, as repeat is an endless source of values
     x1, x2 = parameters('x1, x2', value=[2.0, 1.3], min=repeat(0.0))
 

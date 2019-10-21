@@ -15,8 +15,6 @@ from symfit.core.minimizers import *
 from symfit.core.objectives import LeastSquares, MinimizeModel, VectorLeastSquares
 
 # Defined at the global level because local functions can't be pickled.
-
-
 def f(x, a, b):
     return a * x + b
 
@@ -42,7 +40,6 @@ class SqrtLeastSquares(LeastSquares):
     # objective. This lightweight version is given without proper testing
     # because only the call is relevant, and this makes our multiprocessing test
     # work.
-
     def __call__(self, *args, **kwargs):
         chi2 = super(SqrtLeastSquares, self).__call__(*args, **kwargs)
         return np.sqrt(chi2)
@@ -400,5 +397,5 @@ def test_minimizer_constraint_compatibility():
                     parameters=[a, b, c],
                     constraints=[
                         {'type': 'eq', 'fun': lambda a, b, c: a - c}
-        ]
+                    ]
         )

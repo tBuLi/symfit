@@ -71,8 +71,8 @@ def test_neg():
 
     constraint_neg = - constraint
     # for key in constraint:
-    assert constraint[constraint.dependent_vars[0]] == - \
-        constraint_neg[constraint_neg.dependent_vars[0]]
+    assert constraint[constraint.dependent_vars[0]] == \
+        - constraint_neg[constraint_neg.dependent_vars[0]]
 
     # ODEModel
     odemodel = ODEModel({D(y_1, x): a * x}, initial={a: 1.0})
@@ -378,9 +378,10 @@ def test_interdependency():
     assert callable_model.connectivity_mapping == {y: {a, b, x}, z: {a, b, y}}
     assert callable_model(x=3, a=1, b=2) == pytest.approx(np.atleast_2d([7, 51]).T)
     for var, func in callable_model.vars_as_functions.items():
-        assert(set(str(x) for x in callable_model.connectivity_mapping[var]) ==
-               set(str(x.__class__) if isinstance(x, Function) else str(x)
-                   for x in func.args))
+        assert (set(str(x) for x in callable_model.connectivity_mapping[var]) ==
+                set(str(x.__class__) if isinstance(x, Function) else str(x)
+                    for x in func.args)
+        )
 
     jac_model = jacobian_from_model(callable_model)
     assert jac_model.params == [a, b]
@@ -407,7 +408,7 @@ def test_interdependency():
              D(z, b): a + 2 * y * D(y, b),
              y: callable_model[y], z: callable_model[z]
              }
-            )
+    )
     for var, func in jac_model.vars_as_functions.items():
         assert (set(x.name for x in jac_model.connectivity_mapping[var]) ==
                 set(str(x.__class__) if isinstance(x, Function) else str(x)
