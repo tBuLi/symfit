@@ -714,23 +714,15 @@ def test_data_for_constraint():
     assert isinstance(fit.objective, LogLikelihood)
 
     # Not allowed
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata, Y=2)
-        assert False
-    except TypeError:
-        assert True
-
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata, Y=2, Z=3, constraints=[constraint])
-        assert False
-    except TypeError:
-        assert True
-
-    try:
+    # Since #214 has been fixed, these properly raise an error.
+    with pytest.raises(TypeError):
+        fit = Fit(model, x=xdata)
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata, objective=LogLikelihood)
-        assert False
-    except TypeError:
-        assert True
 
 
 def test_constrained_dependent_on_model():
@@ -872,12 +864,9 @@ def test_constrained_dependent_on_matrixmodel():
 
     constraint = CallableModel({Y: Sum(y[i, 0] * dx[i, 0], i) - 1})
 
-    try:
+    with pytest.raises(ModelError):
         fit = Fit(model, x=xcentres, y=ydata, dx=xdiff, M=len(xcentres),
                   I=Idata, constraints=[constraint])
-        assert False
-    except ModelError:
-        assert True
 
     constraint = CallableModel.as_constraint(
         {Y: Sum(y[i, 0] * dx[i, 0], i) - 1},

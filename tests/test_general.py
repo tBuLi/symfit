@@ -89,11 +89,8 @@ def test_backwards_compatible_fitting():
 
     model = {y: a*x**b}
 
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata)
-        assert False
-    except TypeError:
-        assert True
 
 
 def test_vector_fitting():
@@ -499,23 +496,14 @@ def test_likelihood_fitting_exponential():
     stdev = np.std(xdata)
     mean_stdev = stdev / np.sqrt(len(xdata))
 
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
-        assert False
-    except TypeError:
-        assert True
-
     fit = Fit(pdf, xdata, objective=LogLikelihood)
     fit_result = fit.execute()
     pdf_i = fit.model(x=xdata, **fit_result.params).y  # probabilities
     likelihood = np.product(pdf_i)
     loglikelihood = np.sum(np.log(pdf_i))
 
-    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
-    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
-    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
-    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
-    assert fit_result.value(b) == pytest.approx(mean, 1e-3)
     assert fit_result.value(b) == pytest.approx(mean, 1e-3)
     assert fit_result.value(b) == pytest.approx(stdev, 1e-3)
     assert fit_result.stdev(b) == pytest.approx(mean_stdev, 1e-3)
@@ -587,12 +575,8 @@ def test_likelihood_fitting_bivariate_gaussian():
     marginal = integrate(pdf, (y, -oo, oo), conds='none')
     fit = Fit(marginal, x=xdata, objective=LogLikelihood)
     
-    try:
-        # Should raise a NameError, not a TypeError, see #219
+    with pytest.raises(NameError):
         fit.execute()
-        assert False
-    except NameError:
-        assert True
 
 
 def test_evaluate_model():
