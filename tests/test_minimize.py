@@ -190,8 +190,7 @@ def test_basinhopping():
 
 def test_basinhopping_2d():
     def func2d(x):
-        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * \
-            x[1] + (x[0] + 0.2) * x[0]
+        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * x[1] + (x[0] + 0.2) * x[0]
         df = np.zeros(2)
         df[0] = -14.5 * np.sin(14.5 * x[0] - 0.3) + 2. * x[0] + 0.2
         df[1] = 2. * x[1] + 0.2
@@ -229,8 +228,7 @@ def test_basinhopping_2d():
     )
     fit_result = fit.execute(niter=200)
     assert isinstance(fit.local_minimizer.jacobian, MinimizeModel)
-    assert isinstance(fit.local_minimizer.jacobian.model,
-                      CallableNumericalModel)
+    assert isinstance(fit.local_minimizer.jacobian.model, CallableNumericalModel)
     assert res.x[0] == fit_result.value(x1)
     assert res.x[1] == fit_result.value(x2)
     assert res.fun == fit_result.objective_value

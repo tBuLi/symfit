@@ -163,12 +163,11 @@ def test_CallableNumericalModel():
     fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata)
     numerical_result = fit.execute()
     for param in [a, b]:
-        assert mixed_result.value(param) == pytest.approx(
-            numerical_result.value(param))
+        assert mixed_result.value(param) == pytest.approx(numerical_result.value(param))
 
-        if mixed_result.stdev(param) is  None and numerical_result.stdev(param) is None:
+        if mixed_result.stdev(param) is None and numerical_result.stdev(param) is None:
             assert True
-        elif mixed_result.stdev(param) or  None and numerical_result.stdev(param) is None:
+        elif mixed_result.stdev(param) or None and numerical_result.stdev(param) is None:
             assert False
         else:
             assert mixed_result.stdev(param) == pytest.approx(numerical_result.stdev(param))

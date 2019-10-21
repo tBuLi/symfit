@@ -249,17 +249,14 @@ def test_gaussian_2d_fitting():
     y = Variable('y')
     g = Variable('g')
 
-    model = GradientModel(
-        {g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
+    model = GradientModel({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
     fit = Fit(model, x=xx, y=yy, g=ydata)
     fit_result = fit.execute()
 
     assert fit_result.value(x0) == pytest.approx(np.mean(data[:, 0]), 1e-3)
     assert fit_result.value(y0) == pytest.approx(np.mean(data[:, 1]), 1e-3)
-    assert np.abs(fit_result.value(sig_x)) == pytest.approx(
-        np.std(data[:, 0]), 1e-2)
-    assert np.abs(fit_result.value(sig_y)) == pytest.approx(
-        np.std(data[:, 1]), 1e-2)
+    assert np.abs(fit_result.value(sig_x)) == pytest.approx(np.std(data[:, 0]), 1e-2)
+    assert np.abs(fit_result.value(sig_y)) == pytest.approx(np.std(data[:, 1]), 1e-2)
     assert fit_result.r_squared >= 0.96
 
 
@@ -294,20 +291,15 @@ def test_gaussian_2d_fitting_background():
     y = Variable('y')
     g = Variable('g')
 
-    model = GradientModel(
-        {g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y) + b})
+    model = GradientModel({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y) + b})
 
     # ydata, = model(x=xx, y=yy, x0=mean[0], y0=mean[1], sig_x=np.sqrt(cov[0][0]), sig_y=np.sqrt(cov[1][1]), A=1, b=3.0)
     fit = Fit(model, x=xx, y=yy, g=ydata)
     fit_result = fit.execute()
 
-    assert fit_result.value(
-        x0) / np.mean(data[:, 0]) == pytest.approx(1.0, 1e-2)
-    assert fit_result.value(
-        y0) / np.mean(data[:, 1]) == pytest.approx(1.0, 1e-2)
-    assert np.abs(fit_result.value(sig_x)) / \
-        np.std(data[:, 0]) == pytest.approx(1.0, 1e-2)
-    assert np.abs(fit_result.value(sig_y)) / \
-        np.std(data[:, 1]) == pytest.approx(1.0, 1e-2)
+    assert fit_result.value(x0) / np.mean(data[:, 0]) == pytest.approx(1.0, 1e-2)
+    assert fit_result.value(y0) / np.mean(data[:, 1]) == pytest.approx(1.0, 1e-2)
+    assert np.abs(fit_result.value(sig_x)) / np.std(data[:, 0]) == pytest.approx(1.0, 1e-2)
+    assert np.abs(fit_result.value(sig_y)) / np.std(data[:, 1]) == pytest.approx(1.0, 1e-2)
     assert background / fit_result.value(b) == pytest.approx(1.0, 1e-1)
     assert fit_result.r_squared >= 0.96
