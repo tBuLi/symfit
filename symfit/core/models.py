@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict, Sequence
+from collections import Mapping, OrderedDict
 import warnings
 import sys
 
@@ -20,6 +20,26 @@ else:
 
 
 class ModelOutput(tuple):
+    """
+    Object to hold the output of a model call. It mimics a
+    :func:`collections.namedtuple`, but is initiated with
+    :class:`~symfit.core.argument.Variable` objects instead of strings.
+
+    Its information can be accessed using indexing or as attributes::
+
+        >>> x, y = variables('x, y')
+        >>> a, b = parameters('a, b')
+        >>> model = Model({y: a * x + b})
+
+        >>> ans = model(x=2, a=1, b=3)
+        >>> print(ans)
+        ModelOutput(variables=[y], output=[5])
+        >>> ans[0]
+        5
+        >>> ans.y
+        5
+
+    """
     def __new__(self, variables, output):
         """
         ``variables`` and ``output`` need to be in the same order!
