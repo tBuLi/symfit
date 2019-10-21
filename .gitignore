@@ -2,8 +2,10 @@
 .idea
 .cache
 .pytest_cache
+.code-workspace
 docs_build
 build
 docs/_build
 docs_build
 dist
+.vscode
