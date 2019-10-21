@@ -171,7 +171,7 @@ def test_basinhopping_large():
 
 
 def test_basinhopping():
-    def func(x): return np.cos(14.5 * x - 0.3) + (x + 0.2) * x
+    func = lambda x: np.cos(14.5 * x - 0.3) + (x + 0.2) * x
     x0 = [1.]
     np.random.seed(555)
     res = basinhopping(func, x0, minimizer_kwargs={
