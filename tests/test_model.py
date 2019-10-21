@@ -1,3 +1,6 @@
+"""
+Tests for Model objects.
+"""
 from __future__ import division, print_function
 import pytest
 from collections import OrderedDict
@@ -17,11 +20,6 @@ from symfit import (
 from symfit.core.models import (
     jacobian_from_model, hessian_from_model, ModelError
 )
-
-
-"""
-Tests for Model objects.
-"""
 
 
 def test_model_as_dict():

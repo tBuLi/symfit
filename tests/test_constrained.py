@@ -1,3 +1,9 @@
+"""
+Tests for the `Fit` object. This object does
+everything the normal `NumericalLeastSquares` does and more. Tests should
+therefore cover the full range of scenarios `symfit` currently handles.
+"""
+
 from __future__ import division, print_function
 import pytest
 import sys
@@ -23,13 +29,6 @@ from symfit import (
     Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
 )
 from tests.test_minimizers import subclasses
-
-
-"""
-Tests for the `Fit` object. This object does
-everything the normal `NumericalLeastSquares` does and more. Tests should
-therefore cover the full range of scenarios `symfit` currently handles.
-"""
 
 
 def test_simple_kinetics():

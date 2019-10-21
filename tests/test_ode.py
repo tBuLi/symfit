@@ -1,6 +1,8 @@
+"""
+Tests for the FitResults object.
+"""
 from __future__ import division, print_function
 import sys
-import pytest
 
 import pytest
 import numpy as np
@@ -8,11 +10,6 @@ import numpy as np
 from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel
 from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
-
-
-"""
-Tests for the FitResults object.
-"""
 
 
 def setup_method():
