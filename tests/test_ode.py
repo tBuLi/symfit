@@ -5,7 +5,7 @@ import unittest
 import pytest
 import numpy as np
 
-from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel
+from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel, Parameter
 from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
 
@@ -88,6 +88,40 @@ class TestODE(unittest.TestCase):
         tdata = np.linspace(0, 3, 1000)
         # Eval
         AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3)
+
+        # plt.plot(tdata, AA, color='red', label='[AA]')
+        # plt.plot(tdata, AAB, color='blue', label='[AAB]')
+        # plt.plot(tdata, BAAB, color='green', label='[BAAB]')
+        # plt.plot(tdata, b(d=BAAB, a=AA), color='pink', label='[B]')
+        # plt.plot(tdata, AA + AAB + BAAB, color='black', label='total')
+        # plt.legend()
+        # plt.show()
+
+    def test_initial_parameters(self):
+        """
+        Identical to test_polgar, but with a0 as free Parameter.
+        """
+        a, b, c, d, t = variables('a, b, c, d, t')
+        k, p, l, m = parameters('k, p, l, m')
+
+        a0 = Parameter('a0', min=0, value=10)
+        b = a0 - d + a
+        model_dict = {
+            D(d, t): l * c * b - m * d,
+            D(c, t): k * a * b - p * c - l * c * b + m * d,
+            D(a, t): - k * a * b + p * c,
+        }
+
+        ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
+
+        # Generate some data
+        tdata = np.linspace(0, 3, 1000)
+        # Eval
+        AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10)
+        fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
+        results = fit.execute()
+        print(results)
+        self.assertAlmostEqual(a0.value, 10)
 
         # plt.plot(tdata, AA, color='red', label='[AA]')
         # plt.plot(tdata, AAB, color='blue', label='[AAB]')

@@ -953,18 +953,18 @@ class ODEModel(BaseGradientModel):
         )
         # Extract all the params and vars as a sorted, unique list.
         expressions = model_dict.values()
-        model_params = set([])
+        self.model_params = set([])
 
         # Only the once's that have a Parameter as initial parameter.
-        # self.initial_params = {value for var, value in self.initial.items()
-        #                        if isinstance(value, Parameter)}
+        self.initial_params = {value for var, value in self.initial.items()
+                               if isinstance(value, Parameter)}
 
         for expression in expressions:
             vars, params = seperate_symbols(expression)
-            model_params.update(params)
+            self.model_params.update(params)
             # self.independent_vars.update(vars)
         # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(model_params, key=sort_func)
+        self.params = sorted(self.model_params | self.initial_params, key=sort_func)
         # self.params = sorted(self.model_params | self.initial_params, key=sort_func)
         # self.model_params = sorted(self.model_params, key=sort_func)
         # self.initial_params = sorted(self.initial_params, key=sort_func)
@@ -1070,6 +1070,9 @@ class ODEModel(BaseGradientModel):
         Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
+        for idx, init_var in enumerate(initial_dependent):
+            if init_var in self.initial_params:
+                initial_dependent[idx] = bound_arguments.arguments[init_var.name]
         t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
@@ -1100,7 +1103,7 @@ class ODEModel(BaseGradientModel):
             initial_dependent,
             t_bigger,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.params),
+                bound_arguments.arguments[param.name] for param in self.model_params),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
@@ -1109,7 +1112,7 @@ class ODEModel(BaseGradientModel):
             initial_dependent,
             t_smaller,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.params),
+                bound_arguments.arguments[param.name] for param in self.model_params),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
