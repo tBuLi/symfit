@@ -104,7 +104,8 @@ class TestODE(unittest.TestCase):
         a, b, c, d, t = variables('a, b, c, d, t')
         k, p, l, m = parameters('k, p, l, m')
 
-        a0 = Parameter('a0', min=0, value=10)
+        a0 = Parameter('a0', min=0, value=10, fixed=True)
+        c0 = Parameter('c0', min=0, value=0.1)
         b = a0 - d + a
         model_dict = {
             D(d, t): l * c * b - m * d,
@@ -112,24 +113,25 @@ class TestODE(unittest.TestCase):
             D(a, t): - k * a * b + p * c,
         }
 
-        ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
+        ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: c0, d: 0.0})
 
         # Generate some data
         tdata = np.linspace(0, 3, 1000)
         # Eval
-        AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10)
+        AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10, c0=0)
         fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
         results = fit.execute()
         print(results)
-        self.assertAlmostEqual(a0.value, 10)
+        self.assertEqual(results.value(a0), 10)
+        self.assertAlmostEqual(results.value(c0), 0)
 
-        # plt.plot(tdata, AA, color='red', label='[AA]')
-        # plt.plot(tdata, AAB, color='blue', label='[AAB]')
-        # plt.plot(tdata, BAAB, color='green', label='[BAAB]')
-        # plt.plot(tdata, b(d=BAAB, a=AA), color='pink', label='[B]')
-        # plt.plot(tdata, AA + AAB + BAAB, color='black', label='total')
-        # plt.legend()
-        # plt.show()
+        self.assertIn(a0, ode_model.params)
+        self.assertIn(a0, ode_model.model_params)  # Added via `b`
+        self.assertIn(a0, ode_model.initial_params)
+
+        self.assertIn(c0, ode_model.params)
+        self.assertNotIn(c0, ode_model.model_params)
+        self.assertIn(c0, ode_model.initial_params)
 
     def test_simple_kinetics(self):
         """

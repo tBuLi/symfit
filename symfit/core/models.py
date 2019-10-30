@@ -933,7 +933,7 @@ class ODEModel(BaseGradientModel):
         self.lsoda_args = lsoda_args
         self.lsoda_kwargs = lsoda_kwargs
 
-        sort_func = lambda symbol: str(symbol)
+        sort_func = str
         # Mapping from dependent vars to their derivatives
         self.dependent_derivatives = {d: list(d.free_symbols - set(d.variables))[0] for d in model_dict}
         self.dependent_vars = sorted(
@@ -951,11 +951,17 @@ class ODEModel(BaseGradientModel):
                 key=lambda i: sort_func(self.dependent_derivatives[i[0]])
             )
         )
+
+        # We split the parameters into the parameters needed to evaluate the
+        # expression/components (self.model_params), and those that are used for
+        # initial values (self.initial_params). self.params will contain a union
+        # of the two, as expected.
+
         # Extract all the params and vars as a sorted, unique list.
         expressions = model_dict.values()
         self.model_params = set([])
 
-        # Only the once's that have a Parameter as initial parameter.
+        # Only the ones that have a Parameter as initial parameter.
         self.initial_params = {value for var, value in self.initial.items()
                                if isinstance(value, Parameter)}
 
@@ -963,11 +969,11 @@ class ODEModel(BaseGradientModel):
             vars, params = seperate_symbols(expression)
             self.model_params.update(params)
             # self.independent_vars.update(vars)
+
         # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
         self.params = sorted(self.model_params | self.initial_params, key=sort_func)
-        # self.params = sorted(self.model_params | self.initial_params, key=sort_func)
-        # self.model_params = sorted(self.model_params, key=sort_func)
-        # self.initial_params = sorted(self.initial_params, key=sort_func)
+        self.model_params = sorted(self.model_params, key=sort_func)
+        self.initial_params = sorted(self.initial_params, key=sort_func)
 
         # Make Variable object corresponding to each sigma var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
@@ -1030,7 +1036,7 @@ class ODEModel(BaseGradientModel):
             but to `D(y, t) = ...`. The system spanned by these component
             therefore still needs to be integrated.
         """
-        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars + self.params)
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars + self.model_params)
                 for expr in self.values()]
 
     @cached_property
@@ -1047,7 +1053,7 @@ class ODEModel(BaseGradientModel):
         """
         return [
             [sympy_to_py(
-                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars + self.params
+                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars + self.model_params
                 ) for var in self.dependent_vars
             ] for _, expr in self.items()
         ]
@@ -1070,9 +1076,13 @@ class ODEModel(BaseGradientModel):
         Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
+        # For the initial values, substitute any parameter for the value passed
+        # to this call. Scipy doesn't really understand Parameter/Symbols
         for idx, init_var in enumerate(initial_dependent):
             if init_var in self.initial_params:
                 initial_dependent[idx] = bound_arguments.arguments[init_var.name]
+
+        assert len(self.independent_vars) == 1
         t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
@@ -1098,12 +1108,17 @@ class ODEModel(BaseGradientModel):
         # Properly ordered time axis containing t_initial
         t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
 
+        # Call the numerical integrator. Note that we only pass the
+        # model_params, which will be used sympy_to_py to create something we
+        # can evaluate numerically.
         ans_bigger = odeint(
             f,
             initial_dependent,
             t_bigger,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.model_params),
+                bound_arguments.arguments[param.name]
+                for param in self.model_params
+            ),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
@@ -1112,7 +1127,9 @@ class ODEModel(BaseGradientModel):
             initial_dependent,
             t_smaller,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.model_params),
+                bound_arguments.arguments[param.name]
+                for param in self.model_params
+            ),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
