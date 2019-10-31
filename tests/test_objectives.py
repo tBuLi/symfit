@@ -100,9 +100,9 @@ def test_LeastSquares():
     assert model.eval_jacobian(x=xdata, a=2, b=3)[0].shape == (2, 100)
     assert model.eval_hessian(x=xdata, a=2, b=3)[0].shape == (2, 2, 100)
     # Test exact chi2 shape
-    assert eval_exact[0].shape, (1,)
-    assert jac_exact[0].shape, (2, 1)
-    assert hess_exact[0].shape, (2, 2, 1)
+    assert eval_exact[0].shape == (1,)
+    assert jac_exact[0].shape == (2, 1)
+    assert hess_exact[0].shape == (2, 2, 1)
 
     # Test if these two models have the same call, jacobian, and hessian
     assert eval_exact[0] == pytest.approx(eval_numerical)
