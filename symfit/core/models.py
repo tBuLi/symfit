@@ -1,4 +1,5 @@
 from collections import namedtuple, Mapping, OrderedDict
+import operator
 import warnings
 import sys
 
@@ -933,7 +934,7 @@ class ODEModel(BaseGradientModel):
         self.lsoda_args = lsoda_args
         self.lsoda_kwargs = lsoda_kwargs
 
-        sort_func = str
+        sort_func = operator.attrgetter('name')
         # Mapping from dependent vars to their derivatives
         self.dependent_derivatives = {d: list(d.free_symbols - set(d.variables))[0] for d in model_dict}
         self.dependent_vars = sorted(
@@ -942,7 +943,7 @@ class ODEModel(BaseGradientModel):
         )
         self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
         self.interdependent_vars = []  # TODO: add this support for ODEModels
-        if not len(self.independent_vars):
+        if not len(self.independent_vars) == 1:
             raise ModelError('ODEModel can only have one independent variable.')
 
         self.model_dict = OrderedDict(
@@ -1109,15 +1110,14 @@ class ODEModel(BaseGradientModel):
         t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
 
         # Call the numerical integrator. Note that we only pass the
-        # model_params, which will be used sympy_to_py to create something we
+        # model_params, which will be used by sympy_to_py to create something we
         # can evaluate numerically.
         ans_bigger = odeint(
             f,
             initial_dependent,
             t_bigger,
             args=tuple(
-                bound_arguments.arguments[param.name]
-                for param in self.model_params
+                bound_arguments.arguments[param.name] for param in self.model_params
             ),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
@@ -1127,8 +1127,7 @@ class ODEModel(BaseGradientModel):
             initial_dependent,
             t_smaller,
             args=tuple(
-                bound_arguments.arguments[param.name]
-                for param in self.model_params
+                bound_arguments.arguments[param.name] for param in self.model_params
             ),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs

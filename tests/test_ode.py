@@ -125,13 +125,9 @@ class TestODE(unittest.TestCase):
         self.assertEqual(results.value(a0), 10)
         self.assertAlmostEqual(results.value(c0), 0)
 
-        self.assertIn(a0, ode_model.params)
-        self.assertIn(a0, ode_model.model_params)  # Added via `b`
-        self.assertIn(a0, ode_model.initial_params)
-
-        self.assertIn(c0, ode_model.params)
-        self.assertNotIn(c0, ode_model.model_params)
-        self.assertIn(c0, ode_model.initial_params)
+        self.assertEqual([a0, c0, k, l, m, p], ode_model.params)
+        self.assertEqual([a0, c0], ode_model.initial_params)
+        self.assertEqual([a0, k, l, m, p], ode_model.model_params)
 
     def test_simple_kinetics(self):
         """
