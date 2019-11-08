@@ -1,4 +1,4 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import Mapping, OrderedDict
 import operator
 import warnings
 import sys
@@ -19,39 +19,72 @@ if sys.version_info >= (3,0):
 else:
     import funcsigs as inspect_sig
 
-def variabletuple(typename, variables, *args, **kwargs):
+
+class ModelOutput(tuple):
     """
-    Create a :func:`~collections.namedtuple` using :class:`~symfit.core.argument.Variable`'s
-    whoses names will be used as `field_names`.
+    Object to hold the output of a model call. It mimics a
+    :func:`collections.namedtuple`, but is initiated with
+    :class:`~symfit.core.argument.Variable` objects instead of strings.
 
-    The main reason for using this object is the `_asdict()` method: whereas a
-    ``namedtuple`` initiates such an :class:`collections.OrderedDict` with the
-    ``field_names`` as keys, this object returns a
-    :class:`collections.OrderedDict` which immediately has the ``Variable``
-    objects as keys.
+    Its information can be accessed using indexing or as attributes::
 
-    Example::
+        >>> x, y = variables('x, y')
+        >>> a, b = parameters('a, b')
+        >>> model = Model({y: a * x + b})
 
-        >>> x = Variable('x')
-        >>> Result = variabletuple('Result', [x])
-        >>> res = Result(5.0)
-        >>> res._asdict()
-        OrderedDict((x, 5.0))
+        >>> ans = model(x=2, a=1, b=3)
+        >>> print(ans)
+        ModelOutput(variables=[y], output=[5])
+        >>> ans[0]
+        5
+        >>> ans.y
+        5
 
-    :param typename: Name of the `variabletuple`.
-    :param variables: List of :class:`~symfit.core.argument.Variable`, to be used
-        as `field_names`
-    :param args: See :func:`~collections.namedtuple`
-    :param kwargs: See :func:`~collections.namedtuple`
-    :return: Type ``typename``
     """
+    def __new__(self, variables, output):
+        """
+        ``variables`` and ``output`` need to be in the same order!
+
+        :param variables: The variables corresponding to ``output``.
+        :param output: The output of a call which should be mapped to
+            ``variables``.
+        """
+        return tuple.__new__(ModelOutput, output)
+
+    def __init__(self, variables, output):
+        """
+        ``variables`` and ``output`` need to be in the same order!
+
+        :param variables: The variables corresponding to ``output``.
+        :param output: The output of a call which should be mapped to
+            ``variables``.
+        """
+        self.variables = variables
+        self.output = output
+        self.output_dict = OrderedDict(zip(variables, output))
+        self.variable_names = {var.name: var for var in variables}
+
+    def __getattr__(self, name):
+        try:
+            var = self.variable_names[name]
+        except KeyError as err:
+            raise AttributeError(err)
+        return self.output_dict[var]
+
+    def __getitem__(self, key):
+        return self.output[key]
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(variables={}, output={})'.format(self.variables, self.output)
+
     def _asdict(self):
-        return OrderedDict(zip(variables, self))
+        """
+        :return: Returns a new OrderedDict representing this object.
+        """
+        return self.output_dict.copy()
 
-    field_names = [var.name for var in variables]
-    named = namedtuple(typename, field_names, *args, **kwargs)
-    named._asdict = _asdict
-    return named
+    def __len__(self):
+        return len(self.output_dict)
 
 
 class ModelError(Exception):
@@ -630,8 +663,7 @@ class BaseCallableModel(BaseModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        Ans = variabletuple('Ans', self)
-        return Ans(*self.eval_components(*args, **kwargs))
+        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 
 class BaseGradientModel(BaseCallableModel):
@@ -711,8 +743,7 @@ class BaseGradientModel(BaseCallableModel):
         """
         :return: The jacobian matrix of the function.
         """
-        Ans = variabletuple('Ans', self)
-        return Ans(*self.finite_difference(*args, **kwargs))
+        return ModelOutput(self.keys(), self.finite_difference(*args, **kwargs))
 
 
 class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
@@ -771,7 +802,6 @@ class CallableModel(BaseCallableModel):
         :return: lambda functions of each of the analytical components in
             model_dict, to be used in numerical calculation.
         """
-        Ans = variabletuple('Ans', self.keys())
         # All components must feature the independent vars and params, that's
         # the API convention. But for those components which also contain
         # interdependence, we add those vars
@@ -782,7 +812,7 @@ class CallableModel(BaseCallableModel):
             key = lambda arg: [isinstance(arg, Parameter), str(arg)]
             ordered = sorted(dependencies, key=key)
             components.append(sympy_to_py(expr, ordered))
-        return Ans(*components)
+        return ModelOutput(self.keys(), components)
 
 
 class GradientModel(CallableModel, BaseGradientModel):
@@ -834,8 +864,7 @@ class GradientModel(CallableModel, BaseGradientModel):
         for idx, comp in enumerate(jac):
             jac[idx] = np.stack(np.broadcast_arrays(*comp))
 
-        Ans = variabletuple('Ans', self.keys())
-        return Ans(*jac)
+        return ModelOutput(self.keys(), jac)
 
 class HessianModel(GradientModel):
     """
@@ -879,8 +908,7 @@ class HessianModel(GradientModel):
         for idx, comp in enumerate(hess):
             hess[idx] = np.stack(np.broadcast_arrays(*comp))
 
-        Ans = variabletuple('Ans', self.keys())
-        return Ans(*hess)
+        return ModelOutput(self.keys(), hess)
 
 
 class Model(HessianModel):
@@ -1158,9 +1186,7 @@ class ODEModel(BaseGradientModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        Ans = variabletuple('Ans', self)
-        ans = Ans(*self.eval_components(*args, **kwargs))
-        return ans
+        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 def _partial_diff(var, *params):
     """
