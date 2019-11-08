@@ -456,6 +456,8 @@ class TestModel(unittest.TestCase):
         data = np.ones(300)
         output = ModelOutput(params, data)
         self.assertEqual(len(output), 300)
+        self.assertIsInstance(output._asdict(), OrderedDict)
+        self.assertIsNot(output._asdict(), output.output_dict)
 
 
 if __name__ == '__main__':

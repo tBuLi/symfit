@@ -77,7 +77,10 @@ class ModelOutput(tuple):
         return self.__class__.__name__ + '(variables={}, output={})'.format(self.variables, self.output)
 
     def _asdict(self):
-        return self.output_dict
+        """
+        :return: Returns a new OrderedDict representing this object.
+        """
+        return self.output_dict.copy()
 
     def __len__(self):
         return len(self.output_dict)
