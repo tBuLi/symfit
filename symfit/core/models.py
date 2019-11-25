@@ -1,4 +1,5 @@
-from collections import namedtuple, Mapping, OrderedDict
+from collections import Mapping, OrderedDict
+import operator
 import warnings
 import sys
 
@@ -18,39 +19,72 @@ if sys.version_info >= (3,0):
 else:
     import funcsigs as inspect_sig
 
-def variabletuple(typename, variables, *args, **kwargs):
+
+class ModelOutput(tuple):
     """
-    Create a :func:`~collections.namedtuple` using :class:`~symfit.core.argument.Variable`'s
-    whoses names will be used as `field_names`.
+    Object to hold the output of a model call. It mimics a
+    :func:`collections.namedtuple`, but is initiated with
+    :class:`~symfit.core.argument.Variable` objects instead of strings.
 
-    The main reason for using this object is the `_asdict()` method: whereas a
-    ``namedtuple`` initiates such an :class:`collections.OrderedDict` with the
-    ``field_names`` as keys, this object returns a
-    :class:`collections.OrderedDict` which immediately has the ``Variable``
-    objects as keys.
+    Its information can be accessed using indexing or as attributes::
 
-    Example::
+        >>> x, y = variables('x, y')
+        >>> a, b = parameters('a, b')
+        >>> model = Model({y: a * x + b})
 
-        >>> x = Variable('x')
-        >>> Result = variabletuple('Result', [x])
-        >>> res = Result(5.0)
-        >>> res._asdict()
-        OrderedDict((x, 5.0))
+        >>> ans = model(x=2, a=1, b=3)
+        >>> print(ans)
+        ModelOutput(variables=[y], output=[5])
+        >>> ans[0]
+        5
+        >>> ans.y
+        5
 
-    :param typename: Name of the `variabletuple`.
-    :param variables: List of :class:`~symfit.core.argument.Variable`, to be used
-        as `field_names`
-    :param args: See :func:`~collections.namedtuple`
-    :param kwargs: See :func:`~collections.namedtuple`
-    :return: Type ``typename``
     """
+    def __new__(self, variables, output):
+        """
+        ``variables`` and ``output`` need to be in the same order!
+
+        :param variables: The variables corresponding to ``output``.
+        :param output: The output of a call which should be mapped to
+            ``variables``.
+        """
+        return tuple.__new__(ModelOutput, output)
+
+    def __init__(self, variables, output):
+        """
+        ``variables`` and ``output`` need to be in the same order!
+
+        :param variables: The variables corresponding to ``output``.
+        :param output: The output of a call which should be mapped to
+            ``variables``.
+        """
+        self.variables = variables
+        self.output = output
+        self.output_dict = OrderedDict(zip(variables, output))
+        self.variable_names = {var.name: var for var in variables}
+
+    def __getattr__(self, name):
+        try:
+            var = self.variable_names[name]
+        except KeyError as err:
+            raise AttributeError(err)
+        return self.output_dict[var]
+
+    def __getitem__(self, key):
+        return self.output[key]
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(variables={}, output={})'.format(self.variables, self.output)
+
     def _asdict(self):
-        return OrderedDict(zip(variables, self))
+        """
+        :return: Returns a new OrderedDict representing this object.
+        """
+        return self.output_dict.copy()
 
-    field_names = [var.name for var in variables]
-    named = namedtuple(typename, field_names, *args, **kwargs)
-    named._asdict = _asdict
-    return named
+    def __len__(self):
+        return len(self.output_dict)
 
 
 class ModelError(Exception):
@@ -629,8 +663,7 @@ class BaseCallableModel(BaseModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        Ans = variabletuple('Ans', self)
-        return Ans(*self.eval_components(*args, **kwargs))
+        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 
 class BaseGradientModel(BaseCallableModel):
@@ -710,8 +743,7 @@ class BaseGradientModel(BaseCallableModel):
         """
         :return: The jacobian matrix of the function.
         """
-        Ans = variabletuple('Ans', self)
-        return Ans(*self.finite_difference(*args, **kwargs))
+        return ModelOutput(self.keys(), self.finite_difference(*args, **kwargs))
 
 
 class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
@@ -770,7 +802,6 @@ class CallableModel(BaseCallableModel):
         :return: lambda functions of each of the analytical components in
             model_dict, to be used in numerical calculation.
         """
-        Ans = variabletuple('Ans', self.keys())
         # All components must feature the independent vars and params, that's
         # the API convention. But for those components which also contain
         # interdependence, we add those vars
@@ -781,7 +812,7 @@ class CallableModel(BaseCallableModel):
             key = lambda arg: [isinstance(arg, Parameter), str(arg)]
             ordered = sorted(dependencies, key=key)
             components.append(sympy_to_py(expr, ordered))
-        return Ans(*components)
+        return ModelOutput(self.keys(), components)
 
 
 class GradientModel(CallableModel, BaseGradientModel):
@@ -833,8 +864,7 @@ class GradientModel(CallableModel, BaseGradientModel):
         for idx, comp in enumerate(jac):
             jac[idx] = np.stack(np.broadcast_arrays(*comp))
 
-        Ans = variabletuple('Ans', self.keys())
-        return Ans(*jac)
+        return ModelOutput(self.keys(), jac)
 
 class HessianModel(GradientModel):
     """
@@ -878,8 +908,7 @@ class HessianModel(GradientModel):
         for idx, comp in enumerate(hess):
             hess[idx] = np.stack(np.broadcast_arrays(*comp))
 
-        Ans = variabletuple('Ans', self.keys())
-        return Ans(*hess)
+        return ModelOutput(self.keys(), hess)
 
 
 class Model(HessianModel):
@@ -933,7 +962,7 @@ class ODEModel(BaseGradientModel):
         self.lsoda_args = lsoda_args
         self.lsoda_kwargs = lsoda_kwargs
 
-        sort_func = lambda symbol: str(symbol)
+        sort_func = operator.attrgetter('name')
         # Mapping from dependent vars to their derivatives
         self.dependent_derivatives = {d: list(d.free_symbols - set(d.variables))[0] for d in model_dict}
         self.dependent_vars = sorted(
@@ -942,7 +971,7 @@ class ODEModel(BaseGradientModel):
         )
         self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
         self.interdependent_vars = []  # TODO: add this support for ODEModels
-        if not len(self.independent_vars):
+        if not len(self.independent_vars) == 1:
             raise ModelError('ODEModel can only have one independent variable.')
 
         self.model_dict = OrderedDict(
@@ -951,23 +980,29 @@ class ODEModel(BaseGradientModel):
                 key=lambda i: sort_func(self.dependent_derivatives[i[0]])
             )
         )
+
+        # We split the parameters into the parameters needed to evaluate the
+        # expression/components (self.model_params), and those that are used for
+        # initial values (self.initial_params). self.params will contain a union
+        # of the two, as expected.
+
         # Extract all the params and vars as a sorted, unique list.
         expressions = model_dict.values()
-        model_params = set([])
+        self.model_params = set([])
 
-        # Only the once's that have a Parameter as initial parameter.
-        # self.initial_params = {value for var, value in self.initial.items()
-        #                        if isinstance(value, Parameter)}
+        # Only the ones that have a Parameter as initial parameter.
+        self.initial_params = {value for var, value in self.initial.items()
+                               if isinstance(value, Parameter)}
 
         for expression in expressions:
             vars, params = seperate_symbols(expression)
-            model_params.update(params)
+            self.model_params.update(params)
             # self.independent_vars.update(vars)
+
         # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(model_params, key=sort_func)
-        # self.params = sorted(self.model_params | self.initial_params, key=sort_func)
-        # self.model_params = sorted(self.model_params, key=sort_func)
-        # self.initial_params = sorted(self.initial_params, key=sort_func)
+        self.params = sorted(self.model_params | self.initial_params, key=sort_func)
+        self.model_params = sorted(self.model_params, key=sort_func)
+        self.initial_params = sorted(self.initial_params, key=sort_func)
 
         # Make Variable object corresponding to each sigma var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
@@ -1030,7 +1065,7 @@ class ODEModel(BaseGradientModel):
             but to `D(y, t) = ...`. The system spanned by these component
             therefore still needs to be integrated.
         """
-        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars + self.params)
+        return [sympy_to_py(expr, self.independent_vars + self.dependent_vars + self.model_params)
                 for expr in self.values()]
 
     @cached_property
@@ -1047,7 +1082,7 @@ class ODEModel(BaseGradientModel):
         """
         return [
             [sympy_to_py(
-                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars + self.params
+                    sympy.diff(expr, var), self.independent_vars + self.dependent_vars + self.model_params
                 ) for var in self.dependent_vars
             ] for _, expr in self.items()
         ]
@@ -1070,6 +1105,13 @@ class ODEModel(BaseGradientModel):
         Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
+        # For the initial values, substitute any parameter for the value passed
+        # to this call. Scipy doesn't really understand Parameter/Symbols
+        for idx, init_var in enumerate(initial_dependent):
+            if init_var in self.initial_params:
+                initial_dependent[idx] = bound_arguments.arguments[init_var.name]
+
+        assert len(self.independent_vars) == 1
         t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
@@ -1095,12 +1137,16 @@ class ODEModel(BaseGradientModel):
         # Properly ordered time axis containing t_initial
         t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
 
+        # Call the numerical integrator. Note that we only pass the
+        # model_params, which will be used by sympy_to_py to create something we
+        # can evaluate numerically.
         ans_bigger = odeint(
             f,
             initial_dependent,
             t_bigger,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.params),
+                bound_arguments.arguments[param.name] for param in self.model_params
+            ),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
@@ -1109,7 +1155,8 @@ class ODEModel(BaseGradientModel):
             initial_dependent,
             t_smaller,
             args=tuple(
-                bound_arguments.arguments[param.name] for param in self.params),
+                bound_arguments.arguments[param.name] for param in self.model_params
+            ),
             Dfun=Dfun,
             *self.lsoda_args, **self.lsoda_kwargs
         )
@@ -1139,9 +1186,7 @@ class ODEModel(BaseGradientModel):
         :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
             even for scalar valued functions. This is done for consistency.
         """
-        Ans = variabletuple('Ans', self)
-        ans = Ans(*self.eval_components(*args, **kwargs))
-        return ans
+        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 def _partial_diff(var, *params):
     """

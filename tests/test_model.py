@@ -15,7 +15,7 @@ from symfit import (
     Function, diff
 )
 from symfit.core.models import (
-    jacobian_from_model, hessian_from_model, ModelError
+    jacobian_from_model, hessian_from_model, ModelError, ModelOutput
 )
 
 class TestModel(unittest.TestCase):
@@ -446,6 +446,19 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(model.__signature__, model.jacobian_model.__signature__)
         self.assertEqual(model.__signature__, model.hessian_model.__signature__)
+
+    def test_ModelOutput(self):
+        """
+        Test the ModelOutput object. To prevent #267 from recurring,
+        we attempt to make a model with more than 255 variables.
+        """
+        params = parameters(','.join('a{}'.format(i) for i in range(300)))
+        data = np.ones(300)
+        output = ModelOutput(params, data)
+        self.assertEqual(len(output), 300)
+        self.assertIsInstance(output._asdict(), OrderedDict)
+        self.assertIsNot(output._asdict(), output.output_dict)
+
 
 if __name__ == '__main__':
     unittest.main()
