@@ -42,6 +42,7 @@ intersphinx_mapping = {
     'sympy': ('https://docs.sympy.org/latest', None),
     'python': ('https://docs.python.org/3', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'numpy': ('http://docs.scipy.org/doc/numpy/', None),
     'matplotlib': ('https://matplotlib.org', None)
 }
 

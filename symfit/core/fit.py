@@ -311,13 +311,11 @@ class FitStatus:
     Class to track the convergence of a fit. Whenever called, will store the
     parameters with which it's called, as well as the associated objective value
     and the current time. In addition, will print some statistics.
-
-    :attr objective: :class:`symfit.core.objectives.BaseObjective` that is being
-        minimized.
-    :attr param_values: list of all used parameter values
-    :attr objective values: list of associated objective values
-    :attr times: list of times at which this object was called. Only relative
-        times are meaningful.
+    The following attributes are relevant: ``objective``, ``param_values``,
+    ``objective_values``, and ``times``; containing the objective that's being
+    optimized, all parameter values that were used per iteration, the
+    associated objective values, and the times at which this was done,
+    respectively.
     """
     def __init__(self, objective):
         self.objective = objective
@@ -334,7 +332,7 @@ class FitStatus:
         information for later use.
 
         :param params: 1D array-like with values for all non-fixed parameter
-            for this iteration. Used to call :attr:`objective`.
+            for this iteration. Used to call `objective`.
         """
         self.times.append(perf_counter())
         free_params = dict(zip(map(str, self.objective.model.free_params), params))
@@ -638,7 +636,7 @@ class Fit(HasCovarianceMatrix):
                     )
         return con_models
 
-    @keywordonly(callback=False)
+    @keywordonly(verbose=False, callback=None)
     def execute(self, **minimize_options):
         """
         Execute the fit.
@@ -646,16 +644,31 @@ class Fit(HasCovarianceMatrix):
         :param minimize_options: keyword arguments to be passed to the specified
             minimizer.
         :param callback: keyword only argument that will be propagated to the
-            minimizer. If literal `True`, a :class:`FitStatus` object will be
-            used instead. If `True`-like, the produced :class:`FitResults` will
-            have a `callback` attribute with the appropriate value.
+            minimizer. If `True`-like, the produced
+            :class:`~symfit.core.fit_results.FitResults` will have a `callback`
+            attribute with the appropriate value.
+        :param bool verbose: keyword only argument. If `True`, will create a
+            :class:`FitStatus` object and pass it as `callback` to the minimizer
+            and attach it to the produced 
+            :class:`~symfit.core.fit_results.FitResults` as `callback` attribute.
         :return: FitResults instance
+        :raises TypeError: if both verbose and callback are `True`-like
         """
+        verbose = minimize_options.pop('verbose')
         callback = minimize_options.pop('callback')
-        if callback:
-            if callback is True:
-                callback = FitStatus(objective=self.objective)
-            minimize_options = minimize_options.copy()
+        if verbose:
+            if callback:
+                raise TypeError('Fit.execute accepts either callback or verbose,'\
+                                'but not both')
+            reporter = FitStatus(objective=self.objective)
+            if isinstance(self.minimizer, ChainedMinimizer):
+                for mini in self.minimizer.minimizers:
+                    minimize_options[mini.__class__.__name__] = minimize_options.get(mini.__class__.__name__, {}).copy()
+                    minimize_options[mini.__class__.__name__]['callback'] = reporter
+            else:
+                minimize_options = minimize_options.copy()
+                minimize_options['callback'] = reporter
+        elif callback:
             minimize_options['callback'] = callback
         minimizer_ans = self.minimizer.execute(**minimize_options)
         minimizer_ans.covariance_matrix = self.covariance_matrix(
@@ -664,6 +677,6 @@ class Fit(HasCovarianceMatrix):
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
         minimizer_ans.minimizer = self.minimizer
-        if callback:
-            minimizer_ans.callback = callback
+        if minimize_options.get('callback', False):
+            minimizer_ans.callback = minimize_options['callback']
         return minimizer_ans
