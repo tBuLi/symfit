@@ -991,8 +991,11 @@ class ODEModel(BaseGradientModel):
         self.model_params = set([])
 
         # Only the ones that have a Parameter as initial parameter.
-        self.initial_params = {value for var, value in self.initial.items()
-                               if isinstance(value, Parameter)}
+        self.initial_params = set()
+        for var, value in self.initial.items():
+            if isinstance(value, Parameter):
+                self.connectivity_mapping[var].add(value)  # Make t depend on t0
+                self.initial_params.add(value)
 
         for expression in expressions:
             vars, params = seperate_symbols(expression)

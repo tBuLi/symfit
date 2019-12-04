@@ -5,7 +5,7 @@ import unittest
 import pytest
 import numpy as np
 
-from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel, Parameter
+from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel, Parameter, Ge
 from symfit.core.minimizers import MINPACK
 from symfit.distributions import Gaussian
 
@@ -123,6 +123,48 @@ class TestODE(unittest.TestCase):
         results = fit.execute()
         print(results)
         self.assertEqual(results.value(a0), 10)
+        self.assertAlmostEqual(results.value(c0), 0)
+
+        self.assertEqual([a0, c0, k, l, m, p], ode_model.params)
+        self.assertEqual([a0, c0], ode_model.initial_params)
+        self.assertEqual([a0, k, l, m, p], ode_model.model_params)
+
+        print(ode_model.connectivity_mapping)
+        self.assertEqual({d: {l, c, m, d, a, a0},
+                          c: {k, a, p, c, l, m, d, c0, a0},
+                          a: {k, a, p, c, a0, d}},
+                         ode_model.connectivity_mapping)
+
+    def test_ODE_constraints(self):
+        """
+        Identical to test_polgar, but with a0 as free Parameter.
+        """
+        a, b, c, d, t = variables('a, b, c, d, t')
+        k, p, l, m = parameters('k, p, l, m')
+
+        a0 = Parameter('a0', min=0, value=10, fixed=False)
+        c0 = Parameter('c0', min=0, value=0.1)
+        b = a0 - d + a
+        model_dict = {
+            D(d, t): l * c * b - m * d,
+            D(c, t): k * a * b - p * c - l * c * b + m * d,
+            D(a, t): - k * a * b + p * c,
+        }
+
+        ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: c0, d: 0.0})
+
+        # Generate some data
+        tdata = np.linspace(0, 3, 1000)
+        # Eval
+        AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10, c0=0)
+
+        constraints = [Ge(a0, c0)]
+
+        fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
+        results = fit.execute()
+        print(results)
+        self.assertGreaterEqual(results.value(a0), results.value(c0))
+        self.assertAlmostEqual(results.value(a0), 10)
         self.assertAlmostEqual(results.value(c0), 0)
 
         self.assertEqual([a0, c0, k, l, m, p], ode_model.params)

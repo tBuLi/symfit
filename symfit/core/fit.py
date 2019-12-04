@@ -564,7 +564,7 @@ class Fit(HasCovarianceMatrix):
                     )
                 else:
                     con_models.append(
-                        model.__class__.as_constraint(constraint, model)
+                        Model.as_constraint(constraint, model)
                     )
         return con_models
 
