@@ -1,6 +1,4 @@
 from __future__ import division
-import pytest
-import warnings
 
 import sympy
 

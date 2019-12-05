@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import pytest
-import warnings
 import sys
 
 import numpy as np
@@ -24,6 +23,8 @@ class TestGlobalOptGaussian:
         np.random.seed(0)
         mean = (0.4, 0.4)  # x, y mean 0.6, 0.4
         cov = [[0.01**2, 0], [0, 0.01**2]]
+
+        # TODO: evaluate gaussian at 200x200 points (?!) and add appropriate noise
         data = np.random.multivariate_normal(mean, cov, 2500000)
 
         # Insert them as y,x here as np fucks up cartesian conventions.
@@ -45,8 +46,7 @@ class TestGlobalOptGaussian:
         self.y0_1 = Parameter('y01', value=0, min=xmin, max=xmax)
         self.sig_y_1 = Parameter('sigy1', value=0, min=0.0, max=1)
         self.A_1 = Parameter('A1', min=0, max=1000)
-        g_1 = self.A_1 * Gaussian(x, self.x0_1, self.sig_x_1) *\
-            Gaussian(y, self.y0_1, self.sig_y_1)
+        g_1 = self.A_1 * Gaussian(x, self.x0_1, self.sig_x_1) * Gaussian(y, self.y0_1, self.sig_y_1)
 
         self.model = GradientModel(g_1)
 

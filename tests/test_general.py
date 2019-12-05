@@ -1,16 +1,14 @@
 from __future__ import division, print_function
 import sys
-import sympy
-import warnings
 
 import numpy as np
 import scipy.stats
-from scipy.optimize import curve_fit, minimize
+from scipy.optimize import curve_fit
 import pytest
 
 from symfit import (
     Variable, Parameter, Fit, FitResults, log, variables,
-    parameters, Model, Eq, Ge, exp, integrate, oo, GradientModel
+    parameters, Model, exp, integrate, oo, GradientModel
 )
 from symfit.core.minimizers import (
     MINPACK, LBFGSB, BoundedMinimizer, DifferentialEvolution, BaseMinimizer,
@@ -89,11 +87,8 @@ def test_backwards_compatible_fitting():
 
     model = {y: a*x**b}
 
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata)
-        assert False
-    except TypeError:
-        assert True
 
 
 def test_vector_fitting():
@@ -122,8 +117,8 @@ def test_vector_fitting():
     fit_result = fit.execute()
 
     assert fit_result.value(a) == pytest.approx(np.mean(xdata[0]), 1e-5)
-    assert fit_result.value(b) == pytest.approx(np.mean(xdata[1]), 1e-4) 
-    assert fit_result.value(c) == pytest.approx(np.mean(xdata[2]), 1e-5) 
+    assert fit_result.value(b) == pytest.approx(np.mean(xdata[1]), 1e-4)
+    assert fit_result.value(c) == pytest.approx(np.mean(xdata[2]), 1e-5)
 
 
 def test_vector_none_fitting():
@@ -366,6 +361,7 @@ def test_2_gaussian_2d_fitting():
     """
     mean = (0.3, 0.4)  # x, y mean 0.6, 0.4
     cov = [[0.01**2, 0], [0, 0.01**2]]
+    # TODO: evaluate gaussian at 100x100 points and add appropriate noise
     data = np.random.multivariate_normal(mean, cov, 3000000)
     mean = (0.7, 0.8)  # x, y mean 0.6, 0.4
     cov = [[0.01**2, 0], [0, 0.01**2]]
@@ -425,6 +421,7 @@ def test_gaussian_2d_fitting():
     mean = (0.6, 0.4)  # x, y mean 0.6, 0.4
     cov = [[0.2**2, 0], [0, 0.1**2]]
 
+    # TODO: evaluate gaussian at 100x100 points and add appropriate noise
     data = np.random.multivariate_normal(mean, cov, 1000000)
 
     # Insert them as y,x here as np fucks up cartesian conventions.
@@ -444,17 +441,15 @@ def test_gaussian_2d_fitting():
     A = Parameter(min=1, value=100)
     y = Variable('y')
     g = Variable('g')
-#        g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
+    # g = A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)
     model = Model({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
     fit = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
     fit_result = fit.execute()
 
     assert fit_result.value(x0) == pytest.approx(np.mean(data[:, 0]), 1e-1)
     assert fit_result.value(y0) == pytest.approx(np.mean(data[:, 1]), 1e-1)
-    assert np.abs(fit_result.value(sig_x)) == pytest.approx(
-        np.std(data[:, 0]), 1e-1)
-    assert np.abs(fit_result.value(sig_y)) == pytest.approx(
-        np.std(data[:, 1]), 1e-1)
+    assert np.abs(fit_result.value(sig_x)) == pytest.approx(np.std(data[:, 0]), 1e-1)
+    assert np.abs(fit_result.value(sig_y)) == pytest.approx(np.std(data[:, 1]), 1e-1)
     assert fit_result.r_squared >= 0.99
 
 
@@ -494,6 +489,7 @@ def test_likelihood_fitting_exponential():
 
     # Draw points from an Exp(5) exponential distribution.
     np.random.seed(100)
+    # TODO: Do we *really* need 1m points?
     xdata = np.random.exponential(5, 1000000)
 
     # Expected parameter values
@@ -501,11 +497,8 @@ def test_likelihood_fitting_exponential():
     stdev = np.std(xdata)
     mean_stdev = stdev / np.sqrt(len(xdata))
 
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(pdf, x=xdata, sigma_y=2.0, objective=LogLikelihood)
-        assert False
-    except TypeError:
-        assert True
 
     fit = Fit(pdf, xdata, objective=LogLikelihood)
     fit_result = fit.execute()
@@ -538,6 +531,7 @@ def test_likelihood_fitting_gaussian():
     pdf = GradientModel(Gaussian(x, mu, sig))
 
     np.random.seed(10)
+    # TODO: Do we really need 1k points?
     xdata = np.random.normal(51., 3.5, 10000)
 
     # Expected parameter values
@@ -575,6 +569,7 @@ def test_likelihood_fitting_bivariate_gaussian():
     cov = np.array([[0.11 ** 2, 0.11 * 0.23 * r],
                     [0.11 * 0.23 * r, 0.23 ** 2]])
     np.random.seed(42)
+    # TODO: Do we really need 100k points?
     xdata, ydata = np.random.multivariate_normal(mean, cov, 100000).T
 
     fit = Fit(pdf, x=xdata, y=ydata, objective=LogLikelihood)
@@ -588,13 +583,10 @@ def test_likelihood_fitting_bivariate_gaussian():
 
     marginal = integrate(pdf, (y, -oo, oo), conds='none')
     fit = Fit(marginal, x=xdata, objective=LogLikelihood)
-    
-    try:
+
+    with pytest.raises(NameError):    
         # Should raise a NameError, not a TypeError, see #219
         fit.execute()
-        assert False
-    except NameError:
-        assert True
 
 
 def test_evaluate_model():
@@ -633,31 +625,31 @@ def test_simple_sigma():
     # t_smooth = t_model(y=h_smooth, **fit_result.params)
 
     # Lets with the results from curve_fit, no weights
-    popt_noweights, pcov_noweights = curve_fit(
-        lambda y, p: (2 * y / p)**0.5, y_data, t_data)
+    popt_noweights, pcov_noweights = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data)
 
     assert fit_result.value(g) == pytest.approx(popt_noweights[0])
-    assert fit_result.stdev(g) == pytest.approx(
-        np.sqrt(pcov_noweights[0, 0]), 1e-6)
+    assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov_noweights[0, 0]), 1e-6)
 
     # Same sigma everywere
     fit = Fit(t_model, y_data, t_data, 0.0031, absolute_sigma=False)
     fit_result = fit.execute()
-    popt_sameweights, pcov_sameweights = curve_fit(lambda y, p: (
-        2 * y / p)**0.5, y_data, t_data, sigma=0.0031*np.ones(len(y_data)), absolute_sigma=False)
+    popt_sameweights, pcov_sameweights = curve_fit(
+        lambda y, p: (2 * y / p)**0.5,
+        y_data,
+        t_data,
+        sigma=0.0031*np.ones(len(y_data)),
+        absolute_sigma=False
+    )
     assert fit_result.value(g) == pytest.approx(popt_sameweights[0], 1e-4)
-    assert fit_result.stdev(g) == pytest.approx(
-        np.sqrt(pcov_sameweights[0, 0]), 1e-4)
+    assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov_sameweights[0, 0]), 1e-4)
     # Same weight everywere should be the same as no weight when absolute_sigma=False
     assert fit_result.value(g) == pytest.approx(popt_noweights[0], 1e-4)
-    assert fit_result.stdev(g) == pytest.approx(
-        np.sqrt(pcov_noweights[0, 0]), 1e-4)
+    assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov_noweights[0, 0]), 1e-4)
 
     # Different sigma for every point
     fit = Fit(t_model, y_data, t_data, 0.1*sigma_t, absolute_sigma=False)
     fit_result = fit.execute()
-    popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5,
-                           y_data, t_data, sigma=.1*sigma_t)
+    popt, pcov = curve_fit(lambda y, p: (2 * y / p)**0.5, y_data, t_data, sigma=.1*sigma_t)
 
     assert fit_result.value(g) == pytest.approx(popt[0])
     assert fit_result.stdev(g) == pytest.approx(np.sqrt(pcov[0, 0]), 1e-6)
@@ -766,16 +758,14 @@ def test_error_analytical():
     popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x),
                            xn, yn, sigma=sigma, absolute_sigma=True)
     assert fit_result.value(a) == pytest.approx(popt[0], 1e-5)
-    assert fit_result.stdev(a) == pytest.approx(
-        np.sqrt(np.diag(pcov))[0], 1e-2)
+    assert fit_result.stdev(a) == pytest.approx(np.sqrt(np.diag(pcov))[0], 1e-2)
 
     fit_no_sigma = Fit(model, yn)
     fit_result_no_sigma = fit_no_sigma.execute()
 
     popt, pcov = curve_fit(lambda x, a: a * np.ones_like(x), xn, yn,)
     # With or without sigma, the bestfit params should be in agreement in case of equal weights
-    assert fit_result.value(a) == pytest.approx(
-        fit_result_no_sigma.value(a), 1e-5)
+    assert fit_result.value(a) == pytest.approx(fit_result_no_sigma.value(a), 1e-5)
     # Since symfit is all about absolute errors, the sigma will not be in agreement
     assert not fit_result.stdev(a) == fit_result_no_sigma.stdev(a) == 5
     assert fit_result_no_sigma.stdev(a) == pytest.approx(pcov[0][0]**0.5, 1e-5)

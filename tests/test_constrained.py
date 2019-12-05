@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 import pytest
-import sys
 
 import numpy as np
 import sympy
@@ -273,13 +272,11 @@ def test_vector_constrained_fitting():
 
     # The total of averages should equal the total of the params by definition
     mean_total = np.mean(np.sum(xdata, axis=0))
-    params_tot = std_result.value(
-        a) + std_result.value(b) + std_result.value(c)
+    params_tot = std_result.value(a) + std_result.value(b) + std_result.value(c)
     assert mean_total / params_tot == pytest.approx(1.0, 1e-4)
 
     # The total after constraining to 180 should be exactly 180.
-    params_tot = constr_result.value(
-        a) + constr_result.value(b) + constr_result.value(c)
+    params_tot = constr_result.value(a) + constr_result.value(b) + constr_result.value(c)
     assert isinstance(fit_constrained.minimizer, SLSQP)
     assert 180.0 == pytest.approx(params_tot, 1e-4)
 
@@ -303,8 +300,7 @@ def test_vector_constrained_fitting():
         constraints=[Equality(a + b + c, 180)]
     )
     none_constr_result = fit_none_constr.execute()
-    params_tot = none_constr_result.value(
-        a) + none_constr_result.value(b) + none_constr_result.value(c)
+    params_tot = none_constr_result.value(a) + none_constr_result.value(b) + none_constr_result.value(c)
     assert 180.0 == pytest.approx(params_tot, 1e-4)
 
 
@@ -403,12 +399,9 @@ def test_vector_parameter_error():
     fit_result = fit.execute()
     # The standard deviation in the mean is stdev/sqrt(N),
     # see test_param_error_analytical
-    assert fit_result.stdev(
-        a)/np.sqrt(pcov[0, 0]/N) == pytest.approx(1.0, 1e-4)
-    assert fit_result.stdev(
-        b)/np.sqrt(pcov[1, 1]/N) == pytest.approx(1.0, 1e-4)
-    assert fit_result.stdev(
-        c)/np.sqrt(pcov[2, 2]/N) == pytest.approx(1.0, 1e-4)
+    assert fit_result.stdev(a)/np.sqrt(pcov[0, 0]/N) == pytest.approx(1.0, 1e-4)
+    assert fit_result.stdev(b)/np.sqrt(pcov[1, 1]/N) == pytest.approx(1.0, 1e-4)
+    assert fit_result.stdev(c)/np.sqrt(pcov[2, 2]/N) == pytest.approx(1.0, 1e-4)
 
     # Finally, we should confirm that with unrealistic sigma and
     # absolute_sigma=True, we are no longer in agreement with the analytical result
@@ -426,12 +419,9 @@ def test_vector_parameter_error():
     )
     fit_result = fit2.execute()
     # Should be off bigly
-    assert not fit_result.stdev(
-        a)/np.sqrt(pcov[0, 0]/N) == pytest.approx(1.0, 1e-1)
-    assert not fit_result.stdev(
-        b)/np.sqrt(pcov[1, 1]/N) == pytest.approx(1.0, 1e-1)
-    assert not fit_result.stdev(
-        c)/np.sqrt(pcov[2, 2]/N) == pytest.approx(1.0, 1e-5)
+    assert not fit_result.stdev(a)/np.sqrt(pcov[0, 0]/N) == pytest.approx(1.0, 1e-1)
+    assert not fit_result.stdev(b)/np.sqrt(pcov[1, 1]/N) == pytest.approx(1.0, 1e-1)
+    assert not fit_result.stdev(c)/np.sqrt(pcov[2, 2]/N) == pytest.approx(1.0, 1e-5)
 
 
 def test_error_advanced():
@@ -462,15 +452,11 @@ def test_error_advanced():
     assert len(const_fit.model(x=xdata, y=ydata, a=2, b=2, c=5)) == 1
     assert const_fit.model(x=xdata, y=ydata, a=2, b=2, c=5)[0].shape == (10,)
 
-    assert len(const_fit.model.eval_jacobian(
-        x=xdata, y=ydata, a=2, b=2, c=5)) == 1
-    assert const_fit.model.eval_jacobian(x=xdata, y=ydata, a=2, b=2, c=5)[
-        0].shape == (3, 10)
+    assert len(const_fit.model.eval_jacobian(x=xdata, y=ydata, a=2, b=2, c=5)) == 1
+    assert const_fit.model.eval_jacobian(x=xdata, y=ydata, a=2, b=2, c=5)[0].shape == (3, 10)
 
-    assert len(const_fit.model.eval_hessian(
-        x=xdata, y=ydata, a=2, b=2, c=5)) == 1
-    assert const_fit.model.eval_hessian(x=xdata, y=ydata, a=2, b=2, c=5)[
-        0].shape == (3, 3, 10)
+    assert len(const_fit.model.eval_hessian(x=xdata, y=ydata, a=2, b=2, c=5)) == 1
+    assert const_fit.model.eval_hessian(x=xdata, y=ydata, a=2, b=2, c=5)[0].shape == (3, 3, 10)
 
     assert const_fit.objective(a=2, b=2, c=5).shape == tuple()
     assert const_fit.objective.eval_jacobian(a=2, b=2, c=5).shape == (3,)
@@ -493,12 +479,9 @@ def test_error_advanced():
     # Hessian we actually get a more accurate value from the standard fit
     # then for MINPACK. Hence we check if it is roughly equal, and if our
     # stdev is greater than that of minpack.
-    assert const_result.stdev(
-        a) / std_result.stdev(a) == pytest.approx(1, 1e-2)
-    assert const_result.stdev(
-        b) / std_result.stdev(b) == pytest.approx(1, 1e-1)
-    assert const_result.stdev(
-        c) / std_result.stdev(c) == pytest.approx(1, 1e-2)
+    assert const_result.stdev(a) / std_result.stdev(a) == pytest.approx(1, 1e-2)
+    assert const_result.stdev(b) / std_result.stdev(b) == pytest.approx(1, 1e-1)
+    assert const_result.stdev(c) / std_result.stdev(c) == pytest.approx(1, 1e-2)
 
     assert const_result.stdev(a) >= std_result.stdev(a)
     assert const_result.stdev(b) >= std_result.stdev(b)
@@ -535,33 +518,25 @@ def test_gaussian_2d_fitting():
     x = Variable('x')
     y = Variable('y')
     g = Variable('g')
-    model = GradientModel(
-        {g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
+    model = GradientModel({g: A * Gaussian(x, x0, sig_x) * Gaussian(y, y0, sig_y)})
     fit = Fit(model, x=xx, y=yy, g=ydata)
     fit_result = fit.execute()
 
     assert fit_result.value(x0) == pytest.approx(np.mean(data[:, 0]), 1e-3)
     assert fit_result.value(y0) == pytest.approx(np.mean(data[:, 1]), 1e-3)
-    assert np.abs(fit_result.value(sig_x)) == pytest.approx(
-        np.std(data[:, 0]), 1e-2)
-    assert np.abs(fit_result.value(sig_y)) == pytest.approx(
-        np.std(data[:, 1]), 1e-2)
+    assert np.abs(fit_result.value(sig_x)) == pytest.approx(np.std(data[:, 0]), 1e-2)
+    assert np.abs(fit_result.value(sig_y)) == pytest.approx(np.std(data[:, 1]), 1e-2)
     assert (fit_result.r_squared, 0.96)
 
     # Compare with industry standard MINPACK
     fit_std = Fit(model, x=xx, y=yy, g=ydata, minimizer=MINPACK)
     fit_std_result = fit_std.execute()
 
-    assert fit_std_result.value(x0) == pytest.approx(
-        fit_result.value(x0), 1e-4)
-    assert fit_std_result.value(y0) == pytest.approx(
-        fit_result.value(y0), 1e-4)
-    assert fit_std_result.value(sig_x) == pytest.approx(
-        fit_result.value(sig_x), 1e-4)
-    assert fit_std_result.value(sig_y) == pytest.approx(
-        fit_result.value(sig_y), 1e-4)
-    assert fit_std_result.r_squared == pytest.approx(
-        fit_result.r_squared, 1e-4)
+    assert fit_std_result.value(x0) == pytest.approx(fit_result.value(x0), 1e-4)
+    assert fit_std_result.value(y0) == pytest.approx(fit_result.value(y0), 1e-4)
+    assert fit_std_result.value(sig_x) == pytest.approx(fit_result.value(sig_x), 1e-4)
+    assert fit_std_result.value(sig_y) == pytest.approx(fit_result.value(sig_y), 1e-4)
+    assert fit_std_result.r_squared == pytest.approx(fit_result.r_squared, 1e-4)
 
 
 def test_fixed_and_constrained():
@@ -575,15 +550,12 @@ def test_fixed_and_constrained():
     phi1, phi2, theta1, theta2 = parameters('phi1, phi2, theta1, theta2')
     x, y = variables('x, y')
 
-    model_dict = {y: (1 + x * theta1 + theta2 * x ** 2) / (
-        1 + phi1 * x * theta1 + phi2 * theta2 * x ** 2)}
+    model_dict = {y: (1 + x * theta1 + theta2 * x ** 2) /
+                     (1 + phi1 * x * theta1 + phi2 * theta2 * x ** 2)}
     constraints = [GreaterThan(theta1, theta2)]
 
-    xdata = np.array(
-        [0., 0.000376, 0.000752, 0.0015, 0.00301, 0.00601, 0.00902])
-    ydata = np.array(
-        [1., 1.07968041, 1.08990638, 1.12151629, 1.13068452, 1.15484109,
-         1.19883952])
+    xdata = np.array([0., 0.000376, 0.000752, 0.0015, 0.00301, 0.00601, 0.00902])
+    ydata = np.array([1., 1.07968041, 1.08990638, 1.12151629, 1.13068452, 1.15484109, 1.19883952])
 
     phi1.value = 0.845251484373516
     phi1.fixed = True
@@ -614,10 +586,8 @@ def test_fixed_and_constrained():
         assert id(fit.objective.data) == id(constraint.data)
 
         # Test if the fixed params have been partialed away
-        assert key2str(constraint._invariant_kwargs).keys(
-        ) == constraint_kwargs.keys()
-        assert key2str(fit.objective._invariant_kwargs).keys(
-        ) == objective_kwargs.keys()
+        assert key2str(constraint._invariant_kwargs).keys() == constraint_kwargs.keys()
+        assert key2str(fit.objective._invariant_kwargs).keys() == objective_kwargs.keys()
 
     # Compare the shapes. The constraint shape should now be the same as
     # that of the objective
@@ -625,11 +595,8 @@ def test_fixed_and_constrained():
     obj_jac = fit.minimizer.wrapped_jacobian(fit.minimizer.initial_guesses)
 
     # scalars don't have lengths
-    try:
+    with pytest.raises(TypeError):
         len(obj_val)
-        assert False
-    except TypeError:
-        assert True
     assert len(obj_jac) == 2
 
     for index, constraint in enumerate(fit.minimizer.wrapped_constraints):
@@ -725,8 +692,7 @@ def test_data_for_constraint():
 
     np.random.seed(2)
     xdata = np.random.normal(1.2, 2, 10)
-    ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))),
-                                 density=True)
+    ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))), density=True)
 
     # Allowed
     fit = Fit(model, x=xdata, y=ydata, Y=2, constraints=[constraint])
@@ -738,23 +704,14 @@ def test_data_for_constraint():
     assert isinstance(fit.objective, LogLikelihood)
 
     # Not allowed
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata, Y=2)
-        assert False
-    except TypeError:
-        assert True
 
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata, Y=2, Z=3, constraints=[constraint])
-        assert False
-    except TypeError:
-        assert True
 
-    try:
+    with pytest.raises(TypeError):
         fit = Fit(model, x=xdata, y=ydata, objective=LogLikelihood)
-        assert False
-    except TypeError:
-        assert True
 
 
 def test_constrained_dependent_on_model():
@@ -775,8 +732,7 @@ def test_constrained_dependent_on_model():
     # Generate data, 100 samples from a N(1.2, 2) distribution
     np.random.seed(2)
     xdata = np.random.normal(1.2, 2, 1000)
-    ydata, xedges = np.histogram(
-        xdata, bins=int(np.sqrt(len(xdata))), density=True)
+    ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))), density=True)
     xcentres = (xedges[1:] + xedges[:-1]) / 2
 
     # Unconstrained fit
@@ -784,14 +740,11 @@ def test_constrained_dependent_on_model():
     unconstr_result = fit.execute()
 
     # Constraints must be scalar models.
-    try:
+    with pytest.raises(ModelError):
         Model.as_constraint([A - 1, sig - 1], model, constraint_type=Eq)
-        assert False
-    except ModelError:
-        assert True
 
-    constraint_exact = Model.as_constraint(
-        A * sqrt(2 * sympy.pi) * sig - 1, model, constraint_type=Eq)
+    constraint_exact = Model.as_constraint(A * sqrt(2 * sympy.pi) * sig - 1,
+                                           model, constraint_type=Eq)
     # Only when explicitly asked, do models behave as constraints.
     assert hasattr(constraint_exact, 'constraint_type')
     assert constraint_exact.constraint_type == Eq
@@ -799,7 +752,8 @@ def test_constrained_dependent_on_model():
 
     # Now lets make some valid constraints and see if they are respected!
     # FIXME These first two should be symbolical integrals over `y` instead,
-    # but currently this is not converted into a numpy/scipy function. So instead the first two are not valid constraints.
+    # but currently this is not converted into a numpy/scipy function. So
+    # instead the first two are not valid constraints.
     constraint_model = Model.as_constraint(A - 1, model, constraint_type=Eq)
     constraint_exact = Eq(A, 1)
     constraint_num = CallableNumericalModel.as_constraint(
@@ -831,8 +785,7 @@ def test_constrained_dependent_on_model():
         else:
             # TODO if these constraints can somehow be written as integrals
             # depending on y and x this if/else should be removed.
-            assert con_map == {fit_constraint.dependent_vars[0
-                                                             ]: {A}}
+            assert con_map == {fit_constraint.dependent_vars[0]: {A}}
             assert fit_constraint.independent_vars == []
             assert len(fit_constraint.dependent_vars) == 1
             assert fit_constraint.interdependent_vars == []
@@ -840,10 +793,8 @@ def test_constrained_dependent_on_model():
 
         # Finally, test if the constraint worked
         fit_result = fit.execute(options={'eps': 1e-15, 'ftol': 1e-10})
-        unconstr_value = fit.minimizer.wrapped_constraints[0]['fun'](
-            **unconstr_result.params)
-        constr_value = fit.minimizer.wrapped_constraints[0]['fun'](
-            **fit_result.params)
+        unconstr_value = fit.minimizer.wrapped_constraints[0]['fun'](**unconstr_result.params)
+        constr_value = fit.minimizer.wrapped_constraints[0]['fun'](**fit_result.params)
 
         # TODO because of a bug by pytest we have to solve it like this
         assert constr_value[0] == pytest.approx(0, abs=1e-10)
@@ -871,8 +822,7 @@ def test_constrained_dependent_on_matrixmodel():
 
     # Looks overly complicated, but it's just a simple Gaussian
     model = CallableModel(
-        {y: A * sympy.exp(- HadamardProduct(B, B) / (2 * sig**2))
-         / sympy.sqrt(2*sympy.pi*sig**2),
+        {y: A * sympy.exp(- HadamardProduct(B, B) / (2 * sig**2)) / sympy.sqrt(2*sympy.pi*sig**2),
          B: (x - mu * I)}
     )
     assert model.independent_vars == [I, x]
@@ -882,9 +832,9 @@ def test_constrained_dependent_on_matrixmodel():
 
     # Generate data, sample from a N(1.2, 2) distribution. Has to be 2D.
     np.random.seed(2)
+    # TODO: sample points on a Guassian and add appropriate noise.
     xdata = np.random.normal(1.2, 2, size=10000)
-    ydata, xedges = np.histogram(
-        xdata, bins=int(np.sqrt(len(xdata))), density=True)
+    ydata, xedges = np.histogram(xdata, bins=int(np.sqrt(len(xdata))), density=True)
     xcentres = np.atleast_2d((xedges[1:] + xedges[:-1]) / 2).T
     xdiff = np.atleast_2d((xedges[1:] - xedges[:-1])).T
     ydata = np.atleast_2d(ydata).T
@@ -899,12 +849,9 @@ def test_constrained_dependent_on_matrixmodel():
 
     constraint = CallableModel({Y: Sum(y[i, 0] * dx[i, 0], i) - 1})
 
-    try:
+    with pytest.raises(ModelError):
         fit = Fit(model, x=xcentres, y=ydata, dx=xdiff, M=len(xcentres),
                   I=Idata, constraints=[constraint])
-        assert False
-    except ModelError:
-        assert True
 
     constraint = CallableModel.as_constraint(
         {Y: Sum(y[i, 0] * dx[i, 0], i) - 1},
@@ -930,20 +877,16 @@ def test_constrained_dependent_on_matrixmodel():
     assert isinstance(fit.objective, LeastSquares)
     assert isinstance(fit.minimizer.constraints[0], MinimizeModel)
 
-    assert {k for k, v in fit.data.items() if v is not None} == {
-        x, y, dx, M, I, fit.model.sigmas[y]}
+    assert {k for k, v in fit.data.items() if v is not None} == {x, y, dx, M, I, fit.model.sigmas[y]}
     # These belong to internal variables
-    assert {k for k, v in fit.data.items() if v is None} == {
-        constraint.sigmas[Y], Y}
+    assert {k for k, v in fit.data.items() if v is None} == {constraint.sigmas[Y], Y}
 
     constr_result = fit.execute()
     # The constraint should not be met for the unconstrained fit
-    assert not fit.minimizer.wrapped_constraints[0]['fun'](
-        **unconstr_result.params)[0] == pytest.approx(0, 1e-3)
+    assert not fit.minimizer.wrapped_constraints[0]['fun'](**unconstr_result.params)[0] == pytest.approx(0, 1e-3)
     # And at high precision with constraint
     # TODO Change after resolve bug at pytest
-    assert fit.minimizer.wrapped_constraints[0]['fun'](
-        **constr_result.params)[0] == pytest.approx(0, abs=1e-8)
+    assert fit.minimizer.wrapped_constraints[0]['fun'](**constr_result.params)[0] == pytest.approx(0, abs=1e-8)
 
     # Constraining will negatively effect the R^2 value, but...
     assert constr_result.r_squared < unconstr_result.r_squared
@@ -959,15 +902,11 @@ def test_fixed_and_constrained_tc():
     phi1, phi2, theta1, theta2 = parameters('phi1, phi2, theta1, theta2')
     x, y = variables('x, y')
 
-    model_dict = {y: (1 + x * theta1 + theta2 * x ** 2) / (
-        1 + phi1 * x * theta1 + phi2 * theta2 * x ** 2)}
+    model_dict = {y: (1 + x * theta1 + theta2 * x ** 2) / (1 + phi1 * x * theta1 + phi2 * theta2 * x ** 2)}
     constraints = [GreaterThan(theta1, theta2)]
 
-    xdata = np.array(
-        [0., 0.000376, 0.000752, 0.0015, 0.00301, 0.00601, 0.00902])
-    ydata = np.array(
-        [1., 1.07968041, 1.08990638, 1.12151629, 1.13068452, 1.15484109,
-         1.19883952])
+    xdata = np.array([0., 0.000376, 0.000752, 0.0015, 0.00301, 0.00601, 0.00902])
+    ydata = np.array([1., 1.07968041, 1.08990638, 1.12151629, 1.13068452, 1.15484109, 1.19883952])
 
     phi1.value = 0.845251484373516
     phi1.fixed = True
@@ -998,20 +937,15 @@ def test_fixed_and_constrained_tc():
         assert id(fit.objective.data) == id(constraint.data)
 
         # Test if the data and fixed params have been partialed away
-        assert key2str(constraint._invariant_kwargs).keys(
-        ) == constraint_kwargs.keys()
-        assert key2str(fit.objective._invariant_kwargs).keys(
-        ) == objective_kwargs.keys()
+        assert key2str(constraint._invariant_kwargs).keys() == constraint_kwargs.keys()
+        assert key2str(fit.objective._invariant_kwargs).keys() == objective_kwargs.keys()
 
     # Compare the shapes. The constraint shape should now be the same as
     # that of the objective
     obj_val = fit.minimizer.objective(fit.minimizer.initial_guesses)
     obj_jac = fit.minimizer.wrapped_jacobian(fit.minimizer.initial_guesses)
-    try:
+    with pytest.raises(TypeError):
         len(obj_val)  # scalars don't have lengths
-        assert False
-    except TypeError:
-        assert True
     assert len(obj_jac) == 2
 
     for index, constraint in enumerate(fit.minimizer.wrapped_constraints):
@@ -1065,7 +999,7 @@ def test_constrainedminimizers():
     results = []
     for minimizer in minimizers:
         if minimizer is COBYLA:
-            # COBYLA only supports inequility.
+            # COBYLA only supports inequality.
             continue
         fit = Fit(- model, constraints=constraints, minimizer=minimizer)
         fit_result = fit.execute(tol=1e-15)
@@ -1094,7 +1028,7 @@ def test_trustconstr():
         return np.array([dfdx0, dfdx1])
 
     def func_hess(x, sign=1.0):
-        """ Derivative of objective function """
+        """ Hessian of objective function """
         dfdx2 = sign*(-2)
         dfdxdy = sign * 2
         dfdy2 = sign * (-4)
@@ -1107,8 +1041,7 @@ def test_trustconstr():
         return [[0, 1], [3 * x[0] ** 2, -1]]
 
     def cons_H(x, v):
-        return v[0] * np.array([[0, 0], [0, 0]]) + \
-            v[1] * np.array([[6 * x[0], 0], [0, 0]])
+        return v[0] * np.zeros((2, 2)) + v[1] * np.array([[6 * x[0], 0], [0, 0]])
 
     # Unconstrained fit
     res = minimize(func, [-1.0, 1.0], args=(-1.0,),

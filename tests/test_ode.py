@@ -1,13 +1,10 @@
 from __future__ import division, print_function
-import sys
 import pytest
 
-import pytest
 import numpy as np
 
 from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel, Parameter
 from symfit.core.minimizers import MINPACK
-from symfit.distributions import Gaussian
 
 
 """
@@ -223,7 +220,8 @@ def test_odemodel_sanity():
     with pytest.raises(RuntimeWarning):
         fit = Fit(model_dict, t=tdata, a=adata)
 
-def test_initial_parameters(self):
+
+def test_initial_parameters():
     """
     Identical to test_polgar, but with a0 as free Parameter.
     """
@@ -250,7 +248,7 @@ def test_initial_parameters(self):
     print(results)
     assert results.value(a0) == 10
     assert results.value(c0) == pytest.approx(0)
-    
+
     assert ode_model.params == [a0, c0, k, l, m, p]
     assert ode_model.initial_params == [a0, c0]
     assert ode_model.model_params == [a0, k, l, m, p]

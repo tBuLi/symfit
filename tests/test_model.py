@@ -73,8 +73,7 @@ def test_neg():
 
     constraint_neg = - constraint
     # for key in constraint:
-    assert constraint[constraint.dependent_vars[0]] == - \
-        constraint_neg[constraint_neg.dependent_vars[0]]
+    assert constraint[constraint.dependent_vars[0]] == - constraint_neg[constraint_neg.dependent_vars[0]]
 
     # ODEModel
     odemodel = ODEModel({D(y_1, x): a * x}, initial={a: 1.0})
@@ -111,8 +110,10 @@ def test_CallableNumericalModel():
     xdata = np.linspace(0, 10)
     ydata = model(x=xdata, a=5.5, b=15.0).y + np.random.normal(0, 1)
 
-    assert np.array(model(x=xdata, a=5.5, b=15.0)) == pytest.approx(
-        np.array(numerical_model(x=xdata, a=5.5, b=15.0)))
+    symbolic_answer = np.array(model(x=xdata, a=5.5, b=15.0))
+    numerical_answer = np.array(numerical_model(x=xdata, a=5.5, b=15.0))
+
+    assert numerical_answer == pytest.approx(symbolic_answer)
 
     faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
                                           [], [a, b])
@@ -121,7 +122,7 @@ def test_CallableNumericalModel():
         # This is an incorrect signature, even though the lambda function is
         # correct. Should fail.
         faulty_model(xdata, 5.5, 15.0)
-    
+
     # Faulty model whose components do not all accept all of the args
     faulty_model = CallableNumericalModel(
         {y: lambda x, a, b: a * x + b, z: lambda x, a: x**a}, [x], [a, b]
@@ -152,9 +153,11 @@ def test_CallableNumericalModel():
         {y: lambda x, a, b: a * x + b, z: x ** a}, [x],
         [a, b]
     )
-   
-    assert np.array(numerical_model(x=xdata, a=5.5, b=15.0)) == pytest.approx(
-        np.array(mixed_model(x=xdata, a=5.5, b=15.0)))
+
+    numberical_answer = np.array(numerical_model(x=xdata, a=5.5, b=15.0))
+    mixed_answer = np.array(mixed_model(x=xdata, a=5.5, b=15.0))
+    assert numberical_answer == pytest.approx(mixed_answer)
+
     zdata = mixed_model(x=xdata, a=5.5, b=15.0).z + np.random.normal(0, 1)
 
     # Check if the fits are the same
@@ -163,24 +166,18 @@ def test_CallableNumericalModel():
     fit = Fit(numerical_model, x=xdata, y=ydata, z=zdata)
     numerical_result = fit.execute()
     for param in [a, b]:
-        assert mixed_result.value(param) == pytest.approx(
-            numerical_result.value(param))
-
-        if mixed_result.stdev(param) is  None and numerical_result.stdev(param) is None:
-            assert True
-        elif mixed_result.stdev(param) or  None and numerical_result.stdev(param) is None:
-            assert False
-        else:
+        assert mixed_result.value(param) == pytest.approx(numerical_result.value(param))
+        if mixed_result.stdev(param) is not None and numerical_result.stdev(param) is not None:
             assert mixed_result.stdev(param) == pytest.approx(numerical_result.stdev(param))
-
+        else:
+            assert  mixed_result.stdev(param) is None and numerical_result.stdev(param) is None
     assert mixed_result.r_squared == pytest.approx(numerical_result.r_squared)
 
     # Test if the constrained syntax is supported
     fit = Fit(numerical_model, x=xdata, y=ydata,
               z=zdata, constraints=[Eq(a, b)])
     constrained_result = fit.execute()
-    assert constrained_result.value(
-        a) == pytest.approx(constrained_result.value(b))
+    assert constrained_result.value(a) == pytest.approx(constrained_result.value(b))
 
 
 def test_CallableNumericalModel_infer_connectivity():
@@ -239,19 +236,8 @@ def test_CallableNumericalModel2D():
     assert fit_result.value(a) == pytest.approx(flat_result.value(a))
     assert fit_result.value(b) == pytest.approx(flat_result.value(b))
 
-    if fit_result.stdev(a) is None and flat_result.stdev(a) is None:
-        assert True
-    elif fit_result.stdev(a) is None or flat_result.stdev(a) is None:
-        assert False
-    else:
-        assert fit_result.stdev(a) == pytest.approx(flat_result.stdev(a))
-    
-    if fit_result.stdev(b) is None and flat_result.stdev(b) is None:
-        assert True
-    elif fit_result.stdev(b) is None or flat_result.stdev(b) is None:
-        assert False
-    else:
-        assert fit_result.stdev(b) == pytest.approx(flat_result.stdev(b))
+    assert fit_result.stdev(a) is None and flat_result.stdev(a) is None
+    assert fit_result.stdev(b) is None and flat_result.stdev(b) is None
 
     assert fit_result.r_squared == pytest.approx(flat_result.r_squared)
 
@@ -273,8 +259,7 @@ def test_pickle():
     # Test if lsoda args and kwargs are pickled too
     ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, 3, 4, some_kwarg=True)
 
-    models = [exact_model, constraint, num_model, ode_model,
-              connected_num_model]
+    models = [exact_model, constraint, num_model, ode_model, connected_num_model]
     for model in models:
         new_model = pickle.loads(pickle.dumps(model))
         # Compare signatures
@@ -328,9 +313,9 @@ def test_MatrixSymbolModel():
     W_manual = np.linalg.inv(iden + M_mat / 0.1 ** 2)
     c_manual = - W_manual.dot(y_vec)
     z_manual = np.atleast_1d(np.sqrt(c_manual.T.dot(c_manual)))
-    np.testing.assert_allclose(eval_model.W, W_manual)
-    np.testing.assert_allclose(eval_model.c, c_manual)
-    np.testing.assert_allclose(eval_model.z, z_manual)
+    assert eval_model.W == pytest.approx(W_manual)
+    assert eval_model.c == pytest.approx(c_manual)
+    assert eval_model.z == pytest.approx(z_manual)
 
     # Now try to retrieve the value of `a` from a fit
     a.value = 0.2
@@ -338,9 +323,9 @@ def test_MatrixSymbolModel():
     fit_result = fit.execute()
     eval_model = model(I=iden, M=M_mat, y=y_vec, **fit_result.params)
     assert 0.1 == pytest.approx(np.abs(fit_result.value(a)))
-    np.testing.assert_allclose(eval_model.W, W_manual, rtol=1e-5)
-    np.testing.assert_allclose(eval_model.c, c_manual, rtol=1e-5)
-    np.testing.assert_allclose(eval_model.z, z_manual, rtol=1e-5)
+    assert eval_model.W == pytest.approx(W_manual)
+    assert eval_model.c == pytest.approx(c_manual)
+    assert eval_model.z == pytest.approx(z_manual)
 
     # TODO: add constraints to Matrix model. But since Matrix expressions
     # can not yet be derived, this needs #154 to be solved first.
@@ -366,6 +351,7 @@ def test_interdependency_invalid():
         model_dict = {c: a ** 3 * x + b ** 2}
         model = Model(model_dict)
 
+
 def test_interdependency():
     a, b = parameters('a, b')
     x, y, z = variables('x, y, z')
@@ -381,9 +367,11 @@ def test_interdependency():
     assert callable_model.connectivity_mapping == {y: {a, b, x}, z: {a, b, y}}
     assert callable_model(x=3, a=1, b=2) == pytest.approx(np.atleast_2d([7, 51]).T)
     for var, func in callable_model.vars_as_functions.items():
-        assert(set(str(x) for x in callable_model.connectivity_mapping[var]) ==
-               set(str(x.__class__) if isinstance(x, Function) else str(x)
-                   for x in func.args))
+        # TODO comment on what this does
+        str_con_map = set(x.name for x in callable_model.connectivity_mapping[var])
+        str_args = set(str(x.__class__) if isinstance(x, Function) else x.name
+                       for x in func.args)
+        assert str_con_map == str_args
 
     jac_model = jacobian_from_model(callable_model)
     assert jac_model.params == [a, b]
@@ -395,27 +383,24 @@ def test_interdependency():
     # The connectivity of jac_model should be that from it's own components
     # plus that of the model. The latter is needed to properly compute the
     # Hessian.
-    assert (jac_model.connectivity_mapping ==
-            {D(y, a): {a, x},
-             D(y, b): {b},
-             D(z, a): {b, y, D(y, a)},
-             D(z, b): {a, y, D(y, b)},
-             y: {a, b, x}, z: {a, b, y}
-             }
-            )
-    assert (jac_model.model_dict ==
-            {D(y, a): 3 * a**2 * x,
-             D(y, b): 2 * b,
-             D(z, a): b + 2 * y * D(y, a),
-             D(z, b): a + 2 * y * D(y, b),
-             y: callable_model[y], z: callable_model[z]
-             }
-            )
+    jac_con_map = {D(y, a): {a, x},
+                   D(y, b): {b},
+                   D(z, a): {b, y, D(y, a)},
+                   D(z, b): {a, y, D(y, b)},
+                   y: {a, b, x}, z: {a, b, y}}
+    assert jac_model.connectivity_mapping == jac_con_map
+    jac_model_dict = {D(y, a): 3 * a**2 * x,
+                      D(y, b): 2 * b,
+                      D(z, a): b + 2 * y * D(y, a),
+                      D(z, b): a + 2 * y * D(y, b),
+                      y: callable_model[y], z: callable_model[z]}
+    assert jac_model.model_dict == jac_model_dict
     for var, func in jac_model.vars_as_functions.items():
-        assert (set(x.name for x in jac_model.connectivity_mapping[var]) ==
-                set(str(x.__class__) if isinstance(x, Function) else str(x)
-                    for x in func.args)
-                )
+        str_con_map = set(x.name for x in jac_model.connectivity_mapping[var])
+        str_args = set(str(x.__class__) if isinstance(x, Function) else x.name
+                       for x in func.args)
+        assert str_con_map == str_args
+
     hess_model = hessian_from_model(callable_model)
     # Result according to Mathematica
     hess_as_dict = {
@@ -433,29 +418,23 @@ def test_interdependency():
         D(z, b): a + 2 * y * D(y, b),
         y: callable_model[y], z: callable_model[z]
     }
-    assert len(hess_model) == len(hess_as_dict)
-    for key, expr in hess_model.items():
-        assert expr == hess_as_dict[key]
+    assert dict(hess_model) == hess_as_dict
 
     assert hess_model.params == [a, b]
-    assert (hess_model.dependent_vars ==
-            [D(z, (a, 2)), D(z, a, b), D(z, (b, 2)), D(z, b, a),
-             D(z, a), D(z, b), z]
-            )
-    assert hess_model.interdependent_vars == [
-        D(y, (a, 2)), D(y, a), D(y, b), y]
+    assert hess_model.dependent_vars == [D(z, (a, 2)), D(z, a, b), D(z, (b, 2)), D(z, b, a), D(z, a), D(z, b), z]
+    assert hess_model.interdependent_vars == [D(y, (a, 2)), D(y, a), D(y, b), y]
     assert hess_model.independent_vars == [x]
 
     model = Model(model_dict)
     assert model(x=3, a=1, b=2) == pytest.approx(np.atleast_2d([7, 51]).T)
     assert model.eval_jacobian(x=3, a=1, b=2) == pytest.approx(np.array([[[9], [4]], [[128], [57]]]))
-    assert model.eval_hessian(x=3, a=1, b=2) == pytest.approx(
-        np.array([[[[18], [0]], [[0], [2]]],[[[414], [73]], [[73], [60]]]]))
+    assert model.eval_hessian(x=3, a=1, b=2) == pytest.approx(np.array([[[[18], [0]], [[0], [2]]],[[[414], [73]], [[73], [60]]]]))
 
     assert model.__signature__ == model.jacobian_model.__signature__
     assert model.__signature__ == model.hessian_model.__signature__
 
-def test_ModelOutput(self):
+
+def test_ModelOutput():
     """
     Test the ModelOutput object. To prevent #267 from recurring,
     we attempt to make a model with more than 255 variables.
@@ -463,6 +442,7 @@ def test_ModelOutput(self):
     params = parameters(','.join('a{}'.format(i) for i in range(300)))
     data = np.ones(300)
     output = ModelOutput(params, data)
-    assert len(output) == 300)
+    assert len(output) == 300
     assert isinstance(output._asdict(), OrderedDict)
-    assert output._asdict() != output.output_dict
+    assert output._asdict() is not output.output_dict
+    assert output._asdict() == output.output_dict

@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 import pytest
-import sys
 import warnings
 
 import numpy as np
@@ -8,7 +7,7 @@ import pickle
 import multiprocessing as mp
 
 from symfit import (
-    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
+    Variable, Parameter, Eq, Ge, parameters, Fit,
     Model, FitResults, variables, CallableNumericalModel
 )
 from symfit.core.minimizers import *
@@ -84,7 +83,7 @@ def setup_function():
     np.random.seed(0)
 
 
-def test_custom_objective():
+def test_custom_objective(recwarn):
     """
     Compare the result of a custom objective with the symbolic result.
     :return:
@@ -100,7 +99,7 @@ def test_custom_objective():
     b = Parameter('b', value=0, min=0.0, max=1000)
     x = Variable('x')
     y = Variable('y')
-    model = a * x + b
+    model = {y: a * x + b}
 
     fit = Fit(model, xdata, ydata, minimizer=BFGS)
     fit_result = fit.execute()
@@ -111,12 +110,10 @@ def test_custom_objective():
     def chi_squared(a, b):
         return np.sum((ydata - f(xdata, a, b))**2)
 
-    with warnings.catch_warnings(record=True) as w:
-        # Should no longer raise warnings, because internally we practice
-        # what we preach.
-        warnings.simplefilter("always")
-        fit_custom = BFGS(chi_squared, [a, b])
-        assert len(w) == 0
+    # Should no longer raise warnings, because internally we practice
+    # what we preach.
+    fit_custom = BFGS(chi_squared, [a, b])
+    assert len(recwarn) == 0
 
     fit_custom_result = fit_custom.execute()
 
@@ -256,47 +253,41 @@ def test_pickle():
             try:
                 assert value == new_value
             except AssertionError as err:
-                if key in problematic_attr:
-                    # These attr are new instances, and therefore do not
-                    # pass an equality test. All we can do is see if they
-                    # are at least the same type.
-                    if isinstance(value, (list, tuple)):
-                        for val1, val2 in zip(value, new_value):
-                            assert isinstance(val1, val2.__class__)
-                            if key == 'constraints':
-                                assert val1.model.constraint_type == val2.model.constraint_type
-                                assert list(val1.model.model_dict.values())[0] == list(val2.model.model_dict.values())[0]
-                                assert val1.model.independent_vars == val2.model.independent_vars
-                                assert val1.model.params == val2.model.params
-                                assert val1.model.__signature__ == val2.model.__signature__
-                            elif key == 'wrapped_constraints':
-                                if isinstance(val1, dict):
-                                    assert val1['type'] == val2['type']
-                                    assert set(val1.keys()) == set(val2.keys())
-                                elif isinstance(val1, NonlinearConstraint):
-                                    # For trust-ncg we manually check if
-                                    # their dicts are equal, because no
-                                    # __eq__ is implemented on
-                                    # NonLinearConstraint
-                                    assert len(val1.__dict__) == len(val2.__dict__)
-                                    for key in val1.__dict__:
-                                        try:
-                                            assert val1.__dict__[key] == val2.__dict__[key]
-                                        except AssertionError:
-                                            assert isinstance(
-                                                val1.__dict__[key],
-                                                val2.__dict__[key].__class__
-                                            )
-                                else:
-                                    raise NotImplementedError(
-                                        'No such constraint type is known.'
-                                    )
-                    elif key == '_pickle_kwargs':
-                        FitResults._array_safe_dict_eq(value, new_value)
-                    else:
-                        assert isinstance(new_value, value.__class__)
-                else:
+                if key not in problematic_attr:
                     raise err
+                # These attr are new instances, and therefore do not
+                # pass an equality test. All we can do is see if they
+                # are at least the same type.
+                if isinstance(value, (list, tuple)):
+                    for val1, val2 in zip(value, new_value):
+                        assert isinstance(val1, val2.__class__)
+                        if key == 'constraints':
+                            assert val1.model.constraint_type == val2.model.constraint_type
+                            assert list(val1.model.model_dict.values())[0] == list(val2.model.model_dict.values())[0]
+                            assert val1.model.independent_vars == val2.model.independent_vars
+                            assert val1.model.params == val2.model.params
+                            assert val1.model.__signature__ == val2.model.__signature__
+                        elif key == 'wrapped_constraints':
+                            if isinstance(val1, dict):
+                                assert val1['type'] == val2['type']
+                                assert set(val1.keys()) == set(val2.keys())
+                            elif isinstance(val1, NonlinearConstraint):
+                                # For trust-ncg we manually check if
+                                # their dicts are equal, because no
+                                # __eq__ is implemented on
+                                # NonLinearConstraint
+                                assert len(val1.__dict__) == len(val2.__dict__)
+                                for key in val1.__dict__:
+                                    try:
+                                        assert val1.__dict__[key] == val2.__dict__[key]
+                                    except AssertionError:
+                                        assert isinstance(val1.__dict__[key], val2.__dict__[key].__class__)
+                            else:
+                                raise NotImplementedError('No such constraint type is known.')
+                elif key == '_pickle_kwargs':
+                    FitResults._array_safe_dict_eq(value, new_value)
+                else:
+                    assert isinstance(new_value, value.__class__)
         assert set(fit.__dict__.keys()) == set(pickled_fit.__dict__.keys())
 
         # Test if we converge to the same result.
@@ -341,7 +332,6 @@ def test_multiprocessing():
     for minimizer in minimizers:
         results = pool.map(worker, gen_fit_objs(x, a_values, minimizer))
         a_results = [res.params['a'] for res in results]
-        minimizer_results = [res.minimizer for res in results]
         # Check the results
         assert a_values == pytest.approx(a_results, 1e-2)
         for result in results:
@@ -398,7 +388,4 @@ def test_minimizer_constraint_compatibility():
     with pytest.raises(TypeError):
         fit = SLSQP(MinimizeModel(model, data=data_dict),
                     parameters=[a, b, c],
-                    constraints=[
-                        {'type': 'eq', 'fun': lambda a, b, c: a - c}
-        ]
-        )
+                    constraints=[{'type': 'eq', 'fun': lambda a, b, c: a - c}])

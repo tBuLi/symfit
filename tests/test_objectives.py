@@ -1,20 +1,18 @@
 from __future__ import division, print_function
 import pytest
-import warnings
 import pickle
 
 import numpy as np
 
 from symfit import (
-    Variable, Parameter, Eq, Ge, Le, Lt, Gt, Ne, parameters, ModelError, Fit,
-    Model, FitResults, variables, CallableNumericalModel, Idx,
-    IndexedBase, symbols, Sum, log, exp, cos, pi, besseli
+    Variable, Parameter, parameters, Fit,
+    Model, FitResults, variables, Idx,
+    symbols, Sum, log, exp, cos, pi, besseli
 )
 from symfit.core.objectives import (
     VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel,
     BaseIndependentObjective
 )
-from symfit.core.fit_results import FitResults
 from symfit.distributions import Exp
 
 # Overwrite the way Sum is printed by numpy just while testing. Is not
@@ -32,8 +30,7 @@ class FlattenSum(Sum):
     """
 
     def _numpycode(self, printer):
-        return "%s(%s)" % (printer._module_format('numpy.sum'),
-                           printer.doprint(self.function))
+        return "%s(%s)" % (printer._module_format('numpy.sum'), printer.doprint(self.function))
 
 
 def setup_method():
@@ -60,8 +57,7 @@ def test_pickle():
         if issubclass(objective, BaseIndependentObjective):
             data = {x: xdata}
         else:
-            data = {x: xdata, y: ydata,
-                    model.sigmas[y]: np.ones_like(ydata)}
+            data = {x: xdata, y: ydata, model.sigmas[y]: np.ones_like(ydata)}
         obj = objective(model, data=data)
         new_obj = pickle.loads(pickle.dumps(obj))
         assert FitResults._array_safe_dict_eq(obj.__dict__, new_obj.__dict__)
@@ -85,8 +81,7 @@ def test_LeastSquares():
     chi2_numerical = LeastSquares(model, data={
         x: xdata, y: ydata, model.sigmas[y]: np.ones_like(xdata)
     })
-    chi2_exact = Model(
-        {X2: FlattenSum(0.5 * ((a * x ** 2 + b * x) - y) ** 2, i)})
+    chi2_exact = Model({X2: FlattenSum(0.5 * ((a * x ** 2 + b * x) - y) ** 2, i)})
 
     eval_exact = chi2_exact(x=xdata, y=ydata, a=2, b=3)
     jac_exact = chi2_exact.eval_jacobian(x=xdata, y=ydata, a=2, b=3)
@@ -193,7 +188,7 @@ def test_data_sanity():
     :return:
     """
     # Create test data
-    xdata = np.linspace(0, 100, 25)  # From 0 to 100 in 100 steps
+    xdata = np.linspace(0, 100, 25)  # From 0 to 100 in 25 steps
     a_vec = np.random.normal(15.0, scale=2.0, size=xdata.shape)
     b_vec = np.random.normal(100, scale=2.0, size=xdata.shape)
     ydata = a_vec * xdata + b_vec  # Point scattered around the line 5 * x + 105
@@ -204,18 +199,15 @@ def test_data_sanity():
     x, y, z = variables('x, y, z')
     model = Model({y: a * x + b})
 
-    for objective in [VectorLeastSquares, LeastSquares, LogLikelihood,
-                      MinimizeModel]:
+    for objective in [VectorLeastSquares, LeastSquares, LogLikelihood, MinimizeModel]:
         if issubclass(objective, BaseIndependentObjective):
             incomplete_data = {}
             data = {x: xdata}
             overcomplete_data = {x: xdata, z: ydata}
         else:
             incomplete_data = {x: xdata, y: ydata}
-            data = {x: xdata, y: ydata,
-                    model.sigmas[y]: np.ones_like(ydata)}
-            overcomplete_data = {x: xdata, y: ydata, z: ydata,
-                                 model.sigmas[y]: np.ones_like(ydata)}
+            data = {x: xdata, y: ydata, model.sigmas[y]: np.ones_like(ydata)}
+            overcomplete_data = {x: xdata, y: ydata, z: ydata, model.sigmas[y]: np.ones_like(ydata)}
         with pytest.raises(KeyError):
             obj = objective(model, data=incomplete_data)
 
@@ -239,20 +231,17 @@ def test_LogLikelihood_global():
     x2 = np.random.vonmises(mu2, sigma2, n2)
 
     n = 2  # number of components
-    xs = variables(
-        'x,' + ','.join('x_{}'.format(i) for i in range(1, n + 1)))
+    xs = variables('x,' + ','.join('x_{}'.format(i) for i in range(1, n + 1)))
     x, xs = xs[0], xs[1:]
     ys = variables(','.join('y_{}'.format(i) for i in range(1, n + 1)))
     mu, kappa = parameters('mu, kappa')
-    kappas = parameters(','.join('k_{}'.format(i) for i in range(1, n + 1)),
-                        min=0, max=10)
+    kappas = parameters(','.join('k_{}'.format(i) for i in range(1, n + 1)), min=0, max=10)
     mu.min, mu.max = - np.pi, np.pi
 
     template = exp(kappa * cos(x - mu)) / (2 * pi * besseli(0, kappa))
 
     model = Model(
-        {y_i: template.subs({kappa: k_i, x: x_i}) for y_i, x_i, k_i in
-            zip(ys, xs, kappas)}
+        {y_i: template.subs({kappa: k_i, x: x_i}) for y_i, x_i, k_i in zip(ys, xs, kappas)}
     )
 
     all_data = {xs[0]: x1, xs[1]: x2, ys[0]: None, ys[1]: None}

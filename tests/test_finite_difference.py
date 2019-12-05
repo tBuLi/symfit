@@ -1,14 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jul 11 11:34:23 2017
-
-@author: peterkroon
-"""
-import unittest
 import symfit as sf
 import numpy as np
-import warnings
 import pytest
 
 
@@ -25,11 +16,11 @@ def test_1_1_model():
 
     exact = model.eval_jacobian(x=x_data, a=3.5)
     approx = model.finite_difference(x=x_data, a=3.5)
-    np.testing.assert_allclose(exact, approx)
+    _assert_equal(exact, approx)
 
     exact = model.eval_jacobian(x=3, a=3.5)
     approx = model.finite_difference(x=3, a=3.5)
-    np.testing.assert_allclose(exact, approx)
+    _assert_equal(exact, approx)
 
 
 def test_1_multi_model():
@@ -41,11 +32,11 @@ def test_1_multi_model():
 
     exact = model.eval_jacobian(x=x_data, a=3.5, b=2)
     approx = model.finite_difference(x=x_data, a=3.5, b=2)
-    np.testing.assert_allclose(exact, approx)
-
+    _assert_equal(exact, approx)
+    
     exact = model.eval_jacobian(x=3, a=3.5, b=2)
     approx = model.finite_difference(x=3, a=3.5, b=2)
-    np.testing.assert_allclose(exact, approx)
+    _assert_equal(exact, approx)
 
 
 def test_multi_1_model():
@@ -58,11 +49,11 @@ def test_multi_1_model():
 
     exact = model.eval_jacobian(x=x_data, a=3.5)
     approx = model.finite_difference(x=x_data, a=3.5)
-    np.testing.assert_allclose(exact, approx)
+    _assert_equal(exact, approx)
 
     exact = model.eval_jacobian(x=3, a=3.5)
     approx = model.finite_difference(x=3, a=3.5)
-    np.testing.assert_allclose(exact, approx)
+    _assert_equal(exact, approx)
 
 
 def test_multi_multi_model():
@@ -75,11 +66,11 @@ def test_multi_multi_model():
 
     exact = model.eval_jacobian(x=x_data, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=x_data, a=3.5, b=2, c=5)
-    np.testing.assert_allclose(exact, approx, rtol=1e-5)
+    _assert_equal(exact, approx, rel=1e-3)
 
     exact = model.eval_jacobian(x=3, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=3, a=3.5, b=2, c=5)
-    np.testing.assert_allclose(exact, approx, rtol=1e-5)
+    _assert_equal(exact, approx, rel=1e-3)
 
 
 def test_multi_indep():
@@ -96,15 +87,15 @@ def test_multi_indep():
 
     exact = model.eval_jacobian(x=x_data, w=w_data, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=x_data, w=w_data, a=3.5, b=2, c=5)
-    np.testing.assert_allclose(exact, approx, rtol=1e-5)
+    _assert_equal(exact, approx)
 
     exact = model.eval_jacobian(x=0.3, w=w_data, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=0.3, w=w_data, a=3.5, b=2, c=5)
-    np.testing.assert_allclose(exact, approx, rtol=1e-5)
+    _assert_equal(exact, approx)
 
     exact = model.eval_jacobian(x=0.3, w=5, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=0.3, w=5, a=3.5, b=2, c=5)
-    np.testing.assert_allclose(exact, approx, rtol=1e-5)
+    _assert_equal(exact, approx)
 
 
 def test_ODE_stdev():
@@ -118,11 +109,13 @@ def test_ODE_stdev():
     k.value = 10
     a = -k * x
 
-    model = sf.ODEModel({
-        sf.D(v, t): a,
-        sf.D(x, t): v,
-    },
-        initial={v: 0, x: 1, t: 0})
+    model = sf.ODEModel(
+        {
+            sf.D(v, t): a,
+            sf.D(x, t): v,
+        },
+        initial={v: 0, x: 1, t: 0}
+    )
     t_data = np.linspace(0, 10, 150)
     noise = np.random.normal(1, 0.05, t_data.shape)
     x_data = model(t=t_data, k=11).x * noise
@@ -165,7 +158,7 @@ def test_unequal_data():
             assert exact_elem.shape == xdata.shape
             assert approx_elem.shape == xdata.shape
 
-    _assert_equal(exact, approx, rtol=1e-4)
+    _assert_equal(exact, approx, rel=1e-4)
 
     model = sf.Model({
         y_1: a_1 * x_1**2 + b_1 * x_1,
@@ -176,14 +169,14 @@ def test_unequal_data():
                                 a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
     approx = model.finite_difference(x_1=xdata1, x_2=xdata2,
                                      a_1=101.3, b_1=0.5, a_2=56.3, b_2=1.1111)
-    _assert_equal(exact, approx, rtol=1e-4)
+    _assert_equal(exact, approx, rel=1e-4)
 
     model = sf.Model({
         y_1: a_1 * x_1**2 + b_1 * x_1,
     })
     exact = model.eval_jacobian(x_1=xdata1, a_1=101.3, b_1=0.5)
     approx = model.finite_difference(x_1=xdata1, a_1=101.3, b_1=0.5)
-    _assert_equal(exact, approx, rtol=1e-4)
+    _assert_equal(exact, approx, rel=1e-4)
 
 
 def test_harmonic_oscillator_errors():
@@ -221,4 +214,4 @@ def test_harmonic_oscillator_errors():
 def _assert_equal(exact, approx, **kwargs):
     assert len(exact) == len(approx)
     for exact_comp, approx_comp in zip(exact, approx):
-        np.testing.assert_allclose(exact_comp, approx_comp, **kwargs)
+        assert approx_comp == pytest.approx(exact_comp, **kwargs)

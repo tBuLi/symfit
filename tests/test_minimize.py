@@ -1,7 +1,5 @@
 from __future__ import division, print_function
 import pytest
-import sys
-import warnings
 
 import numpy as np
 from scipy.optimize import minimize, basinhopping
@@ -50,16 +48,17 @@ def test_minimize():
 
     cons = (
         {'type': 'eq',
-            'fun': lambda x: np.array([x[0]**3 - x[1]]),
-            'jac': lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
+         'fun': lambda x: np.array([x[0]**3 - x[1]]),
+         'jac': lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
         {'type': 'ineq',
-            'fun': lambda x: np.array([x[1] - 1]),
-            'jac': lambda x: np.array([0.0, 1.0])})
+         'fun': lambda x: np.array([x[1] - 1]),
+         'jac': lambda x: np.array([0.0, 1.0])}
+    )
 
     # Unconstrained fit
     res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
                    method='BFGS', options={'disp': False})
-    fit = Fit(model=- model)
+    fit = Fit(model=-model)
     assert isinstance(fit.objective, MinimizeModel)
     assert isinstance(fit.minimizer, BFGS)
 
@@ -72,7 +71,7 @@ def test_minimize():
     res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
                    constraints=cons, method='SLSQP', options={'disp': False})
 
-    fit = Fit(- model, constraints=constraints)
+    fit = Fit(-model, constraints=constraints)
     assert fit.constraints[0].constraint_type == Ge
     assert fit.constraints[1].constraint_type == Eq
     fit_result = fit.execute()
@@ -110,8 +109,8 @@ def test_constraint_types():
         Eq(x**3 - y, 0),  # x**3 - y == 0,
     ]
 
-    fit = Fit(- model, constraints=constraints)
-    std_fit = Fit(- model, constraints=std_constraints)
+    fit = Fit(-model, constraints=constraints)
+    std_fit = Fit(-model, constraints=std_constraints)
     assert fit.constraints[0].constraint_type == Ge
     assert fit.constraints[1].constraint_type == Eq
     assert fit.constraints[0].params == [x, y]
@@ -173,11 +172,11 @@ def test_basinhopping_large():
 
 
 def test_basinhopping():
-    def func(x): return np.cos(14.5 * x - 0.3) + (x + 0.2) * x
+    def func(x):
+        return np.cos(14.5 * x - 0.3) + (x + 0.2) * x
     x0 = [1.]
     np.random.seed(555)
-    res = basinhopping(func, x0, minimizer_kwargs={
-                       "method": "BFGS"}, niter=200)
+    res = basinhopping(func, x0, minimizer_kwargs={"method": "BFGS"}, niter=200)
     np.random.seed(555)
     x, = parameters('x')
     fit = BasinHopping(func, [x], local_minimizer=BFGS)
@@ -190,8 +189,7 @@ def test_basinhopping():
 
 def test_basinhopping_2d():
     def func2d(x):
-        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * \
-            x[1] + (x[0] + 0.2) * x[0]
+        f = np.cos(14.5 * x[0] - 0.3) + (x[1] + 0.2) * x[1] + (x[0] + 0.2) * x[0]
         df = np.zeros(2)
         df[0] = -14.5 * np.sin(14.5 * x[0] - 0.3) + 2. * x[0] + 0.2
         df[1] = 2. * x[1] + 0.2
@@ -210,8 +208,7 @@ def test_basinhopping_2d():
     np.random.seed(555)
     minimizer_kwargs = {'method': 'BFGS', 'jac': True}
     x0 = [1.0, 1.0]
-    res = basinhopping(
-        func2d, x0, minimizer_kwargs=minimizer_kwargs, niter=200)
+    res = basinhopping(func2d, x0, minimizer_kwargs=minimizer_kwargs, niter=200)
 
     np.random.seed(555)
     x1, x2 = parameters('x1, x2', value=x0)
@@ -229,8 +226,7 @@ def test_basinhopping_2d():
     )
     fit_result = fit.execute(niter=200)
     assert isinstance(fit.local_minimizer.jacobian, MinimizeModel)
-    assert isinstance(fit.local_minimizer.jacobian.model,
-                      CallableNumericalModel)
+    assert isinstance(fit.local_minimizer.jacobian.model, CallableNumericalModel)
     assert res.x[0] == fit_result.value(x1)
     assert res.x[1] == fit_result.value(x2)
     assert res.fun == fit_result.objective_value
