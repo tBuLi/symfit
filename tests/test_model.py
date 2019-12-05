@@ -15,7 +15,7 @@ from symfit import (
     Function, diff
 )
 from symfit.core.models import (
-    jacobian_from_model, hessian_from_model, ModelError
+    jacobian_from_model, hessian_from_model, ModelError, ModelOutput
 )
 
 
@@ -454,3 +454,15 @@ def test_interdependency():
 
     assert model.__signature__ == model.jacobian_model.__signature__
     assert model.__signature__ == model.hessian_model.__signature__
+
+def test_ModelOutput(self):
+    """
+    Test the ModelOutput object. To prevent #267 from recurring,
+    we attempt to make a model with more than 255 variables.
+    """
+    params = parameters(','.join('a{}'.format(i) for i in range(300)))
+    data = np.ones(300)
+    output = ModelOutput(params, data)
+    assert len(output) == 300)
+    assert isinstance(output._asdict(), OrderedDict)
+    assert output._asdict() != output.output_dict
