@@ -778,53 +778,53 @@ def test_error_analytical():
     assert fit_result.stdev(a) == pytest.approx(sigma_mu, 1e-5)
 
 # TODO: redudant with test_error_analytical?
-# def test_straight_line_analytical(self):
-#     """
-#     Test symfit against a straight line, for which the parameters and their
-#     uncertainties are known analytically. Assuming equal weights.
-#     """
-#     data = [[0, 1], [1, 0], [3, 2], [5, 4]]
-#     x, y = (np.array(i, dtype='float64') for i in zip(*data))
-#     # x = np.arange(0, 100, 0.1)
-#     # np.random.seed(10)
-#     # y = 3.0*x + 105.0 + np.random.normal(size=x.shape)
-#
-#     dx = x - x.mean()
-#     dy = y - y.mean()
-#     mean_squared_x = np.mean(x**2) - np.mean(x)**2
-#     mean_xy = np.mean(x * y) - np.mean(x)*np.mean(y)
-#     a = mean_xy/mean_squared_x
-#     b = y.mean() - a * x.mean()
-#     self.assertAlmostEqual(a, 0.694915, 6) # values from Mathematica
-#     self.assertAlmostEqual(b, 0.186441, 6)
-#     print(a, b)
-#
-#     S = np.sum((y - (a*x + b))**2)
-#     var_a_exact = S/(len(x) * (len(x) - 2) * mean_squared_x)
-#     var_b_exact = var_a_exact*np.mean(x ** 2)
-#     a_exact = a
-#     b_exact = b
-#
-#     # We will now compare these exact results with values from symfit
-#     a, b, x_var = Parameter(name='a', value=3.0), Parameter(name='b'), Variable(name='x')
-#     model = a*x_var + b
-#     fit = Fit(model, x, y, absolute_sigma=False)
-#     fit_result = fit.execute()
-#
-#     popt, pcov = curve_fit(lambda z, c, d: c * z + d, x, y,
-#                            Dfun=lambda p, x, y, func: np.transpose([x, np.ones_like(x)]))
-#                             # Dfun=lambda p, x, y, func: print(p, func, x, y))
-#
-#     # curve_fit
-#     self.assertAlmostEqual(a_exact, popt[0], 4)
-#     self.assertAlmostEqual(b_exact, popt[1], 4)
-#     self.assertAlmostEqual(var_a_exact, pcov[0][0], 6)
-#     self.assertAlmostEqual(var_b_exact, pcov[1][1], 6)
-#
-#     self.assertAlmostEqual(a_exact, fit_result.params.a, 4)
-#     self.assertAlmostEqual(b_exact, fit_result.params.b, 4)
-#     self.assertAlmostEqual(var_a_exact**0.5, fit_result.params.a_stdev, 6)
-#     self.assertAlmostEqual(var_b_exact**0.5, fit_result.params.b_stdev, 6)
+@pytest.mark.skip()
+def test_straight_line_analytical():
+     """
+     Test symfit against a straight line, for which the parameters and their
+     uncertainties are known analytically. Assuming equal weights.
+     """
+     data = [[0, 1], [1, 0], [3, 2], [5, 4]]
+     x, y = (np.array(i, dtype='float64') for i in zip(*data))
+     # x = np.arange(0, 100, 0.1)
+     # np.random.seed(10)
+     # y = 3.0*x + 105.0 + np.random.normal(size=x.shape)
+
+     dx = x - x.mean()
+     dy = y - y.mean()
+     mean_squared_x = np.mean(x**2) - np.mean(x)**2
+     mean_xy = np.mean(x * y) - np.mean(x)*np.mean(y)
+     a = mean_xy/mean_squared_x
+     b = y.mean() - a * x.mean()
+     assert a == pytest.approx(0.694915, 1e-6) # values form Mathematica
+     assert b == pytest.approx(0.186441, 1e-6)
+
+     S = np.sum((y - (a*x + b))**2)
+     var_a_exact = S/(len(x) * (len(x) - 2) * mean_squared_x)
+     var_b_exact = var_a_exact*np.mean(x ** 2)
+     a_exact = a
+     b_exact = b
+
+     # We will now compare these exact results with values from symfit
+     a, b, x_var = Parameter(name='a', value=3.0), Parameter(name='b'), Variable(name='x')
+     model = a*x_var + b
+     fit = Fit(model, x, y, absolute_sigma=False)
+     fit_result = fit.execute()
+
+     popt, pcov = curve_fit(lambda z, c, d: c * z + d, x, y,
+                            Dfun=lambda p, x, y, func: np.transpose([x, np.ones_like(x)]))
+                             # Dfun=lambda p, x, y, func: print(p, func, x, y))
+
+     # curve_fit
+     assert a_exact == pytest.approx(popt[0], 1e-4)
+     assert b_exact == pytest,approx(popt[1], 1e-4)
+     assert var_a_exact == pytest.approx(pcov[0][0], 1e-6)
+     assert var_b_exact == pytest.approx(pcov[1][1], 1e-6)
+
+     assert a_exact == pytest.approx(fit_result.params.a, 1e-4)
+     assert b_exact == pytest.approx(fit_result.params.b, 1e-4)
+     assert var_a_exact**0.5 == pytest.approx(fit_result.params.a_stdev, 1e-6)
+     assert var_b_exact**0.5 == pytest.approx(fit_result.params.b_stdev, 1e-6)
 
 
 def test_fixed_parameters():
