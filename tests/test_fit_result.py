@@ -1,10 +1,9 @@
 from __future__ import division, print_function
-import unittest
+import pytest
 import pickle
 from collections import OrderedDict
 
 import numpy as np
-from scipy.optimize import OptimizeResult
 from symfit import (
     Variable, Parameter, Fit, FitResults, Eq, Ge, CallableNumericalModel, Model
 )
@@ -16,71 +15,70 @@ from symfit.core.objectives import (
     LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
 )
 
+
 def ge_constraint(a):  # Has to be in the global namespace for pickle.
     return a - 1
 
-class TestFitResults(unittest.TestCase):
-    """
-    Tests for the FitResults object.
-    """
-    def setUp(self):
+
+class TestTestResult():
+
+    @classmethod
+    def setup_class(cls):
         xdata = np.linspace(1, 10, 10)
         ydata = 3 * xdata ** 2
 
-        a = Parameter('a')
-        b = Parameter('b')
+        cls.a = Parameter('a')
+        cls.b = Parameter('b')
+
         x = Variable('x')
         y = Variable('y')
-        model = Model({y: a * x ** b})
-        self.params = [a, b]
+        model = Model({y: cls.a * x ** cls.b})
 
         fit = Fit(model, x=xdata, y=ydata)
-        self.fit_result = fit.execute()
+        cls.fit_result = fit.execute()
         fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)
-        self.minpack_result = fit.execute()
+        cls.minpack_result = fit.execute()
         fit = Fit(model, x=xdata, objective=LogLikelihood)
-        self.likelihood_result = fit.execute()
+        cls.likelihood_result = fit.execute()
         fit = Fit(model, x=xdata, y=ydata, minimizer=[BFGS, NelderMead])
-        self.chained_result = fit.execute()
+        cls.chained_result = fit.execute()
 
         z = Variable('z')
         constraints = [
-            Eq(a, b),
+            Eq(cls.a, cls.b),
             CallableNumericalModel.as_constraint(
-                {z: ge_constraint}, connectivity_mapping={z: {a}},
+                {z: ge_constraint}, connectivity_mapping={z: {cls.a}},
                 constraint_type=Ge, model=model
             )
         ]
         fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
-        self.constrained_result = fit.execute()
+        cls.constrained_result = fit.execute()
         fit = Fit(model, x=xdata, y=ydata, constraints=constraints,
                   minimizer=BasinHopping)
-        self.constrained_basinhopping_result = fit.execute()
+        cls.constrained_basinhopping_result = fit.execute()
 
     def test_params_type(self):
-        self.assertIsInstance(self.fit_result.params, OrderedDict)
+        assert isinstance(self.fit_result.params, OrderedDict)
 
     def test_minimizer_output_type(self):
-        self.assertIsInstance(self.fit_result.minimizer_output, dict)
-        self.assertIsInstance(self.minpack_result.minimizer_output, dict)
-        self.assertIsInstance(self.likelihood_result.minimizer_output, dict)
+        assert isinstance(self.fit_result.minimizer_output, dict)
+        assert isinstance(self.minpack_result.minimizer_output, dict)
+        assert isinstance(self.likelihood_result.minimizer_output, dict)
 
     def test_fitting(self):
         """
         Test if the fitting worked in the first place.
         """
-        a, b = self.params
-        fit_result = self.fit_result
-        self.assertIsInstance(fit_result, FitResults)
-        self.assertAlmostEqual(fit_result.value(a), 3.0)
-        self.assertAlmostEqual(fit_result.value(b), 2.0)
+        assert isinstance(self.fit_result, FitResults)
+        assert self.fit_result.value(self.a) == pytest.approx(3.0)
+        assert self.fit_result.value(self.b) == pytest.approx(2.0)
 
-        self.assertIsInstance(fit_result.stdev(a), float)
-        self.assertIsInstance(fit_result.stdev(b), float)
+        assert isinstance(self.fit_result.stdev(self.a), float)
+        assert isinstance(self.fit_result.stdev(self.b), float)
 
-        self.assertIsInstance(fit_result.r_squared, float)
+        assert isinstance(self.fit_result.r_squared, float)
         # by definition since there's no fuzzyness
-        self.assertEqual(fit_result.r_squared, 1.0)
+        assert self.fit_result.r_squared == 1.0
 
     def test_fitting_2(self):
         np.random.seed(43)
@@ -133,38 +131,36 @@ class TestFitResults(unittest.TestCase):
         fit = Fit(model, xx, yy, ydata)
         fit_result = fit.execute()
 
-        self.assertGreater(fit_result.r_squared, 0.95)
+        assert fit_result.r_squared > 0.95
         for param in fit.model.params:
             try:
-                self.assertAlmostEqual(fit_result.stdev(param)**2 / fit_result.variance(param), 1.0)
+                assert fit_result.stdev(param)**2 == pytest.approx(fit_result.variance(param))
             except AssertionError:
-                self.assertLessEqual(fit_result.variance(param), 0.0)
-                self.assertTrue(np.isnan(fit_result.stdev(param)))
+                assert fit_result.variance(param) <= 0.0
+                assert np.isnan(fit_result.stdev(param))
 
         # Covariance matrix should be symmetric
         for param_1 in fit.model.params:
             for param_2 in fit.model.params:
-                self.assertAlmostEqual(fit_result.covariance(param_1, param_2) / fit_result.covariance(param_2, param_1), 1.0, 3)
+                assert fit_result.covariance(param_1, param_2) == pytest.approx(fit_result.covariance(param_2, param_1), rel=1e-3)
 
     def test_minimizer_included(self):
         """"The minimizer used should be included in the results."""
-        self.assertIsInstance(self.constrained_result.minimizer, BaseMinimizer)
-        self.assertIsInstance(self.constrained_basinhopping_result.minimizer,
-                              BaseMinimizer)
-        self.assertIsInstance(self.likelihood_result.minimizer, BaseMinimizer)
-        self.assertIsInstance(self.fit_result.minimizer, BaseMinimizer)
-        self.assertIsInstance(self.chained_result.minimizer, ChainedMinimizer)
-        for minimizer, cls in zip(self.chained_result.minimizer.minimizers,
-                                  [BFGS, NelderMead]):
-            self.assertIsInstance(minimizer, cls)
+        assert isinstance(self.constrained_result.minimizer, BaseMinimizer)
+        assert isinstance(self.constrained_basinhopping_result.minimizer, BaseMinimizer)
+        assert isinstance(self.likelihood_result.minimizer, BaseMinimizer)
+        assert isinstance(self.fit_result.minimizer, BaseMinimizer)
+        assert isinstance(self.chained_result.minimizer, ChainedMinimizer)
+        for minimizer, cls in zip(self.chained_result.minimizer.minimizers, [BFGS, NelderMead]):
+            assert isinstance(minimizer, cls)
 
     def test_objective_included(self):
         """"The objective used should be included in the results."""
-        self.assertIsInstance(self.fit_result.objective, LeastSquares)
-        self.assertIsInstance(self.minpack_result.objective, VectorLeastSquares)
-        self.assertIsInstance(self.likelihood_result.objective, LogLikelihood)
-        self.assertIsInstance(self.constrained_result.objective, LeastSquares)
-        self.assertIsInstance(self.constrained_basinhopping_result.objective, LeastSquares)
+        assert isinstance(self.fit_result.objective, LeastSquares)
+        assert isinstance(self.minpack_result.objective, VectorLeastSquares)
+        assert isinstance(self.likelihood_result.objective, LogLikelihood)
+        assert isinstance(self.constrained_result.objective, LeastSquares)
+        assert isinstance(self.constrained_basinhopping_result.objective, LeastSquares)
 
     def test_constraints_included(self):
         """
@@ -172,21 +168,18 @@ class TestFitResults(unittest.TestCase):
         we can easily print their compliance.
         """
         # For a constrained fit we expect a list of MinimizeModel objectives.
-        for constrained_result in [self.constrained_result,
-                                   self.constrained_basinhopping_result]:
-            self.assertIsInstance(constrained_result.constraints, list)
-            for constraint in constrained_result.constraints:
-                self.assertIsInstance(constraint, MinimizeModel)
+        for constrained_result in [self.constrained_result, self.constrained_basinhopping_result]:
+            assert isinstance(constrained_result.constraints, list)
+            for constraint in self.constrained_result.constraints:
+                assert isinstance(constraint, MinimizeModel)
 
     def test_message_included(self):
         """Status message should be included."""
-        self.assertIsInstance(self.fit_result.status_message, str)
-        self.assertIsInstance(self.minpack_result.status_message, str)
-        self.assertIsInstance(self.likelihood_result.status_message, str)
-        self.assertIsInstance(self.constrained_result.status_message, str)
-        self.assertIsInstance(
-            self.constrained_basinhopping_result.status_message, str
-        )
+        assert isinstance(self.fit_result.status_message, str)
+        assert isinstance(self.minpack_result.status_message, str)
+        assert isinstance(self.likelihood_result.status_message, str)
+        assert isinstance(self.constrained_result.status_message, str)
+        assert isinstance(self.constrained_basinhopping_result.status_message, str)
 
     def test_pickle(self):
         for fit_result in [self.fit_result, self.chained_result,
@@ -194,39 +187,33 @@ class TestFitResults(unittest.TestCase):
                            self.constrained_result, self.likelihood_result]:
             dumped = pickle.dumps(fit_result)
             new_result = pickle.loads(dumped)
-            self.assertEqual(sorted(fit_result.__dict__.keys()),
-                             sorted(new_result.__dict__.keys()))
+            assert sorted(fit_result.__dict__.keys()) == sorted(new_result.__dict__.keys())
             for k, v1 in fit_result.__dict__.items():
                 v2 = new_result.__dict__[k]
                 if k == 'minimizer':
-                    self.assertEqual(type(v1), type(v2))
+                    assert type(v1) == type(v2)
                 elif k != 'minimizer_output':  # Ignore minimizer_output
                     if isinstance(v1, np.ndarray):
-                        np.testing.assert_almost_equal(v1, v2)
-                    else:
-                        self.assertEqual(v1, v2)
+                        assert v1 == pytest.approx(v2, nan_ok=True)
 
     def test_gof_presence(self):
         """
         Test if the expected goodness of fit estimators are present.
         """
-        self.assertTrue(hasattr(self.fit_result, 'objective_value'))
-        self.assertTrue(hasattr(self.fit_result, 'r_squared'))
-        self.assertTrue(hasattr(self.fit_result, 'chi_squared'))
-        self.assertFalse(hasattr(self.fit_result, 'log_likelihood'))
-        self.assertFalse(hasattr(self.fit_result, 'likelihood'))
+        assert hasattr(self.fit_result, 'objective_value')
+        assert hasattr(self.fit_result, 'r_squared')
+        assert hasattr(self.fit_result, 'chi_squared')
+        assert not hasattr(self.fit_result, 'log_likelihood')
+        assert not hasattr(self.fit_result, 'likelihood')
 
-        self.assertTrue(hasattr(self.minpack_result, 'objective_value'))
-        self.assertTrue(hasattr(self.minpack_result, 'r_squared'))
-        self.assertTrue(hasattr(self.minpack_result, 'chi_squared'))
-        self.assertFalse(hasattr(self.minpack_result, 'log_likelihood'))
-        self.assertFalse(hasattr(self.minpack_result, 'likelihood'))
+        assert hasattr(self.minpack_result, 'objective_value')
+        assert hasattr(self.minpack_result, 'r_squared')
+        assert hasattr(self.minpack_result, 'chi_squared')
+        assert not hasattr(self.minpack_result, 'log_likelihood')
+        assert not hasattr(self.minpack_result, 'likelihood')
 
-        self.assertTrue(hasattr(self.likelihood_result, 'objective_value'))
-        self.assertFalse(hasattr(self.likelihood_result, 'r_squared'))
-        self.assertFalse(hasattr(self.likelihood_result, 'chi_squared'))
-        self.assertTrue(hasattr(self.likelihood_result, 'log_likelihood'))
-        self.assertTrue(hasattr(self.likelihood_result, 'likelihood'))
-
-if __name__ == '__main__':
-    unittest.main()
+        assert hasattr(self.likelihood_result, 'objective_value')
+        assert not hasattr(self.likelihood_result, 'r_squared')
+        assert not hasattr(self.likelihood_result, 'chi_squared')
+        assert hasattr(self.likelihood_result, 'log_likelihood')
+        assert hasattr(self.likelihood_result, 'likelihood')
