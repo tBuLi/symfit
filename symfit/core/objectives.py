@@ -20,6 +20,7 @@ from six import add_metaclass
 import numpy as np
 
 from .support import cached_property, keywordonly, key2str
+from .models import GradientModel, HessianModel
 
 @add_metaclass(abc.ABCMeta)
 class BaseObjective(object):
@@ -542,7 +543,7 @@ class MinimizeModel(HessianObjective, BaseIndependentObjective):
         return evaluated_func[0]
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
-        if hasattr(self.model, 'eval_jacobian'):
+        if isinstance(self.model, GradientModel):
             evaluated_jac = super(MinimizeModel, self).eval_jacobian(
                 ordered_parameters, **parameters
             )
@@ -551,7 +552,7 @@ class MinimizeModel(HessianObjective, BaseIndependentObjective):
             return None
 
     def eval_hessian(self, ordered_parameters=[], **parameters):
-        if hasattr(self.model, 'eval_hessian'):
+        if isinstance(self.model, HessianModel):
             evaluated_hess = super(MinimizeModel, self).eval_hessian(
                 ordered_parameters, **parameters
             )

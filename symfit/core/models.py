@@ -414,13 +414,7 @@ class BaseModel(Mapping):
         """
         bounds = []
         for p in self.params:
-            if p.fixed:
-                if p.value >= 0.0:
-                    bounds.append([np.nextafter(p.value, 0), p.value])
-                else:
-                    bounds.append([p.value, np.nextafter(p.value, 0)])
-            else:
-                bounds.append([p.min, p.max])
+            bounds.append([p.min, p.max])
         return bounds
 
     @property
@@ -650,30 +644,6 @@ class BaseCallableModel(BaseModel):
         super(BaseCallableModel, self)._init_from_dict(model_dict)
         self.__signature__ = self._make_signature()
 
-    def __call__(self, *args, **kwargs):
-        """
-        Evaluate the model for a certain value of the independent vars and parameters.
-        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
-
-        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
-        Alphabetical order within each group.
-
-        :param args:
-        :param kwargs:
-        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
-            even for scalar valued functions. This is done for consistency.
-        """
-        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
-
-
-class BaseGradientModel(BaseCallableModel):
-    """
-    Baseclass for models which have a gradient. Such models are expected to
-    implement an `eval_jacobian` function.
-
-    Any subclass of this baseclass which does not implement its own
-    `eval_jacobian` will inherit a finite difference gradient.
-    """
     @keywordonly(dx=1e-8)
     def finite_difference(self, *args, **kwargs):
         """
@@ -741,9 +711,26 @@ class BaseGradientModel(BaseCallableModel):
 
     def eval_jacobian(self, *args, **kwargs):
         """
-        :return: The jacobian matrix of the function.
+        :return: The jacobian matrix of the function. If not overridden by a
+            subclass, will perform a (very) expensive finite difference
+            approximation.
         """
         return ModelOutput(self.keys(), self.finite_difference(*args, **kwargs))
+
+    def __call__(self, *args, **kwargs):
+        """
+        Evaluate the model for a certain value of the independent vars and parameters.
+        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
+
+        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
+        Alphabetical order within each group.
+
+        :param args:
+        :param kwargs:
+        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
+            even for scalar valued functions. This is done for consistency.
+        """
+        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 
 class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
@@ -815,7 +802,7 @@ class CallableModel(BaseCallableModel):
         return ModelOutput(self.keys(), components)
 
 
-class GradientModel(CallableModel, BaseGradientModel):
+class GradientModel(CallableModel):
     """
     Analytical model which has an analytically computed Jacobian.
     """
@@ -941,7 +928,7 @@ class Model(HessianModel):
     """
 
 
-class ODEModel(BaseGradientModel):
+class ODEModel(CallableNumericalModel):
     """
     Model build from a system of ODEs. When the model is called, the ODE is
     integrated using the LSODA package.
@@ -964,15 +951,18 @@ class ODEModel(BaseGradientModel):
 
         sort_func = operator.attrgetter('name')
         # Mapping from dependent vars to their derivatives
-        self.dependent_derivatives = {d: list(d.free_symbols - set(d.variables))[0] for d in model_dict}
-        self.dependent_vars = sorted(
-            self.dependent_derivatives.values(),
-            key=sort_func
-        )
-        self.independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
-        self.interdependent_vars = []  # TODO: add this support for ODEModels
-        if not len(self.independent_vars) == 1:
-            raise ModelError('ODEModel can only have one independent variable.')
+        self.dependent_derivatives = {}
+        for der in model_dict:
+            # e.g. D(-k*x, t), or D(a, t). We want to make sure we don't run
+            # into cases where D(f(a, b), t) where a and b are both Variables.
+            vars = [x for x in (der.free_symbols - set(der.variables)) if isinstance(x, Variable)]
+            if len(vars) != 1:
+                raise ModelError("ODEModel can't deal with {} since it contains"
+                                 " multiple Variables".format(str(der)))
+            self.dependent_derivatives[der] = vars[0]
+        independent_vars = sorted(set(d.variables[0] for d in model_dict), key=sort_func)
+
+        connectivity_mapping = {independent_vars[0]: set()}
 
         self.model_dict = OrderedDict(
             sorted(
@@ -985,28 +975,73 @@ class ODEModel(BaseGradientModel):
         # expression/components (self.model_params), and those that are used for
         # initial values (self.initial_params). self.params will contain a union
         # of the two, as expected.
-
-        # Extract all the params and vars as a sorted, unique list.
-        expressions = model_dict.values()
-        self.model_params = set([])
+        self.model_params = set()
 
         # Only the ones that have a Parameter as initial parameter.
-        self.initial_params = {value for var, value in self.initial.items()
-                               if isinstance(value, Parameter)}
+        self.initial_params = set()
+        for var, value in self.initial.items():
+            # TODO: allow arbitrary Expressions (Basic?) as initial values.
+            if isinstance(value, Parameter):
+                self.initial_params.add(value)
+                # And make the relevant variable depend on the correct parameter
+                connectivity_mapping[var] = connectivity_mapping.get(var, set()).union([value])
 
-        for expression in expressions:
+        for dep_var, expression in model_dict.items():
             vars, params = seperate_symbols(expression)
             self.model_params.update(params)
-            # self.independent_vars.update(vars)
+            dep_var = self.dependent_derivatives[dep_var]  # D(x, t) -> x
+            # Make the dependent variables depend on the symbols in expressions,
+            # EXCEPT for the dependent variables described by the model. Why?
+            # Because models like {D(x, t): v, D(v, t): -k*x} would be circular
+            # otherwise, even though they're not really. D(x, t) != x after all.
+            connectivity_mapping[dep_var] = connectivity_mapping.get(dep_var, set()).union((v for v in vars if v not in self))
+            connectivity_mapping[dep_var] = connectivity_mapping.get(dep_var, set()).union(params)
 
-        # Although unique now, params and vars should be sorted alphabetically to prevent ambiguity
-        self.params = sorted(self.model_params | self.initial_params, key=sort_func)
+        # Sort the parameters in lists by the usual conventions.
+        self._params = sorted(self.model_params | self.initial_params, key=sort_func)
         self.model_params = sorted(self.model_params, key=sort_func)
         self.initial_params = sorted(self.initial_params, key=sort_func)
+        # BaseModel.__init__ will call _init_from_dict below. It doesn't do
+        # quite the right thing (see below), partly because we pass
+        # self.model_dict and not just self (which doesn't have D(...) as keys).
+        # Self is almost always "circular" though, because BaseModel doesn't
+        # realize we integrate out the derivatives.
+        super().__init__(self.model_dict, connectivity_mapping=connectivity_mapping)
 
+        if not len(self.independent_vars) == 1:
+            raise ModelError('ODEModel can only have one independent variable.')
+        if self.interdependent_vars:
+            # TODO: add this support for ODEModels
+            raise ModelError('ODEModel cannot have interdependent variables.')
+
+    def _init_from_dict(self, model_dict):
+        """
+        Initiate self from a model_dict to make sure attributes such as vars, params are available.
+
+        Creates lists of alphabetically sorted independent vars, dependent vars, sigma vars, and parameters.
+        Finally it creates a signature for this model so it can be called nicely. This signature only contains
+        independent vars and params, as one would expect.
+
+        :param model_dict: dict of (dependent_var, expression) pairs.
+        """
+        super()._init_from_dict(model_dict)
+        sort_func = operator.attrgetter('name')
+        derivatives = self.dependent_derivatives
+        # BaseModel._init_from_dict does the almost right thing. It doesn't
+        # realize correctly that 1) in a model describing D(x, t) x is a
+        # dependent variable (union with derivatives.values()). 2) D(x, t) is
+        # not a relevant Variable (subtract derivatives.keys()). 3) Neither of
+        # those are, by definition, interdependent variables.
+        self.dependent_vars = sorted(
+            set(self.dependent_vars) - set(derivatives.keys()) | set(derivatives.values()),
+            key=sort_func
+        )
+        self.interdependent_vars = sorted(
+            set(self.interdependent_vars) - set(derivatives.values()) - set(derivatives.keys()),
+            key=sort_func
+        )
         # Make Variable object corresponding to each sigma var.
         self.sigmas = {var: Variable(name='sigma_{}'.format(var.name)) for var in self.dependent_vars}
-
         self.__signature__ = self._make_signature()
 
     def __str__(self):
@@ -1037,25 +1072,27 @@ class ODEModel(BaseGradientModel):
         for d, f in self.model_dict.items():
             if dependent_var == self.dependent_derivatives[d]:
                 return f
+        raise KeyError(dependent_var)
 
     def __iter__(self):
         """
         :return: iterable over self.model_dict
         """
-        return iter(self.dependent_vars)
+        return iter(self.dependent_derivatives.values())
 
     def __neg__(self):
         """
         :return: new model with opposite sign. Does not change the model in-place,
             but returns a new copy.
         """
+        # Different from parent class because `initial` has to be passed.
         new_model_dict = self.model_dict.copy()
         for key in new_model_dict:
             new_model_dict[key] *= -1
         return self.__class__(new_model_dict, initial=self.initial)
 
     @cached_property
-    def _ncomponents(self):
+    def numerical_components(self):
         """
         :return: The `numerical_components` for an ODEModel. This differs from
             the traditional `numerical_components`, in that these component can
@@ -1101,7 +1138,7 @@ class ODEModel(BaseGradientModel):
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
 
         # System of functions to be integrated
-        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
+        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self.numerical_components]
         Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
 
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
@@ -1111,14 +1148,12 @@ class ODEModel(BaseGradientModel):
             if init_var in self.initial_params:
                 initial_dependent[idx] = bound_arguments.arguments[init_var.name]
 
+        # Also checked on __init__ with a human readable message.
         assert len(self.independent_vars) == 1
         t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
         # Check if the time-like data includes the initial value, because integration should start there.
-        try:
-            t_like[0]
-        except (TypeError, IndexError): # Python scalar gives TypeError, numpy scalars IndexError
-            t_like = np.array([t_like]) # Allow evaluation at one point.
+        t_like = np.atleast_1d(t_like)
 
         # The strategy is to split the time axis in a part above and below the
         # initial value, and to integrate those seperately. At the end we rejoin them.
@@ -1171,22 +1206,6 @@ class ODEModel(BaseGradientModel):
             # and so is t_like with t_initial inserted at the right position).
             return ans[t_total != t_initial].T
 
-    def __call__(self, *args, **kwargs):
-        """
-        Evaluate the model for a certain value of the independent vars and parameters.
-        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
-
-        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
-        Alphabetical order within each group.
-
-        :param args: Ordered arguments for the parameters and independent
-          variables
-        :param kwargs:  Keyword arguments for the parameters and independent
-          variables
-        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
-            even for scalar valued functions. This is done for consistency.
-        """
-        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 def _partial_diff(var, *params):
     """
