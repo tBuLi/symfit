@@ -3,9 +3,8 @@ import pytest
 
 import numpy as np
 
-from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel, Parameter
+from symfit import parameters, variables, ODEModel, exp, Fit, D, Model, GradientModel, Parameter, Eq
 from symfit.core.minimizers import MINPACK
-
 
 """
 Tests for the FitResults object.
@@ -223,32 +222,67 @@ def test_odemodel_sanity():
 
 def test_initial_parameters():
     """
-    Identical to test_polgar, but with a0 as free Parameter.
+    Harmonic oscillator with x0 as free parameter.
     """
-    a, b, c, d, t = variables('a, b, c, d, t')
-    k, p, l, m = parameters('k, p, l, m')
+    k, x0, v0 = parameters('k, x0, v0')
+    x, v, t = variables('x, v, t')
 
-    a0 = Parameter('a0', min=0, value=10, fixed=True)
-    c0 = Parameter('c0', min=0, value=0.1)
-    b = a0 - d + a
+    k.value = 9
+    x0.value = 5
+
+    v0.value = 0
+    v0.fixed = True
+
+    a = -k*x
     model_dict = {
-        D(d, t): l * c * b - m * d,
-        D(c, t): k * a * b - p * c - l * c * b + m * d,
-        D(a, t): - k * a * b + p * c,
+        D(v, t): a,
+        D(x, t): v,
     }
 
-    ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: c0, d: 0.0})
+    ode_model = ODEModel(model_dict, initial={t: 0.0, x: x0, v: v0})
 
     # Generate some data
-    tdata = np.linspace(0, 3, 1000)
+    tdata = np.linspace(0, 5, 500)
     # Eval
-    AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10, c0=0)
-    fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
+    vdata, xdata = ode_model(t=tdata, k=10, x0=5, v0=0)
+    fit = Fit(ode_model, t=tdata, x=xdata, v=vdata)
     results = fit.execute()
     print(results)
-    assert results.value(a0) == 10
-    assert results.value(c0) == pytest.approx(0)
+    assert results.value(v0) == 0
+    assert results.value(x0) == pytest.approx(5)
+    assert results.value(k) == pytest.approx(10)
 
-    assert ode_model.params == [a0, c0, k, l, m, p]
-    assert ode_model.initial_params == [a0, c0]
-    assert ode_model.model_params == [a0, k, l, m, p]
+    assert ode_model.params == [k, v0, x0]
+    assert ode_model.initial_params == [v0, x0]
+    assert ode_model.model_params == [k]
+
+def test_ode_with_constraint():
+    """
+    Harmonic oscillator with x0 as free parameter.
+    """
+    k, x0, v0 = parameters('k, x0, v0')
+    x, v, t = variables('x, v, t')
+
+    k.value = 9
+    x0.value = 5
+
+    v0.value = 0
+    v0.fixed = True
+
+    a = -k*x
+    model_dict = {
+        D(v, t): a,
+        D(x, t): v,
+    }
+
+    ode_model = ODEModel(model_dict, initial={t: 0.0, x: x0, v: v0})
+    constraint = Eq(k, x0)
+
+    # Generate some data
+    tdata = np.linspace(0, 5, 500)
+    # Eval
+    vdata, xdata = ode_model(t=tdata, k=10, x0=5, v0=0)
+    fit = Fit(ode_model, t=tdata, x=xdata, v=vdata, constraints=[constraint])
+    results = fit.execute()
+    print(results)
+    assert results.value(x0) == pytest.approx(results.value(k))
