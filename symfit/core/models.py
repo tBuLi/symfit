@@ -650,30 +650,6 @@ class BaseCallableModel(BaseModel):
         super(BaseCallableModel, self)._init_from_dict(model_dict)
         self.__signature__ = self._make_signature()
 
-    def __call__(self, *args, **kwargs):
-        """
-        Evaluate the model for a certain value of the independent vars and parameters.
-        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
-
-        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
-        Alphabetical order within each group.
-
-        :param args:
-        :param kwargs:
-        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
-            even for scalar valued functions. This is done for consistency.
-        """
-        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
-
-
-class BaseGradientModel(BaseCallableModel):
-    """
-    Baseclass for models which have a gradient. Such models are expected to
-    implement an `eval_jacobian` function.
-
-    Any subclass of this baseclass which does not implement its own
-    `eval_jacobian` will inherit a finite difference gradient.
-    """
     @keywordonly(dx=1e-8)
     def finite_difference(self, *args, **kwargs):
         """
@@ -741,9 +717,26 @@ class BaseGradientModel(BaseCallableModel):
 
     def eval_jacobian(self, *args, **kwargs):
         """
-        :return: The jacobian matrix of the function.
+        :return: The jacobian matrix of the function. If not overridden by a
+            subclass, will perform a (very) expensive finite difference
+            approximation.
         """
         return ModelOutput(self.keys(), self.finite_difference(*args, **kwargs))
+
+    def __call__(self, *args, **kwargs):
+        """
+        Evaluate the model for a certain value of the independent vars and parameters.
+        Signature for this function contains independent vars and parameters, NOT dependent and sigma vars.
+
+        Can be called with both ordered and named parameters. Order is independent vars first, then parameters.
+        Alphabetical order within each group.
+
+        :param args:
+        :param kwargs:
+        :return: A namedtuple of all the dependent vars evaluated at the desired point. Will always return a tuple,
+            even for scalar valued functions. This is done for consistency.
+        """
+        return ModelOutput(self.keys(), self.eval_components(*args, **kwargs))
 
 
 class CallableNumericalModel(BaseCallableModel, BaseNumericalModel):
@@ -815,7 +808,7 @@ class CallableModel(BaseCallableModel):
         return ModelOutput(self.keys(), components)
 
 
-class GradientModel(CallableModel, BaseGradientModel):
+class GradientModel(CallableModel):
     """
     Analytical model which has an analytically computed Jacobian.
     """

@@ -14,7 +14,7 @@ from .support import keywordonly
 from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
-from .models import CallableNumericalModel, BaseModel
+from .models import CallableNumericalModel, BaseModel, GradientModel, HessianModel
 
 if sys.version_info >= (3,0):
     import inspect as inspect_sig
@@ -402,7 +402,7 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     @keywordonly(jacobian=None)
     def execute(self, **minimize_options):
         # This method takes the jacobian as an argument because the user may
-        # need to override it in some cases (especially with the trust-constr 
+        # need to override it in some cases (especially with the trust-constr
         # method)
         jacobian = minimize_options.pop('jacobian')
         if jacobian is None:
@@ -414,7 +414,7 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
         for con in cons:
             # Only if the model has a jacobian, does it make sense to pass one
             # to the minimizer
-            if hasattr(con['fun'].model, 'eval_jacobian'):
+            if isinstance(con['fun'].model, GradientModel):
                 con['jac'] = self.resize_jac(con['fun'].eval_jacobian)
             else:
                 con['jac'] = None
@@ -449,7 +449,7 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
         for con in cons:
             # Only if the model has a hessian, does it make sense to pass one
             # to the minimizer
-            if hasattr(con['fun'].model, 'eval_hessian'):
+            if isinstance(con['fun'].model, HessianModel):
                 con['hess'] = self.resize_hess(con['fun'].eval_hessian)
             else:
                 con['hess'] = None
