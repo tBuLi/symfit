@@ -322,7 +322,10 @@ class FitStatus:
         self.param_values = []
         self.objective_values = []
         self._current_iteration = 0
+        self._prev_values = 0
         self.times = []
+        self.free_params = list(map(str, self.objective.model.free_params))
+        self.fixed_params = {p: p.value for p in self.objective.model.params if p.fixed}
         # Report initial parameter values
         self(np.array([p.value for p in objective.model.free_params]))
 
@@ -335,12 +338,14 @@ class FitStatus:
             for this iteration. Used to call `objective`.
         """
         self.times.append(perf_counter())
-        free_params = dict(zip(map(str, self.objective.model.free_params), params))
-        obj_val = self.objective(**free_params)
+        free_params = dict(zip(self.free_params, params))
+
+        # FIXME It would be better if objective calls would be cached somehow...
+        obj_val = self.objective(params)
 
         # Add in fixed parameters
-        all_params = free_params.copy()
-        all_params.update({p: p.value for p in self.objective.model.params if p.fixed})
+        all_params = free_params
+        all_params.update(self.fixed_params)
 
         # TODO: make this into a ordered_dict of header: value or something, and
         #       do some magic layouting.
@@ -350,12 +355,13 @@ class FitStatus:
         message = ' {:>4d} | {:>9.2e} | {:>9.2e} | {:>8.2e} | {:>9.2e} | {:>8.2e} '
 
         if self._current_iteration:
-            step_size = np.linalg.norm(params - self.param_values[-1])
+            step_size = np.linalg.norm(params - self._prev_values)
             steptime =  self.times[-1] - self.times[-2]
             avg_steptime = (self.times[-1] - self.times[0])/self._current_iteration
         else:
             print(header)
             step_size = steptime = avg_steptime = 0
+        self._prev_values = params
 
         print(message.format(
             self._current_iteration,
@@ -365,7 +371,7 @@ class FitStatus:
             steptime,
             avg_steptime,
         ))
-        self.param_values.append(params)
+        self.param_values.append(all_params)
         self.objective_values.append(obj_val)
         self._current_iteration += 1
 
@@ -656,18 +662,18 @@ class Fit(HasCovarianceMatrix):
         """
         verbose = minimize_options.pop('verbose')
         callback = minimize_options.pop('callback')
-        if verbose:
-            if callback:
-                raise TypeError('Fit.execute accepts either callback or verbose,'\
+        if verbose and callback:
+            raise TypeError('Fit.execute accepts either callback or verbose,'\
                                 'but not both')
-            reporter = FitStatus(objective=self.objective)
+        elif verbose:
+            callback = FitStatus(objective=self.objective)
             if isinstance(self.minimizer, ChainedMinimizer):
                 for mini in self.minimizer.minimizers:
                     minimize_options[mini.__class__.__name__] = minimize_options.get(mini.__class__.__name__, {}).copy()
-                    minimize_options[mini.__class__.__name__]['callback'] = reporter
+                    minimize_options[mini.__class__.__name__]['callback'] = callback
             else:
                 minimize_options = minimize_options.copy()
-                minimize_options['callback'] = reporter
+                minimize_options['callback'] = callback
         elif callback:
             minimize_options['callback'] = callback
         minimizer_ans = self.minimizer.execute(**minimize_options)
@@ -677,6 +683,6 @@ class Fit(HasCovarianceMatrix):
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
         minimizer_ans.minimizer = self.minimizer
-        if minimize_options.get('callback', False):
-            minimizer_ans.callback = minimize_options['callback']
+        if callback:
+            minimizer_ans.callback = callback
         return minimizer_ans
