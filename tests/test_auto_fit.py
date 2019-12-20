@@ -310,3 +310,82 @@ def test_gaussian_2d_fitting_background():
     assert np.abs(fit_result.value(sig_y)) / np.std(data[:, 1]) == pytest.approx(1.0, 1e-2)
     assert background / fit_result.value(b) == pytest.approx(1.0, 1e-1)
     assert fit_result.r_squared >= 0.96
+
+
+def test_verbose_fit(capsys):
+    """
+    Test the simple verbose fit case.
+    """
+    x, y = variables('x, y')
+    a, b, c = parameters('a, b, c', min=-1000, max=1000)
+    c.fixed=True
+
+    model = Model({
+        y: a*x**2 + b*x + c
+    })
+
+    xs = np.arange(20)
+    ys = model(x=xs, a=2.5, b=-1, c=1).y
+
+    fit = Fit(model, y=ys, x=xs, minimizer=SLSQP)
+    captured = capsys.readouterr()
+    assert not captured.out
+    result = fit.execute(verbose=True)
+    captured = capsys.readouterr()
+    assert captured.out  # Make sure *something* printed
+
+    print(result)
+    assert hasattr(result, 'callback'), "FitStatus object not attached to fit results"
+    n_iter = result.minimizer_output['nit']
+    assert len(result.callback.param_values) == n_iter + 1  # Initial guess
+    assert len(result.callback.objective_values) == n_iter + 1  # Initial guess
+    assert len(result.callback.times) == n_iter + 1  # Including time 0
+
+
+def test_chained_minimizer_verbose_fit(capsys):
+    """
+    Test verbose fit with a chained minimizer, which has special handling of
+    the callback minimizer option.
+    """
+    x, y = variables('x, y')
+    a, b, c = parameters('a, b, c', min=-1000, max=1000)
+    c.fixed=True
+
+    model = Model({
+        y: a*x**2 + b*x + c
+    })
+
+    xs = np.arange(20)
+    ys = model(x=xs, a=2.5, b=-1, c=1).y
+
+    fit = Fit(model, y=ys, x=xs, minimizer=[SLSQP, BFGS])
+    captured = capsys.readouterr()
+    assert not captured.out
+    result = fit.execute(verbose=True)
+    captured = capsys.readouterr()
+    assert captured.out  # Make sure *something* printed
+
+    print(result)
+    assert hasattr(result, 'callback'), "FitStatus object not attached to fit results"
+
+def test_fit_verbose_and_callback():
+    """
+    Test that passing both verbose and callback is an error.
+    """
+    x, y = variables('x, y')
+    a, b, c = parameters('a, b, c', min=-1000, max=1000)
+    c.fixed=True
+
+    model = Model({
+        y: a*x**2 + b*x + c
+    })
+
+    xs = np.arange(20)
+    ys = model(x=xs, a=2.5, b=-1, c=1).y
+
+    fit = Fit(model, y=ys, x=xs)
+    with pytest.raises(TypeError):
+        fit.execute(verbose=True, callback=print)
+
+    result = fit.execute(verbose=False, callback=print)
+    assert result.callback is print
