@@ -7,72 +7,68 @@ def setup_method():
     np.random.seed(0)
 
 
-def test_1_1_model():
+@pytest.mark.parametrize(
+        'x_data', [np.arange(10), 3]
+)
+def test_1_1_model(x_data):
     '''Tests the case with 1 component and 1 parameter'''
     x, y = sf.variables('x, y')
     a = sf.Parameter(name='a')
     model = sf.Model({y: 3 * a * x**2})
-    x_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, a=3.5)
     approx = model.finite_difference(x=x_data, a=3.5)
     _assert_equal(exact, approx)
 
-    exact = model.eval_jacobian(x=3, a=3.5)
-    approx = model.finite_difference(x=3, a=3.5)
-    _assert_equal(exact, approx)
 
-
-def test_1_multi_model():
+@pytest.mark.parametrize(
+    'x_data', [np.arange(10), 3]
+)
+def test_1_multi_model(x_data):
     '''Tests the case with 1 component and multiple parameters'''
     x, y = sf.variables('x, y')
     a, b = sf.parameters('a, b')
     model = sf.Model({y: 3 * a * x**2 - sf.exp(b) * x})
-    x_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, a=3.5, b=2)
     approx = model.finite_difference(x=x_data, a=3.5, b=2)
     _assert_equal(exact, approx)
-    
-    exact = model.eval_jacobian(x=3, a=3.5, b=2)
-    approx = model.finite_difference(x=3, a=3.5, b=2)
-    _assert_equal(exact, approx)
 
 
-def test_multi_1_model():
+@pytest.mark.parametrize(
+    'x_data', [np.arange(10), 3]
+)
+def test_multi_1_model(x_data):
     '''Tests the case with multiple components and one parameter'''
     x, y, z = sf.variables('x, y, z')
     a, = sf.parameters('a')
     model = sf.Model({y: 3 * a * x**2,
                       z: sf.exp(a*x)})
-    x_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, a=3.5)
     approx = model.finite_difference(x=x_data, a=3.5)
     _assert_equal(exact, approx)
 
-    exact = model.eval_jacobian(x=3, a=3.5)
-    approx = model.finite_difference(x=3, a=3.5)
-    _assert_equal(exact, approx)
 
-
-def test_multi_multi_model():
+@pytest.mark.parametrize(
+    'x_data', [np.arange(10), 3]
+)
+def test_multi_multi_model(x_data):
     '''Tests the case with multiple components and multiple parameters'''
     x, y, z = sf.variables('x, y, z')
     a, b, c = sf.parameters('a, b, c')
     model = sf.Model({y: 3 * a * x**2 + b * x - c,
                       z: sf.exp(a*x - b) * c})
-    x_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=x_data, a=3.5, b=2, c=5)
     _assert_equal(exact, approx, rel=1e-3)
 
-    exact = model.eval_jacobian(x=3, a=3.5, b=2, c=5)
-    approx = model.finite_difference(x=3, a=3.5, b=2, c=5)
-    _assert_equal(exact, approx, rel=1e-3)
 
-
+@pytest.mark.paramentize(
+    'x_data, w_data', [(np.arange(10)/10, np.arange(10)), (0.3, np.arange(10)),
+        (0.3, 5)]
+)
 def test_multi_indep():
     '''
     Tests the case with multiple components, multiple parameters and
@@ -87,14 +83,6 @@ def test_multi_indep():
 
     exact = model.eval_jacobian(x=x_data, w=w_data, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=x_data, w=w_data, a=3.5, b=2, c=5)
-    _assert_equal(exact, approx)
-
-    exact = model.eval_jacobian(x=0.3, w=w_data, a=3.5, b=2, c=5)
-    approx = model.finite_difference(x=0.3, w=w_data, a=3.5, b=2, c=5)
-    _assert_equal(exact, approx)
-
-    exact = model.eval_jacobian(x=0.3, w=5, a=3.5, b=2, c=5)
-    approx = model.finite_difference(x=0.3, w=5, a=3.5, b=2, c=5)
     _assert_equal(exact, approx)
 
 
@@ -214,4 +202,4 @@ def test_harmonic_oscillator_errors():
 def _assert_equal(exact, approx, **kwargs):
     assert len(exact) == len(approx)
     for exact_comp, approx_comp in zip(exact, approx):
-        assert approx_comp == pytest.approx(exact_comp, **kwargs)
+        assert approx_comp == pytest.approx(exact_comp, 1e-4)
