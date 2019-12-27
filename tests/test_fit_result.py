@@ -16,16 +16,6 @@ from symfit.core.objectives import (
 )
 
 @pytest.fixture
-def xdata():
-    return np.linspace(1, 10, 10)
-
-
-@pytest.fixture
-def ydata(xdata):
-    return 3 * xdata ** 2
-
-
-@pytest.fixture
 def a():
     return Parameter('a')
 
@@ -36,87 +26,53 @@ def b():
 
 
 @pytest.fixture
-def x():
-    return Variable('x')
+def result_dict(a, b):
 
+    result_dict = dict()
 
-@pytest.fixture
-def y():
-    return Variable('y')
-
-
-@pytest.fixture
-def model(a, b, x, y):
-    return Model({y: a * x ** b})
-
-
-@pytest.fixture
-def constraints(model, a, b):
     z = Variable('z')
-    return [
+    x = Variable('x')
+    y = Variable('y')
+    xdata = np.linspace(1, 10, 10)
+    ydata = 3 * xdata ** 2
+    model = Model({y: a * x ** b})
+    constraints = [
         Eq(a, b),
         CallableNumericalModel.as_constraint(
             {z: ge_constraint}, connectivity_mapping={z: {a}},
             constraint_type=Ge, model=model
         )
     ]
-
-
-@pytest.fixture
-def fit_result(model, xdata, ydata):
+    
     fit = Fit(model, x=xdata, y=ydata)
-    return fit.execute()
+    result_dict['fit_result'] = fit.execute()
 
-
-@pytest.fixture
-def minpack_result(model, xdata, ydata):    
     fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)
-    return fit.execute()
+    result_dict['minpack_result'] = fit.execute()
 
-
-@pytest.fixture
-def likelihood_result(model, xdata):
     fit = Fit(model, x=xdata, objective=LogLikelihood)
-    return fit.execute()
+    result_dict['likelihood_result'] = fit.execute()
 
-
-@pytest.fixture
-def chained_result(model, xdata, ydata):
     fit = Fit(model, x=xdata, y=ydata, minimizer=[BFGS, NelderMead])
-    return fit.execute()
+    result_dict['chained_result'] = fit.execute()
 
-
-@pytest.fixture
-def constrained_result(model, xdata, ydata, constraints):
     fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
-    return fit.execute()
+    result_dict['constrained_result'] = fit.execute()
 
-@pytest.fixture
-def constrained_basinhopping_result(model, xdata, ydata, constraints):
     fit = Fit(model, x=xdata, y=ydata, constraints=constraints,
               minimizer=BasinHopping)
-    return fit.execute()
+    result_dict['constrained_basinhopping_result'] = fit.execute()
+
+    return result_dict
 
 
-@pytest.fixture
-def result_dict(fit_result, minpack_result, likelihood_result, chained_result,
-        constrained_result, constrained_basinhopping_result):
-    return {
-            "fit_result": fit_result,
-            "minpack_result": minpack_result,
-            "likelihood_result": likelihood_result,
-            "chained_result": chained_result,
-            "constrained_result": constrained_result,
-            "constrained_basinhopping_result": constrained_basinhopping_result
-            }
-
-    
 def ge_constraint(a):  # Has to be in the global namespace for pickle.
     return a - 1
 
 
-def test_params_type(fit_result):
-    assert isinstance(fit_result.params, OrderedDict)
+def test_params_type(result_dict):
+    assert isinstance(result_dict['fit_result'].params, OrderedDict)
+
 
 @pytest.mark.parametrize('result_name', ['fit_result', 'minpack_result',
     'likelihood_result'])
@@ -124,10 +80,12 @@ def test_minimizer_output_type(result_dict, result_name):
     assert isinstance(result_dict[result_name].minimizer_output, dict)
 
 
-def test_fitting(fit_result, a, b):
+def test_fitting(result_dict, a, b):
     """
     Test if the fitting worked in the first place.
     """
+    fit_result = result_dict['fit_result']
+
     assert isinstance(fit_result, FitResults)
     assert fit_result.value(a) == pytest.approx(3.0)
     assert fit_result.value(b) == pytest.approx(2.0)
@@ -212,7 +170,8 @@ def test_minimizer_included(result_dict, result_name):
     assert isinstance(result_dict[result_name].minimizer, BaseMinimizer)
 
 
-def test_minimizer_included_chained(chained_result):
+def test_minimizer_included_chained(result_dict):
+    chained_result = result_dict['chained_result']
     assert isinstance(chained_result.minimizer, ChainedMinimizer)
     for minimizer, cls in zip(chained_result.minimizer.minimizers, [BFGS, NelderMead]):
         assert isinstance(minimizer, cls)
@@ -268,22 +227,25 @@ def test_pickle(result_dict, result_name):
                 assert v1 == pytest.approx(v2, nan_ok=True)
 
 
-def test_gof_presence(fit_result, minpack_result, likelihood_result):
+def test_gof_presence(result_dict):
     """
     Test if the expected goodness of fit estimators are present.
     """
+    fit_result = result_dict['fit_result']
     assert hasattr(fit_result, 'objective_value')
     assert hasattr(fit_result, 'r_squared')
     assert hasattr(fit_result, 'chi_squared')
     assert not hasattr(fit_result, 'log_likelihood')
     assert not hasattr(fit_result, 'likelihood')
 
+    minpack_result = result_dict['minpack_result']
     assert hasattr(minpack_result, 'objective_value')
     assert hasattr(minpack_result, 'r_squared')
     assert hasattr(minpack_result, 'chi_squared')
     assert not hasattr(minpack_result, 'log_likelihood')
     assert not hasattr(minpack_result, 'likelihood')
 
+    likelihood_result = result_dict['likelihood_result']
     assert hasattr(likelihood_result, 'objective_value')
     assert not hasattr(likelihood_result, 'r_squared')
     assert not hasattr(likelihood_result, 'chi_squared')
