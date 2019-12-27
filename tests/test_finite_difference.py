@@ -10,7 +10,7 @@ def setup_method():
 @pytest.mark.parametrize(
         'x_data', [np.arange(10), 3]
 )
-def test_1_1_model(x_data):
+def test_model(x_data):
     x, y, z = sf.variables('x, y, z')
     a, b, c = sf.parameters('a, b, c')
 
