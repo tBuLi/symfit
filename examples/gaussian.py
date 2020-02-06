@@ -7,7 +7,7 @@ import seaborn as sns
 palette = sns.color_palette()
 
 
-x = Variable()
+x = Variable('x')
 A = Parameter()
 sig = Parameter(name='sig', value=1.4, min=1.0, max=2.0)
 x0 = Parameter(name='x0', value=15.0, min=0.0)
