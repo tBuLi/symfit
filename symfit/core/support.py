@@ -230,7 +230,9 @@ def parameters(names, **kwargs):
 
     if 'min' in sequences and 'max' in sequences:
         for min, max in zip(sequences['min'], sequences['max']):
-            if min > max:
+            if min is None or max is None:
+                pass
+            elif min > max:
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
 
