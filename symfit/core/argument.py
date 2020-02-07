@@ -2,10 +2,24 @@ from collections import defaultdict
 import numbers
 import warnings
 
-from sympy.core.symbol import Symbol
+from sympy.core.symbol import Symbol, Dummy
+from sympy.core.assumptions import ManagedProperties
+import builtins
 
 
-class Argument(Symbol):
+class DummyMeta(ManagedProperties):
+
+    def __new__(cls, name, bases, namespace, **kwargs):
+        try:
+            if name == 'Argument' and builtins.symfit_dummy:
+                bases = (Dummy, )
+        except AttributeError:
+            pass
+
+        cls = super().__new__(cls, name, bases, namespace)
+        return cls
+
+class Argument(Symbol, metaclass=DummyMeta):
     """
     Base class for :mod:`symfit` symbols. This helps make :mod:`symfit` symbols
     distinguishable from :mod:`sympy` symbols.
