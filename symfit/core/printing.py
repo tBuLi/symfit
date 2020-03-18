@@ -41,7 +41,7 @@ def _print_HadamardProduct(self, printer):
                       printer.doprint(self.args[1]))
 HadamardProduct._numpycode = _print_HadamardProduct
 
-if sympy.__version__.split('.') > (1,4):
+if tuple(sympy.__version__.split('.')) > (1,4):
     from sympy import HadamardPower
 
     def _print_HadamardPower(self, printer):
