@@ -6,7 +6,7 @@ slightly different behavior from the standard one.
 
 Users using both ``symfit`` and ``sympy`` should be aware of this.
 """
-
+import sympy
 from sympy import HadamardProduct, MatPow, Idx, Inverse
 from sympy.printing.codeprinter import CodePrinter
 
@@ -41,10 +41,13 @@ def _print_HadamardProduct(self, printer):
                       printer.doprint(self.args[1]))
 HadamardProduct._numpycode = _print_HadamardProduct
 
-def _print_HadamardPower(self, printer):
-    return "%s*%s" % (printer.doprint(self.args[0]),
-                      printer.doprint(self.args[1]))
-HadamardPower._numpycode = _print_HadamardPower
+if sympy.__version__.split('.') > (1,4):
+    from sympy import HadamardPower
+
+    def _print_HadamardPower(self, printer):
+        return "%s*%s" % (printer.doprint(self.args[0]),
+                          printer.doprint(self.args[1]))
+    HadamardPower._numpycode = _print_HadamardPower
 
 def _print_Idx(self, printer):
     """
