@@ -104,6 +104,7 @@ class BaseMinimizer(object):
         self.__dict__.update(state)
         self.__init__(**self._pickle_kwargs)
 
+
 class BoundedMinimizer(BaseMinimizer):
     """
     ABC for Minimizers that support bounds.
@@ -111,6 +112,7 @@ class BoundedMinimizer(BaseMinimizer):
     @property
     def bounds(self):
         return [(p.min, p.max) for p in self.params]
+
 
 class ConstrainedMinimizer(BaseMinimizer):
     """

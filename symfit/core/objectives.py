@@ -296,32 +296,32 @@ class LeastSquares(HessianObjective):
     have to have the same shape. The only thing that matters is that within each
     component the shapes have to be compatible.
     """
-    @keywordonly(flatten_components=True)
-    def __call__(self, ordered_parameters=[], **parameters):
+    def __call__(self, ordered_parameters=[], tf_differential_evolution=False, **parameters):
         """
         :param ordered_parameters: See ``parameters``.
+        :param tf_differential_evolution: Optional, is set by :class:`~symfit.core.tf_minimizers.TFDifferentialEvolution`.
         :param parameters: values of the
             :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`S` at.
-        :param flatten_components: if `True`, return the total :math:`S`. If
-            `False`, return the :math:`S` per component of the
-            :class:`~symfit.core.models.BaseModel`.
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
-        flatten_components = parameters.pop('flatten_components')
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
         )
 
-        chi2 = [0 for _ in evaluated_func]
-        for index, (dep_var, dep_var_value) in enumerate(zip(self.model.dependent_vars, evaluated_func)):
+        if tf_differential_evolution:
+            axis = 0
+            shape = (len(ordered_parameters[0]),)
+        else:
+            axis = None
+            shape = tuple()
+
+        chi2 = np.zeros(shape, dtype=evaluated_func[0].dtype)
+        for dep_var, dep_var_value in zip(self.model.dependent_vars, evaluated_func):
             dep_data = self.dependent_data.get(dep_var, None)
             if dep_data is not None:
-                sigma = self.sigma_data[self.model.sigmas[dep_var]]
-                chi2[index] += np.sum(
-                    (dep_var_value - dep_data) ** 2 / sigma ** 2
-                )
-        chi2 = np.sum(chi2) if flatten_components else chi2
-        return chi2 / 2
+               sigma = self.sigma_data[self.model.sigmas[dep_var]]
+               chi2 += np.sum((dep_var_value - dep_data) ** 2 / sigma**2, axis=axis)
+        return chi2 / np.array(2.0, chi2.dtype)
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
         """

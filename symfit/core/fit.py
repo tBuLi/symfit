@@ -211,7 +211,7 @@ class TakesData(object):
             if data is not None:
                 dependent_shapes.append(data.shape)
 
-        return list(set(independent_shapes)), list(set(dependent_shapes))
+        return list(np.unique(independent_shapes)), list(np.unique(dependent_shapes))
 
     @property
     def initial_guesses(self):
@@ -577,9 +577,10 @@ class Fit(HasCovarianceMatrix):
         :return: FitResults instance
         """
         minimizer_ans = self.minimizer.execute(**minimize_options)
-        minimizer_ans.covariance_matrix = self.covariance_matrix(
-            dict(zip(self.model.params, minimizer_ans._popt))
-        )
+        if minimizer_ans.covariance_matrix is None:
+            minimizer_ans.covariance_matrix = self.covariance_matrix(
+                dict(zip(self.model.params, minimizer_ans._popt))
+            )
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
         minimizer_ans.minimizer = self.minimizer
