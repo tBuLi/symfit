@@ -16,6 +16,8 @@ before_install:
 install:
   - pip install --upgrade -r requirements.txt
   - pip install .[all]
+  - pip install --upgrade tensorflow
+  - pip install --upgrade tensorflow-probability
 
 before_script:
   - pip install --upgrade pytest coveralls

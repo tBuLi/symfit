@@ -89,41 +89,7 @@ class BaseObjective(object):
         parameters.update(self._invariant_kwargs)
         result = self.model(**key2str(parameters))._asdict()
         # Return only the components corresponding to the dependent data.
-        return self._shape_of_dependent_data(
-            [comp for var, comp in result.items()
-             if var in self.model.dependent_vars]
-        )
-
-    def _shape_of_dependent_data(self, model_output, param_level=0):
-        """
-        In rare cases, the dependent data and the output of the model do not
-        have the same shape. Think for example about :math:`y_i = a`. This
-        function makes sure both sides of the equation have the same shape.
-
-        :param model_output: Output of a call to model
-        :param param_level: indicates how many parameter dimensions should be
-            added to the shape. 0 for __call__, 1 for jac, 2 for hess.
-        :return: ``model_output`` reshaped to ``dependent_data``'s shape, if
-            possible.
-        """
-        shaped_result = []
-        n_params = len(self.model.params)
-        for dep_var, component in zip(self.model.dependent_vars, model_output):
-            dep_data = self.dependent_data.get(dep_var, None)
-            if dep_data is not None:
-                if dep_data.shape == component.shape:
-                    shaped_result.append(component)
-                else:
-                    # Add extra dimensions to the component if needed.
-                    dim_diff = len(dep_data.shape) - len(component.shape[param_level:])
-                    for _ in range(dim_diff):
-                        component = np.expand_dims(component, -1)
-                    # Let numpy deal with all the broadcasting
-                    shape = param_level * [n_params] + list(dep_data.shape)
-                    shaped_result.append(np.broadcast_to(component, shape))
-            else:
-                shaped_result.append(component)
-        return shaped_result
+        return [comp for var, comp in result.items() if var in self.model.dependent_vars]
 
     @cached_property
     def _invariant_kwargs(self):
@@ -196,11 +162,7 @@ class GradientObjective(BaseObjective):
         parameters.update(self._invariant_kwargs)
         result = self.model.eval_jacobian(**key2str(parameters))._asdict()
         # Return only the components corresponding to the dependent data.
-        return self._shape_of_dependent_data(
-            [comp for var, comp in result.items()
-             if var in self.model.dependent_vars],
-            param_level=1
-        )
+        return [comp for var, comp in result.items() if var in self.model.dependent_vars]
 
 
 @add_metaclass(abc.ABCMeta)
@@ -221,12 +183,7 @@ class HessianObjective(GradientObjective):
         parameters.update(dict(zip(self.model.free_params, ordered_parameters)))
         parameters.update(self._invariant_kwargs)
         result = self.model.eval_hessian(**key2str(parameters))._asdict()
-        # Return only the components corresponding to the dependent data.
-        return self._shape_of_dependent_data(
-            [comp for var, comp in result.items()
-             if var in self.model.dependent_vars],
-            param_level=2
-        )
+        return [comp for var, comp in result.items() if var in self.model.dependent_vars]
 
 
 class VectorLeastSquares(GradientObjective):
@@ -296,32 +253,32 @@ class LeastSquares(HessianObjective):
     have to have the same shape. The only thing that matters is that within each
     component the shapes have to be compatible.
     """
-    @keywordonly(flatten_components=True)
-    def __call__(self, ordered_parameters=[], **parameters):
+    def __call__(self, ordered_parameters=[], tf_differential_evolution=False, **parameters):
         """
         :param ordered_parameters: See ``parameters``.
+        :param tf_differential_evolution: Optional, is set by :class:`~symfit.core.tf_minimizers.TFDifferentialEvolution`.
         :param parameters: values of the
             :class:`~symfit.core.argument.Parameter`'s to evaluate :math:`S` at.
-        :param flatten_components: if `True`, return the total :math:`S`. If
-            `False`, return the :math:`S` per component of the
-            :class:`~symfit.core.models.BaseModel`.
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
-        flatten_components = parameters.pop('flatten_components')
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
         )
 
-        chi2 = [0 for _ in evaluated_func]
-        for index, (dep_var, dep_var_value) in enumerate(zip(self.model.dependent_vars, evaluated_func)):
+        if tf_differential_evolution:
+            axis = 0
+            shape = (len(ordered_parameters[0]),)
+        else:
+            axis = None
+            shape = tuple()
+
+        chi2 = np.zeros(shape, dtype=evaluated_func[0].dtype)
+        for dep_var, dep_var_value in zip(self.model.dependent_vars, evaluated_func):
             dep_data = self.dependent_data.get(dep_var, None)
             if dep_data is not None:
-                sigma = self.sigma_data[self.model.sigmas[dep_var]]
-                chi2[index] += np.sum(
-                    (dep_var_value - dep_data) ** 2 / sigma ** 2
-                )
-        chi2 = np.sum(chi2) if flatten_components else chi2
-        return chi2 / 2
+               sigma = self.sigma_data[self.model.sigmas[dep_var]]
+               chi2 += np.sum((dep_var_value - dep_data) ** 2 / sigma**2, axis=axis)
+        return chi2 / np.array(2.0, chi2.dtype)
 
     def eval_jacobian(self, ordered_parameters=[], **parameters):
         """
