@@ -41,14 +41,14 @@ def test_model(x_data):
     _assert_equal(exact, approx, rel=1e-3)
 
 
-@pytest.mark.paramentrize('x_data, w_data', 
+@pytest.mark.parametrize('x_data, w_data', 
     [
         (np.arange(10)/10, np.arange(10)), 
         (0.3, np.arange(10)),
         (0.3, 5)
     ]
 )
-def test_multi_indep():
+def test_multi_indep(x_data, w_data):
     '''
     Tests the case with multiple components, multiple parameters and
     multiple independent variables
@@ -57,8 +57,6 @@ def test_multi_indep():
     a, b, c = sf.parameters('a, b, c')
     model = sf.Model({y: 3 * a * x**2 + b * x * w - c,
                       z: sf.exp(a*x - b) + c*w})
-    x_data = np.arange(10)/10
-    w_data = np.arange(10)
 
     exact = model.eval_jacobian(x=x_data, w=w_data, a=3.5, b=2, c=5)
     approx = model.finite_difference(x=x_data, w=w_data, a=3.5, b=2, c=5)
