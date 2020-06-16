@@ -12,27 +12,27 @@ a, b, c = sf.parameters('a, b, c')
 
 
 @pytest.mark.parametrize('x_data', [np.arange(10), 3])
-@pytest.mark.parametrize('_model,_init_par,relDiv',
+@pytest.mark.parametrize('init_model,init_par',
     [
-        ({y: 3 * a * x**2}, {'a': 3.5}, 1e-5),
+        ({y: 3 * a * x**2}, {'a': 3.5}),
         ({y: 3 * a * x**2 - sf.exp(b) * x},
-        {'a': 3.5, 'b': 2}, 1e-5),
-        ({y: 3 * a * x**2, z: sf.exp(a*x)}, {'a': 3.5}, 1e-5),
+        {'a': 3.5, 'b': 2}),
+        ({y: 3 * a * x**2, z: sf.exp(a*x)}, {'a': 3.5}),
         ({y: 3 * a * x**2 + b * x - c, z: sf.exp(a*x - b) * c},
-            {'a': 3.5, 'b': 2, 'c': 5}, 1e-3)  
+            {'a': 3.5, 'b': 2, 'c': 5})  
     ]
 )
-def test_model(x_data, _model, _init_par, relDiv):
+def test_model(x_data, init_model, init_par):
     '''
     Tests cases with:   1 component and 1 parameter,
                         1 component and multiple parameters,
                         multiple components and one parameter,
                         multiple components and multiple parameters
     '''
-    model = sf.Model(_model)
-    exact = model.eval_jacobian(x=x_data, **_init_par)
-    approx = model.finite_difference(x=x_data, **_init_par)
-    _assert_equal(exact, approx, rel=relDiv)
+    model = sf.Model(init_model)
+    exact = model.eval_jacobian(x=x_data, **init_par)
+    approx = model.finite_difference(x=x_data, **init_par)
+    _assert_equal(exact, approx, rel=1e-5)
 
 
 @pytest.mark.parametrize('x_data, w_data',
