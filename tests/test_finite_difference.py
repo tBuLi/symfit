@@ -1,14 +1,11 @@
 import symfit as sf
 import numpy as np
 import pytest
+from tests.auto_variables import *
 
 
 def setup_method():
     np.random.seed(0)
-
-
-x, y, z = sf.variables('x, y, z')
-a, b, c = sf.parameters('a, b, c')
 
 
 @pytest.mark.parametrize('x_data', [np.arange(10), 3])
@@ -47,8 +44,7 @@ def test_multi_indep(x_data, w_data):
     Tests the case with multiple components, multiple parameters and
     multiple independent variables
     '''
-    w, x, y, z = sf.variables('w, x, y, z')
-    a, b, c = sf.parameters('a, b, c')
+    w = sf.Variable('w')
     model = sf.Model({y: 3 * a * x**2 + b * x * w - c,
                       z: sf.exp(a*x - b) + c*w})
 
