@@ -8,77 +8,38 @@ def setup_method():
     np.random.seed(0)
 
 
-@pytest.mark.parametrize('x_data', [np.arange(10), 3])
-@pytest.mark.parametrize('init_model,init_par',
-    [
-        ({y: 3 * a * x**2}, {'a': 3.5}),
-        ({y: 3 * a * x**2 - sf.exp(b) * x},
-        {'a': 3.5, 'b': 2}),
-        ({y: 3 * a * x**2, z: sf.exp(a*x)}, {'a': 3.5}),
-        ({y: 3 * a * x**2 + b * x - c, z: sf.exp(a*x - b) * c},
-            {'a': 3.5, 'b': 2, 'c': 5})  
-    ]
-)
-def test_model(x_data, init_model, init_par):
+@pytest.mark.parametrize('x_data', [np.arange(10)/10, 3])
+@pytest.mark.parametrize('model,init_par',
+                         [
+                             (sf.Model({y: 3 * a * x**2}),
+                              {'a': 3.5}),
+                             (sf.Model({y: 3 * a * x**2 - sf.exp(b) * x}),
+                              {'a': 3.5, 'b': 2}),
+                             (sf.Model({y: 3 * a * x**2, z: sf.exp(a*x)}),
+                              {'a': 3.5}),
+                             (sf.Model({y: 3 * a * x**2 + b * x - c, z: sf.exp(a*x - b) * c}),
+                              {'a': 3.5, 'b': 2, 'c': 5}),
+                             (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
+                              {'a': 3.5, 'b': 2, 'c': 5, 'w': np.arange(10)/10}),
+                             (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
+                              {'a': 3.5, 'b': 2, 'c': 5, 'w': 5}),
+                             (sf.ODEModel({sf.D(y, x): -a * z, sf.D(z, x): y}, initial={y: 0, x: 1, z: 0}),
+                              {'a': 11})
+                         ]
+                         )
+def test_jacobian_equality(model, x_data, init_par):
     '''
     Tests cases with:   1 component and 1 parameter,
                         1 component and multiple parameters,
                         multiple components and one parameter,
                         multiple components and multiple parameters
+                        multiple components, multiple parameters and
+                            multiple independent variables,
+                        ODEModel
     '''
-    model = sf.Model(init_model)
     exact = model.eval_jacobian(x=x_data, **init_par)
     approx = model.finite_difference(x=x_data, **init_par)
     _assert_equal(exact, approx, rel=1e-5)
-
-
-@pytest.mark.parametrize('x_data, w_data',
-    [
-        (np.arange(10)/10, np.arange(10)),
-        (0.3, np.arange(10)),
-        (0.3, 5)
-    ]
-)
-def test_multi_indep(x_data, w_data):
-    '''
-    Tests the case with multiple components, multiple parameters and
-    multiple independent variables
-    '''
-    w = sf.Variable('w')
-    model = sf.Model({y: 3 * a * x**2 + b * x * w - c,
-                      z: sf.exp(a*x - b) + c*w})
-
-    exact = model.eval_jacobian(x=x_data, w=w_data, a=3.5, b=2, c=5)
-    approx = model.finite_difference(x=x_data, w=w_data, a=3.5, b=2, c=5)
-    _assert_equal(exact, approx)
-
-
-def test_ODE_stdev():
-    """
-    Make sure that parameters from ODEModels get standard deviations.
-    """
-    x, v, t = sf.variables('x, v, t')
-    k = sf.Parameter(name='k')
-
-    k.min = 0
-    k.value = 10
-    a = -k * x
-
-    model = sf.ODEModel(
-        {
-            sf.D(v, t): a,
-            sf.D(x, t): v,
-        },
-        initial={v: 0, x: 1, t: 0}
-    )
-    t_data = np.linspace(0, 10, 150)
-    noise = np.random.normal(1, 0.05, t_data.shape)
-    x_data = model(t=t_data, k=11).x * noise
-    v_data = model(t=t_data, k=11).v * noise
-    fit = sf.Fit(model, t=t_data, x=x_data, v=v_data)
-    result = fit.execute()
-    assert result.stdev(k) is not None
-    assert np.isfinite(result.stdev(k))
 
 
 def test_unequal_data():
