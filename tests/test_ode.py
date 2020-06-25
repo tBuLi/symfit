@@ -41,6 +41,8 @@ def test_known_solution():
     fit = Fit(sol, t=tdata, y=ydata)
     fit_result = fit.execute()
 
+    assert fit_result.stdev(p) is not None
+    assert np.isfinite(fit_result.stdev(p))
     assert ode_result.value(p) == pytest.approx(fit_result.value(p), 1e-2)
     assert ode_result.r_squared == pytest.approx(fit_result.r_squared, 1e-4)
     assert ode_result.stdev(p) == pytest.approx(fit_result.stdev(p), 1e-2)
