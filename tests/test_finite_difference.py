@@ -24,7 +24,7 @@ def setup_method():
      {'a': 3.5, 'b': 2, 'c': 5}),
     # model with multiple components, mult. parameters and mult. independent variables (x and w)
     (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
-     {'a': 3.5, 'b': 2, 'c': 5, 'w': np.arange(10)/10}),
+     {'a': 3.5, 'b': 2, 'c': 5, 'w': np.arange(10)}),
     # model with multiple components, mult. parameters and mult. independent variables (x and w)
     (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
      {'a': 3.5, 'b': 2, 'c': 5, 'w': 5}),
