@@ -9,37 +9,36 @@ def setup_method():
 
 
 @pytest.mark.parametrize('x_data', [np.arange(10)/10, 3])
-@pytest.mark.parametrize('model,init_par',
-                         [
-                             (sf.Model({y: 3 * a * x**2}),
-                              {'a': 3.5}),
-                             (sf.Model({y: 3 * a * x**2 - sf.exp(b) * x}),
-                              {'a': 3.5, 'b': 2}),
-                             (sf.Model({y: 3 * a * x**2, z: sf.exp(a*x)}),
-                              {'a': 3.5}),
-                             (sf.Model({y: 3 * a * x**2 + b * x - c, z: sf.exp(a*x - b) * c}),
-                              {'a': 3.5, 'b': 2, 'c': 5}),
-                             (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
-                              {'a': 3.5, 'b': 2, 'c': 5, 'w': np.arange(10)/10}),
-                             (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
-                              {'a': 3.5, 'b': 2, 'c': 5, 'w': 5}),
-                             (sf.ODEModel({sf.D(y, x): -a * z, sf.D(z, x): y}, initial={y: 0, x: 1, z: 0}),
-                              {'a': 11})
-                         ]
-                         )
+@pytest.mark.parametrize('model,init_par', [
+    # model with 1 component and 1 parameter
+    (sf.Model({y: 3 * a * x**2}),
+     {'a': 3.5}),
+    # model with 1 component and multiple parameters
+    (sf.Model({y: 3 * a * x**2 - sf.exp(b) * x}),
+     {'a': 3.5, 'b': 2}),
+    # model with multiple components and one parameter
+    (sf.Model({y: 3 * a * x**2, z: sf.exp(a*x)}),
+     {'a': 3.5}),
+    # model with multiple components and multiple parameters
+    (sf.Model({y: 3 * a * x**2 + b * x - c, z: sf.exp(a*x - b) * c}),
+     {'a': 3.5, 'b': 2, 'c': 5}),
+    # model with multiple components, mult. parameters and mult. independent variables (x and w)
+    (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
+     {'a': 3.5, 'b': 2, 'c': 5, 'w': np.arange(10)/10}),
+    # model with multiple components, mult. parameters and mult. independent variables (x and w)
+    (sf.Model({y: 3 * a * x**2 + b * x * w - c, z: sf.exp(a*x - b) + c*w}),
+     {'a': 3.5, 'b': 2, 'c': 5, 'w': 5}),
+    # ODEModel with multiple components and one parameter
+    (sf.ODEModel({sf.D(y, x): -a * z, sf.D(z, x): y}, initial={y: 0, x: 1, z: 0}),
+     {'a': 11})
+])
 def test_jacobian_equality(model, x_data, init_par):
     '''
-    Tests cases with:   1 component and 1 parameter,
-                        1 component and multiple parameters,
-                        multiple components and one parameter,
-                        multiple components and multiple parameters
-                        multiple components, multiple parameters and
-                            multiple independent variables,
-                        ODEModel
+    Tests if finite difference equals jacobian.
     '''
     exact = model.eval_jacobian(x=x_data, **init_par)
     approx = model.finite_difference(x=x_data, **init_par)
-    _assert_equal(exact, approx, rel=1e-5)
+    _assert_equal(exact, approx, rel=1e-4)
 
 
 def test_unequal_data():
