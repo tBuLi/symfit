@@ -3,6 +3,8 @@ import pytest
 import pickle
 from collections import OrderedDict
 
+from tests.auto_variables import *
+
 import numpy as np
 from symfit import (
     Variable, Parameter, Fit, FitResults, Eq, Ge, CallableNumericalModel, Model
@@ -15,89 +17,92 @@ from symfit.core.objectives import (
     LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
 )
 
-@pytest.fixture
-def a():
-    return Parameter('a')
 
-
-@pytest.fixture
-def b():
-    return Parameter('b')
-
-
-@pytest.fixture
-def result_dict(a, b):
-
-    result_dict = dict()
-
-    z = Variable('z')
-    x = Variable('x')
-    y = Variable('y')
-    xdata = np.linspace(1, 10, 10)
-    ydata = 3 * xdata ** 2
-    model = Model({y: a * x ** b})
-    constraints = [
-        Eq(a, b),
-        CallableNumericalModel.as_constraint(
-            {z: ge_constraint}, connectivity_mapping={z: {a}},
-            constraint_type=Ge, model=model
-        )
-    ]
-    
-    fit = Fit(model, x=xdata, y=ydata)
-    result_dict['fit_result'] = fit.execute()
-
-    fit = Fit(model, x=xdata, y=ydata, minimizer=MINPACK)
-    result_dict['minpack_result'] = fit.execute()
-
-    fit = Fit(model, x=xdata, objective=LogLikelihood)
-    result_dict['likelihood_result'] = fit.execute()
-
-    fit = Fit(model, x=xdata, y=ydata, minimizer=[BFGS, NelderMead])
-    result_dict['chained_result'] = fit.execute()
-
-    fit = Fit(model, x=xdata, y=ydata, constraints=constraints)
-    result_dict['constrained_result'] = fit.execute()
-
-    fit = Fit(model, x=xdata, y=ydata, constraints=constraints,
-              minimizer=BasinHopping)
-    result_dict['constrained_basinhopping_result'] = fit.execute()
-
-    return result_dict
-
+# TODO Entfernen
+# 1. Likelihood & Constraints Ergebnisse (a, b, (r²)) verschieden >>> mit wolfram alpha testen?
+# 2. kein r² bei likelihood >>> check mit hasttr
+# 3. Chained Minimizer & LeastSquare >>> einfach einsetzen, obwohl es nicht der normalfall ist?
+# 4. r² zu hasttr Sektion hinzufügen? >>> why not
+# 5. Zukunft: test_fitting_2 simpler/zu großem Test?    
 
 def ge_constraint(a):  # Has to be in the global namespace for pickle.
     return a - 1
 
 
-def test_params_type(result_dict):
-    assert isinstance(result_dict['fit_result'].params, OrderedDict)
+constraints = [
+    Eq(a, b),
+    CallableNumericalModel.as_constraint(
+        {z: ge_constraint}, connectivity_mapping={z: {a}},
+        constraint_type=Ge, model=Model({y: a * x ** b})
+    )
+]
 
 
-@pytest.mark.parametrize('result_name', ['fit_result', 'minpack_result',
-    'likelihood_result'])
-def test_minimizer_output_type(result_dict, result_name):
-    assert isinstance(result_dict[result_name].minimizer_output, dict)
+@pytest.mark.parametrize('kwargs, objective_name, gof_presence', [
+    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2},
+     LeastSquares, (True, True, True, False, False)),
+    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2,
+      'minimizer': MINPACK}, VectorLeastSquares, (True, True, True, False, False)),
+    ({'x': np.linspace(1, 10, 10), 'objective': LogLikelihood},
+     LogLikelihood, (True, False, False, True, True)),
+    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2, 'minimizer': [BFGS, NelderMead]},
+     LeastSquares, (True, True, True, False, False)),
+    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2,
+      'constraints': constraints}, LeastSquares, (True, True, True, False, False)),
+    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2, 'constraints': constraints, 'minimizer': BasinHopping},
+     LeastSquares, (True, True, True, False, False))
+])
+def test_model(kwargs, objective_name, gof_presence):
+    model = Model({y: a * x ** b})
+    fit = Fit(model, **kwargs)
+    fit_result = fit.execute()
 
+    assert isinstance(fit_result.params, OrderedDict)
 
-def test_fitting(result_dict, a, b):
-    """
-    Test if the fitting worked in the first place.
-    """
-    fit_result = result_dict['fit_result']
-
+    assert isinstance(fit_result.minimizer_output, dict)
     assert isinstance(fit_result, FitResults)
+
     assert fit_result.value(a) == pytest.approx(3.0)
     assert fit_result.value(b) == pytest.approx(2.0)
 
     assert isinstance(fit_result.stdev(a), float)
     assert isinstance(fit_result.stdev(b), float)
 
-    assert isinstance(fit_result.r_squared, float)
-    # by definition since there's no fuzzyness
-    assert fit_result.r_squared == 1.0
+    if hasattr(fit_result, 'r_squared'):
+        assert isinstance(fit_result.r_squared, float)
+        # assert fit_result.r_squared == 1.0
+        # by definition since there's no fuzzyness    
 
-  
+    assert isinstance(fit_result.minimizer, BaseMinimizer)
+
+    assert isinstance(fit_result.objective, objective_name)
+
+    assert isinstance(fit_result.status_message, str)
+
+    dumped = pickle.dumps(fit_result)
+    new_result = pickle.loads(dumped)
+    assert sorted(fit_result.__dict__.keys()) == sorted(
+        new_result.__dict__.keys())
+    for k, v1 in fit_result.__dict__.items():
+        v2 = new_result.__dict__[k]
+        if k == 'minimizer':
+            assert type(v1) == type(v2)
+        elif k != 'minimizer_output':  # Ignore minimizer_output
+            if isinstance(v1, np.ndarray):
+                assert v1 == pytest.approx(v2, nan_ok=True)
+
+    if fit_result.constraints:
+        assert isinstance(fit_result.constraints, list)
+        for constraint in fit_result.constraints:
+            assert isinstance(constraint, MinimizeModel)
+
+    assert hasattr(fit_result, 'objective_value') == gof_presence[0]
+    assert hasattr(fit_result, 'r_squared') == gof_presence[1]
+    assert hasattr(fit_result, 'chi_squared') == gof_presence[2]
+    assert hasattr(fit_result, 'log_likelihood') == gof_presence[3]
+    assert hasattr(fit_result, 'likelihood') == gof_presence[4]
+
+
 def test_fitting_2():
     np.random.seed(43)
     mean = (0.62, 0.71)  # x, y mean 0.7, 0.7
@@ -163,91 +168,14 @@ def test_fitting_2():
             assert fit_result.covariance(param_1, param_2) == pytest.approx(fit_result.covariance(param_2, param_1), rel=1e-3)
 
 
-@pytest.mark.parametrize('result_name', ['fit_result',
-    'likelihood_result','constrained_result', 'constrained_basinhopping_result'])
-def test_minimizer_included(result_dict, result_name):
-    """"The minimizer used should be included in the results."""
-    assert isinstance(result_dict[result_name].minimizer, BaseMinimizer)
-
-
-def test_minimizer_included_chained(result_dict):
-    chained_result = result_dict['chained_result']
+def test_minimizer_included_chained():
+    xdata = np.linspace(1, 10, 10)
+    ydata = 3 * xdata ** 2
+    model = Model({y: a * x ** b})
+    fit = Fit(model, x=xdata, y=ydata, minimizer=[BFGS, NelderMead])
+    chained_result = fit.execute()
     assert isinstance(chained_result.minimizer, ChainedMinimizer)
     for minimizer, cls in zip(chained_result.minimizer.minimizers, [BFGS, NelderMead]):
         assert isinstance(minimizer, cls)
 
 
-@pytest.mark.parametrize('result_name, objective_name',[
-    ('fit_result', LeastSquares), 
-    ('likelihood_result', LogLikelihood),
-    ('minpack_result', VectorLeastSquares),
-    ('constrained_result', LeastSquares),
-    ('constrained_basinhopping_result', LeastSquares)
-    ])
-def test_objective_included(result_dict, result_name, objective_name):
-    """"The objective used should be included in the results."""
-    assert isinstance(result_dict[result_name].objective, objective_name)
-
-
-@pytest.mark.parametrize('result_name', ['constrained_result',
-    'constrained_basinhopping_result'])
-def test_constraints_included(result_dict, result_name):
-    """
-    Test if the constraints have been properly fed to the results object so
-    we can easily print their compliance.
-    """
-    # For a constrained fit we expect a list of MinimizeModel objectives.
-    result_constraints = result_dict[result_name]
-    assert isinstance(result_constraints.constraints, list)
-    for constraint in result_constraints.constraints:
-        assert isinstance(constraint, MinimizeModel)
-
-
-@pytest.mark.parametrize('result_name', ['fit_result', 'likelihood_result',
-    'minpack_result', 'chained_result', 'constrained_result',
-    'constrained_basinhopping_result'])
-def test_message_included(result_dict, result_name):
-    """Status message should be included."""
-    assert isinstance(result_dict[result_name].status_message, str)
-
-
-@pytest.mark.parametrize('result_name', ['fit_result', 'likelihood_result',
-    'chained_result', 'constrained_result', 'constrained_basinhopping_result'])
-def test_pickle(result_dict, result_name):
-    act_result = result_dict[result_name]
-    dumped = pickle.dumps(act_result)
-    new_result = pickle.loads(dumped)
-    assert sorted(act_result.__dict__.keys()) == sorted(new_result.__dict__.keys())
-    for k, v1 in act_result.__dict__.items():
-        v2 = new_result.__dict__[k]
-        if k == 'minimizer':
-            assert type(v1) == type(v2)
-        elif k != 'minimizer_output':  # Ignore minimizer_output
-            if isinstance(v1, np.ndarray):
-                assert v1 == pytest.approx(v2, nan_ok=True)
-
-
-def test_gof_presence(result_dict):
-    """
-    Test if the expected goodness of fit estimators are present.
-    """
-    fit_result = result_dict['fit_result']
-    assert hasattr(fit_result, 'objective_value')
-    assert hasattr(fit_result, 'r_squared')
-    assert hasattr(fit_result, 'chi_squared')
-    assert not hasattr(fit_result, 'log_likelihood')
-    assert not hasattr(fit_result, 'likelihood')
-
-    minpack_result = result_dict['minpack_result']
-    assert hasattr(minpack_result, 'objective_value')
-    assert hasattr(minpack_result, 'r_squared')
-    assert hasattr(minpack_result, 'chi_squared')
-    assert not hasattr(minpack_result, 'log_likelihood')
-    assert not hasattr(minpack_result, 'likelihood')
-
-    likelihood_result = result_dict['likelihood_result']
-    assert hasattr(likelihood_result, 'objective_value')
-    assert not hasattr(likelihood_result, 'r_squared')
-    assert not hasattr(likelihood_result, 'chi_squared')
-    assert hasattr(likelihood_result, 'log_likelihood')
-    assert hasattr(likelihood_result, 'likelihood')
