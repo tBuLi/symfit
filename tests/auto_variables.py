@@ -12,7 +12,7 @@ a, b, c, d = sf.parameters('a, b, c, d')
 
 
 @pytest.fixture(autouse=True)
-def initVariales():
+def initVariables():
     """
     As autouse fixture this method re-initializes/resets the global variables w, x, y, z
     for every test, no matter if parametrized or not. 

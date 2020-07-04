@@ -3,7 +3,8 @@ import pytest
 import pickle
 from collections import OrderedDict
 
-from tests.auto_variables import *
+from tests.auto_variables import a, b, x, y, z
+import math
 
 import numpy as np
 from symfit import (
@@ -11,71 +12,97 @@ from symfit import (
 )
 from symfit.distributions import BivariateGaussian
 from symfit.core.minimizers import (
-    BaseMinimizer, MINPACK, BFGS, NelderMead, ChainedMinimizer, BasinHopping
+    BaseMinimizer, ConstrainedMinimizer, DifferentialEvolution, MINPACK, BFGS, NelderMead, ChainedMinimizer, BasinHopping
 )
 from symfit.core.objectives import (
     LogLikelihood, LeastSquares, VectorLeastSquares, MinimizeModel
 )
 
+from tests.test_minimizers import subclasses
 
-# TODO Entfernen
-# 1. Likelihood & Constraints Ergebnisse (a, b, (r²)) verschieden >>> mit wolfram alpha testen?
-# 2. kein r² bei likelihood >>> check mit hasttr
-# 3. Chained Minimizer & LeastSquare >>> einfach einsetzen, obwohl es nicht der normalfall ist?
-# 4. r² zu hasttr Sektion hinzufügen? >>> why not
-# 5. Zukunft: test_fitting_2 simpler/zu großem Test?    
 
 def ge_constraint(a):  # Has to be in the global namespace for pickle.
     return a - 1
 
 
-constraints = [
-    Eq(a, b),
-    CallableNumericalModel.as_constraint(
-        {z: ge_constraint}, connectivity_mapping={z: {a}},
-        constraint_type=Ge, model=Model({y: a * x ** b})
+@pytest.mark.parametrize('minimizer',
+        subclasses(BaseMinimizer) - {ChainedMinimizer, DifferentialEvolution, MINPACK} | {None, (BFGS, NelderMead)}
     )
-]
+@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_got',
+    [
+        # No specific objective
+        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 3, b: 2}, 
+         {a: 0, b: 0}, LeastSquares, {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
+        # Test objective LeastSqueares
+        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 3, b: 2}, 
+         {a: 1e-13, b: 1e-13}, LeastSquares, {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
+        # Test objective LogLikelihood
+        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)), {a: 62.56756, b: 758.08369}, 
+         {a: float('nan'), b: float('nan')}, LogLikelihood, 
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
+    ])
+def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_got):
 
-
-@pytest.mark.parametrize('kwargs, objective_name, gof_presence', [
-    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2},
-     LeastSquares, (True, True, True, False, False)),
-    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2,
-      'minimizer': MINPACK}, VectorLeastSquares, (True, True, True, False, False)),
-    ({'x': np.linspace(1, 10, 10), 'objective': LogLikelihood},
-     LogLikelihood, (True, False, False, True, True)),
-    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2, 'minimizer': [BFGS, NelderMead]},
-     LeastSquares, (True, True, True, False, False)),
-    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2,
-      'constraints': constraints}, LeastSquares, (True, True, True, False, False)),
-    ({'x': np.linspace(1, 10, 10), 'y': 3 * np.linspace(1, 10, 10) ** 2, 'constraints': constraints, 'minimizer': BasinHopping},
-     LeastSquares, (True, True, True, False, False))
-])
-def test_model(kwargs, objective_name, gof_presence):
-    model = Model({y: a * x ** b})
-    fit = Fit(model, **kwargs)
+    # Values of a and b by COBYLA and TrustConstr of (objective = LeastSquares, None)
+    # Values of a and b always of (objective = LogLikeihood)
+    # LBFGSB has no status message/not string
+    fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}))
     fit_result = fit.execute()
+    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got)
+
+
+@pytest.mark.parametrize('minimizer',
+    subclasses(ConstrainedMinimizer) - {ChainedMinimizer, DifferentialEvolution} | {None}
+    )
+@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_got',
+    [
+        # No special objective
+        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 2.152889, b: 2.152889}, 
+         {a: 0.23715, b: 0.05076}, LeastSquares, {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LeastSqueares
+        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 2.152889, b: 2.152889}, 
+         {a: 0.23715, b: 0.05076}, LeastSquares, {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LogLikelihood
+        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)), {a: 653.48460, b: 653.48460}, 
+         {a: float('nan'), b: float('nan')}, LogLikelihood, 
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
+    ])
+def test_constraints(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_got):
+
+    # TrustConstr cannot handle LogLikelihood
+    # COBYLA cannot handle Eq
+    constraints = [
+        Eq(a, b),
+        CallableNumericalModel.as_constraint(
+            {z: ge_constraint}, connectivity_mapping={z: {a}},
+            constraint_type=Ge, model=Model({y: a * x ** b})
+        )
+    ]
+    fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}), constraints=constraints)
+    fit_result = fit.execute()
+    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got)
+
+
+def test_MINPACK():
+    # TODO write MINPACK test
+    pass
+
+
+def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got):
 
     assert isinstance(fit_result.params, OrderedDict)
-
     assert isinstance(fit_result.minimizer_output, dict)
     assert isinstance(fit_result, FitResults)
 
-    assert fit_result.value(a) == pytest.approx(3.0)
-    assert fit_result.value(b) == pytest.approx(2.0)
+    for attr_name, value in expected_par.items():
+        assert fit_result.value(attr_name) == pytest.approx(value)
 
-    assert isinstance(fit_result.stdev(a), float)
-    assert isinstance(fit_result.stdev(b), float)
-
-    if hasattr(fit_result, 'r_squared'):
-        assert isinstance(fit_result.r_squared, float)
-        # assert fit_result.r_squared == 1.0
-        # by definition since there's no fuzzyness    
+    for attr_name, value in expected_std.items():
+        #assert fit_result.stdev(attr_name) == pytest.approx(value, nan_ok=True)
+        pass
 
     assert isinstance(fit_result.minimizer, BaseMinimizer)
-
-    assert isinstance(fit_result.objective, objective_name)
+    assert isinstance(fit_result.objective, expected_obj)
 
     assert isinstance(fit_result.status_message, str)
 
@@ -96,11 +123,9 @@ def test_model(kwargs, objective_name, gof_presence):
         for constraint in fit_result.constraints:
             assert isinstance(constraint, MinimizeModel)
 
-    assert hasattr(fit_result, 'objective_value') == gof_presence[0]
-    assert hasattr(fit_result, 'r_squared') == gof_presence[1]
-    assert hasattr(fit_result, 'chi_squared') == gof_presence[2]
-    assert hasattr(fit_result, 'log_likelihood') == gof_presence[3]
-    assert hasattr(fit_result, 'likelihood') == gof_presence[4]
+    for attr_name, value in expected_got.items():
+        assert getattr(fit_result, attr_name) == pytest.approx(
+            value, nan_ok=True)
 
 
 def test_fitting_2():
@@ -157,7 +182,8 @@ def test_fitting_2():
     assert fit_result.r_squared > 0.95
     for param in fit.model.params:
         try:
-            assert fit_result.stdev(param)**2 == pytest.approx(fit_result.variance(param))
+            assert fit_result.stdev(
+                param)**2 == pytest.approx(fit_result.variance(param))
         except AssertionError:
             assert fit_result.variance(param) <= 0.0
             assert np.isnan(fit_result.stdev(param))
@@ -165,7 +191,8 @@ def test_fitting_2():
     # Covariance matrix should be symmetric
     for param_1 in fit.model.params:
         for param_2 in fit.model.params:
-            assert fit_result.covariance(param_1, param_2) == pytest.approx(fit_result.covariance(param_2, param_1), rel=1e-3)
+            assert fit_result.covariance(param_1, param_2) == pytest.approx(
+                fit_result.covariance(param_2, param_1), rel=1e-3)
 
 
 def test_minimizer_included_chained():
@@ -177,5 +204,3 @@ def test_minimizer_included_chained():
     assert isinstance(chained_result.minimizer, ChainedMinimizer)
     for minimizer, cls in zip(chained_result.minimizer.minimizers, [BFGS, NelderMead]):
         assert isinstance(minimizer, cls)
-
-
