@@ -38,6 +38,8 @@ extensions = [
     'nbsphinx',
 ]
 
+# Contains the locations and names of other projects that should be
+# linked to in this documentation.
 intersphinx_mapping = {
     'sympy': ('https://docs.sympy.org/latest', None),
     'python': ('https://docs.python.org/3', None),
@@ -45,6 +47,7 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org', None)
 }
 
+# List of targets that should be ignored when generating warnings.
 nitpick_ignore = [
     ('py:mod', 'symfit'),
     ('py:mod', 'symfit.contrib.interactive_guess'),
