@@ -212,6 +212,9 @@ html_copy_source = False
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'symfitdoc'
 
+# The path to the MathJax JavaScript file to include in the HTML files.
+#mathjax_path = '/usr/share/javascript/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
+
 
 # -- Options for LaTeX output ---------------------------------------------
 
