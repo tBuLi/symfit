@@ -215,6 +215,9 @@ htmlhelp_basename = 'symfitdoc'
 # The path to the MathJax JavaScript file to include in the HTML files.
 #mathjax_path = '/usr/share/javascript/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
 
+# The path to the RequireJS JavaScript file to include in the HTML files.
+#nbsphinx_requirejs_path = '/usr/share/javascript/requirejs/require.min.js'
+
 
 # -- Options for LaTeX output ---------------------------------------------
 
