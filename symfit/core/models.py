@@ -1,4 +1,5 @@
-from collections import Mapping, OrderedDict
+from collections import OrderedDict
+from collections.abc import Mapping
 import operator
 import warnings
 import sys
