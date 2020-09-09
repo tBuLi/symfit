@@ -391,7 +391,7 @@ are added squared, ready to be minimized. Unlike in the above example, the
 
 Fitting multidimensional datasets
 ----------------------------------
-So far we have only considered only considered problems with a single
+So far we have only considered problems with a single
 independent variable, but in the real world it is quite common to have
 problems with multiple independent variables. For example, a specific property
 over a grid, like the temperature of a surface. In that case, you have a
