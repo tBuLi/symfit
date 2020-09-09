@@ -1,5 +1,6 @@
 numpy >= 1.12
 scipy >= 1.0
 sympy >= 1.2
+pkg_resources
 toposort
 six
