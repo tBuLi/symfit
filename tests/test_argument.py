@@ -26,12 +26,12 @@ def test_argument_unnamed():
     """
     Make sure the generated parameter names follow the pattern
     """
-    with pytest.deprecated_call():
+    with pytest.warns(DeprecationWarning):
         a = Parameter()
     b = Parameter('b', 10)
-    with pytest.deprecated_call():
+    with pytest.warns(DeprecationWarning):
         c = Parameter(value=10)
-    with pytest.deprecated_call():
+    with pytest.warns(DeprecationWarning):
         x = Variable()
     y = Variable('y')
 
@@ -56,7 +56,7 @@ def test_pickle():
     new_A = pickle.loads(pickle.dumps(A))
     assert (A.min, A.value, A.max, A.fixed, A.name) == (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name)
 
-    with pytest.deprecated_call():
+    with pytest.warns(DeprecationWarning):
         A = Parameter(min=0., max=1e3, fixed=True)
     new_A = pickle.loads(pickle.dumps(A))
     assert (A.min, A.value, A.max, A.fixed, A.name) == (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name)
