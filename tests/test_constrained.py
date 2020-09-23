@@ -144,7 +144,7 @@ def test_param_error_analytical():
     np.random.seed(110)
     yn = np.random.normal(size=xn.shape, scale=sigma)
 
-    a = Parameter()
+    a = Parameter('a')
     y = Variable('y')
     model = {y: a}
 
@@ -182,8 +182,8 @@ def test_grid_fitting():
 
     zdata = (2.5*xx**2 + 3.0*yy**2)
 
-    a = Parameter(value=2.4, max=2.75)
-    b = Parameter(value=3.1, min=2.75)
+    a = Parameter('a', value=2.4, max=2.75)
+    b = Parameter('b', value=3.1, min=2.75)
     x = Variable('x')
     y = Variable('y')
     z = Variable('z')
@@ -510,11 +510,11 @@ def test_gaussian_2d_fitting():
     # Make a valid grid to match ydata
     xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
 
-    x0 = Parameter(value=mean[0], min=0.0, max=1.0)
-    sig_x = Parameter(value=0.2, min=0.0, max=0.3)
-    y0 = Parameter(value=mean[1], min=0.0, max=1.0)
-    sig_y = Parameter(value=0.1, min=0.0, max=0.3)
-    A = Parameter(value=np.mean(ydata), min=0.0)
+    x0 = Parameter('x0', value=mean[0], min=0.0, max=1.0)
+    sig_x = Parameter('sig_x', value=0.2, min=0.0, max=0.3)
+    y0 = Parameter('y0', value=mean[1], min=0.0, max=1.0)
+    sig_y = Parameter('sig_y', value=0.1, min=0.0, max=0.3)
+    A = Parameter('A', value=np.mean(ydata), min=0.0)
     x = Variable('x')
     y = Variable('y')
     g = Variable('g')
