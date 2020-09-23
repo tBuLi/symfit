@@ -121,7 +121,12 @@ class BaseModel(Mapping):
             # TODO: this will break upon deprecating the auto-generation of
             # names for Variables. At this time, a DummyVariable object
             # should be introduced to fulfill the same role.
-            model = {Variable(): expr for expr in model}
+            #
+            # Temporarily introduced what should be a unique name derived from
+            # the object's ID (preappended with an underscore for it to be a
+            # valid identifier) to surpress the DepricationWarnings raised when
+            # instantiating a Variable without a name.
+            model = {Variable("_" + str(id(expr))): expr for expr in model}
         self._init_from_dict(model)
 
     @classmethod
