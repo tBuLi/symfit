@@ -26,8 +26,8 @@ def test_minimize():
     result.
     https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
     """
-    x = Parameter(value=-1.0)
-    y = Parameter(value=1.0)
+    x = Parameter('x', value=-1.0)
+    y = Parameter('y', value=1.0)
     # Use an  unnamed Variable on purpose to test the auto-generation of names.
     model = Model(2 * x * y + 2 * x - x ** 2 - 2 * y ** 2)
 
@@ -80,9 +80,9 @@ def test_minimize():
 
 
 def test_constraint_types():
-    x = Parameter(value=-1.0)
-    y = Parameter(value=1.0)
-    z = Variable()
+    x = Parameter('x', value=-1.0)
+    y = Parameter('y', value=1.0)
+    z = Variable('z')
     model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 
     # These types are not allowed constraints.
