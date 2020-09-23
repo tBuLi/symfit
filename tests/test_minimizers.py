@@ -316,7 +316,8 @@ def test_multiprocessing():
             x_var = Variable('x')
             y_var = Variable('y')
 
-            model = CallableNumericalModel({y_var: f}, [x_var], [a_par, b_par])
+            con_map = {y_var: {x_var, a_par, b_par}}
+            model = CallableNumericalModel({y_var: f}, connectivity_mapping=con_map)
 
             fit = Fit(
                 model, x, a_i * x + 1, minimizer=minimizer,
