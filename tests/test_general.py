@@ -245,7 +245,6 @@ def test_grid_fitting():
     assert results.value(b) == pytest.approx(3.)
 
 
-# TODO: Should be 3 tests?
 def test_model_callable():
     """
     Tests if Model objects are callable in the way expected. Calling a
@@ -266,7 +265,19 @@ def test_model_callable():
     for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
         assert arg_name == name
 
-    # From Model __init__ directly
+
+def test_model_callable_from_model_init():
+    """
+    Tests if Model objects are callable in the way expected. Calling a
+    model should evaluate it's expression(s) with the given values. The
+    return value is a namedtuple.
+
+    The signature should also work so inspection is saved.
+
+    Tests from Model __init__ directly
+    """
+    a, b = parameters('a, b')
+    x, y = variables('x, y')
     model = Model([
         a*x**2,
         4*b*y**2,
@@ -280,7 +291,19 @@ def test_model_callable():
     for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
         assert arg_name == name
 
-    # From dict
+
+def test_model_callable_from_dict():
+    """
+    Tests if Model objects are callable in the way expected. Calling a
+    model should evaluate it's expression(s) with the given values. The
+    return value is a namedtuple.
+
+    The signature should also work so inspection is saved.
+
+    Tests from dict.
+    """
+    a, b = parameters('a, b')
+    x, y = variables('x, y')
     z_1, z_2, z_3 = variables('z_1, z_2, z_3')
     model = Model({
         z_1: a*x**2,
