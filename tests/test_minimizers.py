@@ -149,8 +149,8 @@ def test_custom_parameter_names():
     For cusom objective functions you still have to provide a list of Parameter
     objects to use with the same name as the keyword arguments to your function.
     """
-    a = Parameter()
-    c = Parameter()
+    a = Parameter('a')
+    c = Parameter('c')
 
     def chi_squared(a, b):
         """
@@ -228,7 +228,7 @@ def test_pickle():
             constraints = []
         model = CallableNumericalModel(
             {y: f},
-            independent_vars=[x], params=[a, b]
+            connectivity_mapping={y: {x, a, b}},
         )
         fit = Fit(model, x=xdata, y=ydata, minimizer=minimizer,
                   constraints=constraints)
