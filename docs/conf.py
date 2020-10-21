@@ -38,6 +38,8 @@ extensions = [
     'nbsphinx',
 ]
 
+# Contains the locations and names of other projects that should be
+# linked to in this documentation.
 intersphinx_mapping = {
     'sympy': ('https://docs.sympy.org/latest', None),
     'python': ('https://docs.python.org/3', None),
@@ -45,6 +47,7 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org', None)
 }
 
+# List of targets that should be ignored when generating warnings.
 nitpick_ignore = [
     ('py:mod', 'symfit'),
     ('py:mod', 'symfit.contrib.interactive_guess'),
@@ -126,7 +129,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+#html_theme = 'default'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -155,7 +158,7 @@ html_theme = 'default'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+#html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -186,6 +189,9 @@ html_static_path = ['_static']
 # If true, the index is split into individual pages for each letter.
 #html_split_index = False
 
+# If true, the reST sources are included in the HTML build. The default is True.
+html_copy_source = False
+
 # If true, links to the reST sources are added to the pages.
 #html_show_sourcelink = True
 
@@ -205,6 +211,12 @@ html_static_path = ['_static']
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'symfitdoc'
+
+# The path to the MathJax JavaScript file to include in the HTML files.
+#mathjax_path = '/usr/share/javascript/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
+
+# The path to the RequireJS JavaScript file to include in the HTML files.
+#nbsphinx_requirejs_path = '/usr/share/javascript/requirejs/require.min.js'
 
 
 # -- Options for LaTeX output ---------------------------------------------
