@@ -65,8 +65,8 @@ class ModelOutput(tuple):
         self.output_dict = OrderedDict(zip(variables, output))
         self.variable_names = {var.name: var for var in variables}
 
-    def __getnewargs_ex__(self):
-        return (), {'variables': self.variables, 'output': self.output}
+    def __getnewargs__(self):
+        return self.variables, self.output
 
     def __getstate__(self):
         return self.variables, self.output
