@@ -16,8 +16,8 @@ def test_parameter_add():
     """
     Makes sure the __add__ method of Parameters behaves as expected.
     """
-    a = Parameter(value=1.0, min=0.5, max=1.5)
-    b = Parameter(value=1.0, min=0.0)
+    a = Parameter('a', value=1.0, min=0.5, max=1.5)
+    b = Parameter('b', value=1.0, min=0.0)
     new = a + b
     assert isinstance(new, sympy.Add)
 
@@ -26,10 +26,13 @@ def test_argument_unnamed():
     """
     Make sure the generated parameter names follow the pattern
     """
-    a = Parameter()
+    with pytest.warns(DeprecationWarning):
+        a = Parameter()
     b = Parameter('b', 10)
-    c = Parameter(value=10)
-    x = Variable()
+    with pytest.warns(DeprecationWarning):
+        c = Parameter(value=10)
+    with pytest.warns(DeprecationWarning):
+        x = Variable()
     y = Variable('y')
 
     assert str(a) == '{}_{}'.format(a._argument_name, a._argument_index)
@@ -53,7 +56,8 @@ def test_pickle():
     new_A = pickle.loads(pickle.dumps(A))
     assert (A.min, A.value, A.max, A.fixed, A.name) == (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name)
 
-    A = Parameter(min=0., max=1e3, fixed=True)
+    with pytest.warns(DeprecationWarning):
+        A = Parameter(min=0., max=1e3, fixed=True)
     new_A = pickle.loads(pickle.dumps(A))
     assert (A.min, A.value, A.max, A.fixed, A.name) == (new_A.min, new_A.value, new_A.max, new_A.fixed, new_A.name)
 

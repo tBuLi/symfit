@@ -11,9 +11,9 @@ def test_gaussian():
     Make sure that symfit.distributions.Gaussians produces the expected
     sympy expression.
     """
-    x0 = Parameter()
-    sig = Parameter(positive=True)
-    x = Variable()
+    x0 = Parameter('x0')
+    sig = Parameter('sig', positive=True)
+    x = Variable('x')
 
     new = sympy.exp(-(x - x0)**2/(2*sig**2))/sympy.sqrt((2*sympy.pi*sig**2))
     assert isinstance(new, sympy.Expr)
@@ -30,8 +30,8 @@ def test_exp():
     Make sure that symfit.distributions.Exp produces the expected
     sympy expression.
     """
-    l = Parameter(positive=True)
-    x = Variable()
+    l = Parameter('l', positive=True)
+    x = Variable('x')
 
     new = l * sympy.exp(- l * x)
     assert isinstance(new, sympy.Expr)
