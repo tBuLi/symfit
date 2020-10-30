@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 # Overwrite behavior of sympy objects to make more sense for this project.
 import symfit.core.operators
 

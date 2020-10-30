@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 # -*- coding: utf-8 -*-
 """
 Created on Mon Dec  7 11:28:58 2015

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 """
 Objective functions are the functions which are minimized by the
 :mod:`~symfit.core.minimizers`.

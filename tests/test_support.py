@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 """
 This module contains tests for functions in the :mod:`symfit.core.support` module.
 """

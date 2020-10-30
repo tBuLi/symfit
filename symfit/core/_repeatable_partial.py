@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 from functools import partial
 
 class repeatable_partial(partial):
