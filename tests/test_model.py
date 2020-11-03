@@ -449,3 +449,18 @@ def test_ModelOutput():
     assert isinstance(output._asdict(), OrderedDict)
     assert output._asdict() is not output.output_dict
     assert output._asdict() == output.output_dict
+
+def test_model_output_pickle():
+    """
+    Test that ModelOutput objects can be pickled and unpickled.
+    """
+    params = parameters(','.join('a{}'.format(i) for i in range(10)))
+    data = np.ones(10)
+    output = ModelOutput(params, data)
+
+    jar = pickle.dumps(output)
+    result = pickle.loads(jar)
+
+    assert output._asdict() == result._asdict()
+
+
