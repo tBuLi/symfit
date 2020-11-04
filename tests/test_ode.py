@@ -233,7 +233,7 @@ def test_initial_parameters():
     k, p, l, m = parameters('k, p, l, m')
 
     a0 = Parameter('a0', min=0, value=10, fixed=True)
-    c0 = Parameter('c0', min=0, value=0.1)
+    c0 = Parameter('c0', min=0, value=0.05)
     b = a0 - d + a
     model_dict = {
         D(d, t): l * c * b - m * d,
@@ -251,7 +251,7 @@ def test_initial_parameters():
     results = fit.execute()
     print(results)
     assert results.value(a0) == pytest.approx(10, abs=1e-8)
-    assert results.value(c0) == pytest.approx(0, abs=1e-8)
+    assert results.value(c0) == pytest.approx(0, abs=1e-5)
 
     assert ode_model.params == [a0, c0, k, l, m, p]
     assert ode_model.initial_params == [a0, c0]
