@@ -345,7 +345,7 @@ def test_multiprocessing():
                     assert isinstance(used, target)
             else:
                 assert isinstance(result.minimizer, minimizer)
-            assert isinstance(result.iterations, int)
+            assert isinstance(result.iterations, int) or result.iterations is None
 
 
 def test_minimizer_constraint_compatibility():
