@@ -107,7 +107,8 @@ def test_CallableNumericalModel():
 
     model = CallableModel({y: a * x + b})
     numerical_model = CallableNumericalModel(
-        {y: lambda x, a, b: a * x + b}, [x], [a, b]
+        {y: lambda x, a, b: a * x + b}, 
+        connectivity_mapping={y: {x, a, b}}
     )
     assert model.__signature__ == numerical_model.__signature__
 
@@ -120,7 +121,7 @@ def test_CallableNumericalModel():
     assert numerical_answer == pytest.approx(symbolic_answer)
 
     faulty_model = CallableNumericalModel({y: lambda x, a, b: a * x + b},
-                                          [], [a, b])
+                                          connectivity_mapping={y: {a, b}})
     assert not model.__signature__ == faulty_model.__signature__
     with pytest.raises(TypeError):
         # This is an incorrect signature, even though the lambda function is
@@ -128,9 +129,10 @@ def test_CallableNumericalModel():
         faulty_model(xdata, 5.5, 15.0)
 
     # Faulty model whose components do not all accept all of the args
-    faulty_model = CallableNumericalModel(
-        {y: lambda x, a, b: a * x + b, z: lambda x, a: x**a}, [x], [a, b]
-    )
+    with pytest.warns(DeprecationWarning):
+        faulty_model = CallableNumericalModel(
+            {y: lambda x, a, b: a * x + b, z: lambda x, a: x**a}, [x], [a, b]
+        )
     assert model.__signature__ == faulty_model.__signature__
 
     with pytest.raises(TypeError):
@@ -139,7 +141,7 @@ def test_CallableNumericalModel():
 
     # Faulty model with a wrongly named argument
     faulty_model = CallableNumericalModel(
-        {y: lambda x, a, c=5: a * x + c}, [x], [a, b]
+        {y: lambda x, a, c=5: a * x + c}, connectivity_mapping={y: {x, a, b}}
     )
     assert model.__signature__ == faulty_model.__signature__
 
@@ -154,8 +156,8 @@ def test_CallableNumericalModel():
     )
     # Correct version of the previous model
     mixed_model = CallableNumericalModel(
-        {y: lambda x, a, b: a * x + b, z: x ** a}, [x],
-        [a, b]
+        {y: lambda x, a, b: a * x + b, z: x ** a}, 
+        connectivity_mapping={y: {x, a, b}}
     )
 
     numberical_answer = np.array(numerical_model(x=xdata, a=5.5, b=15.0))
@@ -215,7 +217,7 @@ def test_CallableNumericalModel2D():
     a, b = parameters('a, b')
     y, = variables('y')
 
-    model = CallableNumericalModel({y: function}, [], [a, b])
+    model = CallableNumericalModel({y: function}, connectivity_mapping={y: {a, b}})
     data = 15 * np.ones(shape)
     data[15:, :] += 20
 
@@ -229,7 +231,7 @@ def test_CallableNumericalModel2D():
         out[15:, :] += b
         return out.flatten()
 
-    model = CallableNumericalModel({y: flattened_function}, [], [a, b])
+    model = CallableNumericalModel({y: flattened_function}, connectivity_mapping={y: {a, b}})
     data = 15 * np.ones(shape)
     data[15:, :] += 20
     data = data.flatten()
@@ -254,9 +256,10 @@ def test_pickle():
     x, y = variables('x, y')
     exact_model = Model({y: a * x ** b})
     constraint = Model.as_constraint(Eq(a, b), exact_model)
-    num_model = CallableNumericalModel(
-        {y: a * x ** b}, independent_vars=[x], params=[a, b]
-    )
+    with pytest.warns(DeprecationWarning):
+        num_model = CallableNumericalModel(
+            {y: a * x ** b}, independent_vars=[x], params=[a, b]
+        )
     connected_num_model = CallableNumericalModel(
         {y: a * x ** b}, connectivity_mapping={y: {x, a, b}}
     )
@@ -450,3 +453,18 @@ def test_ModelOutput():
     assert isinstance(output._asdict(), OrderedDict)
     assert output._asdict() is not output.output_dict
     assert output._asdict() == output.output_dict
+
+def test_model_output_pickle():
+    """
+    Test that ModelOutput objects can be pickled and unpickled.
+    """
+    params = parameters(','.join('a{}'.format(i) for i in range(10)))
+    data = np.ones(10)
+    output = ModelOutput(params, data)
+
+    jar = pickle.dumps(output)
+    result = pickle.loads(jar)
+
+    assert output._asdict() == result._asdict()
+
+

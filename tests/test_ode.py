@@ -250,8 +250,10 @@ def test_initial_parameters():
     fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
     results = fit.execute()
     print(results)
-    assert results.value(a0) == pytest.approx(10, abs=1e-8)
-    assert results.value(c0) == pytest.approx(0, abs=1e-5)
+
+    acceptable_abs_tol = 5e-7
+    assert results.value(a0) == pytest.approx(10, abs=acceptable_abs_tol)
+    assert results.value(c0) == pytest.approx(0, abs=acceptable_abs_tol)
 
     assert ode_model.params == [a0, c0, k, l, m, p]
     assert ode_model.initial_params == [a0, c0]

@@ -20,73 +20,91 @@ from symfit.core.support import partial
 def setup_method():
     np.random.seed(0)
 
-# TODO: Should be 2 tests?
 
-
-def test_minimize():
+@pytest.mark.usefixtures("minimize_fixture")
+class TestMinimize:
     """
     Tests maximizing a function with and without constraints, taken from the
     scipy `minimize` tutorial. Compare the symfit result with the scipy
     result.
     https://docs.scipy.org/doc/scipy-0.18.1/reference/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
     """
-    x = Parameter(value=-1.0)
-    y = Parameter(value=1.0)
-    # Use an  unnamed Variable on purpose to test the auto-generation of names.
-    model = Model(2 * x * y + 2 * x - x ** 2 - 2 * y ** 2)
 
-    constraints = [
-        Ge(y - 1, 0),  # y - 1 >= 0,
-        Eq(x**3 - y, 0),  # x**3 - y == 0,
-    ]
+    @pytest.fixture(autouse=True)
+    def minimize_fixture(self):
+        """
+        Set up the parameters, model, constraints for the minimization fits.
 
+        These tests used to purposefully use unamed variable, however this has
+        been changed as this feature is now being depricated in a future
+        version of Symfit.
+        """
+        x = Parameter('x', value=-1.0)
+        y = Parameter('y', value=1.0)
+        self.x = x
+        self.y = y
+        self.model = Model(2 * x * y + 2 * x - x ** 2 - 2 * y ** 2)
+
+        self.constraints = [
+            Ge(y - 1, 0),  # y - 1 >= 0,
+            Eq(x**3 - y, 0),  # x**3 - y == 0,
+        ]
+
+        self.cons = (
+            {'type': 'eq',
+             'fun': lambda x: np.array([x[0]**3 - x[1]]),
+             'jac': lambda x: np.array([3.0 * (x[0]**2.0), -1.0])},
+            {'type': 'ineq',
+             'fun': lambda x: np.array([x[1] - 1]),
+             'jac': lambda x: np.array([0.0, 1.0])}
+        )
+
+    @staticmethod
     def func(x, sign=1.0):
         """ Objective function """
         return sign*(2*x[0]*x[1] + 2*x[0] - x[0]**2 - 2*x[1]**2)
 
+    @staticmethod
     def func_deriv(x, sign=1.0):
         """ Derivative of objective function """
         dfdx0 = sign*(-2*x[0] + 2*x[1] + 2)
         dfdx1 = sign*(2*x[0] - 4*x[1])
         return np.array([dfdx0, dfdx1])
 
-    cons = (
-        {'type': 'eq',
-         'fun': lambda x: np.array([x[0]**3 - x[1]]),
-         'jac': lambda x: np.array([3.0*(x[0]**2.0), -1.0])},
-        {'type': 'ineq',
-         'fun': lambda x: np.array([x[1] - 1]),
-         'jac': lambda x: np.array([0.0, 1.0])}
-    )
-
-    # Unconstrained fit
-    res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
+    def test_minimize_unconstrained(self):
+        """
+        Test an unconstrained fit.
+        """
+        res = minimize(self.func, [-1.0, 1.0], args=(-1.0,), jac=self.func_deriv,
                    method='BFGS', options={'disp': False})
-    fit = Fit(model=-model)
-    assert isinstance(fit.objective, MinimizeModel)
-    assert isinstance(fit.minimizer, BFGS)
+        fit = Fit(model=-self.model)
+        assert isinstance(fit.objective, MinimizeModel)
+        assert isinstance(fit.minimizer, BFGS)
 
-    fit_result = fit.execute()
+        fit_result = fit.execute()
 
-    assert fit_result.value(x) == pytest.approx(res.x[0], 1e-6)
-    assert fit_result.value(y) == pytest.approx(res.x[1], 1e-6)
+        assert fit_result.value(self.x) == pytest.approx(res.x[0], 1e-6)
+        assert fit_result.value(self.y) == pytest.approx(res.x[1], 1e-6)
 
-    # Same test, but with constraints in place.
-    res = minimize(func, [-1.0, 1.0], args=(-1.0,), jac=func_deriv,
-                   constraints=cons, method='SLSQP', options={'disp': False})
+    def test_minimize_constrained(self):
+        """
+        Test a constrained fit.
+        """
+        res = minimize(self.func, [-1.0, 1.0], args=(-1.0,), jac=self.func_deriv,
+                   constraints=self.cons, method='SLSQP', options={'disp': False})
 
-    fit = Fit(-model, constraints=constraints)
-    assert fit.constraints[0].constraint_type == Ge
-    assert fit.constraints[1].constraint_type == Eq
-    fit_result = fit.execute()
-    assert fit_result.value(x) == pytest.approx(res.x[0], 1e-6)
-    assert fit_result.value(y) == pytest.approx(res.x[1], 1e-6)
+        fit = Fit(-self.model, constraints=self.constraints)
+        assert fit.constraints[0].constraint_type == Ge
+        assert fit.constraints[1].constraint_type == Eq
+        fit_result = fit.execute()
+        assert fit_result.value(self.x) == pytest.approx(res.x[0], 1e-6)
+        assert fit_result.value(self.y) == pytest.approx(res.x[1], 1e-6)
 
 
 def test_constraint_types():
-    x = Parameter(value=-1.0)
-    y = Parameter(value=1.0)
-    z = Variable()
+    x = Parameter('x', value=-1.0)
+    y = Parameter('y', value=1.0)
+    z = Variable('z')
     model = Model({z: 2*x*y + 2*x - x**2 - 2*y**2})
 
     # These types are not allowed constraints.
