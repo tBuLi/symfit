@@ -251,7 +251,7 @@ def test_initial_parameters():
     results = fit.execute()
     print(results)
 
-    acceptable_abs_tol = 5e-7
+    acceptable_abs_tol = 1e-5
     assert results.value(a0) == pytest.approx(10, abs=acceptable_abs_tol)
     assert results.value(c0) == pytest.approx(0, abs=acceptable_abs_tol)
 
