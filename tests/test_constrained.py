@@ -21,7 +21,7 @@ from symfit.core.models import ModelError
 from symfit import (
     Symbol, MatrixSymbol, Inverse, CallableModel, sqrt, Sum, Idx, symbols
 )
-from tests.test_minimizers import subclasses
+from tests.rec_subclass import subclasses
 
 
 """
