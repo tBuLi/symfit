@@ -16,7 +16,7 @@ from symfit.core.minimizers import (
 )
 from symfit.core.objectives import LogLikelihood, MinimizeModel, LeastSquares
 from symfit.distributions import Gaussian, Exp, BivariateGaussian
-from tests.rec_subclass import subclasses
+from .helper_functions import subclasses
 
 if sys.version_info >= (3, 0):
     import inspect as inspect_sig

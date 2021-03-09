@@ -13,7 +13,7 @@ from symfit import (
 from symfit.core.minimizers import *
 from symfit.core.objectives import LeastSquares, MinimizeModel, VectorLeastSquares
 
-from tests.rec_subclass import subclasses
+from .helper_functions import subclasses
 # Defined at the global level because local functions can't be pickled.
 
 
