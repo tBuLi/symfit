@@ -13,6 +13,7 @@ from symfit import (
 from symfit.core.minimizers import *
 from symfit.core.objectives import LeastSquares, MinimizeModel, VectorLeastSquares
 
+from tests.rec_subclass import subclasses
 # Defined at the global level because local functions can't be pickled.
 
 
@@ -58,25 +59,6 @@ class SqrtLeastSquares(LeastSquares):
         chi2_jac = super(SqrtLeastSquares, self).eval_jacobian(*args, **kwargs)
         chi2_hess = super(SqrtLeastSquares, self).eval_hessian(*args, **kwargs)
         return - 0.5 * (1 / chi2) * np.outer(sqrt_chi2_jac, chi2_jac) + 0.5 * (1 / sqrt_chi2) * chi2_hess
-
-
-def subclasses(base, leaves_only=True):
-    """
-    Recursively create a set of subclasses of ``object``.
-
-    :param object: Class
-    :param leaves_only: If ``True``, return only the leaves of the subclass tree
-    :return: (All leaves of) the subclass tree.
-    """
-    base_subs = set(base.__subclasses__())
-    if not base_subs or not leaves_only:
-        all_subs = {base}
-    else:
-        all_subs = set()
-    for sub in list(base_subs):
-        sub_subs = subclasses(sub, leaves_only=leaves_only)
-        all_subs.update(sub_subs)
-    return all_subs
 
 
 def setup_function():
