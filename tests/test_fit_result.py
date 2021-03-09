@@ -22,134 +22,14 @@ from symfit.core.objectives import (
 )
 
 
-from tests.rec_subclass import subclasses
+from .helper_functions import subclasses
 
 
 def ge_constraint(a):  # Has to be in the global namespace for pickle.
     return a - 1
 
 
-@pytest.mark.parametrize('minimizer',
-        # Removed TrustConstr and COBYLA because their results differ greatly #TODO add them if fixed
-        # Removed MINPACk because of the different default objective
-        # Removed DifferentialEvolution because it requires bounds on all the parameters
-        # Removed ChainedMinimizer and added (BFGS, NelderMead) 
-        # Added None to check the default objective
-        subclasses(BaseMinimizer) - {TrustConstr, COBYLA, ChainedMinimizer, DifferentialEvolution, MINPACK} | {None, (BFGS, NelderMead)}
-    )
-@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_got',
-    [
-        # No specific objective
-        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 3, b: 2}, 
-         {a: 0, b: 0}, LeastSquares, {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
-        # Test objective LeastSqueares
-        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 3, b: 2}, 
-         {a: 1e-13, b: 1e-13}, LeastSquares, {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
-        # Test objective LogLikelihood
-        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)), {a: 62.56756, b: 758.08369}, # TODO Adjust x_data
-         {a: float('nan'), b: float('nan')}, LogLikelihood, 
-         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
-    ])
-def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_got):
-    """
-    Tests the FitResults from fitting a simple model without constraints
-    using several different minimizers and objectives.
-    """
-
-    fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}))
-    fit_result = fit.execute()
-    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got)
-
-
-@pytest.mark.parametrize('minimizer',
-    # Added None to check the defaul objective
-    subclasses(ConstrainedMinimizer) | {None}
-)
-@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_got',
-    [
-        # No special objective
-        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 2.152889, b: 2.152889}, 
-         {a: 0.23715, b: 0.05076}, LeastSquares, {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
-        # Test objective LeastSqueares
-        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 2.152889, b: 2.152889}, 
-         {a: 0.23715, b: 0.05076}, LeastSquares, {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
-        # Test objective LogLikelihood
-        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)), {a: 653.48460, b: 653.48460}, 
-         {a: float('nan'), b: float('nan')}, LogLikelihood, 
-         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
-    ])
-def test_constraints(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_got):
-    """
-    Tests the FitResults from fitting a simple model with Le as constraint
-    using several different minimizers and objectives.
-    """
-
-    model=Model({y: a * x ** b})
-    constraints = [
-        Le(a, b)
-    ]
-    fit = Fit(**fit_kwargs, minimizer=minimizer, model=model, constraints=constraints)
-    fit_result = fit.execute()
-    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got)
-
-
-@pytest.mark.parametrize('minimizer',
-    # Added None to check the defaul objective
-    # Removed TrustConstr, because it cannot handle CNM
-    subclasses(ConstrainedMinimizer) - {TrustConstr} | {None}
-)
-@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_got',
-    [
-        # No special objective
-        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 2.152889, b: 2.152889}, 
-         {a: 0.23715, b: 0.05076}, LeastSquares, {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
-        # Test objective LeastSqueares
-        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 2.152889, b: 2.152889}, 
-         {a: 0.23715, b: 0.05076}, LeastSquares, {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
-        # Test objective LogLikelihood
-        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)), {a: 653.48460, b: 653.48460}, 
-         {a: float('nan'), b: float('nan')}, LogLikelihood, 
-         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
-    ])
-def test_constraints_CNM(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_got):
-    """
-    Tests the FitResults from fitting a simple model with Le and a CallableNumericalModel as constraints
-    using several different minimizers and objectives.
-    """
-
-    model=Model({y: a * x ** b})
-    constraints = [
-        Le(a, b),
-        CallableNumericalModel.as_constraint(
-            {z: ge_constraint}, connectivity_mapping={z: {a}},
-            constraint_type=Ge, model=model
-        )
-    ]
-    fit = Fit(**fit_kwargs, minimizer=minimizer, model=model, constraints=constraints)
-    fit_result = fit.execute()
-    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got)
-
-
-@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_got',
-    [
-        # No specific objective (default: VectorLeastSquares)
-        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2), {a: 3, b: 2}, 
-         {a: 0, b: 0}, VectorLeastSquares, {'r_squared': 1.0, 'chi_squared': 1e-23,
-         'objective_value': np.array([2.57432298e-10, 7.04403647e-10, 1.15672094e-09,
-         1.51630530e-09, 1.71463910e-09, 1.69893610e-09, 1.42617296e-09, 8.60012506e-10,
-         3.10365067e-11, 1.27454314e-09])})
-    ])
-def test_MINPACK(fit_kwargs, expected_par, expected_std, expected_obj, expected_got):
-    """
-    Tests the FitResults from fitting a simple model with MINPACK
-    """
-
-    fit = Fit(**fit_kwargs, minimizer=MINPACK, model=Model({y: a * x ** b}))
-    fit_result = fit.execute()
-    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got)
-
-
-def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_got):
+def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof):
     """
     This method compares a FitResult with 
     the expected values of the parameters, standard deviation, 
@@ -159,7 +39,7 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
     :param expected_par: dict of parameters with expected value
     :param expected_std: dict of parameters with expected standard deviation
     :param expected_obj: expected Class of objective
-    :param expected_got: dict of fit estimators and expected value.
+    :param expected_gof: dict of fit estimators and expected value.
     """
 
     assert isinstance(fit_result.params, OrderedDict)
@@ -175,8 +55,6 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
 
     assert isinstance(fit_result.minimizer, BaseMinimizer)
     assert isinstance(fit_result.objective, expected_obj)
-    if isinstance(fit_result.minimizer, LBFGSB):
-        print(type(fit_result.status_message))
     assert isinstance(fit_result.status_message, str)
 
     dumped = pickle.dumps(fit_result)
@@ -195,8 +73,145 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
         for constraint in fit_result.constraints:
             assert isinstance(constraint, MinimizeModel)
 
-    for attr_name, value in expected_got.items():
+    for attr_name, value in expected_gof.items():
         assert getattr(fit_result, attr_name) == pytest.approx(value, nan_ok=True)
+
+
+@pytest.mark.parametrize('minimizer',
+        # Removed TrustConstr and COBYLA because their results differ greatly #TODO add them if fixed
+        # Removed MINPACk because of the different default objective
+        # Removed DifferentialEvolution because it requires bounds on all the parameters
+        # Removed ChainedMinimizer and added (BFGS, NelderMead) 
+        # Added None to check the default objective
+        subclasses(BaseMinimizer) - {TrustConstr, COBYLA, ChainedMinimizer, DifferentialEvolution, MINPACK} | {None, (BFGS, NelderMead)}
+    )
+@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
+    [
+        # No specific objective
+        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 2}, {a: 0, b: 0},
+         LeastSquares,
+         {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
+        # Test objective LeastSqueares
+        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 2}, {a: 1e-13, b: 1e-13},
+         LeastSquares,
+         {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
+        # Test objective LogLikelihood
+        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),  # TODO Adjust x_data
+        {a: 62.56756, b: 758.08369}, {a: float('nan'), b: float('nan')}, 
+         LogLikelihood,
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
+    ])
+def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof):
+    """
+    Tests the FitResults from fitting a simple model without constraints
+    using several different minimizers and objectives.
+    """
+
+    fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}))
+    fit_result = fit.execute()
+    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
+
+
+@pytest.mark.parametrize('minimizer',
+    # Added None to check the defaul objective
+    subclasses(ConstrainedMinimizer) | {None}
+)
+@pytest.mark.parametrize('constraints, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
+    [
+        # No special objective
+        ([Le(a, b)],
+         dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076}, 
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LeastSqueares
+        ([Le(a, b)],
+         dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076}, 
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LogLikelihood
+        ([Le(a, b)],
+         dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),
+         {a: 653.48460, b: 653.48460}, {a: float('nan'), b: float('nan')},
+         LogLikelihood,
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
+    ])
+def test_constraints(constraints, minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof):
+    """
+    Tests the FitResults from fitting a simple model with Le as symbolic constraint
+    using several different minimizers and objectives.
+    """
+
+    model=Model({y: a * x ** b})
+    fit = Fit(**fit_kwargs, minimizer=minimizer, model=model, constraints=constraints)
+    fit_result = fit.execute()
+    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
+
+
+@pytest.mark.parametrize('minimizer',
+    # Added None to check the defaul objective
+    # Removed TrustConstr, because it cannot handle CallableNumericalModel because of missing hassian
+    subclasses(ConstrainedMinimizer) - {TrustConstr} | {None}
+)
+@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
+    [
+        # No special objective
+        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076},
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LeastSqueares
+        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076},
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LogLikelihood
+        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),
+         {a: 653.48460, b: 653.48460}, {a: float('nan'), b: float('nan')},
+         LogLikelihood, 
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
+    ])
+def test_constraints_CNM(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof):
+    """
+    Tests the FitResults from fitting a simple model with Le and a CallableNumericalModel as constraints
+    using several different minimizers and objectives.
+    """
+
+    model=Model({y: a * x ** b})
+    constraints = [
+        Le(a, b),
+        CallableNumericalModel.as_constraint(
+            {z: ge_constraint}, connectivity_mapping={z: {a}},
+            constraint_type=Ge, model=model
+        )
+    ]
+    fit = Fit(**fit_kwargs, minimizer=minimizer, model=model, constraints=constraints)
+    fit_result = fit.execute()
+    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
+
+
+@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
+    [
+        # No specific objective (default: VectorLeastSquares)
+        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 2}, {a: 0, b: 0},
+         VectorLeastSquares,
+         {'r_squared': 1.0, 'chi_squared': 1e-23,
+         'objective_value': np.array([2.57432298e-10, 7.04403647e-10, 1.15672094e-09,
+         1.51630530e-09, 1.71463910e-09, 1.69893610e-09, 1.42617296e-09, 8.60012506e-10,
+         3.10365067e-11, 1.27454314e-09])})
+    ])
+def test_MINPACK(fit_kwargs, expected_par, expected_std, expected_obj, expected_gof):
+    """
+    Tests the FitResults from fitting a simple model with MINPACK
+    """
+
+    fit = Fit(**fit_kwargs, minimizer=MINPACK, model=Model({y: a * x ** b}))
+    fit_result = fit.execute()
+    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
 
 
 def test_fitting_2():
