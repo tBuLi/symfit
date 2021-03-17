@@ -47,11 +47,10 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
     assert isinstance(fit_result, FitResults)
 
     for attr_name, value in expected_par.items():
-        assert fit_result.value(attr_name) == pytest.approx(value)
+        assert fit_result.value(attr_name) == pytest.approx(value, abs=1e-5)
 
     for attr_name, value in expected_std.items():
-        #assert fit_result.stdev(attr_name) == pytest.approx(value, nan_ok=True)
-        pass
+        assert fit_result.stdev(attr_name) == pytest.approx(value, abs=1e-5, nan_ok=True)
 
     assert isinstance(fit_result.minimizer, BaseMinimizer)
     assert isinstance(fit_result.objective, expected_obj)
@@ -74,7 +73,7 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
             assert isinstance(constraint, MinimizeModel)
 
     for attr_name, value in expected_gof.items():
-        assert getattr(fit_result, attr_name) == pytest.approx(value, nan_ok=True)
+        assert getattr(fit_result, attr_name) == pytest.approx(value,abs=1e-5, nan_ok=True)
 
 
 @pytest.mark.parametrize('minimizer',
@@ -89,6 +88,11 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
     [
         # No specific objective
         (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 2}, {a: 0, b: 0},
+         LeastSquares,
+         {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
+         # Tests None as objective
+        (dict(objective=None, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
          {a: 3, b: 2}, {a: 0, b: 0},
          LeastSquares,
          {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
@@ -108,11 +112,20 @@ def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expect
     Tests the FitResults from fitting a simple model without constraints
     using several different minimizers and objectives.
     """
+    execute_kwargs = {}
+    if minimizer is COBYLA:
+        # COBYLA needs more iteration to converge to the result
+        execute_kwargs['options'] = {'maxiter': int(1e8)}
 
     fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}))
-    fit_result = fit.execute()
+    fit_result = fit.execute(**execute_kwargs)
     _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
 
+
+CNM_CONSTRAINT = CallableNumericalModel.as_constraint(
+    {z: ge_constraint}, connectivity_mapping={z: {a}},
+    constraint_type=Ge, model=Model({y: a * x ** b})
+)
 
 @pytest.mark.parametrize('minimizer',
     # Added None to check the defaul objective
@@ -123,21 +136,75 @@ def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expect
         # No special objective
         ([Le(a, b)],
          dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
-         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076}, 
+         {a: 2.152889, b: 2.152889}, {a: 0.2371545, b: 0.05076355}, 
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test None as objective
+        ([Le(a, b)],
+         dict(objective=None, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.2371545, b: 0.05076355}, 
          LeastSquares,
          {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
         # Test objective LeastSqueares
         ([Le(a, b)],
          dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
-         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076}, 
+         {a: 2.152889, b: 2.152889}, {a: 0.2371545, b: 0.05076355}, 
          LeastSquares,
          {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
         # Test objective LogLikelihood
         ([Le(a, b)],
          dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),
+         {a: 164.152853, b: 653.48460}, {a: float('nan'), b: float('nan')},
+         LogLikelihood,
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')}),
+        # No special objective
+        ([CNM_CONSTRAINT],
+         dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 1.9999999}, {a: 1.4795115e-8, b: 2.28628889e-8}, 
+         LeastSquares,
+         {'r_squared': 1.0, 'objective_value': 1.870722e-13, 'chi_squared': 3.741445e-13}),
+        # Test None as objective
+        ([CNM_CONSTRAINT],
+         dict(objective=None, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 1.9999999}, {a: 1.4795115e-8, b: 2.28628889e-8}, 
+         LeastSquares,
+         {'r_squared': 1.0, 'objective_value': 1.870722e-13, 'chi_squared': 3.741445e-13}),
+        # Test objective LeastSqueares
+        ([CNM_CONSTRAINT],
+         dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 1.9999999}, {a: 1.4795115e-8, b: 2.28628889e-8}, 
+         LeastSquares,
+         {'r_squared': 1.0, 'objective_value': 1.870722e-13, 'chi_squared': 3.741445e-13}),
+        # Test objective LogLikelihood
+        ([CNM_CONSTRAINT],
+         dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),
          {a: 653.48460, b: 653.48460}, {a: float('nan'), b: float('nan')},
          LogLikelihood,
-         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')}),
+        # No special objective
+        ([Le(a, b), CNM_CONSTRAINT],
+         dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.2371545, b: 0.05076355}, 
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test None as objective
+        ([Le(a, b), CNM_CONSTRAINT],
+         dict(objective=None, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.2371545, b: 0.05076355}, 
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LeastSqueares
+        ([Le(a, b), CNM_CONSTRAINT],
+         dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 2.152889, b: 2.152889}, {a: 0.2371545, b: 0.05076355}, 
+         LeastSquares,
+         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
+        # Test objective LogLikelihood
+        ([Le(a, b), CNM_CONSTRAINT],
+         dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),
+         {a: 653.48460, b: 653.48460}, {a: float('nan'), b: float('nan')},
+         LogLikelihood,
+         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})         
     ])
 def test_constraints(constraints, minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof):
     """
@@ -145,51 +212,19 @@ def test_constraints(constraints, minimizer, fit_kwargs, expected_par, expected_
     using several different minimizers and objectives.
     """
 
-    model=Model({y: a * x ** b})
-    fit = Fit(**fit_kwargs, minimizer=minimizer, model=model, constraints=constraints)
-    fit_result = fit.execute()
-    _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
+    execute_kwargs = {}
+    if minimizer is COBYLA:
+        # COBYLA needs more iteration to converge to the result
+        execute_kwargs['options'] = {'maxiter': int(1e8)}
 
-
-@pytest.mark.parametrize('minimizer',
-    # Added None to check the defaul objective
-    # Removed TrustConstr, because it cannot handle CallableNumericalModel because of missing hassian
-    subclasses(ConstrainedMinimizer) - {TrustConstr} | {None}
-)
-@pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
-    [
-        # No special objective
-        (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
-         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076},
-         LeastSquares,
-         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
-        # Test objective LeastSqueares
-        (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
-         {a: 2.152889, b: 2.152889}, {a: 0.23715, b: 0.05076},
-         LeastSquares,
-         {'r_squared': 0.99791, 'objective_value': 98.83587, 'chi_squared': 197.671746}),
-        # Test objective LogLikelihood
-        (dict(objective=LogLikelihood, x=np.linspace(1, 10, 10)),
-         {a: 653.48460, b: 653.48460}, {a: float('nan'), b: float('nan')},
-         LogLikelihood, 
-         {'objective_value': -float('inf'), 'log_likelihood': float('inf'), 'likelihood': float('inf')})
-    ])
-def test_constraints_CNM(minimizer, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof):
-    """
-    Tests the FitResults from fitting a simple model with Le and a CallableNumericalModel as constraints
-    using several different minimizers and objectives.
-    """
+    if minimizer is TrustConstr and any(c is CNM_CONSTRAINT for c in constraints):
+        # TrustConstr cannot handle CNM_CONSTRAINT
+        pytest.skip('TrustConstraint minimizer cannot handle constraints without Hessian')
+    
 
     model=Model({y: a * x ** b})
-    constraints = [
-        Le(a, b),
-        CallableNumericalModel.as_constraint(
-            {z: ge_constraint}, connectivity_mapping={z: {a}},
-            constraint_type=Ge, model=model
-        )
-    ]
     fit = Fit(**fit_kwargs, minimizer=minimizer, model=model, constraints=constraints)
-    fit_result = fit.execute()
+    fit_result = fit.execute(**execute_kwargs)
     _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
 
 
@@ -197,6 +232,14 @@ def test_constraints_CNM(minimizer, fit_kwargs, expected_par, expected_std, expe
     [
         # No specific objective (default: VectorLeastSquares)
         (dict(x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
+         {a: 3, b: 2}, {a: 0, b: 0},
+         VectorLeastSquares,
+         {'r_squared': 1.0, 'chi_squared': 1e-23,
+         'objective_value': np.array([2.57432298e-10, 7.04403647e-10, 1.15672094e-09,
+         1.51630530e-09, 1.71463910e-09, 1.69893610e-09, 1.42617296e-09, 8.60012506e-10,
+         3.10365067e-11, 1.27454314e-09])}),
+        # Test None as objective
+        (dict(objective=None, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
          {a: 3, b: 2}, {a: 0, b: 0},
          VectorLeastSquares,
          {'r_squared': 1.0, 'chi_squared': 1e-23,
