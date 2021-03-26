@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 from __future__ import division, print_function
 import pytest
 import warnings
@@ -342,7 +346,7 @@ def test_multiprocessing():
                     assert isinstance(used, target)
             else:
                 assert isinstance(result.minimizer, minimizer)
-            assert isinstance(result.iterations, int)
+            assert isinstance(result.iterations, int) or result.iterations is None
 
 
 def test_minimizer_constraint_compatibility():

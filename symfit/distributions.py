@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 """
 Some common distributions are defined in this module. That way, users can easily build
 more complicated expressions without making them look hard.

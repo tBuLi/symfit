@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from symfit import variables, Parameter, Fit, D, ODEModel

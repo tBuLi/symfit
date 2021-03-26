@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 from __future__ import division, print_function
 import pytest
 
@@ -229,7 +233,7 @@ def test_initial_parameters():
     k, p, l, m = parameters('k, p, l, m')
 
     a0 = Parameter('a0', min=0, value=10, fixed=True)
-    c0 = Parameter('c0', min=0, value=0.1)
+    c0 = Parameter('c0', min=0, value=0.05)
     b = a0 - d + a
     model_dict = {
         D(d, t): l * c * b - m * d,
@@ -246,7 +250,8 @@ def test_initial_parameters():
     fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
     results = fit.execute()
     print(results)
-    acceptable_abs_tol = 5e-7
+
+    acceptable_abs_tol = 1e-5
     assert results.value(a0) == pytest.approx(10, abs=acceptable_abs_tol)
     assert results.value(c0) == pytest.approx(0, abs=acceptable_abs_tol)
 
