@@ -23,6 +23,7 @@ jobs:
         pip install coveralls
         pip install pytest
         pip install -r requirements.txt
+        pip install matplotlib
         pip install -e .
     - name: Test with coverage
       run: |
