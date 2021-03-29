@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 from sympy.core.relational import Eq
 
-from tests.auto_variables import a, b, x, y, z
+from tests.auto_variables import a, b, x, y, z, init_parameters, init_variables
 import math
 
 import numpy as np
@@ -23,10 +23,6 @@ from symfit.core.objectives import (
 
 
 from .helper_functions import subclasses
-
-
-def ge_constraint(a):  # Has to be in the global namespace for pickle.
-    return a - 1
 
 
 def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof):
@@ -58,7 +54,7 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
 
     dumped = pickle.dumps(fit_result)
     new_result = pickle.loads(dumped)
-    assert sorted(fit_result.__dict__.keys()) == sorted(new_result.__dict__.keys())
+    assert set(fit_result.__dict__.keys()) == set(new_result.__dict__.keys())
     for k, v1 in fit_result.__dict__.items():
         v2 = new_result.__dict__[k]
         if k == 'minimizer':
@@ -77,12 +73,11 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
 
 
 @pytest.mark.parametrize('minimizer',
-        # Removed TrustConstr and COBYLA because their results differ greatly #TODO add them if fixed
         # Removed MINPACk because of the different default objective
         # Removed DifferentialEvolution because it requires bounds on all the parameters
         # Removed ChainedMinimizer and added (BFGS, NelderMead) 
-        # Added None to check the default objective
-        subclasses(BaseMinimizer) - {TrustConstr, COBYLA, ChainedMinimizer, DifferentialEvolution, MINPACK} | {None, (BFGS, NelderMead)}
+        # Added None to check the default minimizer
+        subclasses(BaseMinimizer) - {ChainedMinimizer, DifferentialEvolution, MINPACK} | {None, (BFGS, NelderMead)}
     )
 @pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
     [
@@ -98,7 +93,7 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
          {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
         # Test objective LeastSqueares
         (dict(objective=LeastSquares, x=np.linspace(1, 10, 10), y=3 * np.linspace(1, 10, 10) ** 2),
-         {a: 3, b: 2}, {a: 1e-13, b: 1e-13},
+         {a: 3, b: 2}, {a: 0, b: 0},
          LeastSquares,
          {'r_squared': 1.0, 'objective_value': 1e-23, 'chi_squared': 1e-23}),
         # Test objective LogLikelihood
@@ -113,8 +108,8 @@ def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expect
     using several different minimizers and objectives.
     """
     execute_kwargs = {}
-    if minimizer is COBYLA:
-        # COBYLA needs more iteration to converge to the result
+    if minimizer is COBYLA or minimizer is TrustConstr:
+        # COBYLA and TrustConstr need more iteration to converge to the result
         execute_kwargs['options'] = {'maxiter': int(1e8)}
 
     fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}))
@@ -122,13 +117,16 @@ def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expect
     _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_gof)
 
 
+def ge_constraint(a):  # Has to be in the global namespace for pickle.
+    return a - 1
+
 CNM_CONSTRAINT = CallableNumericalModel.as_constraint(
     {z: ge_constraint}, connectivity_mapping={z: {a}},
     constraint_type=Ge, model=Model({y: a * x ** b})
 )
 
 @pytest.mark.parametrize('minimizer',
-    # Added None to check the defaul objective
+    # Added None to check the default minimizer
     subclasses(ConstrainedMinimizer) | {None}
 )
 @pytest.mark.parametrize('constraints, fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
