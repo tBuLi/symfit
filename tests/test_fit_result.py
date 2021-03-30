@@ -108,8 +108,8 @@ def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expect
     using several different minimizers and objectives.
     """
     execute_kwargs = {}
-    if minimizer is COBYLA or minimizer is TrustConstr:
-        # COBYLA and TrustConstr need more iteration to converge to the result
+    if minimizer is COBYLA:
+        # COBYLA needs more iteration to converge to the result
         execute_kwargs['options'] = {'maxiter': int(1e8)}
 
     fit = Fit(**fit_kwargs, minimizer=minimizer, model=Model({y: a * x ** b}))
