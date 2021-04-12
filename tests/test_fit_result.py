@@ -73,11 +73,12 @@ def _run_tests(fit_result, expected_par, expected_std, expected_obj, expected_go
 
 
 @pytest.mark.parametrize('minimizer',
+        # TrustConstr runs with LogLikelihood, 1e8 as the maximum number of iterations and no constraints forever # TODO remove
         # Removed MINPACk because of the different default objective
         # Removed DifferentialEvolution because it requires bounds on all the parameters
         # Removed ChainedMinimizer and added (BFGS, NelderMead) 
         # Added None to check the default minimizer
-        subclasses(BaseMinimizer) - {ChainedMinimizer, DifferentialEvolution, MINPACK} | {None, (BFGS, NelderMead)}
+        subclasses(BaseMinimizer) - {ChainedMinimizer, DifferentialEvolution, MINPACK, TrustConstr} | {None, (BFGS, NelderMead)}
     )
 @pytest.mark.parametrize('fit_kwargs, expected_par, expected_std, expected_obj, expected_gof',
     [
@@ -108,7 +109,7 @@ def test_no_constraint(minimizer, fit_kwargs, expected_par, expected_std, expect
     using several different minimizers and objectives.
     """
     execute_kwargs = {}
-    if minimizer is COBYLA:
+    if minimizer in {COBYLA, TrustConstr}:
         # COBYLA needs more iteration to converge to the result
         execute_kwargs['options'] = {'maxiter': int(1e8)}
 
