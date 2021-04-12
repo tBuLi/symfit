@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 """
 ``symfit`` occasionally updates the printing of ``sympy`` objects, such that they
 print into their ``numpy``/``scipy`` equivalent. This is done because sometimes

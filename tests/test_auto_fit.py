@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 from __future__ import division, print_function
 import pytest
 import numpy as np
@@ -243,11 +247,11 @@ def test_gaussian_2d_fitting():
     # Make a valid grid to match ydata
     xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
 
-    x0 = Parameter(value=mean[0], min=0.0, max=1.0)
-    sig_x = Parameter(value=0.2, min=0.0, max=0.3)
-    y0 = Parameter(value=mean[1], min=0.0, max=1.0)
-    sig_y = Parameter(value=0.1, min=0.0, max=0.3)
-    A = Parameter(value=np.mean(ydata), min=0.0)
+    x0 = Parameter('x0', value=mean[0], min=0.0, max=1.0)
+    sig_x = Parameter('sig_x', value=0.2, min=0.0, max=0.3)
+    y0 = Parameter('y0', value=mean[1], min=0.0, max=1.0)
+    sig_y = Parameter('sig_y', value=0.1, min=0.0, max=0.3)
+    A = Parameter('A', value=np.mean(ydata), min=0.0)
     x = Variable('x')
     y = Variable('y')
     g = Variable('g')
@@ -288,12 +292,12 @@ def test_gaussian_2d_fitting_background():
     # Make a valid grid to match ydata
     xx, yy = np.meshgrid(xcentres, ycentres, sparse=False, indexing='ij')
 
-    x0 = Parameter(value=1.1 * mean[0], min=0.0, max=1.0)
-    sig_x = Parameter(value=1.1 * 0.2, min=0.0, max=0.3)
-    y0 = Parameter(value=1.1 * mean[1], min=0.0, max=1.0)
-    sig_y = Parameter(value=1.1 * 0.1, min=0.0, max=0.3)
-    A = Parameter(value=1.1 * np.mean(ydata), min=0.0)
-    b = Parameter(value=1.2 * background, min=0.0)
+    x0 = Parameter('x0', value=1.1 * mean[0], min=0.0, max=1.0)
+    sig_x = Parameter('sig_x', value=1.1 * 0.2, min=0.0, max=0.3)
+    y0 = Parameter('y0', value=1.1 * mean[1], min=0.0, max=1.0)
+    sig_y = Parameter('sig_y', value=1.1 * 0.1, min=0.0, max=0.3)
+    A = Parameter('A', value=1.1 * np.mean(ydata), min=0.0)
+    b = Parameter('b', value=1.2 * background, min=0.0)
     x = Variable('x')
     y = Variable('y')
     g = Variable('g')

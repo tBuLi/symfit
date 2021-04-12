@@ -2,8 +2,7 @@
 .idea
 .cache
 .pytest_cache
-docs_build
 build
 docs/_build
-docs_build
+docs/_doctrees
 dist

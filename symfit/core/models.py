@@ -1,4 +1,9 @@
-from collections import Mapping, OrderedDict
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
+from collections import OrderedDict
+from collections.abc import Mapping
 import operator
 import warnings
 import sys
@@ -59,10 +64,19 @@ class ModelOutput(tuple):
         :param output: The output of a call which should be mapped to
             ``variables``.
         """
-        self.variables = variables
+        self.variables = list(variables)
         self.output = output
         self.output_dict = OrderedDict(zip(variables, output))
         self.variable_names = {var.name: var for var in variables}
+
+    def __getnewargs__(self):
+        return self.variables, self.output
+
+    def __getstate__(self):
+        return self.variables, self.output
+
+    def __setstate__(self, state):
+        self.__init__(variables=state[0], output=state[1])
 
     def __getattr__(self, name):
         try:
@@ -120,7 +134,12 @@ class BaseModel(Mapping):
             # TODO: this will break upon deprecating the auto-generation of
             # names for Variables. At this time, a DummyVariable object
             # should be introduced to fulfill the same role.
-            model = {Variable(): expr for expr in model}
+            #
+            # Temporarily introduced what should be a unique name derived from
+            # the object's ID (preappended with an underscore for it to be a
+            # valid identifier) to surpress the DepricationWarnings raised when
+            # instantiating a Variable without a name.
+            model = {Variable("_" + str(id(expr))): expr for expr in model}
         self._init_from_dict(model)
 
     @classmethod

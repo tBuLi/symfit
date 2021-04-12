@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 from collections import OrderedDict
 
 import numpy as np
@@ -39,7 +43,8 @@ class FitResults(object):
         self.model = model
         self.minimizer = minimizer
         self.objective = objective
-        self.status_message = message
+        # LBFGSB returns with python<=3.6 a bit-string as message
+        self.status_message = message.decode() if isinstance(message, bytes) else message
 
         self._popt = popt
         self.params = OrderedDict(

@@ -2,6 +2,5 @@ numpy >= 1.12
 scipy >= 1.6
 sympy >= 1.2
 toposort
-funcsigs; python_version < '3.0'
-functools32; python_version < '3.0'
+setuptools
 six

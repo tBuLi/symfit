@@ -1,4 +1,9 @@
-from collections import OrderedDict, Sequence
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
+from collections import OrderedDict
+from collections.abc import Sequence
 import sys
 
 import sympy

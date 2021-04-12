@@ -1,17 +1,20 @@
+# SPDX-FileCopyrightText: 2014-2020 Martin Roelfs
+#
+# SPDX-License-Identifier: MIT
+
 import abc
 import sys
 from collections import namedtuple, Counter, OrderedDict
 
 from scipy.optimize import (
     minimize, differential_evolution, basinhopping, NonlinearConstraint,
-    OptimizeResult
+    least_squares,
 )
 from scipy.optimize import BFGS as soBFGS
 import sympy
 import numpy as np
 
 from .support import keywordonly
-from .leastsqbound import leastsqbound
 from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
 from .models import CallableNumericalModel, BaseModel
@@ -766,32 +769,64 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
 
 class MINPACK(ScipyBoundedMinimizer, GradientMinimizer):
     """
-    Wrapper to scipy's implementation of MINPACK, since it is the industry
+    Wrapper to scipy's implementation of least_squares, since it is the industry
     standard.
     """
-    def __init__(self, *args, **kwargs):
-        self.jacobian = None
-        super(MINPACK, self).__init__(*args, **kwargs)
+    def resize_jac(self, func):
+        """
+        Removes values with identical indices to fixed parameters from the
+        output of func. func has to return the jacobian of the residuals.
+        This method is different from the one in GradientMinimizer, since
+        least_squares expects the jacobian to return an MxN (M=len(data),
+        N=len(params)) matrix, rather than a vector.
 
-    def execute(self, **minpack_options):
+        :param func: Jacobian function to be wrapped. Is assumed to be the
+            jacobian of the residuals.
+        :return: Jacobian corresponding to non-fixed parameters only.
         """
-        :param \*\*minpack_options: Any named arguments to be passed to leastsqbound
+        if func is None:
+            return None
+        @wraps(func)
+        def resized(*args, **kwargs):
+            out = func(*args, **kwargs)
+            out = np.atleast_2d(out)
+            mask = [p not in self._fixed_params for p in self.parameters]
+            return out[:, mask]
+        return resized
+
+    @property
+    def bounds(self):
+        lbounds = []
+        ubounds = []
+        for low, high in super().bounds:
+            if low is None:
+                low = -np.inf
+            if high is None:
+                high = np.inf
+            lbounds.append(low)
+            ubounds.append(high)
+        return lbounds, ubounds
+
+    def execute(self, jacobian=None, method='trf', **minpack_options):
         """
-        # These are the corresponding names for OptimizeResult
-        output_names = ['x', 'hess_inv', 'infodic', 'message', 'status']
-        full_output = leastsqbound(
+        :param \*\*minpack_options: Any named arguments to be passed to
+            :func:`scipy.optimize.least_squares`
+        """
+        if jacobian is None:
+            jacobian = self.wrapped_jacobian
+        jacobian = jacobian or 'cs'
+
+        if not self.bounds:
+            method = method or 'lm'
+        else:
+            method = method or 'trf'
+
+        full_output = least_squares(
             self.objective,
-            # Dfun=self.jacobian,
             x0=self.initial_guesses,
+            jac=jacobian,
             bounds=self.bounds,
-            full_output=True,
+            method=method,
             **minpack_options
         )
-
-        # Translate to standard names for optimize
-        ans = OptimizeResult(zip(output_names, full_output))
-        ans['fun'] = ans.infodic['fvec']
-        ans['success'] = 1 <= ans.status <= 4  # These codes are successful
-        ans['nit'] = ans.infodic['nfev']  # Nearest indication of nit.
-
-        return self._pack_output(ans)
+        return self._pack_output(full_output)
