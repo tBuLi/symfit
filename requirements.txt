@@ -3,4 +3,3 @@ scipy >= 1.0
 sympy >= 1.2
 toposort
 setuptools
-six

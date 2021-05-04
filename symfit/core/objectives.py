@@ -19,14 +19,13 @@ objectives can also be created, for example by inheriting from
 
 import abc
 from collections import OrderedDict
-from six import add_metaclass
 
 import numpy as np
 
 from .support import cached_property, keywordonly, key2str
 
-@add_metaclass(abc.ABCMeta)
-class BaseObjective(object):
+
+class BaseObjective(object, metaclass=abc.ABCMeta):
     """
     ABC for objective functions. Implements basic data handling.
     """
@@ -181,8 +180,7 @@ class BaseObjective(object):
         self.sigma_data
 
 
-@add_metaclass(abc.ABCMeta)
-class GradientObjective(BaseObjective):
+class GradientObjective(BaseObjective, metaclass=abc.ABCMeta):
     """
     ABC for objectives that support gradient methods.
     """
@@ -207,8 +205,7 @@ class GradientObjective(BaseObjective):
         )
 
 
-@add_metaclass(abc.ABCMeta)
-class HessianObjective(GradientObjective):
+class HessianObjective(GradientObjective, metaclass=abc.ABCMeta):
     """
     ABC for objectives that support hessian methods.
     """
