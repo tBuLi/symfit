@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from symfit.contrib import interactive_guess
-from symfit import Variable, Parameter, exp, latex
+from symfit import Variable, Parameter, exp, latex, variables, ODEModel, D
 from symfit.distributions import Gaussian
 import numpy as np
 import unittest
@@ -99,7 +99,7 @@ class Gaussian2DInteractiveGuessTest(unittest.TestCase):
             plot = self.guess._plots[proj]
             plotlabel = '${}({}) = {}$'.format(
                 latex(y, mode='plain'),
-                latex(x.name, mode='plain'),
+                latex(x, mode='plain'),
                 latex(self.guess.model[y], mode='plain'))
             self.assertEqual(plot.axes.get_title(), plotlabel)
 
@@ -138,7 +138,7 @@ class VectorValuedTest(unittest.TestCase):
             plot = self.guess._plots[proj]
             plotlabel = '${}({}) = {}$'.format(
                 latex(y, mode='plain'),
-                latex(x.name, mode='plain'),
+                latex(x, mode='plain'),
                 latex(self.guess.model[y], mode='plain'))
             self.assertEqual(plot.axes.get_title(), plotlabel)
 
@@ -186,8 +186,51 @@ class Gaussian3DInteractiveFitTest(unittest.TestCase):
             x, y = proj
             plot = self.guess._plots[proj][0]
             plotlabel = '${}({}) = {}$'.format(latex(y, mode='plain'),
-                                               latex(x.name, mode='plain'),
+                                               latex(x, mode='plain'),
                                                latex(self.guess.model[y], mode='plain'))
+            self.assertEqual(plot.axes.get_title(), plotlabel)
+
+
+class ODE2DTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # First order reaction kinetics. Data taken from http://chem.libretexts.org/Core/Physical_Chemistry/Kinetics/Rate_Laws/The_Rate_Law
+        tdata = np.array([0, 0.9184, 9.0875, 11.2485, 17.5255, 23.9993, 27.7949,
+                          31.9783, 35.2118, 42.973, 46.6555, 50.3922, 55.4747, 61.827,
+                          65.6603, 70.0939])
+        concentration_A = np.array([0.906, 0.8739, 0.5622, 0.5156, 0.3718, 0.2702, 0.2238,
+                                    0.1761, 0.1495, 0.1029, 0.086, 0.0697, 0.0546, 0.0393,
+                                    0.0324, 0.026])
+        concentration_B = np.max(concentration_A) - concentration_A
+
+        # Define our ODE model
+        A, B, t = variables('A, B, t')
+        k = Parameter('k')
+
+        model_dict = {
+            D(A, t): - k * A ** 2,
+            D(B, t): k * A ** 2
+        }
+        model = ODEModel(model_dict, initial={t: tdata[0], A: concentration_A[0], B: 0})
+
+        cls.guess = interactive_guess.InteractiveGuess(model, A=concentration_A, B=concentration_B, t=tdata, n_points=250)
+
+    #        plt.close(cls.fit.fig)
+
+    def test_number_of_projections(self):
+        self.assertEqual(len(self.guess._projections), 2)
+
+    def test_number_of_plots(self):
+        self.assertEqual(len(self.guess._plots), 2)
+
+    def test_plot_titles(self):
+        for proj in self.guess._projections:
+            x, y = proj
+            plot = self.guess._plots[proj]
+            title_format = '$\\frac{{\\partial {dependant}}}{{\\partial {independant}}} = {expression}$'
+            plotlabel = title_format.format(dependant=latex(y, mode='plain'),
+                                            independant=latex(x, mode='plain'),
+                                            expression=latex(self.guess.model[y], mode='plain'))
             self.assertEqual(plot.axes.get_title(), plotlabel)
 
 
