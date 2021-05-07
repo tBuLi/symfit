@@ -1,4 +1,4 @@
-name: PyPi distribute main release
+name: PyPi deploy release
 on: [release]
 
 jobs:
