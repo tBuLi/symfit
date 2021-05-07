@@ -16,7 +16,7 @@ jobs:
         python-version: 3.8
     - name: Build docs
       run: |
-        - pip install --upgrade -r requirements_docs.txt
-        - pip install --upgrade .[all]
-        - mkdir docs_build
-        - sphinx-build -nW -b html docs docs_build
+        pip install --upgrade -r requirements_docs.txt
+        pip install --upgrade .[all]
+        mkdir docs_build
+        sphinx-build -nW -b html docs docs_build
