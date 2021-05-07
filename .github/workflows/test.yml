@@ -30,6 +30,7 @@ jobs:
         coverage run --source symfit -m py.test
     - name: Upload to Coveralls
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.8'
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+          coveralls
