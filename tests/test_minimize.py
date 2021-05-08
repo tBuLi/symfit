@@ -17,7 +17,7 @@ from symfit.core.minimizers import BFGS, BasinHopping, LBFGSB, SLSQP, NelderMead
 from symfit.core.support import partial
 
 
-def setup_method():
+def setup_module():
     np.random.seed(0)
 
 

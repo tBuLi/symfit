@@ -28,7 +28,7 @@ else:
     import funcsigs as inspect_sig
 
 
-def setup_method():
+def setup_module():
     np.random.seed(0)
 
 

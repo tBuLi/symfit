@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 
-def setup_method():
+def setup_module():
     np.random.seed(0)
 
 

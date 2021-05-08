@@ -16,7 +16,7 @@ Tests for the FitResults object.
 """
 
 
-def setup_method():
+def setup_module():
     np.random.seed(6)
 
 
