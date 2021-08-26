@@ -494,6 +494,29 @@ class BaseModel(Mapping):
             )
         return '[{}]'.format(",\n ".join(parts))
 
+    def _repr_latex_(self):
+        """IPython/Jupyter LaTeX printing"""
+
+        from sympy.printing.latex import latex
+        parts = []
+        for var, expr in self.items():
+            # Print every component as a function of only the dependencies it
+            # has. We can deduce these from the connectivity mapping.
+            params_sorted = sorted((x for x in self.connectivity_mapping[var]
+                                    if isinstance(x, Parameter)),
+                                   key=lambda x: x.name)
+            vars_sorted = sorted((x for x in self.connectivity_mapping[var]
+                                  if x not in params_sorted),
+                                 key=lambda x: x.name)
+
+            vars_str = ', '.join([latex(x) for x in vars_sorted])
+            params_str = ', '.join([latex(x) for x in params_sorted])
+
+            part = f"{latex(var)}({vars_str}; {params_str}) & = {latex(expr)}"
+            parts.append(part)
+
+        return '\\begin{align}' + '\\\\'.join(parts) + '\\end{align}'
+
     def __getstate__(self):
         # Remove cached_property values from the state, they need to be
         # re-calculated after pickle.
