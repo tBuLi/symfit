@@ -1166,19 +1166,26 @@ class ODEModel(BaseGradientModel):
         # initial value, and to integrate those seperately. At the end we rejoin them.
         # np.flip is needed because odeint wants the first point to be t_initial
         # and so t_smaller is a declining series.
-        if t_initial in t_like:
-            t_bigger = t_like[t_like >= t_initial]
-            t_smaller = t_like[t_like <= t_initial][::-1]
-        else:
-            t_bigger = np.concatenate(
-                (np.array([t_initial]), t_like[t_like > t_initial])
-            )
-            t_smaller = np.concatenate(
-                (np.array([t_initial]), t_like[t_like < t_initial][::-1])
-            )
-        # Properly ordered time axis containing t_initial
-        t_total = np.concatenate((t_smaller[::-1][:-1], t_bigger))
+        t_bigger = t_like[t_like >= t_initial]
+        t_smaller = t_like[t_like < t_initial][::-1]
 
+        # Time access must start with t_initial. So add that point if needed. We also need to remember we added those
+        # points so we can remove them again later.
+        prepended_to_bigger = False
+        prepended_to_smaller = False
+        if t_bigger.size and t_bigger[0] != t_initial:
+            t_bigger = np.concatenate(
+                (np.array([t_initial]), t_bigger)
+            )
+            prepended_to_bigger = True
+        if t_smaller.size and t_smaller[0] != t_initial:
+            t_smaller = np.concatenate(
+                (np.array([t_initial]), t_smaller)
+            )
+            prepended_to_smaller = True
+
+        # Properly ordered time axis containing t_initial
+        t_total = np.concatenate((t_smaller[::-1], t_bigger))
         # Call the numerical integrator. Note that we only pass the
         # model_params, which will be used by sympy_to_py to create something we
         # can evaluate numerically.
@@ -1203,15 +1210,13 @@ class ODEModel(BaseGradientModel):
             *self.lsoda_args, **self.lsoda_kwargs
         )
 
-        ans = np.concatenate((ans_smaller[1:][::-1], ans_bigger))
-        if t_initial in t_like:
-            # The user also requested to know the value at t_initial, so keep it.
-            return ans.T
-        else:
-            # The user didn't ask for the value at t_initial, so exclude it.
-            # (t_total contains all the t-points used for the integration,
-            # and so is t_like with t_initial inserted at the right position).
-            return ans[t_total != t_initial].T
+        # If we had to prepend t_initial to the time axes, remove those data points from the results
+        if prepended_to_bigger:
+            ans_bigger = ans_bigger[1:]
+        if prepended_to_smaller:
+            ans_smaller = ans_smaller[1:]
+        ans = np.concatenate((ans_smaller[::-1], ans_bigger))
+        return ans.T
 
     def __call__(self, *args, **kwargs):
         """
