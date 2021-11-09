@@ -5,6 +5,7 @@
 from collections import OrderedDict
 from collections.abc import Sequence
 import sys
+from time import perf_counter
 
 import sympy
 import numpy as np
@@ -310,6 +311,79 @@ class HasCovarianceMatrix(TakesData):
         return cov_matrix
 
 
+class FitStatus:
+    """
+    Class to track the convergence of a fit. Whenever called, will store the
+    parameters with which it's called, as well as the associated objective value
+    and the current time. In addition, will print some statistics.
+    The following attributes are relevant: ``objective``, ``param_values``,
+    ``objective_values``, and ``times``; containing the objective that's being
+    optimized, all parameter values that were used per iteration, the
+    associated objective values, and the times at which this was done,
+    respectively.
+    """
+    def __init__(self, objective):
+        self.objective = objective
+        self.param_values = []
+        self.objective_values = []
+        self._current_iteration = 0
+        self._prev_values = 0
+        self.times = []
+        self.free_params = list(map(str, self.objective.model.free_params))
+        self.fixed_params = {p: p.value for p in self.objective.model.params if p.fixed}
+        # Report initial parameter values
+        self(np.array([p.value for p in objective.model.free_params]))
+
+    def __call__(self, params, *_, **__):
+        """
+        Reports convergence statistics for this iteration, and stores that
+        information for later use.
+
+        :param params: 1D array-like with values for all non-fixed parameter
+            for this iteration. Used to call `objective`.
+        """
+        self.times.append(perf_counter())
+        free_params = dict(zip(self.free_params, params))
+
+        # FIXME It would be better if objective calls would be cached somehow...
+        obj_val = self.objective(params)
+
+        # Add in fixed parameters
+        all_params = free_params
+        all_params.update(self.fixed_params)
+
+        # TODO: make this into a ordered_dict of header: value or something, and
+        #       do some magic layouting.
+        header  = ' Iter | Objective | Step size |            Times (s)            \n'\
+                  '      |   value   |           |  Total   | Last Iter | Avg/Iter \n'\
+                  '------+-----------+-----------+----------+-----------+----------'
+        message = ' {:>4d} | {:>9.2e} | {:>9.2e} | {:>8.2e} | {:>9.2e} | {:>8.2e} '
+
+        if self._current_iteration:
+            step_size = np.linalg.norm(params - self._prev_values)
+            steptime =  self.times[-1] - self.times[-2]
+            avg_steptime = (self.times[-1] - self.times[0])/self._current_iteration
+        else:
+            print(header)
+            step_size = steptime = avg_steptime = 0
+        self._prev_values = params
+
+        print(message.format(
+            self._current_iteration,
+            obj_val,
+            step_size,
+            self.times[-1] - self.times[0],
+            steptime,
+            avg_steptime,
+        ))
+        self.param_values.append(all_params)
+        self.objective_values.append(obj_val)
+        self._current_iteration += 1
+
+        # If this ever returns something true-ish, minimization will be
+        # terminated.
+        return False
+
 class Fit(HasCovarianceMatrix):
     """
     Your one stop fitting solution! Based on the nature of the input, this
@@ -573,14 +647,40 @@ class Fit(HasCovarianceMatrix):
                     )
         return con_models
 
+    @keywordonly(verbose=False, callback=None)
     def execute(self, **minimize_options):
         """
         Execute the fit.
 
         :param minimize_options: keyword arguments to be passed to the specified
             minimizer.
+        :param callback: keyword only argument that will be propagated to the
+            minimizer. If `True`-like, the produced
+            :class:`~symfit.core.fit_results.FitResults` will have a `callback`
+            attribute with the appropriate value.
+        :param bool verbose: keyword only argument. If `True`, will create a
+            :class:`FitStatus` object and pass it as `callback` to the minimizer
+            and attach it to the produced 
+            :class:`~symfit.core.fit_results.FitResults` as `callback` attribute.
         :return: FitResults instance
+        :raises TypeError: if both verbose and callback are `True`-like
         """
+        verbose = minimize_options.pop('verbose')
+        callback = minimize_options.pop('callback')
+        if verbose and callback:
+            raise TypeError('Fit.execute accepts either callback or verbose,'\
+                                'but not both')
+        elif verbose:
+            callback = FitStatus(objective=self.objective)
+            if isinstance(self.minimizer, ChainedMinimizer):
+                for mini in self.minimizer.minimizers:
+                    minimize_options[mini.__class__.__name__] = minimize_options.get(mini.__class__.__name__, {}).copy()
+                    minimize_options[mini.__class__.__name__]['callback'] = callback
+            else:
+                minimize_options = minimize_options.copy()
+                minimize_options['callback'] = callback
+        elif callback:
+            minimize_options['callback'] = callback
         minimizer_ans = self.minimizer.execute(**minimize_options)
         minimizer_ans.covariance_matrix = self.covariance_matrix(
             dict(zip(self.model.params, minimizer_ans._popt))
@@ -588,4 +688,6 @@ class Fit(HasCovarianceMatrix):
         # Overwrite the DummyModel with the current model
         minimizer_ans.model = self.model
         minimizer_ans.minimizer = self.minimizer
+        if callback:
+            minimizer_ans.callback = callback
         return minimizer_ans
