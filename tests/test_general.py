@@ -773,7 +773,7 @@ def test_error_analytical():
     """
     N = 10000
     sigma = 10.0 * np.ones(N)
-    xn = np.arange(N, dtype=np.float)
+    xn = np.arange(N, dtype=float)
     # yn = np.zeros_like(xn)
     np.random.seed(10)
     yn = np.random.normal(size=len(xn), scale=sigma)

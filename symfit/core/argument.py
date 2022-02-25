@@ -62,8 +62,12 @@ class Argument(Symbol):
             self.name = name
         super(Argument, self).__init__()
 
+    def __setstate__(self, state):
+        for key, value in state.items():
+            setattr(self, key, value)
+
     def __getstate__(self):
-        state = super(Argument, self).__getstate__()
+        state = super(Argument, self).__getstate__() or {}
         state.update({slot: getattr(self, slot) for slot in self.__slots__
                       if hasattr(self, slot)})
         return state
