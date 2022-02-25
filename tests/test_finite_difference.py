@@ -189,30 +189,35 @@ def test_harmonic_oscillator_errors():
     fitting an exact solution.
     """
     x, v, t = sf.variables('x, v, t')
-    k = sf.Parameter(name='k', value=100)
+    k = sf.Parameter(name='k', value=2, min=0)
     m = 1
-    a = -k/m * x
-    ode_model = sf.ODEModel({sf.D(v, t): a,
-                             sf.D(x, t): v},
-                            initial={t: 0, v: 0, x: 1})
-
-    t_data = np.linspace(0, 10, 250)
-    np.random.seed(2)
-    noise = np.random.normal(1, 0.05, size=t_data.shape)
-    x_data = ode_model(t=t_data, k=100).x * noise
-
-    ode_fit = sf.Fit(ode_model, t=t_data, x=x_data, v=None)
-    ode_result = ode_fit.execute()
 
     phi = 0
     A = 1
+
+    ode_model = sf.ODEModel({sf.D(v, t): -k/m * x,
+                             sf.D(x, t): v},
+                            initial={t: 0, v: 0, x: A})
+
     model = sf.Model({x: A * sf.cos(sf.sqrt(k/m) * t + phi)})
+
+    t_data = np.linspace(0, 10, 25)
+    np.random.seed(2)
+    noise = np.random.normal(1, 0.05, size=t_data.shape)
+    x_data = model(t=t_data, k=k.value).x * noise
+    assert np.all(np.abs(model(t=t_data, k=k.value).x - ode_model(t=t_data, k=k.value).x) < 1e-6)
+
+    ode_fit = sf.Fit(ode_model, t=t_data, x=x_data, v=None)
+    ode_result = ode_fit.execute(tol=1e-18)
+    print(ode_result)
+
     fit = sf.Fit(model, t=t_data, x=x_data)
-    result = fit.execute()
+    result = fit.execute(tol=1e-18)
+    print(result)
 
     assert result.value(k) == pytest.approx(ode_result.value(k), 1e-4)
     assert result.stdev(k) == pytest.approx(ode_result.stdev(k), 1e-2)
-    assert result.stdev(k) >= ode_result.stdev(k)
+    assert result.stdev(k) <= ode_result.stdev(k)
 
 
 def _assert_equal(exact, approx, **kwargs):

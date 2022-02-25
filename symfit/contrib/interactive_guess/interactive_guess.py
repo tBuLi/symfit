@@ -4,9 +4,6 @@
 
 # -*- coding: utf-8 -*-
 
-import matplotlib as mpl
-mpl.use('Agg')
-
 from ... import ODEModel, Derivative, latex
 from ...core.fit import TakesData
 from ...core.support import keywordonly, key2str, deprecated

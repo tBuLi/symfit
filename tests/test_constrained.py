@@ -144,7 +144,7 @@ def test_param_error_analytical():
     """
     N = 10000
     sigma = 25.0
-    xn = np.arange(N, dtype=np.float)
+    xn = np.arange(N, dtype=float)
     np.random.seed(110)
     yn = np.random.normal(size=xn.shape, scale=sigma)
 
