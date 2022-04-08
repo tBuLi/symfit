@@ -25,6 +25,9 @@ else:
     import funcsigs as inspect_sig
 
 
+class ODEError(Exception):
+    pass
+
 class ModelOutput(tuple):
     """
     Object to hold the output of a model call. It mimics a
@@ -1002,6 +1005,12 @@ class ODEModel(BaseGradientModel):
         self.initial = initial
         self.integrator_kwargs = {'method': 'LSODA'}
         self.integrator_kwargs.update(integrator_kwargs)
+        if self.integrator_kwargs['method'] == 'LSODA':
+            # Set the old odeint default settings for LSODA unless otherwise specified
+            if 'atol' not in self.integrator_kwargs:
+                self.integrator_kwargs['atol'] = 1.49012e-8
+            if 'rtol' not in self.integrator_kwargs:
+                self.integrator_kwargs['rtol'] = 1.49012e-8
 
         sort_func = operator.attrgetter('name')
         # Mapping from dependent vars to their derivatives
@@ -1128,6 +1137,15 @@ class ODEModel(BaseGradientModel):
             ] for _, expr in self.items()
         ]
 
+    @cached_property
+    def system(self):
+        """ System of functions to be integrated """
+        return lambda t, ys, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
+
+    @cached_property
+    def diff_system(self):
+        return lambda t, ys, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
+
     def eval_components(self, *args, **kwargs):
         """
         Numerically integrate the system of ODEs.
@@ -1141,13 +1159,9 @@ class ODEModel(BaseGradientModel):
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
 
-        # System of functions to be integrated
-        f = lambda t, ys, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
-        Dfun = lambda t, ys, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
-
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         # For the initial values, substitute any parameter for the value passed
-        # to this call. Scipy doesn't really understand Parameter/Symbols
+        # to this call. Scipy doesn't understand Parameter/Symbols
         for idx, init_var in enumerate(initial_dependent):
             if init_var in self.initial_params:
                 initial_dependent[idx] = bound_arguments.arguments[init_var.name]
@@ -1155,10 +1169,12 @@ class ODEModel(BaseGradientModel):
         assert len(self.independent_vars) == 1
         t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
-        # Check if the time-like data includes the initial value, because integration should start there.
+        # Make sure that t_like is an array
         try:
             t_like[0]
         except (TypeError, IndexError): # Python scalar gives TypeError, numpy scalars IndexError
+            if t_like == t_initial:  # When evaluated only at the initial condition, we know the answer.
+                return np.atleast_2d(initial_dependent).T
             t_like = np.array([t_like]) # Allow evaluation at one point.
 
         # The strategy is to split the time axis in a part above and below the
@@ -1169,6 +1185,7 @@ class ODEModel(BaseGradientModel):
             t_bigger = t_like[t_like >= t_initial]
             t_smaller = t_like[t_like <= t_initial][::-1]
         else:
+            # Insert t_initial
             t_bigger = np.concatenate(
                 (np.array([t_initial]), t_like[t_like > t_initial])
             )
@@ -1181,34 +1198,44 @@ class ODEModel(BaseGradientModel):
         # Call the numerical integrator. Note that we only pass the
         # model_params, which will be used by sympy_to_py to create something we
         # can evaluate numerically.
-        # We need to set the right bound to be just a little bit larger so that
-        # we can be sure all time values are within t_span. Minimal complication
-        # is that if you shift the bounds by too little (say,
-        # np.finfo(float).tiny) the LSODA integrator doesn't terminate anymore.
         ans_bigger = solve_ivp(
-            f,
-            t_span=(t_bigger[0], t_bigger[-1] + 1e-8),
+            self.system,
+            t_span=(t_bigger[0], t_bigger[-1]),
             y0=initial_dependent,
             t_eval=t_bigger,
             args=tuple(
                 bound_arguments.arguments[param.name] for param in self.model_params
             ),
-            jac=Dfun,
+            jac=self.diff_system,
             **self.integrator_kwargs
-        )
+        ) if len(t_bigger) > 1 else None
         ans_smaller = solve_ivp(
-            f,
-            t_span=(t_smaller[0], t_smaller[-1] - 1e-8),
+            self.system,
+            t_span=(t_smaller[0], t_smaller[-1]),
             y0=initial_dependent,
             t_eval=t_smaller,
             args=tuple(
                 bound_arguments.arguments[param.name] for param in self.model_params
             ),
-            jac=Dfun,
+            jac=self.diff_system,
             **self.integrator_kwargs
-        )
+        ) if len(t_smaller) > 1 else None
 
-        ans = np.concatenate((ans_smaller.y[:, :0:-1], ans_bigger.y), axis=1)
+        if ans_smaller is not None and ans_bigger is not None:
+            if not ans_smaller.success:
+                raise ODEError(ans_smaller.message)
+            elif not ans_bigger.success:
+                raise ODEError(ans_bigger.message)
+            ans = np.concatenate((ans_smaller.y[:, :0:-1], ans_bigger.y), axis=1)
+        elif ans_smaller is None:
+            if not ans_bigger.success:
+                raise ODEError(ans_bigger.message)
+            ans = ans_bigger.y
+        else:
+            if not ans_smaller.success:
+                raise ODEError(ans_smaller.message)
+            ans = ans_smaller.y[:, ::-1]
+
         if t_initial in t_like:
             # The user also requested to know the value at t_initial, so keep it.
             return ans
