@@ -10,7 +10,7 @@ The default fitting object does least-squares fitting::
 
     # Define a model to fit to.
     a, b = parameters('a, b')
-    x = variables('x')
+    x, = variables('x')
     model = a * x + b
 
     # Generate some data
