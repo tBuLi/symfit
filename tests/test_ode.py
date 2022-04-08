@@ -34,7 +34,7 @@ def test_known_solution():
 
     # Generate some data
     tdata = np.linspace(0, 3, 50)
-    ydata = sol(t=tdata, p=3.22)[0]
+    ydata, = sol(t=tdata, p=3.22)
     ydata += np.random.normal(0, 0.005, ydata.shape)
 
     ode_model = ODEModel(model_dict, initial={t: 0.0, y: ydata[0]})
