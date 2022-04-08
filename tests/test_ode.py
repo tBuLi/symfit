@@ -249,7 +249,6 @@ def test_initial_parameters():
     AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10, c0=0)
     fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
     results = fit.execute()
-    print(results)
 
     acceptable_abs_tol = 2.5e-5
     assert results.value(a0) == pytest.approx(10, abs=acceptable_abs_tol)
