@@ -230,7 +230,7 @@ def test_initial_parameters():
     Identical to test_polgar, but with a0 as free Parameter.
     """
     a, b, c, d, t = variables('a, b, c, d, t')
-    k, p, l, m = parameters('k, p, l, m')
+    k, p, l, m = parameters('k, p, l, m', min=0)
 
     a0 = Parameter('a0', min=0, value=10, fixed=True)
     c0 = Parameter('c0', min=0, value=0.05)
