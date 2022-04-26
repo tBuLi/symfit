@@ -12,7 +12,7 @@ import sympy
 from sympy.core.relational import Relational
 import numpy as np
 from toposort import toposort
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
 
 from .argument import Parameter, Variable
 from .support import (
@@ -24,6 +24,9 @@ if sys.version_info >= (3,0):
 else:
     import funcsigs as inspect_sig
 
+
+class ODEError(Exception):
+    pass
 
 class ModelOutput(tuple):
     """
@@ -988,21 +991,26 @@ class ODEModel(BaseGradientModel):
     Model build from a system of ODEs. When the model is called, the ODE is
     integrated using the LSODA package.
     """
-    def __init__(self, model_dict, initial, *lsoda_args, **lsoda_kwargs):
+    def __init__(self, model_dict, initial, **integrator_kwargs):
         """
         :param model_dict: Dictionary specifying ODEs. e.g.
             model_dict = {D(y, x): a * x**2}
         :param initial: ``dict`` of initial conditions for the ODE.
             Must be provided! e.g.
             initial = {y: 1.0, x: 0.0}
-        :param lsoda_args: args to pass to the lsoda solver.
-            See `scipy's odeint <http://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.odeint.html>`_
+        :param integrator_kwargs: kwargs to pass to the ODE integrator.
+            See `scipy's solve_ivp <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html>`_
             for more info.
-        :param lsoda_kwargs: kwargs to pass to the lsoda solver.
         """
         self.initial = initial
-        self.lsoda_args = lsoda_args
-        self.lsoda_kwargs = lsoda_kwargs
+        self.integrator_kwargs = {'method': 'LSODA'}
+        self.integrator_kwargs.update(integrator_kwargs)
+        if self.integrator_kwargs['method'] == 'LSODA':
+            # Set the old odeint default settings for LSODA unless otherwise specified
+            if 'atol' not in self.integrator_kwargs:
+                self.integrator_kwargs['atol'] = 1.49012e-8
+            if 'rtol' not in self.integrator_kwargs:
+                self.integrator_kwargs['rtol'] = 1.49012e-8
 
         sort_func = operator.attrgetter('name')
         # Mapping from dependent vars to their derivatives
@@ -1129,6 +1137,15 @@ class ODEModel(BaseGradientModel):
             ] for _, expr in self.items()
         ]
 
+    @cached_property
+    def system(self):
+        """ System of functions to be integrated """
+        return lambda t, ys, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
+
+    @cached_property
+    def diff_system(self):
+        return lambda t, ys, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
+
     def eval_components(self, *args, **kwargs):
         """
         Numerically integrate the system of ODEs.
@@ -1142,13 +1159,9 @@ class ODEModel(BaseGradientModel):
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         t_like = bound_arguments.arguments[self.independent_vars[0].name]
 
-        # System of functions to be integrated
-        f = lambda ys, t, *a: [c(t, *(list(ys) + list(a))) for c in self._ncomponents]
-        Dfun = lambda ys, t, *a: [[c(t, *(list(ys) + list(a))) for c in row] for row in self._njacobian]
-
         initial_dependent = [self.initial[var] for var in self.dependent_vars]
         # For the initial values, substitute any parameter for the value passed
-        # to this call. Scipy doesn't really understand Parameter/Symbols
+        # to this call. Scipy doesn't understand Parameter/Symbols
         for idx, init_var in enumerate(initial_dependent):
             if init_var in self.initial_params:
                 initial_dependent[idx] = bound_arguments.arguments[init_var.name]
@@ -1156,10 +1169,12 @@ class ODEModel(BaseGradientModel):
         assert len(self.independent_vars) == 1
         t_initial = self.initial[self.independent_vars[0]] # Assuming there's only one
 
-        # Check if the time-like data includes the initial value, because integration should start there.
+        # Make sure that t_like is an array
         try:
             t_like[0]
         except (TypeError, IndexError): # Python scalar gives TypeError, numpy scalars IndexError
+            if t_like == t_initial:  # When evaluated only at the initial condition, we know the answer.
+                return np.atleast_2d(initial_dependent).T
             t_like = np.array([t_like]) # Allow evaluation at one point.
 
         # The strategy is to split the time axis in a part above and below the
@@ -1170,6 +1185,7 @@ class ODEModel(BaseGradientModel):
             t_bigger = t_like[t_like >= t_initial]
             t_smaller = t_like[t_like <= t_initial][::-1]
         else:
+            # Insert t_initial
             t_bigger = np.concatenate(
                 (np.array([t_initial]), t_like[t_like > t_initial])
             )
@@ -1182,36 +1198,52 @@ class ODEModel(BaseGradientModel):
         # Call the numerical integrator. Note that we only pass the
         # model_params, which will be used by sympy_to_py to create something we
         # can evaluate numerically.
-        ans_bigger = odeint(
-            f,
-            initial_dependent,
-            t_bigger,
+        ans_bigger = solve_ivp(
+            self.system,
+            t_span=(t_bigger[0], t_bigger[-1]),
+            y0=initial_dependent,
+            t_eval=t_bigger,
             args=tuple(
                 bound_arguments.arguments[param.name] for param in self.model_params
             ),
-            Dfun=Dfun,
-            *self.lsoda_args, **self.lsoda_kwargs
-        )
-        ans_smaller = odeint(
-            f,
-            initial_dependent,
-            t_smaller,
+            jac=self.diff_system,
+            **self.integrator_kwargs
+        ) if len(t_bigger) > 1 else None
+        ans_smaller = solve_ivp(
+            self.system,
+            t_span=(t_smaller[0], t_smaller[-1]),
+            y0=initial_dependent,
+            t_eval=t_smaller,
             args=tuple(
                 bound_arguments.arguments[param.name] for param in self.model_params
             ),
-            Dfun=Dfun,
-            *self.lsoda_args, **self.lsoda_kwargs
-        )
+            jac=self.diff_system,
+            **self.integrator_kwargs
+        ) if len(t_smaller) > 1 else None
 
-        ans = np.concatenate((ans_smaller[1:][::-1], ans_bigger))
+        if ans_smaller is not None and ans_bigger is not None:
+            if not ans_smaller.success:
+                raise ODEError(ans_smaller.message)
+            elif not ans_bigger.success:
+                raise ODEError(ans_bigger.message)
+            ans = np.concatenate((ans_smaller.y[:, :0:-1], ans_bigger.y), axis=1)
+        elif ans_smaller is None:
+            if not ans_bigger.success:
+                raise ODEError(ans_bigger.message)
+            ans = ans_bigger.y
+        else:
+            if not ans_smaller.success:
+                raise ODEError(ans_smaller.message)
+            ans = ans_smaller.y[:, ::-1]
+
         if t_initial in t_like:
             # The user also requested to know the value at t_initial, so keep it.
-            return ans.T
+            return ans
         else:
             # The user didn't ask for the value at t_initial, so exclude it.
             # (t_total contains all the t-points used for the integration,
             # and so is t_like with t_initial inserted at the right position).
-            return ans[t_total != t_initial].T
+            return ans[:, t_total != t_initial]
 
     def __call__(self, *args, **kwargs):
         """

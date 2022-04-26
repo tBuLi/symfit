@@ -42,23 +42,25 @@ def test_simple_kinetics():
     tdata = np.array([10, 26, 44, 70, 120])
     adata = 10e-4 * np.array([44, 34, 27, 20, 14])
     a, b, t = variables('a, b, t')
-    k, a0 = parameters('k, a0')
+    k, = parameters('k')
     k.value = 0.01
-    # a0.value, a0.min, a0.max = 54 * 10e-4, 40e-4, 60e-4
     a0 = 54 * 10e-4
 
+    # Analytical solution
+    model = GradientModel({a: 1 / (k * t + 1 / a0)})
+    fit = Fit(model, t=tdata, a=adata)
+    fit_result = fit.execute()
+
     model_dict = {
-        D(a, t): - k * a**2,
-        D(b, t): k * a**2,
+        D(a, t): - k * a ** 2,
+        D(b, t): k * a ** 2,
     }
-
     ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, b: 0.0})
-
     fit = Fit(ode_model, t=tdata, a=adata, b=None)
-    fit_result = fit.execute(tol=1e-9)
+    ode_result = fit.execute()
 
-    assert fit_result.value(k) == pytest.approx(4.302875e-01, 1e-5)
-    assert fit_result.stdev(k) == pytest.approx(6.447068e-03, 1e-5)
+    assert ode_result.value(k) == pytest.approx(fit_result.value(k), 1e-5)
+    assert ode_result.stdev(k) == pytest.approx(fit_result.stdev(k), 1e-5)
 
 
 def test_global_fitting():

@@ -264,7 +264,7 @@ def test_pickle():
         {y: a * x ** b}, connectivity_mapping={y: {x, a, b}}
     )
     # Test if lsoda args and kwargs are pickled too
-    ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, 3, 4, some_kwarg=True)
+    ode_model = ODEModel({D(y, x): a * x + b}, {x: 0.0}, some_kwarg=True)
 
     models = [exact_model, constraint, num_model, ode_model, connected_num_model]
     for model in models:

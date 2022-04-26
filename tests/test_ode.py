@@ -33,8 +33,8 @@ def test_known_solution():
     sol = Model({y: exp(- p * t)})
 
     # Generate some data
-    tdata = np.linspace(0, 3, 10001)
-    ydata = sol(t=tdata, p=3.22)[0]
+    tdata = np.linspace(0, 3, 50)
+    ydata, = sol(t=tdata, p=3.22)
     ydata += np.random.normal(0, 0.005, ydata.shape)
 
     ode_model = ODEModel(model_dict, initial={t: 0.0, y: ydata[0]})
@@ -89,7 +89,7 @@ def test_polgar():
     ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: 0.0, d: 0.0})
 
     # Generate some data
-    tdata = np.linspace(0, 3, 1000)
+    tdata = np.linspace(0, 3, 50)
     # Eval
     AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3)
 
@@ -230,7 +230,7 @@ def test_initial_parameters():
     Identical to test_polgar, but with a0 as free Parameter.
     """
     a, b, c, d, t = variables('a, b, c, d, t')
-    k, p, l, m = parameters('k, p, l, m')
+    k, p, l, m = parameters('k, p, l, m', min=0)
 
     a0 = Parameter('a0', min=0, value=10, fixed=True)
     c0 = Parameter('c0', min=0, value=0.05)
@@ -244,12 +244,11 @@ def test_initial_parameters():
     ode_model = ODEModel(model_dict, initial={t: 0.0, a: a0, c: c0, d: 0.0})
 
     # Generate some data
-    tdata = np.linspace(0, 3, 1000)
+    tdata = np.linspace(0, 3, 50)
     # Eval
     AA, AAB, BAAB = ode_model(t=tdata, k=0.1, l=0.2, m=.3, p=0.3, a0=10, c0=0)
     fit = Fit(ode_model, t=tdata, a=AA, c=AAB, d=BAAB)
     results = fit.execute()
-    print(results)
 
     acceptable_abs_tol = 2.5e-5
     assert results.value(a0) == pytest.approx(10, abs=acceptable_abs_tol)
