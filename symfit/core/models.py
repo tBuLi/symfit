@@ -913,7 +913,10 @@ class GradientModel(CallableModel, BaseGradientModel):
         # the parameter dimension. We do not include the component direction in
         # this, because the components can have independent shapes.
         for idx, comp in enumerate(jac):
-            jac[idx] = np.stack(np.broadcast_arrays(*comp))
+            if comp:
+                jac[idx] = np.stack(np.broadcast_arrays(*comp))
+            else:
+                jac[idx] = np.array([])
 
         return ModelOutput(self.keys(), jac)
 
@@ -957,7 +960,10 @@ class HessianModel(GradientModel):
         # the parameter dimension. We do not include the component direction in
         # this, because the components can have independent shapes.
         for idx, comp in enumerate(hess):
-            hess[idx] = np.stack(np.broadcast_arrays(*comp))
+            if comp:
+                hess[idx] = np.stack(np.broadcast_arrays(*comp))
+            else:
+                hess[idx] = np.array([])
 
         return ModelOutput(self.keys(), hess)
 
