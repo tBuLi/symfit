@@ -67,7 +67,7 @@ def test_linear_models(data):
     values between their min and max, and perform the fit. Note that there
     is still no noise on the data.
     """
-    minimizer = data.draw(st.sampled_from([None, LBFGSB, SLSQP]), label='minimizer')
+    minimizer = data.draw(st.sampled_from([None, LBFGSB, SLSQP, TrustConstr]), label='minimizer')
     # minimizer = None
     model, param_vals, indep_vals, dep_vals = data.draw(
         model_with_data(DEPENDENT_VARS,
