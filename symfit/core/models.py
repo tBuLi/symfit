@@ -328,8 +328,14 @@ class BaseModel(Mapping):
         # Everything at the bottom of the toposort is independent, at the top
         # dependent, and the rest interdependent.
         ordered = list(toposort(self.connectivity_mapping))
-        independent = sorted(ordered.pop(0), key=sort_func)
-        self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
+        if ordered:
+            independent = sorted(ordered.pop(0), key=sort_func)
+        else:
+            independent = []
+        if ordered:
+            self.dependent_vars = sorted(ordered.pop(-1), key=sort_func)
+        else:
+            self.dependent_vars = []
         self.interdependent_vars = sorted(
             [item for items in ordered for item in items],
             key=sort_func
@@ -907,7 +913,10 @@ class GradientModel(CallableModel, BaseGradientModel):
         # the parameter dimension. We do not include the component direction in
         # this, because the components can have independent shapes.
         for idx, comp in enumerate(jac):
-            jac[idx] = np.stack(np.broadcast_arrays(*comp))
+            if comp:
+                jac[idx] = np.stack(np.broadcast_arrays(*comp))
+            else:
+                jac[idx] = np.array([])
 
         return ModelOutput(self.keys(), jac)
 
@@ -951,7 +960,10 @@ class HessianModel(GradientModel):
         # the parameter dimension. We do not include the component direction in
         # this, because the components can have independent shapes.
         for idx, comp in enumerate(hess):
-            hess[idx] = np.stack(np.broadcast_arrays(*comp))
+            if comp:
+                hess[idx] = np.stack(np.broadcast_arrays(*comp))
+            else:
+                hess[idx] = np.array([])
 
         return ModelOutput(self.keys(), hess)
 

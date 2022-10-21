@@ -6,3 +6,11 @@ build
 docs/_build
 docs/_doctrees
 dist
+
+.hypothesis/
+
+.eggs/
+
+symfit.egg-info/
+
+.coverage

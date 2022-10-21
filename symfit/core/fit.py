@@ -26,6 +26,7 @@ if sys.version_info >= (3,0):
 else:
     import funcsigs as inspect_sig
 
+
 class TakesData(object):
     """
     An base class for everything that takes data. Most importantly, it takes care

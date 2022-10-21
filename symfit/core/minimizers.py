@@ -347,6 +347,17 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`. Note that your `method` will
             usually be filled by a specific subclass.
         """
+        if not self.params:
+            return FitResults(
+                model=DummyModel(params=[]),
+                popt=[],
+                covariance_matrix=np.array([]),
+                objective=self.objective,
+                minimizer=self,
+                message="No free parameters",
+                fun=self.objective(),
+                niter=0,
+            )
         ans = minimize(
             self.objective,
             self.initial_guesses,
