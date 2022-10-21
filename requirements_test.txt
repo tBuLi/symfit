@@ -1,4 +1,6 @@
 pytest
+pytest-cov
+coverage
 coveralls
-hypothesis
+hypothesis[numpy]
 

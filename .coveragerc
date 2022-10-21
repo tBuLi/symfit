@@ -1,4 +1,6 @@
 [run]
+source = symfit
 branch = True
+concurrency = multiprocessing
 omit = 
     tests/*

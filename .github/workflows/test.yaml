@@ -25,4 +25,4 @@ jobs:
         pip install -e .
     - name: Test with coverage
       run:
-        pytest
+        pytest --cov=symfit --hypothesis-show-statistics
