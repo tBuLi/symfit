@@ -1,4 +1,8 @@
 *.pyc
+**/.eggs
+**/.coverage
+**.swp
+**.egg-info
 .idea
 .cache
 .pytest_cache
