@@ -6,7 +6,7 @@
 
 from ... import ODEModel, Derivative, latex
 from ...core.fit import TakesData
-from ...core.support import keywordonly, key2str, deprecated
+from ...core.support import key2str, deprecated
 
 import itertools
 
@@ -21,8 +21,7 @@ class InteractiveGuess(TakesData):
     """A class that provides an graphical, interactive way of guessing initial
     fitting parameters."""
 
-    @keywordonly(n_points=50, log_contour=True, percentile=(5, 95))
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, n_points=50, log_contour=True, percentile=(5, 95), **kwargs):
         """Create a matplotlib window with sliders for all parameters
         in this model, so that you may graphically guess initial fitting
         parameters. n_points is the number of points drawn for the plot.
@@ -51,9 +50,8 @@ class InteractiveGuess(TakesData):
             corresponds to a 90% percentile. Should be a list of 2 numbers.
         :type percentile: list
         """
-        self.log_contour = kwargs.pop('log_contour')
-        n_points = kwargs.pop('n_points')
-        self.percentile = kwargs.pop('percentile')
+        self.log_contour = log_contour
+        self.percentile = percentile
         super(InteractiveGuess, self).__init__(*args, **kwargs)
         if len(self.independent_data) > 1:
             self._dimension_strategy = StrategynD(self)
@@ -99,8 +97,7 @@ class InteractiveGuess(TakesData):
         self._set_up_sliders()
         self._update_plot(None)
 
-    @keywordonly(show=True, block=True)
-    def execute(self, **kwargs):
+    def execute(self, *, show=True, block=True, **kwargs):
         """
         Execute the interactive guessing procedure.
 
@@ -112,7 +109,7 @@ class InteractiveGuess(TakesData):
         Any additional keyword arguments are passed to
         matplotlib.pyplot.show().
         """
-        show = kwargs.pop('show')
+        kwargs.update(block=block)
         if show:
             # self.fig.show()  # Apparently this does something else,
             # see https://github.com/matplotlib/matplotlib/issues/6138

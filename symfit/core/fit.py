@@ -10,7 +10,7 @@ import sympy
 import numpy as np
 
 from symfit.core.argument import Variable
-from .support import keywordonly, key2str
+from .support import key2str
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, HessianMinimizer,
     ConstrainedMinimizer, MINPACK, ChainedMinimizer, BasinHopping
@@ -32,8 +32,7 @@ class TakesData(object):
     of linking the provided data to variables. The allowed variables are extracted
     from the model.
     """
-    @keywordonly(absolute_sigma=None)
-    def __init__(self, model, *ordered_data, **named_data):
+    def __init__(self, model, *ordered_data, absolute_sigma=None, **named_data):
         """
         :param model: (dict of) sympy expression or ``Model`` object.
         :param bool absolute_sigma: True by default. If the sigma is only used
@@ -51,7 +50,6 @@ class TakesData(object):
         with sigma\_. For example, let x be a Variable. Then sigma_x will give the
         stdev in x.
         """
-        absolute_sigma = named_data.pop('absolute_sigma')
         if isinstance(model, BaseModel):
             self.model = model
         else:
@@ -338,9 +336,8 @@ class Fit(HasCovarianceMatrix):
         fit_result = fit.execute(minimizer_kwargs=[dict(xatol=0.1), {}])
     """
 
-    @keywordonly(objective=None, minimizer=None, constraints=None,
-                 absolute_sigma=None)
-    def __init__(self, model, *ordered_data, **named_data):
+    def __init__(self, model, *ordered_data, objective=None, minimizer=None,
+                 constraints=None, absolute_sigma=None, **named_data):
         """
 
         :param model: (dict of) sympy expression(s) or ``Model`` object.
@@ -364,10 +361,6 @@ class Fit(HasCovarianceMatrix):
         :param named_data: assign dependent, independent and sigma variables
             data by name.
         """
-        objective = named_data.pop('objective')
-        minimizer = named_data.pop('minimizer')
-        constraints = named_data.pop('constraints')
-        absolute_sigma = named_data.pop('absolute_sigma')
         # Should be a list of Constraint objects
         constraints = [] if constraints is None else constraints
 

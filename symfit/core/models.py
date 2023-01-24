@@ -16,7 +16,7 @@ from scipy.integrate import solve_ivp
 
 from .argument import Parameter, Variable
 from .support import (
-    seperate_symbols, keywordonly, sympy_to_py, partial, cached_property, D
+    seperate_symbols, sympy_to_py, partial, cached_property, D
 )
 
 if sys.version_info >= (3,0):
@@ -540,8 +540,7 @@ class BaseNumericalModel(BaseModel):
     ABC for Numerical Models. These are models whose components are generic
     python callables.
     """
-    @keywordonly(connectivity_mapping=None)
-    def __init__(self, model, independent_vars=None, params=None, **kwargs):
+    def __init__(self, model, independent_vars=None, params=None, *, connectivity_mapping=None, **kwargs):
         """
         :param model: dict of ``callable``, where dependent variables are the
             keys. If instead of a dict a (sequence of) ``callable`` is provided,
@@ -558,7 +557,6 @@ class BaseNumericalModel(BaseModel):
             The part corresponding to the symbolic components of the model is
             inferred automatically.
         """
-        connectivity_mapping = kwargs.pop('connectivity_mapping')
         if (connectivity_mapping is None and
                 independent_vars is not None and params is not None):
             # Make model into a mapping if needed.
@@ -719,8 +717,7 @@ class BaseGradientModel(BaseCallableModel):
     Any subclass of this baseclass which does not implement its own
     `eval_jacobian` will inherit a finite difference gradient.
     """
-    @keywordonly(dx=1e-8)
-    def finite_difference(self, *args, **kwargs):
+    def finite_difference(self, *args, dx=1e-8, **kwargs):
         """
         Calculates a numerical approximation of the Jacobian of the model using
         the sixth order central finite difference method. Accepts a `dx`
@@ -733,7 +730,6 @@ class BaseGradientModel(BaseCallableModel):
         """
         # See also: scipy.misc.derivative. It might be convinced to work, but
         # it will make way too many function evaluations
-        dx = kwargs.pop('dx')
         bound_arguments = self.__signature__.bind(*args, **kwargs)
         var_vals = [bound_arguments.arguments[var.name] for var in self.independent_vars]
         param_vals = [bound_arguments.arguments[param.name] for param in self.params]

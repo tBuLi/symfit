@@ -9,7 +9,6 @@ import numpy as np
 from symfit.core.objectives import (
     LeastSquares, VectorLeastSquares, LogLikelihood
 )
-from symfit.core.support import keywordonly
 
 class FitResults(object):
     """
@@ -26,8 +25,7 @@ class FitResults(object):
     their optimized values. Can be `**` unpacked when evaluating
     :class:`~symfit.core.models.Model`'s.
     """
-    @keywordonly(constraints=None)
-    def __init__(self, model, popt, covariance_matrix, minimizer, objective, message, **minimizer_output):
+    def __init__(self, model, popt, covariance_matrix, minimizer, objective, message, *, constraints=None, **minimizer_output):
         """
         :param model: :class:`~symfit.core.models.Model` that was fit to.
         :param popt: best fit parameters, same ordering as in model.params.
@@ -37,7 +35,6 @@ class FitResults(object):
         :param message: Status message returned by the minimizer.
         :param \**minimizer_output: Raw output as given by the minimizer.
         """
-        constraints = minimizer_output.pop('constraints')
         self.constraints = constraints if constraints is not None else []
         self.minimizer_output = minimizer_output
         self.model = model
