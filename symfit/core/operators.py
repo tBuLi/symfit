@@ -14,7 +14,7 @@ import warnings
 from symfit.core.support import sympy_to_py, seperate_symbols
 from symfit.core.argument import Parameter
 
-import inspect as inspect_sig
+import inspect
 
 # # Overwrite the behavior opun equality checking. But we want to be able to fall
 # # back on default behavior.
@@ -60,7 +60,7 @@ def call(self, *values, **named_values):
     on the Expr before calling it anyway, which makes calculating the signature absolutely useless.
     However, I hope that someday some monkey patching expert in shining armour comes by and finds
     a way to store it in __signature__ upon __init__ of any ``symfit`` expr such that calling
-    inspect_sig.signature on a symbolic expression will tell you which arguments to provide.
+    inspect.signature on a symbolic expression will tell you which arguments to provide.
 
     :param self: Any subclass of sympy.Expr
     :param values: Values for the Parameters and Variables of the Expr.
@@ -75,8 +75,8 @@ def call(self, *values, **named_values):
     func = sympy_to_py(self, independent_vars + params)
 
     # Handle args and kwargs according to the allowed names.
-    parameters = [  # Note that these are inspect_sig.Parameter's, not symfit parameters!
-        inspect_sig.Parameter(arg.name, inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+    parameters = [  # Note that these are inspect.Parameter's, not symfit parameters!
+        inspect.Parameter(arg.name, inspect.Parameter.POSITIONAL_OR_KEYWORD)
             for arg in independent_vars + params
     ]
 
@@ -85,7 +85,7 @@ def call(self, *values, **named_values):
         name: value for name, value in named_values.items() if name in arg_names
     }
 
-    signature = inspect_sig.Signature(parameters=parameters)
+    signature = inspect.Signature(parameters=parameters)
     bound_arguments = signature.bind(*values, **relevant_named_values)
 
     return func(**bound_arguments.arguments)

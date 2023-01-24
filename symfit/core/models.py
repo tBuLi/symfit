@@ -19,7 +19,7 @@ from .support import (
     seperate_symbols, sympy_to_py, cached_property, D
 )
 
-import inspect as inspect_sig
+import inspect
 
 
 class ODEError(Exception):
@@ -679,12 +679,12 @@ class BaseCallableModel(BaseModel):
     def _make_signature(self):
         # Handle args and kwargs according to the allowed names.
         parameters = [
-            # Note that these are inspect_sig.Parameter's, not symfit parameters!
-            inspect_sig.Parameter(arg.name,
-                                  inspect_sig.Parameter.POSITIONAL_OR_KEYWORD)
+            # Note that these are inspect.Parameter's, not symfit parameters!
+            inspect.Parameter(arg.name,
+                                  inspect.Parameter.POSITIONAL_OR_KEYWORD)
             for arg in self.independent_vars + self.params
         ]
-        return inspect_sig.Signature(parameters=parameters)
+        return inspect.Signature(parameters=parameters)
 
     def _init_from_dict(self, model_dict):
         super(BaseCallableModel, self)._init_from_dict(model_dict)

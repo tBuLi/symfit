@@ -20,7 +20,7 @@ from .objectives import (
 )
 from .models import BaseModel, Model, BaseNumericalModel, CallableModel
 
-import inspect as inspect_sig
+import inspect
 
 class TakesData(object):
     """
@@ -124,7 +124,7 @@ class TakesData(object):
         """
         parameters = self._make_parameters(self.model)
         parameters = sorted(parameters, key=lambda p: p.default is None)
-        return inspect_sig.Signature(parameters=parameters)
+        return inspect.Signature(parameters=parameters)
 
     @staticmethod
     def _make_parameters(model, none_allowed=None):
@@ -143,10 +143,10 @@ class TakesData(object):
         if none_allowed is None:
             none_allowed = model.sigmas.values()
         parameters = [
-            inspect_sig.Parameter(
+            inspect.Parameter(
                 var.name,
-                kind=inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
-                default=None if var in none_allowed else inspect_sig.Parameter.empty
+                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=None if var in none_allowed else inspect.Parameter.empty
             )
             for var in model.vars
         ]
@@ -428,7 +428,7 @@ class Fit(HasCovarianceMatrix):
                 unique_parameters.append(par)
 
         parameters = sorted(unique_parameters, key=lambda p: p.default is None)
-        return inspect_sig.Signature(parameters=parameters)
+        return inspect.Signature(parameters=parameters)
 
     def _determine_minimizer(self):
         """

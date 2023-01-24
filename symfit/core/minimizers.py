@@ -17,7 +17,7 @@ from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
 from .models import CallableNumericalModel, BaseModel
 
-import inspect as inspect_sig
+import inspect
 from functools import wraps
 
 DummyModel = namedtuple('DummyModel', 'params')
@@ -284,7 +284,7 @@ class ChainedMinimizer(BaseMinimizer):
             [name(minimizer) for minimizer in self.minimizers]
         ) # Count the number of each minimizer, they don't have to be unique
 
-        # Note that these are inspect_sig.Parameter's, not symfit parameters!
+        # Note that these are inspect.Parameter's, not symfit parameters!
         parameters = []
         for minimizer in reversed(self.minimizers):
             if count[name(minimizer)] == 1:
@@ -296,13 +296,13 @@ class ChainedMinimizer(BaseMinimizer):
             count[name(minimizer)] -= 1
 
             parameters.append(
-                inspect_sig.Parameter(
+                inspect.Parameter(
                     param_name,
-                    kind=inspect_sig.Parameter.KEYWORD_ONLY,
+                    kind=inspect.Parameter.KEYWORD_ONLY,
                     default={}
                 )
             )
-        return inspect_sig.Signature(parameters=reversed(parameters))
+        return inspect.Signature(parameters=reversed(parameters))
 
     def __getstate__(self):
         state = super(ChainedMinimizer, self).__getstate__()
