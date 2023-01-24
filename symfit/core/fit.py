@@ -4,7 +4,6 @@
 
 from collections import OrderedDict
 from collections.abc import Sequence
-import sys
 
 import sympy
 import numpy as np
@@ -21,10 +20,7 @@ from .objectives import (
 )
 from .models import BaseModel, Model, BaseNumericalModel, CallableModel
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+import inspect as inspect_sig
 
 class TakesData(object):
     """

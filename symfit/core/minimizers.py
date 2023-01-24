@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 import abc
-import sys
 from collections import namedtuple, Counter, OrderedDict
 
 from scipy.optimize import (
@@ -18,12 +17,8 @@ from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
 from .models import CallableNumericalModel, BaseModel
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-    from functools import wraps
-else:
-    import funcsigs as inspect_sig
-    from functools32 import wraps
+import inspect as inspect_sig
+from functools import wraps
 
 DummyModel = namedtuple('DummyModel', 'params')
 

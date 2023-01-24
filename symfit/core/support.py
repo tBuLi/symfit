@@ -9,7 +9,6 @@ designed for users.
 """
 from __future__ import print_function
 from collections import OrderedDict
-import sys
 import warnings
 import re
 import keyword
@@ -25,17 +24,8 @@ from sympy.core.expr import Expr
 from symfit.core.argument import Parameter, Variable
 import symfit.core.printing  # Overwrites some numpy printing
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-    from functools import wraps
-else:
-    import funcsigs as inspect_sig
-    from functools32 import wraps
-
-if sys.version_info >= (3, 5):
-    from functools import partial
-else:
-    from ._repeatable_partial import repeatable_partial as partial
+import inspect as inspect_sig
+from functools import wraps
 
 
 def isidentifier(s):

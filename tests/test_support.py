@@ -11,32 +11,8 @@ import pytest
 from itertools import repeat
 
 from symfit.core.support import (
-    partial, parameters, cached_property
+    parameters, cached_property
 )
-
-
-def test_repeatable_partial():
-    """
-    Test the custom repeatable partial, which makes partial behave the same
-    in older python versions as in the most recent.
-    """
-    def partial_me(a, b, c=None):
-        return a, b, c
-
-    partialed_one = partial(partial_me, a=2)
-    partialed_two = partial(partialed_one, b='string')
-
-    assert isinstance(partialed_one, partial)
-    assert partialed_one.func == partial_me
-    assert not partialed_one.args
-    assert partialed_one.keywords == {'a': 2}
-
-    # For the second partial, all should remain the same except the keywords
-    # are extended by one item.
-    assert isinstance(partialed_two, partial)
-    assert partialed_two.func == partial_me
-    assert not partialed_two.args
-    assert partialed_two.keywords == {'a': 2, 'b': 'string'}
 
 
 def test_parameters():

@@ -7,8 +7,6 @@ Monkey Patching module.
 
 This module makes ``sympy`` Expressions callable, which makes the whole project feel more consistent.
 """
-import sys
-
 from sympy import Eq, Ne
 from sympy.core.expr import Expr
 import sympy
@@ -16,10 +14,7 @@ import warnings
 from symfit.core.support import sympy_to_py, seperate_symbols
 from symfit.core.argument import Parameter
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+import inspect as inspect_sig
 
 # # Overwrite the behavior opun equality checking. But we want to be able to fall
 # # back on default behavior.

@@ -6,7 +6,7 @@ from collections import OrderedDict
 from collections.abc import Mapping
 import operator
 import warnings
-import sys
+from functools import partial
 
 import sympy
 from sympy.core.relational import Relational
@@ -16,13 +16,10 @@ from scipy.integrate import solve_ivp
 
 from .argument import Parameter, Variable
 from .support import (
-    seperate_symbols, sympy_to_py, partial, cached_property, D
+    seperate_symbols, sympy_to_py, cached_property, D
 )
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+import inspect as inspect_sig
 
 
 class ODEError(Exception):
