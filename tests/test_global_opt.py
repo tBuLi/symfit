@@ -5,7 +5,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import pytest
-import sys
 
 import numpy as np
 
@@ -15,10 +14,7 @@ from symfit import (
 from symfit.core.minimizers import BFGS, DifferentialEvolution
 from symfit.distributions import Gaussian
 
-if sys.version_info >= (3, 0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+import inspect
 
 
 class TestGlobalOptGaussian:
@@ -111,7 +107,7 @@ class TestGlobalOptGaussian:
         assert len(names) == len(fit.minimizer.__signature__.parameters)
 
         for param in fit.minimizer.__signature__.parameters.values():
-            assert param.kind == inspect_sig.Parameter.KEYWORD_ONLY
+            assert param.kind == inspect.Parameter.KEYWORD_ONLY
         # Make sure keywords end up at the right minimizer.
         with pytest.raises(TypeError):
             # This is not a valid kwarg to DiffEvo, but it is to BFGS. Check if

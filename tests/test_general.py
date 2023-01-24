@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 from __future__ import division, print_function
-import sys
 
 import numpy as np
 import scipy.stats
@@ -22,10 +21,7 @@ from symfit.core.objectives import LogLikelihood, MinimizeModel, LeastSquares
 from symfit.distributions import Gaussian, Exp, BivariateGaussian
 from tests.test_minimizers import subclasses
 
-if sys.version_info >= (3, 0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+import inspect
 
 
 def setup_module():
@@ -266,7 +262,7 @@ def test_model_callable():
     z, = ans
 
     assert z == 36
-    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
+    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(model).parameters):
         assert arg_name == name
 
 
@@ -296,7 +292,7 @@ def test_model_callable_from_model_init():
     assert z_1 == 18
     assert z_2 == 72
     assert z_3 == 36
-    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
+    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(model).parameters):
         assert arg_name == name
 
 
@@ -323,7 +319,7 @@ def test_model_callable_from_dict():
     assert z_1 == 18
     assert z_2 == 72
     assert z_3 == 36
-    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(model).parameters):
+    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(model).parameters):
         assert arg_name == name
 
 
@@ -346,7 +342,7 @@ def test_2D_fitting():
     result = fit.model(xdata[0], xdata[1], 2, 3)
     assert isinstance(result, tuple)
 
-    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect_sig.signature(fit.model).parameters):
+    for arg_name, name in zip(('x', 'y', 'a', 'b'), inspect.signature(fit.model).parameters):
         assert arg_name == name
 
     fit_result = fit.execute()
