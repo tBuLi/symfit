@@ -28,18 +28,6 @@ import inspect
 from functools import wraps
 
 
-def isidentifier(s):
-    if hasattr(s, 'isidentifier'):
-        return s.isidentifier()
-    else:
-        # In py27 no such method exists, so we built one ourselves. Notice that
-        # this cannot be used by default because py3 supports unicode
-        # identifiers.
-        if s in keyword.kwlist:
-            return False
-        return re.match(r'^[a-z_][a-z0-9_]*$', s, re.I) is not None
-
-
 class deprecated(object):
     """
     Decorator to raise a DeprecationWarning.
@@ -74,7 +62,7 @@ def seperate_symbols(func):
     params = []
     vars = []
     for symbol in func.free_symbols:
-        if not isidentifier(str(symbol)):
+        if not str(symbol).isidentifier():
             continue  # E.g. Indexed objects might print to A[i, j]
         if isinstance(symbol, Parameter):
             params.append(symbol)
