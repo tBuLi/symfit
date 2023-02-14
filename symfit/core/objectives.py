@@ -22,7 +22,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from .support import cached_property, keywordonly, key2str
+from .support import cached_property, key2str
 
 
 class BaseObjective(object, metaclass=abc.ABCMeta):
@@ -235,8 +235,7 @@ class VectorLeastSquares(GradientObjective):
     Implemented for MINPACK only. Returns the residuals/sigma before squaring
     and summing, rather then chi2 itself.
     """
-    @keywordonly(flatten_components=True)
-    def __call__(self, ordered_parameters=[], **parameters):
+    def __call__(self, ordered_parameters=[], *, flatten_components=True, **parameters):
         """
         Returns the value of the square root of :math:`\\chi^2`, summing over the components.
 
@@ -245,7 +244,6 @@ class VectorLeastSquares(GradientObjective):
         :param flatten_components: If True, summing is performed over the data indices (default).
         :return: :math:`\\sqrt(\\chi^2)`
         """
-        flatten_components = parameters.pop('flatten_components')
         evaluated_func = super(VectorLeastSquares, self).__call__(
             ordered_parameters, **parameters
         )
@@ -297,8 +295,7 @@ class LeastSquares(HessianObjective):
     have to have the same shape. The only thing that matters is that within each
     component the shapes have to be compatible.
     """
-    @keywordonly(flatten_components=True)
-    def __call__(self, ordered_parameters=[], **parameters):
+    def __call__(self, ordered_parameters=[], *, flatten_components=True, **parameters):
         """
         :param ordered_parameters: See ``parameters``.
         :param parameters: values of the
@@ -308,7 +305,6 @@ class LeastSquares(HessianObjective):
             :class:`~symfit.core.models.BaseModel`.
         :return: scalar or list of scalars depending on the value of `flatten_components`.
         """
-        flatten_components = parameters.pop('flatten_components')
         evaluated_func = super(LeastSquares, self).__call__(
             ordered_parameters, **parameters
         )
@@ -464,8 +460,7 @@ class LogLikelihood(HessianObjective, BaseIndependentObjective):
         )
         return ans
 
-    @keywordonly(apply_func=np.nansum)
-    def eval_jacobian(self, ordered_parameters=[], **parameters):
+    def eval_jacobian(self, ordered_parameters=[], *, apply_func=np.nansum, **parameters):
         """
         Jacobian for log-likelihood is defined as :math:`\\nabla_{\\vec{p}}( \\log( L(\\vec{p} | \\vec{x})))`.
 
@@ -474,7 +469,6 @@ class LogLikelihood(HessianObjective, BaseIndependentObjective):
             The default is to sum away along the datapoint dimension using `np.nansum`.
         :return: array of length number of ``Parameter``'s in the model, with all partial derivatives evaluated at p, data.
         """
-        apply_func = parameters.pop('apply_func')
         evaluated_func = super(LogLikelihood, self).__call__(
             ordered_parameters, **parameters
         )

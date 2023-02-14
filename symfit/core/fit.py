@@ -4,13 +4,12 @@
 
 from collections import OrderedDict
 from collections.abc import Sequence
-import sys
 
 import sympy
 import numpy as np
 
 from symfit.core.argument import Variable
-from .support import keywordonly, key2str
+from .support import key2str
 from .minimizers import (
     BFGS, SLSQP, LBFGSB, BaseMinimizer, GradientMinimizer, HessianMinimizer,
     ConstrainedMinimizer, MINPACK, ChainedMinimizer, BasinHopping
@@ -21,10 +20,7 @@ from .objectives import (
 )
 from .models import BaseModel, Model, BaseNumericalModel, CallableModel
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
+import inspect
 
 class TakesData(object):
     """
@@ -32,8 +28,7 @@ class TakesData(object):
     of linking the provided data to variables. The allowed variables are extracted
     from the model.
     """
-    @keywordonly(absolute_sigma=None)
-    def __init__(self, model, *ordered_data, **named_data):
+    def __init__(self, model, *ordered_data, absolute_sigma=None, **named_data):
         """
         :param model: (dict of) sympy expression or ``Model`` object.
         :param bool absolute_sigma: True by default. If the sigma is only used
@@ -51,7 +46,6 @@ class TakesData(object):
         with sigma\_. For example, let x be a Variable. Then sigma_x will give the
         stdev in x.
         """
-        absolute_sigma = named_data.pop('absolute_sigma')
         if isinstance(model, BaseModel):
             self.model = model
         else:
@@ -130,7 +124,7 @@ class TakesData(object):
         """
         parameters = self._make_parameters(self.model)
         parameters = sorted(parameters, key=lambda p: p.default is None)
-        return inspect_sig.Signature(parameters=parameters)
+        return inspect.Signature(parameters=parameters)
 
     @staticmethod
     def _make_parameters(model, none_allowed=None):
@@ -149,10 +143,10 @@ class TakesData(object):
         if none_allowed is None:
             none_allowed = model.sigmas.values()
         parameters = [
-            inspect_sig.Parameter(
+            inspect.Parameter(
                 var.name,
-                kind=inspect_sig.Parameter.POSITIONAL_OR_KEYWORD,
-                default=None if var in none_allowed else inspect_sig.Parameter.empty
+                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=None if var in none_allowed else inspect.Parameter.empty
             )
             for var in model.vars
         ]
@@ -338,9 +332,8 @@ class Fit(HasCovarianceMatrix):
         fit_result = fit.execute(minimizer_kwargs=[dict(xatol=0.1), {}])
     """
 
-    @keywordonly(objective=None, minimizer=None, constraints=None,
-                 absolute_sigma=None)
-    def __init__(self, model, *ordered_data, **named_data):
+    def __init__(self, model, *ordered_data, objective=None, minimizer=None,
+                 constraints=None, absolute_sigma=None, **named_data):
         """
 
         :param model: (dict of) sympy expression(s) or ``Model`` object.
@@ -364,10 +357,6 @@ class Fit(HasCovarianceMatrix):
         :param named_data: assign dependent, independent and sigma variables
             data by name.
         """
-        objective = named_data.pop('objective')
-        minimizer = named_data.pop('minimizer')
-        constraints = named_data.pop('constraints')
-        absolute_sigma = named_data.pop('absolute_sigma')
         # Should be a list of Constraint objects
         constraints = [] if constraints is None else constraints
 
@@ -439,7 +428,7 @@ class Fit(HasCovarianceMatrix):
                 unique_parameters.append(par)
 
         parameters = sorted(unique_parameters, key=lambda p: p.default is None)
-        return inspect_sig.Signature(parameters=parameters)
+        return inspect.Signature(parameters=parameters)
 
     def _determine_minimizer(self):
         """

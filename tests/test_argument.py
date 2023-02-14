@@ -5,15 +5,9 @@
 from __future__ import division, print_function
 import pickle
 import pytest
-import sys
 import sympy
 
 from symfit import Variable, Parameter
-
-if sys.version_info >= (3, 0):
-    import inspect as inspect_sig
-else:
-    import funcsigs as inspect_sig
 
 
 def test_parameter_add():

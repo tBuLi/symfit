@@ -4,6 +4,7 @@
 
 from __future__ import division, print_function
 import pytest
+from functools import partial
 
 import numpy as np
 from scipy.optimize import minimize, basinhopping
@@ -14,7 +15,6 @@ from symfit import (
 )
 from symfit.core.objectives import MinimizeModel
 from symfit.core.minimizers import BFGS, BasinHopping, LBFGSB, SLSQP, NelderMead
-from symfit.core.support import partial
 
 
 def setup_module():

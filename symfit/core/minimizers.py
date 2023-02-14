@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 import abc
-import sys
 from collections import namedtuple, Counter, OrderedDict
 
 from scipy.optimize import (
@@ -14,17 +13,12 @@ from scipy.optimize import BFGS as soBFGS
 import sympy
 import numpy as np
 
-from .support import keywordonly
 from .fit_results import FitResults
 from .objectives import BaseObjective, MinimizeModel
 from .models import CallableNumericalModel, BaseModel
 
-if sys.version_info >= (3,0):
-    import inspect as inspect_sig
-    from functools import wraps
-else:
-    import funcsigs as inspect_sig
-    from functools32 import wraps
+import inspect
+from functools import wraps
 
 DummyModel = namedtuple('DummyModel', 'params')
 
@@ -119,9 +113,7 @@ class ConstrainedMinimizer(BaseMinimizer):
     """
     ABC for Minimizers that support constraints
     """
-    @keywordonly(constraints=None)
-    def __init__(self, *args, **kwargs):
-        constraints = kwargs.pop('constraints')
+    def __init__(self, *args, constraints=None, **kwargs):
         super(ConstrainedMinimizer, self).__init__(*args, **kwargs)
         # Remember the vanilla constraints for pickling
         self._pickle_kwargs['constraints'] = constraints
@@ -133,9 +125,8 @@ class GradientMinimizer(BaseMinimizer):
     """
     ABC for Minizers that support the use of a jacobian
     """
-    @keywordonly(jacobian=None)
-    def __init__(self, *args, **kwargs):
-        self.jacobian = kwargs.pop('jacobian')
+    def __init__(self, *args, jacobian=None, **kwargs):
+        self.jacobian = jacobian
         super(GradientMinimizer, self).__init__(*args, **kwargs)
         self._pickle_kwargs['jacobian'] = self.jacobian
         if self.jacobian is not None:
@@ -169,9 +160,8 @@ class HessianMinimizer(GradientMinimizer):
     """
     ABC for Minimizers that support the use of a Hessian.
     """
-    @keywordonly(hessian=None)
-    def __init__(self, *args, **kwargs):
-        self.hessian = kwargs.pop('hessian')
+    def __init__(self, *args, hessian=None, **kwargs):
+        self.hessian = hessian
         super(HessianMinimizer, self).__init__(*args, **kwargs)
         self._pickle_kwargs['hessian'] = self.hessian
         if self.hessian is not None:
@@ -217,8 +207,7 @@ class ChainedMinimizer(BaseMinimizer):
     exact minimum such as :class:`~symfit.core.minimizers.NelderMead` or
     :class:`~symfit.core.minimizers.DifferentialEvolution`.
     """
-    @keywordonly(minimizers=None)
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, minimizers=None, **kwargs):
         '''
         :param minimizers: a :class:`~collections.abc.Sequence` of
             :class:`~symfit.core.minimizers.BaseMinimizer` objects, which need
@@ -226,7 +215,6 @@ class ChainedMinimizer(BaseMinimizer):
         :param \*args: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
         :param \*\*kwargs: passed to :func:`symfit.core.minimizers.BaseMinimizer.__init__`.
         '''
-        minimizers = kwargs.pop('minimizers')
         super(ChainedMinimizer, self).__init__(*args, **kwargs)
         self.minimizers = minimizers
         self._pickle_kwargs['minimizers'] = self.minimizers
@@ -296,7 +284,7 @@ class ChainedMinimizer(BaseMinimizer):
             [name(minimizer) for minimizer in self.minimizers]
         ) # Count the number of each minimizer, they don't have to be unique
 
-        # Note that these are inspect_sig.Parameter's, not symfit parameters!
+        # Note that these are inspect.Parameter's, not symfit parameters!
         parameters = []
         for minimizer in reversed(self.minimizers):
             if count[name(minimizer)] == 1:
@@ -308,13 +296,13 @@ class ChainedMinimizer(BaseMinimizer):
             count[name(minimizer)] -= 1
 
             parameters.append(
-                inspect_sig.Parameter(
+                inspect.Parameter(
                     param_name,
-                    kind=inspect_sig.Parameter.KEYWORD_ONLY,
+                    kind=inspect.Parameter.KEYWORD_ONLY,
                     default={}
                 )
             )
-        return inspect_sig.Signature(parameters=reversed(parameters))
+        return inspect.Signature(parameters=reversed(parameters))
 
     def __getstate__(self):
         state = super(ChainedMinimizer, self).__getstate__()
@@ -334,8 +322,8 @@ class ScipyMinimize(object):
         self.wrapped_jacobian = None
         super(ScipyMinimize, self).__init__(*args, **kwargs)
 
-    @keywordonly(tol=1e-9)
-    def execute(self, bounds=None, jacobian=None, hessian=None, constraints=None, **minimize_options):
+    def execute(self, bounds=None, jacobian=None, hessian=None,
+                constraints=None, *, tol=1e-9, **minimize_options):
         """
         Calls the wrapped algorithm.
 
@@ -347,6 +335,7 @@ class ScipyMinimize(object):
             :func:`scipy.optimize.minimize`. Note that your `method` will
             usually be filled by a specific subclass.
         """
+        minimize_options.update(tol=tol)
         ans = minimize(
             self.objective,
             self.initial_guesses,
@@ -402,12 +391,10 @@ class ScipyGradientMinimize(ScipyMinimize, GradientMinimizer):
     """
     Base class for :func:`scipy.optimize.minimize`'s gradient-minimizers.
     """
-    @keywordonly(jacobian=None)
-    def execute(self, **minimize_options):
+    def execute(self, *, jacobian=None, **minimize_options):
         # This method takes the jacobian as an argument because the user may
         # need to override it in some cases (especially with the trust-constr 
         # method)
-        jacobian = minimize_options.pop('jacobian')
         if jacobian is None:
             jacobian = self.wrapped_jacobian
         return super(ScipyGradientMinimize, self).execute(jacobian=jacobian, **minimize_options)
@@ -437,12 +424,10 @@ class ScipyHessianMinimize(ScipyGradientMinimize, HessianMinimizer):
     """
     Base class for :func:`scipy.optimize.minimize`'s hessian-minimizers.
     """
-    @keywordonly(hessian=None)
-    def execute(self, **minimize_options):
+    def execute(self, *, hessian=None, **minimize_options):
         # This method takes the hessian as an argument because the user may
         # need to override it in some cases (especially with the trust-constr 
         # method)
-        hessian = minimize_options.pop('hessian')
         if hessian is None:
             hessian = self.wrapped_hessian
         return super(ScipyHessianMinimize, self).execute(hessian=hessian, **minimize_options)
@@ -610,17 +595,12 @@ class TrustConstr(ScipyHessianMinimize, ScipyConstrainedMinimize, ScipyBoundedMi
             out.append(tc_con)
         return out
 
-    @keywordonly(jacobian=None, hessian=None, options=None)
-    def execute(self, **minimize_options):
-        options = minimize_options.pop('options')
+    def execute(self, *, jacobian=None, hessian=None, options=None, **minimize_options):
         if options is None:
             options = {}
         # Our Jacobians are dense, and apparently we need to explicitely
         # tell this.
         options['sparse_jacobian'] = False
-
-        hessian = minimize_options.pop('hessian')
-        jacobian = minimize_options.pop('jacobian')
 
         auto_jacobian, auto_hessian = self._get_jacobian_hessian_strategy()
         # For models that are not differentiable, users need the ability to
@@ -652,9 +632,12 @@ class DifferentialEvolution(ScipyBoundedMinimizer, GlobalMinimizer):
     """
     A wrapper around :func:`scipy.optimize.differential_evolution`.
     """
-    @keywordonly(strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
-                 recombination=0.95, polish=False, init='latinhypercube')
-    def execute(self, **de_options):
+    def execute(self, *, strategy='rand1bin', popsize=40, mutation=(0.423, 1.053),
+                recombination=0.95, polish=False, init='latinhypercube', **de_options):
+        de_options.update(
+            strategy=strategy, popsize=popsize, mutation=mutation,
+            recombination=recombination, polish=polish, init=init
+        )
         ans = differential_evolution(self.objective,
                                      self.bounds,
                                      **de_options)
@@ -694,8 +677,7 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
 
     See :func:`scipy.optimize.basinhopping` for more options.
     """
-    @keywordonly(local_minimizer=BFGS)
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, local_minimizer=BFGS, **kwargs):
         """
         :param local_minimizer: minimizer to be used for local minimization
             steps. Can be any subclass of
@@ -703,7 +685,7 @@ class BasinHopping(ScipyMinimize, GlobalMinimizer):
         :param args: positional arguments to be passed on to `super`.
         :param kwargs: keyword arguments to be passed on to `super`.
         """
-        self.local_minimizer = kwargs.pop('local_minimizer')
+        self.local_minimizer = local_minimizer
         super(BasinHopping, self).__init__(*args, **kwargs)
         self._pickle_kwargs['local_minimizer'] = self.local_minimizer
 
