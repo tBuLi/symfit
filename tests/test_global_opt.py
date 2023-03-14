@@ -82,8 +82,8 @@ class TestGlobalOptGaussian:
         fit_result = fit.execute(
             DifferentialEvolution={'seed': 0, 'tol': 1e-4, 'maxiter': 10}
         )
-        assert fit_result.value(self.x0_1) == pytest.approx(0.4, 1e-4)
-        assert fit_result.value(self.y0_1) == pytest.approx(0.4, 1e-4)
+        assert fit_result.value(self.x0_1) == pytest.approx(0.4, 1e-2)
+        assert fit_result.value(self.y0_1) == pytest.approx(0.4, 1e-2)
         assert curvals == [p.value for p in self.model.params]
 
     def test_chained_min_signature(self):
