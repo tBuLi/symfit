@@ -1,0 +1,142 @@
+from dataclasses import dataclass, field
+from typing import List, Protocol
+from functools import cached_property, reduce
+from collections import defaultdict, namedtuple
+import operator
+import itertools
+
+from sympy import Expr, Rel, Eq, Idx, Indexed, Symbol, lambdify
+from sympy.printing.pycode import PythonCodePrinter
+
+from symfit.symmip.backend import GurobiBackend
+from symfit.core.fit_results import FitResults
+from symfit.core.support import key2str
+
+
+DummyModel = namedtuple('DummyModel', 'params')
+
+
+class MIPBackend(Protocol):
+    @property
+    def model(self):
+        pass
+
+    @property
+    def printer(self) -> PythonCodePrinter:
+        pass
+
+    def add_var(self, *args, **kwargs):
+        pass
+
+    def add_constr(self, *args, **kwargs):
+        pass
+
+    def set_objective(self, *args, **kwargs):
+        pass
+
+    def update(self, *args, **kwargs):
+        pass
+
+    def optimize(self, *args, **kwargs):
+        pass
+
+    @property
+    def objective_value(self):
+        pass
+
+
+@dataclass
+class MIPResult:
+    pass
+
+
+@dataclass
+class MIP:
+    objective: Expr = field(default=None)
+    constraints: List[Rel] = field(default_factory=list)
+    backend: MIPBackend = field(default=GurobiBackend)
+
+    indices: List[Idx] = field(init=False)
+    variables: List[Symbol] = field(init=False)
+    indexed_variables: List[Indexed] = field(init=False)
+
+    def __post_init__(self):
+        # Prepare constraints
+        self.constraints = [c if isinstance(c, Rel) else Eq(c, 0)
+                            for c in self.constraints]
+        free_symbols = reduce(operator.or_,
+                              (c.free_symbols for c in self.constraints),
+                              self.objective.free_symbols if self.objective else set())
+
+        self.indices = {s for s in free_symbols if isinstance(s, Idx)}
+        self.indexed_variables = {s for s in free_symbols if isinstance(s, Indexed)}
+        labels = {s.base.label for s in self.indexed_variables}
+        self.variables = {s for s in free_symbols if not isinstance(s, (Idx, Indexed)) if s not in labels}
+        self.backend = self.backend()
+        self._make_mip_model()
+
+    def _make_mip_model(self):
+        # Dictionary mapping symbolic entities to the corresponding MIP variable
+        self.mip_vars = defaultdict(dict)
+
+        for p in self.variables:
+            self.mip_vars[p] = self.backend.add_var(p)
+
+        for p in self.indexed_variables:
+            param = p.base.label
+            # vtype = self.param_vtype(param)
+            for indices in itertools.product(*(range(idx.lower, idx.upper + 1) for idx in p.indices)):
+                name = f"{param.name}_{'_'.join(str(i) for i in indices)}"
+                self.mip_vars[param][indices] = self.backend.add_var(param, lb=param.min[indices], ub=param.max[indices])
+
+        all_vars = key2str(self.mip_vars)
+        # Translate the objective and constraints from sympy to their equivalent for the MIP solver.
+        if self.objective:
+            obj_func = lambdify(self.mip_vars.keys(), self.objective, printer=self.backend.printer, modules=self.backend.printer.modules)
+            obj = obj_func(**all_vars)
+            self.backend.set_objective(obj)
+
+        # For constraints the idea is the same as above, but a bit more involved since
+        # constraints can have free indices.
+        if self.constraints:
+            free_indices_for_constraints = defaultdict(list)
+            for constraint in self.constraints:
+                # Find the free indices in this constraint, and store them in alphabetical order.
+                free_indices = tuple(sorted((constraint.free_symbols & self.indices), key=lambda s: s.name))
+                free_indices_for_constraints[free_indices].append(constraint)
+
+            # TODO: Group the free indices in such a way that we can iterate over them even more efficiently.
+            for free_indices, constraints in free_indices_for_constraints.items():
+                # Create the callable for these constraints to translate to MIP solver.
+                # Important: the args to these callables are free indices first, then the rest!
+                args = free_indices + tuple(self.mip_vars.keys())
+                args = tuple(s.name for s in args)  # To string, because sympy is a Dummy.
+                constrs_func = lambdify(
+                    args, constraints, printer=self.backend.printer, modules=self.backend.printer.modules
+                )
+
+                # For all free indices, call the created function to make the MIP equivalent statement.
+                for idxs in itertools.product(*[range(i.lower, i.upper + 1) for i in free_indices]):
+                    constrs = constrs_func(*idxs, **all_vars)
+                    for constr in constrs:
+                        self.backend.add_constr(constr)
+
+        self.backend.update()
+
+    def execute(self, *args, **kwargs) -> MIPResult:
+        self.backend.optimize(*args, **kwargs)
+
+        best_vals = [{k: v.X for k, v in mip_var.items()} if isinstance(mip_var, dict) else mip_var.X
+                     for param, mip_var in self.mip_vars.items()]
+
+        all_vars = sorted(set(self.indexed_variables) | set(self.variables), key=lambda x: x.name)
+        fit_results = dict(
+            model=DummyModel(all_vars),
+            popt=best_vals,
+            covariance_matrix=None,
+            objective=self,
+            minimizer=self.backend,
+            message="",
+            fun=self.backend.objective_value,
+        )
+        return FitResults(**fit_results)
