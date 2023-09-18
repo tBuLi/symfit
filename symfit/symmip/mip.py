@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Protocol
+from typing import List, Dict, Protocol
 from functools import cached_property, reduce
 from collections import defaultdict, namedtuple
 import operator
@@ -7,6 +7,7 @@ import itertools
 
 from sympy import Expr, Rel, Eq, Idx, Indexed, Symbol, lambdify
 from sympy.printing.pycode import PythonCodePrinter
+import numpy as np
 
 from symfit.symmip.backend import GurobiBackend
 from symfit.core.fit_results import FitResults
@@ -14,6 +15,8 @@ from symfit.core.support import key2str
 
 
 DummyModel = namedtuple('DummyModel', 'params')
+
+VTYPES = {'binary': 'B', 'integer': 'I', 'real': 'C',} # ToDo: Enum?
 
 
 class MIPBackend(Protocol):
@@ -47,7 +50,20 @@ class MIPBackend(Protocol):
 
 @dataclass
 class MIPResult:
-    pass
+    popt: Dict
+    objective_value: float
+
+    @property
+    def base2indexed(self):
+        res = {v.base.label: v for v in self.popt if isinstance(v, Indexed)}
+        res.update({v.base: v for v in self.popt if isinstance(v, Indexed)})
+        return res
+
+    def __getitem__(self, v):
+        if not isinstance(v, Indexed) and v in self.base2indexed:
+            v = self.base2indexed[v]
+        return self.popt[v]
+
 
 
 @dataclass
@@ -55,6 +71,7 @@ class MIP:
     objective: Expr = field(default=None)
     constraints: List[Rel] = field(default_factory=list)
     backend: MIPBackend = field(default=GurobiBackend)
+    data: Dict = field(default_factory=dict)
 
     indices: List[Idx] = field(init=False)
     variables: List[Symbol] = field(init=False)
@@ -75,19 +92,51 @@ class MIP:
         self.backend = self.backend()
         self._make_mip_model()
 
+    @property
+    def dependent_vars(self):
+        return (self.variables | self.indexed_variables) - self.independent_vars
+
+    @property
+    def independent_vars(self):
+        return set(self.data)
+
+    @staticmethod
+    def param_vtype(p: "Parameter"):
+        """ Return the gurobi vtype for the parameter `p`. """
+        for key, vtype in VTYPES.items():
+            if p.assumptions0.get(key, False):
+                return vtype
+
     def _make_mip_model(self):
         # Dictionary mapping symbolic entities to the corresponding MIP variable
         self.mip_vars = defaultdict(dict)
 
-        for p in self.variables:
-            self.mip_vars[p] = self.backend.add_var(p)
+        # If data was provided, then use its value instead of making it a Variable.
+        for p, data in self.data.items():
+            if isinstance(p, Indexed):
+                self.mip_vars[p.base.label] = data
+            else:
+                self.mip_vars[p] = data
 
-        for p in self.indexed_variables:
+        for p in self.dependent_vars:
+            if not isinstance(p, Indexed):
+                self.mip_vars[p] = self.backend.add_var(name=p.name, vtype=self.param_vtype(p))
+                continue
+
             param = p.base.label
-            # vtype = self.param_vtype(param)
             for indices in itertools.product(*(range(idx.lower, idx.upper + 1) for idx in p.indices)):
-                name = f"{param.name}_{'_'.join(str(i) for i in indices)}"
-                self.mip_vars[param][indices] = self.backend.add_var(param, lb=param.min[indices], ub=param.max[indices])
+                kwargs = {'name': f"{param.name}_{'_'.join(str(i) for i in indices)}"}
+                if param.max is not None:
+                    kwargs['ub'] = param.max[indices]
+                if param.min is not None:
+                    kwargs['lb'] = param.min[indices]
+                if param.value is not None:
+                    try:
+                        kwargs['obj'] = param.value[indices]
+                    except TypeError:
+                        pass
+                kwargs['vtype'] = self.param_vtype(param)
+                self.mip_vars[param][indices if len(indices) > 1 else indices[0]] = self.backend.add_var(**kwargs)
 
         all_vars = key2str(self.mip_vars)
         # Translate the objective and constraints from sympy to their equivalent for the MIP solver.
@@ -126,17 +175,23 @@ class MIP:
     def execute(self, *args, **kwargs) -> MIPResult:
         self.backend.optimize(*args, **kwargs)
 
-        best_vals = [{k: v.X for k, v in mip_var.items()} if isinstance(mip_var, dict) else mip_var.X
-                     for param, mip_var in self.mip_vars.items()]
+        # Extract the optimized values corresponding to the dependent variables.
+        dependent_vars = sorted(self.dependent_vars, key=lambda x: x.name)
+        best_vals = {}
+        for v in dependent_vars:
+            if isinstance(v, Indexed):
+                vtype = self.param_vtype(v.base.label)
+                if vtype == 'B':
+                    vals = np.zeros(v.shape, dtype=bool)
+                elif vtype == 'C':
+                    vals = np.zeros(v.shape, dtype=float)
+                elif vtype == 'I':
+                    vals = np.zeros(v.shape, dtype=int)
+                for idxs in itertools.product(*[range(i.lower, i.upper + 1) for i in v.indices]):
+                    vals[idxs] = self.mip_vars[v.base.label][idxs if len(idxs) > 1 else idxs[0]].X
 
-        all_vars = sorted(set(self.indexed_variables) | set(self.variables), key=lambda x: x.name)
-        fit_results = dict(
-            model=DummyModel(all_vars),
-            popt=best_vals,
-            covariance_matrix=None,
-            objective=self,
-            minimizer=self.backend,
-            message="",
-            fun=self.backend.objective_value,
-        )
-        return FitResults(**fit_results)
+                best_vals[v] = vals
+            else:
+                best_vals[v] = self.mip_vars[v].X
+
+        return MIPResult(objective_value=self.backend.objective_value, popt=best_vals)

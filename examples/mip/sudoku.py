@@ -55,7 +55,7 @@ result = fit.execute()
 print('')
 print('Solution:')
 print('')
-solution = result.value(x)
+solution = result[x]
 for i in range(n):
     sol = ''
     for j in range(n):

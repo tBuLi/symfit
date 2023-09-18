@@ -29,10 +29,8 @@ class GurobiBackend:
     model: gp.Model = field(default_factory=gp.Model)
     printer: PythonCodePrinter = field(default=GurobiPrinter)
 
-    def add_var(self, p: Parameter, **kwargs):
-        if 'name' not in kwargs:
-            kwargs['name'] = p.name
-        return self.model.addVar(vtype=self.param_vtype(p), **kwargs)
+    def add_var(self, **kwargs):
+        return self.model.addVar(**kwargs)
 
     def add_constr(self, constrexpr):
         return self.model.addConstr(constrexpr)

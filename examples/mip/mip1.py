@@ -25,8 +25,8 @@ fit_result = fit.execute()
 print(f"Optimal objective value: {fit_result.objective_value}")
 print(
     f"Solution values: "
-    f"x={fit_result.value(x)}, "
-    f"y={fit_result.value(y)}, "
-    f"z={fit_result.value(z)}"
+    f"x={fit_result[x]}, "
+    f"y={fit_result[y]}, "
+    f"z={fit_result[z]}"
 )
 print(fit_result)
