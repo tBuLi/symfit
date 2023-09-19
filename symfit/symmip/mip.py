@@ -9,14 +9,11 @@ from sympy import Expr, Rel, Eq, Idx, Indexed, Symbol, lambdify
 from sympy.printing.pycode import PythonCodePrinter
 import numpy as np
 
-from symfit.symmip.backend import GurobiBackend
-from symfit.core.fit_results import FitResults
+from symfit.symmip.backend import SCIPOptBackend
 from symfit.core.support import key2str
 
 
-DummyModel = namedtuple('DummyModel', 'params')
-
-VTYPES = {'binary': 'B', 'integer': 'I', 'real': 'C',} # ToDo: Enum?
+VTYPES = ['binary', 'integer', 'real'] # ToDo: Enum?
 
 
 class MIPBackend(Protocol):
@@ -47,22 +44,29 @@ class MIPBackend(Protocol):
     def objective_value(self):
         pass
 
+    @property
+    def solution(self) -> dict:
+        pass
+
+    def get_value(self, v):
+        pass
+
 
 @dataclass
 class MIPResult:
-    popt: Dict
+    best_vals: Dict
     objective_value: float
 
     @property
     def base2indexed(self):
-        res = {v.base.label: v for v in self.popt if isinstance(v, Indexed)}
-        res.update({v.base: v for v in self.popt if isinstance(v, Indexed)})
+        res = {v.base.label: v for v in self.best_vals if isinstance(v, Indexed)}
+        res.update({v.base: v for v in self.best_vals if isinstance(v, Indexed)})
         return res
 
     def __getitem__(self, v):
         if not isinstance(v, Indexed) and v in self.base2indexed:
             v = self.base2indexed[v]
-        return self.popt[v]
+        return self.best_vals[v]
 
 
 
@@ -70,7 +74,7 @@ class MIPResult:
 class MIP:
     objective: Expr = field(default=None)
     constraints: List[Rel] = field(default_factory=list)
-    backend: MIPBackend = field(default=GurobiBackend)
+    backend: MIPBackend = field(default=SCIPOptBackend)
     data: Dict = field(default_factory=dict)
 
     indices: List[Idx] = field(init=False)
@@ -103,9 +107,10 @@ class MIP:
     @staticmethod
     def param_vtype(p: "Parameter"):
         """ Return the gurobi vtype for the parameter `p`. """
-        for key, vtype in VTYPES.items():
-            if p.assumptions0.get(key, False):
+        for vtype in VTYPES:
+            if p.assumptions0.get(vtype, False):
                 return vtype
+        return 'real'
 
     def _make_mip_model(self):
         # Dictionary mapping symbolic entities to the corresponding MIP variable
@@ -120,7 +125,7 @@ class MIP:
 
         for p in self.dependent_vars:
             if not isinstance(p, Indexed):
-                self.mip_vars[p] = self.backend.add_var(name=p.name, vtype=self.param_vtype(p))
+                self.mip_vars[p] = self.backend.add_var(name=p.name, vtype=self.param_vtype(p), lb=p.min, ub=p.max)
                 continue
 
             param = p.base.label
@@ -143,7 +148,7 @@ class MIP:
         if self.objective:
             obj_func = lambdify(self.mip_vars.keys(), self.objective, printer=self.backend.printer, modules=self.backend.printer.modules)
             obj = obj_func(**all_vars)
-            self.backend.set_objective(obj)
+            self.backend.objective = obj
 
         # For constraints the idea is the same as above, but a bit more involved since
         # constraints can have free indices.
@@ -181,17 +186,17 @@ class MIP:
         for v in dependent_vars:
             if isinstance(v, Indexed):
                 vtype = self.param_vtype(v.base.label)
-                if vtype == 'B':
+                if vtype == 'binary':
                     vals = np.zeros(v.shape, dtype=bool)
-                elif vtype == 'C':
+                elif vtype == 'real':
                     vals = np.zeros(v.shape, dtype=float)
-                elif vtype == 'I':
+                elif vtype == 'integer':
                     vals = np.zeros(v.shape, dtype=int)
                 for idxs in itertools.product(*[range(i.lower, i.upper + 1) for i in v.indices]):
-                    vals[idxs] = self.mip_vars[v.base.label][idxs if len(idxs) > 1 else idxs[0]].X
+                    vals[idxs] = self.backend.get_value(self.mip_vars[v.base.label][idxs if len(idxs) > 1 else idxs[0]])
 
                 best_vals[v] = vals
             else:
-                best_vals[v] = self.mip_vars[v].X
+                best_vals[v] = self.backend.get_value(self.mip_vars[v])
 
-        return MIPResult(objective_value=self.backend.objective_value, popt=best_vals)
+        return MIPResult(objective_value=self.backend.objective_value, best_vals=best_vals)

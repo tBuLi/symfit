@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 from symfit import Parameter, symbols, IndexedBase, Idx, Sum, Eq
-from symfit.symmip.backend import GurobiBackend
+from symfit.symmip.backend import SCIPOptBackend, GurobiBackend
 from symfit import MIP
 
 with open('sudoku1') as f:
@@ -49,17 +49,20 @@ constraints = [
       for j_lb in range(0, n, s)]
 ]
 
-fit = MIP(constraints=constraints, backend=GurobiBackend)
-result = fit.execute()
+# We know solve this problem with different backends.
+for backend in [SCIPOptBackend, GurobiBackend]:
+    print(f'Run with {backend=}:')
+    fit = MIP(constraints=constraints, backend=backend)
+    result = fit.execute()
 
-print('')
-print('Solution:')
-print('')
-solution = result[x]
-for i in range(n):
-    sol = ''
-    for j in range(n):
-        for v in range(n):
-            if solution[i, j, v] > 0.5:
-                sol += str(v+1)
-    print(sol)
+    print('')
+    print('Solution:')
+    print('')
+    solution = result[x]
+    for i in range(n):
+        sol = ''
+        for j in range(n):
+            for v in range(n):
+                if solution[i, j, v] > 0.5:
+                    sol += str(v+1)
+        print(sol)

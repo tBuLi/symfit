@@ -1,4 +1,5 @@
 from symfit import MIP, IndexedBase, Eq, Idx, Parameter, symbols, Sum
+from symfit.symmip.backend import SCIPOptBackend, GurobiBackend
 import numpy as np
 
 # Warehouse demand in thousands of units
@@ -34,9 +35,16 @@ constraints = [
 ]
 
 data = {capacity[plant]: data_capacity, demand[warehouse]: data_demand}
-mip = MIP(constraints=constraints, data=data)
 
-results = mip.execute()
-print(results)
-print(results[open])
-print(results[transport])
+import timeit
+
+# We know solve this problem with different backends.
+for backend in [SCIPOptBackend, GurobiBackend]:
+    print(f'Run with {backend=}:')
+    mip = MIP(constraints=constraints, data=data, backend=backend)
+    results = mip.execute()
+    print(results)
+
+    # Print results for specific vars.
+    print(results[open])
+    print(results[transport])

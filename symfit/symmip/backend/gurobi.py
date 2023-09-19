@@ -3,10 +3,9 @@ from dataclasses import dataclass, field
 import gurobipy as gp
 
 from sympy.printing.pycode import PythonCodePrinter
-from symfit.core.argument import Parameter
 
 
-VTYPES = {'binary': 'B', 'integer': 'I', 'real': 'C',}
+VTYPES = {'binary': 'B', 'integer': 'I', 'real': 'C'}
 
 
 class GurobiPrinter(PythonCodePrinter):
@@ -29,21 +28,19 @@ class GurobiBackend:
     model: gp.Model = field(default_factory=gp.Model)
     printer: PythonCodePrinter = field(default=GurobiPrinter)
 
-    def add_var(self, **kwargs):
-        return self.model.addVar(**kwargs)
+    def add_var(self, *, vtype, **kwargs):
+        return self.model.addVar(vtype=VTYPES[vtype], **kwargs)
 
     def add_constr(self, constrexpr):
         return self.model.addConstr(constrexpr)
 
-    def set_objective(self, obj):
-        self.model.setObjective(obj)
+    @property
+    def objective(self):
+        return self.model.getObjective()
 
-    @staticmethod
-    def param_vtype(p: Parameter):
-        """ Return the gurobi vtype for the parameter `p`. """
-        for key, vtype in VTYPES.items():
-            if p.assumptions0.get(key, False):
-                return vtype
+    @objective.setter
+    def objective(self, obj):
+        self.model.setObjective(obj)
 
     def update(self):
         self.model.update()
@@ -54,3 +51,10 @@ class GurobiBackend:
     @property
     def objective_value(self):
         return self.model.objVal
+
+    @property
+    def solution(self):
+        return {v.VarName: v.X for v in self.model.getVars()}
+
+    def get_value(self, v):
+        return v.X

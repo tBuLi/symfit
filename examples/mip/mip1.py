@@ -9,9 +9,9 @@
 #        x, y, z binary
 
 from symfit import parameters, MIP
-from symfit.symmip.backend import GurobiBackend
+from symfit.symmip.backend import SCIPOptBackend, GurobiBackend
 
-x, y, z = parameters('x, y, z', binary=True)
+x, y, z = parameters('x, y, z', binary=True, min=0, max=1)
 
 objective = x + y + 2 * z
 constraints = [
@@ -19,14 +19,17 @@ constraints = [
     x + y >= 1
 ]
 
-fit = MIP(- objective, constraints=constraints, backend=GurobiBackend)
-fit_result = fit.execute()
+# We know solve this problem with different backends.
+for backend in [SCIPOptBackend, GurobiBackend]:
+    print(f'Run with {backend=}:')
+    fit = MIP(objective, constraints=constraints, backend=backend)
+    fit_result = fit.execute()
 
-print(f"Optimal objective value: {fit_result.objective_value}")
-print(
-    f"Solution values: "
-    f"x={fit_result[x]}, "
-    f"y={fit_result[y]}, "
-    f"z={fit_result[z]}"
-)
-print(fit_result)
+    print(f"Optimal objective value: {fit_result.objective_value}")
+    print(
+        f"Solution values: "
+        f"x={fit_result[x]}, "
+        f"y={fit_result[y]}, "
+        f"z={fit_result[z]}"
+    )
+    print(fit_result, end='\n\n')
