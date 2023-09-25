@@ -1,4 +1,11 @@
-from symfit import MIP, IndexedBase, Eq, Idx, Parameter, symbols, Sum
+"""
+Inspired by https://www.gurobi.com/documentation/9.5/examples/multiscenario_py.html.
+
+For now this symfit equivalent only solves a single scenario, as we do not (currently) support Gurobi's
+multiscenario feature. However, this is still a nice example to demonstrate some of symfit's features.
+"""
+
+from symfit import MIP, IndexedBase, Eq, Idx, Parameter, symbols, Sum, pprint
 from symfit.symmip.backend import SCIPOptBackend, GurobiBackend
 import numpy as np
 
@@ -24,27 +31,36 @@ plant = Idx('plant', range=len(data_capacity))
 warehouse = Idx('warehouse', range=len(data_demand))
 
 # Indexed variables. Initial values become coefficients in the objective function.
-open = IndexedBase(Parameter('open', binary=True, value=data_fixed_costs))
-transport = IndexedBase(Parameter('transport', value=data_trans_costs))
+open = IndexedBase(Parameter('Open', binary=True, value=data_fixed_costs))
+transport = IndexedBase(Parameter('Transport', value=data_trans_costs))
+fixed_costs = IndexedBase(Parameter('fixed_costs'))
+trans_cost = IndexedBase(Parameter('trans_cost'))
 capacity = IndexedBase(Parameter('capacity'))
 demand = IndexedBase(Parameter('demand'))
 
+objective = Sum(fixed_costs[plant] * open[plant], plant) + Sum(trans_cost[warehouse, plant] * transport[warehouse, plant], warehouse, plant)
 constraints = [
     Sum(transport[warehouse, plant], warehouse) <= capacity[plant] * open[plant],
     Eq(Sum(transport[warehouse, plant], plant), demand[warehouse])
 ]
 
-data = {capacity[plant]: data_capacity, demand[warehouse]: data_demand}
+print('Objective:')
+pprint(objective, wrap_line=False)
+print('\nSubject to:')
+for constraint in constraints:
+    pprint(constraint, wrap_line=False)
+print('\n\n')
 
-import timeit
+data = {
+    fixed_costs[plant]: data_fixed_costs,
+    trans_cost[warehouse, plant]: data_trans_costs,
+    capacity[plant]: data_capacity,
+    demand[warehouse]: data_demand,
+}
 
 # We know solve this problem with different backends.
 for backend in [SCIPOptBackend, GurobiBackend]:
     print(f'Run with {backend=}:')
-    mip = MIP(constraints=constraints, data=data, backend=backend)
+    mip = MIP(objective, constraints=constraints, data=data, backend=backend)
     results = mip.execute()
     print(results)
-
-    # Print results for specific vars.
-    print(results[open])
-    print(results[transport])

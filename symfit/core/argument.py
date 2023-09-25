@@ -128,7 +128,7 @@ class Parameter(Argument):
             if test and not self.fixed:
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
-        
+
         self.min = min
         self.max = max
 
@@ -144,10 +144,14 @@ class Parameter(Argument):
         if not equal:
             return False
         else:
-            return (self.min == other.min and
-                    self.max == other.max and
+            min_eq = self.min == other.min
+            max_eq = self.max == other.max
+            value_eq = self.value == other.value
+
+            return (min_eq.all() if isinstance(min_eq, np.ndarray) else min_eq and
+                    max_eq.all() if isinstance(max_eq, np.ndarray) else max_eq and
                     self.fixed == other.fixed and
-                    self.value == other.value)
+                    value_eq.all() if isinstance(value_eq, np.ndarray) else value_eq)
 
     __hash__ = Argument.__hash__
 

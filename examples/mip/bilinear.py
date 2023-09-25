@@ -11,7 +11,7 @@ from symfit import parameters, Eq
 from symfit import MIP
 
 # Create variables
-x, y, z = parameters('x, y, z')
+x, y, z = parameters('x, y, z', min=0)
 
 objective = 1.0 * x
 constraints = [
@@ -21,8 +21,6 @@ constraints = [
 ]
 
 mip = MIP(- objective, constraints=constraints)
-# For full control, we still need to access the model directly.
-mip.backend.model.Params.NonConvex = 2
 mip_result = mip.execute()
 
 print(mip_result)

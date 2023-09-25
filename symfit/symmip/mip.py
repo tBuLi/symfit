@@ -31,7 +31,12 @@ class MIPBackend(Protocol):
     def add_constr(self, *args, **kwargs):
         pass
 
-    def set_objective(self, *args, **kwargs):
+    @property
+    def objective(self):
+        pass
+
+    @objective.setter
+    def objective(self, obj):
         pass
 
     def update(self, *args, **kwargs):
