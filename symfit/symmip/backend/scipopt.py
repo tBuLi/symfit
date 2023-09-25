@@ -1,12 +1,6 @@
 from dataclasses import dataclass, field
-import importlib
-import warnings
 
-try:
-    scip = importlib.import_module('pyscipopt')
-except ImportError as e:
-    warnings.warn('Install pyscipopt to use this feature.')
-    scip = {}
+import pyscipopt as scip
 
 from sympy.printing.pycode import PythonCodePrinter
 

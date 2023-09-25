@@ -1,12 +1,6 @@
 from dataclasses import dataclass, field
-import importlib
-import warnings
 
-try:
-    gp = importlib.import_module('gurobipy')
-except ImportError as e:
-    warnings.warn('Install gurobipy to use this feature.')
-    gp = {}
+import gurobipy as gp
 
 from sympy.printing.pycode import PythonCodePrinter
 
