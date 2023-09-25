@@ -13,7 +13,7 @@ def test_parameter_array_bounds():
 
 
 def test_bilinear():
-    # Create variables
+    # Solve the bilinear example with MIP and compare to Fit.
     x, y, z = parameters('x, y, z', min=0)
 
     objective = 1.0 * x
@@ -25,8 +25,10 @@ def test_bilinear():
 
     mip = MIP(- objective, constraints=constraints)
     mip_result = mip.execute()
-    print(mip_result)
-
     fit = Fit(- objective, constraints=constraints)
     fit_result = fit.execute()
-    print(fit_result)
+
+    assert mip_result[x] == pytest.approx(fit_result.value(x), abs=1e-6)
+    assert mip_result[y] == pytest.approx(fit_result.value(y), abs=1e-6)
+    assert mip_result[z] == pytest.approx(fit_result.value(z), abs=1e-6)
+    assert mip_result.objective_value == pytest.approx(fit_result.objective_value, abs=1e-6)
