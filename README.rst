@@ -2,7 +2,15 @@
    :target: https://zenodo.org/badge/latestdoi/24005390
 .. image:: https://coveralls.io/repos/github/tBuLi/symfit/badge.svg?branch=master
    :target: https://coveralls.io/github/tBuLi/symfit?branch=master
-
+.. image:: https://img.shields.io/pypi/v/symfit?label=pypi%20package
+   :alt: PyPI
+   :target:`https://pypi.org/project/symfit/`
+.. image:: https://img.shields.io/pypi/dm/symfit
+   :alt: PyPI - Downloads
+   :target:`https://pypi.org/project/symfit/`
+.. image:: https://img.shields.io/conda/dn/conda-forge/symfit?color=brightgreen&label=downloads&logo=conda-forge
+   :alt: Conda
+   :target: https://anaconda.org/conda-forge/symfit
 
 Please cite this DOI if ``symfit`` benefited your publication. Building this has been a lot of work, and as young researchers your citation means a lot to us.
 Martin Roelfs & Peter C Kroon, symfit. doi:10.5281/zenodo.1133336
