@@ -31,8 +31,8 @@ plant = Idx('plant', range=len(data_capacity))
 warehouse = Idx('warehouse', range=len(data_demand))
 
 # Indexed variables. Initial values become coefficients in the objective function.
-open = IndexedBase(Parameter('Open', binary=True, value=data_fixed_costs))
-transport = IndexedBase(Parameter('Transport', value=data_trans_costs))
+open = IndexedBase(Parameter('Open', binary=True))
+transport = IndexedBase(Parameter('Transport'))
 fixed_costs = IndexedBase(Parameter('fixed_costs'))
 trans_cost = IndexedBase(Parameter('trans_cost'))
 capacity = IndexedBase(Parameter('capacity'))
