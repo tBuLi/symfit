@@ -121,11 +121,7 @@ class Parameter(Argument):
         self.fixed = fixed
 
         if min is not None and max is not None:
-            test = min > max
-            if isinstance(test, np.ndarray):
-                test = test.any()
-
-            if test and not self.fixed:
+            if np.any(min > max) and not self.fixed:
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
 
