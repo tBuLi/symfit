@@ -5,8 +5,6 @@
 
 import math
 
-import numpy as np
-
 from symfit import Parameter, symbols, IndexedBase, Idx, Sum, Eq
 from symfit.symmip.backend import SCIPOptBackend, GurobiBackend
 from symfit import MIP
