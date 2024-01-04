@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Protocol
 from functools import cached_property, reduce
 from collections import defaultdict, namedtuple
-import operator
 import itertools
 
 from sympy import Expr, Rel, Eq, Idx, Indexed, Symbol, lambdify
@@ -90,12 +89,14 @@ class MIP:
         # Prepare constraints
         self.constraints = [c if isinstance(c, Rel) else Eq(c, 0)
                             for c in self.constraints]
-        free_symbols = reduce(operator.or_,
+        free_symbols = reduce(set.union,
                               (c.free_symbols for c in self.constraints),
                               self.objective.free_symbols if self.objective else set())
 
         self.indices = {s for s in free_symbols if isinstance(s, Idx)}
-        self.indexed_variables = {s for s in free_symbols if isinstance(s, Indexed)}
+        self.indexed_variables = {s for s in free_symbols
+                                  if isinstance(s, Indexed)
+                                  if all(isinstance(idx, Idx) for idx in s.indices)}
         labels = {s.base.label for s in self.indexed_variables}
         self.variables = {s for s in free_symbols if not isinstance(s, (Idx, Indexed)) if s not in labels}
         self.backend = self.backend()
