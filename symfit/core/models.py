@@ -198,8 +198,7 @@ class BaseModel(Mapping):
         if set(instance.params) <= set(model.params):
             instance.params = model.params
         else:
-            raise ModelError('The parameters of ``constraint`` have to be a '
-                             'subset of those of ``model``.')
+            model.params = sorted(set(model.params) | set(instance.params), key=lambda x: x.name)
 
         return instance
 

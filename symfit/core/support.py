@@ -302,7 +302,7 @@ def key2str(target):
     :param target: `Mapping` to be made save
     :return: `Mapping` of str(symbol): value pairs.
     """
-    return target.__class__((str(symbol), value) for symbol, value in target.items())
+    return {str(symbol): value for symbol, value in target.items()}
 
 
 def D(*args, **kwargs):

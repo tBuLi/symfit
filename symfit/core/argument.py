@@ -6,6 +6,8 @@ from collections import defaultdict
 import numbers
 import warnings
 
+import numpy as np
+
 from sympy.core.symbol import Symbol
 
 
@@ -93,6 +95,9 @@ class Parameter(Argument):
     _argument_name = 'par'
 
     def __new__(cls, name=None, value=1.0, min=None, max=None, fixed=False, **kwargs):
+        if 'binary' in kwargs:
+            kwargs['integer'] = kwargs['real'] = kwargs['nonnegative'] = True
+
         try:
             return super(Parameter, cls).__new__(cls, name, **kwargs)
         except TypeError as err:
@@ -115,13 +120,13 @@ class Parameter(Argument):
         self.value = value
         self.fixed = fixed
 
-        if min is not None and max is not None and min > max:
-            if not self.fixed:
+        if min is not None and max is not None:
+            if np.any(min > max) and not self.fixed:
                 raise ValueError('The value of `min` should be less than or'
                                  ' equal to the value of `max`.')
-        else:
-            self.min = min
-            self.max = max
+
+        self.min = min
+        self.max = max
 
     def __eq__(self, other):
         """
@@ -135,10 +140,14 @@ class Parameter(Argument):
         if not equal:
             return False
         else:
-            return (self.min == other.min and
-                    self.max == other.max and
+            min_eq = self.min == other.min
+            max_eq = self.max == other.max
+            value_eq = self.value == other.value
+
+            return (min_eq.all() if isinstance(min_eq, np.ndarray) else min_eq and
+                    max_eq.all() if isinstance(max_eq, np.ndarray) else max_eq and
                     self.fixed == other.fixed and
-                    self.value == other.value)
+                    value_eq.all() if isinstance(value_eq, np.ndarray) else value_eq)
 
     __hash__ = Argument.__hash__
 
