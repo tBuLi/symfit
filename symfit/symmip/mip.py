@@ -131,7 +131,13 @@ class MIP:
 
         for p in self.dependent_vars:
             if not isinstance(p, Indexed):
-                self.mip_vars[p] = self.backend.add_var(name=p.name, vtype=self.param_vtype(p), lb=p.min, ub=p.max)
+                kwargs = {'name': p.name}
+                if p.max is not None:
+                    kwargs['ub'] = p.max
+                if p.min is not None:
+                    kwargs['lb'] = p.min
+                kwargs['vtype'] = self.param_vtype(p)
+                self.mip_vars[p] = self.backend.add_var(**kwargs)
                 continue
 
             param = p.base.label
